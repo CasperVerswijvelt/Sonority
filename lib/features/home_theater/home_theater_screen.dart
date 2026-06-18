@@ -27,7 +27,16 @@ class HomeTheaterScreen extends ConsumerWidget {
     final device = system?.device(soundbarUuid);
 
     return Scaffold(
-      appBar: AppBar(title: Text(member?.zoneName ?? 'Home theater')),
+      appBar: AppBar(
+        title: Text(member?.zoneName ?? 'Home theater'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: state.isLoading ? null : controller.refresh,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: state.isLoading
             ? const BusyView(
@@ -172,7 +181,7 @@ class _Content extends StatelessWidget {
             ),
           Gap.m,
           Text(
-            'Tip: pull down to refresh after Sonos finishes reconfiguring.',
+            'Tip: tap the refresh icon after Sonos finishes reconfiguring.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant),

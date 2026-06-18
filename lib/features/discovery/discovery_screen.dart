@@ -17,7 +17,19 @@ class DiscoveryScreen extends ConsumerWidget {
     final controller = ref.read(sonosControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('SoYes')),
+      appBar: AppBar(
+        title: const Text('SoYes'),
+        actions: [
+          // Only when there's a discovered system to refresh; the intro/error
+          // states use their own CTA buttons to scan.
+          if (state.value != null)
+            IconButton(
+              tooltip: 'Rescan',
+              onPressed: state.isLoading ? null : controller.scan,
+              icon: const Icon(Icons.refresh),
+            ),
+        ],
+      ),
       body: SafeArea(
         child: state.when(
           loading: () => const _Centered(child: _Scanning()),
@@ -115,12 +127,6 @@ class _SystemView extends StatelessWidget {
                 title: Text(m.zoneName),
                 subtitle: Text(system.device(m.uuid)?.modelName ?? ''),
               )),
-          Gap.l,
-          OutlinedButton.icon(
-            onPressed: onRescan,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Rescan'),
-          ),
         ],
       ),
     );

@@ -19,16 +19,6 @@ class BusyView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 64,
-              height: 64,
-              child: CircularProgressIndicator(
-                strokeWidth: 5,
-                color: scheme.primary,
-                backgroundColor: scheme.primary.withValues(alpha: 0.15),
-              ),
-            ),
-            Gap.l,
             Text(
               title,
               textAlign: TextAlign.center,
