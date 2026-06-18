@@ -90,6 +90,20 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - name: Delete existing release for this tag (clean re-runs)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}" \
+            | grep -m1 '"id":' | sed 's/[^0-9]//g')
+          if [ -n "$id" ]; then
+            curl -s -X DELETE -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/$id"
+            echo "Deleted existing release $id"
+          else
+            echo "No existing release to delete"
+          fi
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
