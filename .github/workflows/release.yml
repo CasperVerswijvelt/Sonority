@@ -87,6 +87,7 @@ jobs:
     if: ${{ always() && needs.android.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4 # needed so body_path (release notes) resolves
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
