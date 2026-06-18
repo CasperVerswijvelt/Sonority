@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:soyes/data/sonos/soap_client.dart';
+import 'package:sonority/data/sonos/soap_client.dart';
 
 void main() {
   test('builds a valid AddHTSatellite envelope with escaped args', () {

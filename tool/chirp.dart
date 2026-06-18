@@ -9,10 +9,10 @@
 
 import 'dart:io';
 
-import 'package:soyes/data/models/sonos_models.dart';
-import 'package:soyes/data/sonos/device_description.dart';
-import 'package:soyes/data/sonos/identify_service.dart';
-import 'package:soyes/data/sonos/ssdp_discovery.dart';
+import 'package:sonority/data/models/sonos_models.dart';
+import 'package:sonority/data/sonos/device_description.dart';
+import 'package:sonority/data/sonos/identify_service.dart';
+import 'package:sonority/data/sonos/ssdp_discovery.dart';
 
 Future<void> main(List<String> argv) async {
   final target = argv.isNotEmpty ? argv.first : null;

@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:soyes/core/tone_generator.dart';
+import 'package:sonority/core/tone_generator.dart';
 
 void main() {
   test('produces a valid 16-bit mono PCM WAV', () {

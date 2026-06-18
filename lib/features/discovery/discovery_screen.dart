@@ -18,7 +18,7 @@ class DiscoveryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SoYes'),
+        title: const Text('Sonority'),
         actions: [
           // Only when there's a discovered system to refresh; the intro/error
           // states use their own CTA buttons to scan.

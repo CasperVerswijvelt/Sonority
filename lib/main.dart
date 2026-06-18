@@ -11,5 +11,5 @@ void main() {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  runApp(const ProviderScope(child: SoYesApp()));
+  runApp(const ProviderScope(child: SonorityApp()));
 }

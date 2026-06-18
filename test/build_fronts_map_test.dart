@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:soyes/data/models/sonos_models.dart';
-import 'package:soyes/data/sonos/sonos_repository.dart';
+import 'package:sonority/data/models/sonos_models.dart';
+import 'package:sonority/data/sonos/sonos_repository.dart';
 
 void main() {
   final repo = SonosRepository();

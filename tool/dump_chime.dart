@@ -5,7 +5,7 @@
 
 import 'dart:io';
 
-import 'package:soyes/core/tone_generator.dart';
+import 'package:sonority/core/tone_generator.dart';
 
 Future<void> main(List<String> argv) async {
   final path = argv.isNotEmpty ? argv.first : '/tmp/chime.wav';

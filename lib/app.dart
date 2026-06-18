@@ -24,15 +24,15 @@ final _router = GoRouter(
   ],
 );
 
-class SoYesApp extends StatelessWidget {
-  const SoYesApp({super.key});
+class SonorityApp extends StatelessWidget {
+  const SonorityApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
         return MaterialApp.router(
-          title: 'SoYes',
+          title: 'Sonority',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(lightDynamic?.harmonized()),
           darkTheme: AppTheme.dark(darkDynamic?.harmonized()),

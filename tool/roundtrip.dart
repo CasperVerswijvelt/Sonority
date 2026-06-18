@@ -19,13 +19,13 @@
 
 import 'dart:io';
 
-import 'package:soyes/data/models/sonos_models.dart';
-import 'package:soyes/data/sonos/device_description.dart';
-import 'package:soyes/data/sonos/device_properties.dart';
-import 'package:soyes/data/sonos/front_layout.dart';
-import 'package:soyes/data/sonos/soap_client.dart';
-import 'package:soyes/data/sonos/ssdp_discovery.dart';
-import 'package:soyes/data/sonos/zone_topology.dart';
+import 'package:sonority/data/models/sonos_models.dart';
+import 'package:sonority/data/sonos/device_description.dart';
+import 'package:sonority/data/sonos/device_properties.dart';
+import 'package:sonority/data/sonos/front_layout.dart';
+import 'package:sonority/data/sonos/soap_client.dart';
+import 'package:sonority/data/sonos/ssdp_discovery.dart';
+import 'package:sonority/data/sonos/zone_topology.dart';
 
 Future<void> main(List<String> argv) async {
   final args = _parseArgs(argv);

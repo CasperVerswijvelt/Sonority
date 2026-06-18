@@ -12,10 +12,10 @@
 
 // ignore_for_file: avoid_print
 
-import 'package:soyes/data/sonos/device_description.dart';
-import 'package:soyes/data/sonos/soap_client.dart';
-import 'package:soyes/data/sonos/ssdp_discovery.dart';
-import 'package:soyes/data/sonos/zone_topology.dart';
+import 'package:sonority/data/sonos/device_description.dart';
+import 'package:sonority/data/sonos/soap_client.dart';
+import 'package:sonority/data/sonos/ssdp_discovery.dart';
+import 'package:sonority/data/sonos/zone_topology.dart';
 
 Future<void> main() async {
   print('🔎 SSDP discovery (4s)…');

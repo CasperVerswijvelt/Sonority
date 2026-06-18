@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Material 3 theming for SoYes. A calm, speaker-y indigo seed with full
+/// Material 3 theming for Sonority. A calm, speaker-y indigo seed with full
 /// light/dark support; callers may override with platform dynamic color.
 class AppTheme {
   static const Color _seed = Color(0xFF4F5BD5);

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:soyes/data/models/sonos_models.dart';
-import 'package:soyes/data/sonos/zone_topology.dart';
+import 'package:sonority/data/models/sonos_models.dart';
+import 'package:sonority/data/sonos/zone_topology.dart';
 
 const _sample = '''
 <ZoneGroupState>

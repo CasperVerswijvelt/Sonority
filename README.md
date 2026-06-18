@@ -1,12 +1,12 @@
-# SoYes
+# Sonority
 
-A clean, cross-platform (iOS + Android) Flutter app that unlocks **dedicated front
+A clean, cross-platform (iOS + Android + macOS) Flutter app that unlocks **dedicated front
 left/right surround speakers** in a Sonos home theater — a configuration the official
 Sonos app refuses to create. A focused, better-UX alternative to *SonoSequencr*.
 
 ## How it works
 
-Sonos players expose an undocumented **local UPnP/SOAP API** on port `1400`. SoYes does no
+Sonos players expose an undocumented **local UPnP/SOAP API** on port `1400`. Sonority does no
 audio processing; it simply issues the bonding call the official app won't:
 
 1. **Discovery** — SSDP `M-SEARCH` to `239.255.255.250:1900`, then each player's

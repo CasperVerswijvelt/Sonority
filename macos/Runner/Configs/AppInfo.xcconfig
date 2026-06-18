@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = soyes
+PRODUCT_NAME = Sonority
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = be.casperverswijvelt.soyes
+PRODUCT_BUNDLE_IDENTIFIER = be.casperverswijvelt.sonority
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 be.casperverswijvelt. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Casper Verswijvelt. All rights reserved.

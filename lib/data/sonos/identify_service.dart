@@ -60,7 +60,7 @@ class IdentifyService {
         'xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" '
         'xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
         '<item id="0" parentID="-1" restricted="1">'
-        '<dc:title>SoYes chime</dc:title>'
+        '<dc:title>Sonority chime</dc:title>'
         '<upnp:class>object.item.audioItem.musicTrack</upnp:class>'
         '</item></DIDL-Lite>';
 
