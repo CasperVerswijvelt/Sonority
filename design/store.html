@@ -1,0 +1,117 @@
+<title>Sonority — Play Store graphics</title>
+<style>
+  :root{color-scheme:dark}
+  *{box-sizing:border-box}
+  body{margin:0;background:#000;font-family:'Futura','Avenir Next','Century Gothic',ui-rounded,system-ui,sans-serif}
+  #stage{position:relative;overflow:hidden;background:#0A0A0B}
+  .bg{position:absolute;inset:0;background:
+      radial-gradient(120% 90% at 50% 0%, #18181d 0%, #0A0A0B 60%)}
+  .word{font-weight:500;letter-spacing:.01em;color:#fff}
+  .grey{color:#9a9aa0}
+  /* minimal phone frame */
+  .phone{position:relative;border:14px solid #232329;border-radius:54px;background:#000;
+    box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden}
+  .phone img{display:block;width:100%;height:100%;object-fit:cover}
+</style>
+<div id="stage"></div>
+<script>
+const INK='#FFFFFF', SUB='#6E6E77';
+const circle=(cx,cy,r,f)=>`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${f}"/>`;
+const rrect=(x,y,w,h,r,f)=>`<rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${r}" fill="${f}"/>`;
+// surround diagram in a 1000x1000 viewBox
+function diagramSvg(scale=1){
+  const x=500, s=`
+    ${rrect(x,300,360,52,26,INK)}
+    ${circle(x-288,470,46,INK)}${circle(x+288,470,46,INK)}
+    ${rrect(x,470,70,70,18,SUB)}
+    ${circle(x-288,720,46,INK)}${circle(x+288,720,46,INK)}`;
+  return `<svg viewBox="0 0 1000 1000" style="width:100%;height:100%">
+    <g transform="translate(500 510) scale(${scale}) translate(-500 -510)">${s}</g></svg>`;
+}
+
+// Marketing copy per screenshot
+const SHOTS = [
+  { src:'shots/01.png', head:'See your whole<br>Sonos system',
+    sub:'Home theaters, stereo pairs and every room — at a glance.' },
+  { src:'shots/02.png', head:'Add dedicated<br>front speakers',
+    sub:'Discrete front L / R on your home theater — a setup the Sonos app won’t create.' },
+  { src:'shots/03.png', head:'Pair mismatched<br>speakers',
+    sub:'Stereo-pair a One with a Play:1 — app-blocked, unlocked here.' },
+];
+
+const params = new URLSearchParams(location.search);
+const mode = params.get('mode') || 'feature';
+const stage = document.getElementById('stage');
+function size(w,h){ stage.style.width=w+'px'; stage.style.height=h+'px'; }
+
+function featureGraphic(){
+  size(1024,500);
+  stage.innerHTML = `
+    <div class="bg"></div>
+    <div style="position:absolute;left:80px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;width:560px">
+      <div class="word" style="font-size:104px;line-height:1">Sonority</div>
+      <div class="grey" style="font-size:31px;margin-top:22px;line-height:1.35;max-width:520px">
+        Dedicated front surrounds &amp; mismatched stereo pairs for Sonos —
+        the setups the official app won’t let you create.</div>
+    </div>
+    <div style="position:absolute;right:70px;top:50%;transform:translateY(-50%);width:300px;height:300px">
+      ${diagramSvg(1)}
+    </div>`;
+}
+
+function phoneCard(i){
+  size(1080,1920);
+  const sh = SHOTS[i];
+  stage.innerHTML = `
+    <div class="bg"></div>
+    <div style="position:absolute;left:0;right:0;top:150px;text-align:center;padding:0 90px">
+      <div class="word" style="font-size:84px;line-height:1.08">${sh.head}</div>
+      <div class="grey" style="font-size:34px;line-height:1.4;margin-top:30px">${sh.sub}</div>
+    </div>
+    <div class="phone" style="position:absolute;left:50%;transform:translateX(-50%);
+        bottom:120px;width:560px;height:1244px">
+      <img src="${sh.src}">
+    </div>`;
+}
+
+function heroCard(){
+  size(1080,1920);
+  stage.innerHTML = `
+    <div class="bg"></div>
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;gap:90px">
+      <div style="width:600px;height:600px">${diagramSvg(1.45)}</div>
+      <div style="text-align:center">
+        <div class="word" style="font-size:128px;line-height:1">Sonority</div>
+        <div class="grey" style="font-size:40px;margin-top:28px">Unlock your Sonos home theater</div>
+      </div>
+    </div>`;
+}
+
+function tablet(w,h){
+  size(w,h);
+  const k = w/1920;  // scale factor relative to the 7" baseline
+  const px = v => (v*k)+'px';
+  stage.innerHTML = `
+    <div class="bg"></div>
+    <div style="position:absolute;left:${px(110)};top:50%;transform:translateY(-50%);width:${px(720)}px">
+      <div class="word" style="font-size:${px(96)};line-height:1.05">Sonority</div>
+      <div class="grey" style="font-size:${px(36)};margin-top:${px(26)};line-height:1.4;max-width:${px(640)}">
+        Dedicated front surrounds and mismatched stereo pairs for Sonos —
+        configurations the official app blocks.</div>
+    </div>
+    <div style="position:absolute;right:${px(140)};top:50%;transform:translateY(-50%);
+        display:flex;gap:${px(60)};align-items:center">
+      <div class="phone" style="width:${px(360)};height:${px(800)};border-width:${px(12)};border-radius:${px(44)}">
+        <img src="${SHOTS[0].src}"></div>
+      <div class="phone" style="width:${px(360)};height:${px(800)};border-width:${px(12)};border-radius:${px(44)};margin-top:${px(120)}">
+        <img src="${SHOTS[1].src}"></div>
+    </div>`;
+}
+
+if (mode==='feature') featureGraphic();
+else if (mode==='hero') heroCard();
+else if (mode==='tablet7') tablet(1920,1080);
+else if (mode==='tablet10') tablet(2560,1440);
+else phoneCard(parseInt(params.get('i')||'0',10));
+</script>
