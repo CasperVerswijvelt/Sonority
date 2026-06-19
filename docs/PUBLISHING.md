@@ -1,0 +1,62 @@
+# Publishing to Google Play
+
+CI (`.github/workflows/release.yml`) builds a **signed release AAB** and uploads
+it to the **internal testing** track whenever a `vX.Y.Z` tag is pushed — *once*
+the one-time setup below is done. Without the secrets it just builds a
+debug-signed APK and skips Play (so the workflow never breaks for forks).
+
+## One-time setup
+
+### 1. Create an upload keystore
+```sh
+keytool -genkey -v -keystore ~/upload-keystore.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+Pick a store password + key password and **keep them safe** — every future
+upload must use this same key. Never commit the `.jks`.
+
+### 2. (Optional) build & verify locally
+Copy `android/key.properties.example` to `android/key.properties` (gitignored),
+fill in the absolute keystore path + passwords, then:
+```sh
+~/fvm/versions/3.35.2/bin/flutter build appbundle --release
+# → build/app/outputs/bundle/release/app-release.aab
+```
+
+### 3. First upload is manual (required)
+The Play API can't publish until the app exists and one bundle has been uploaded
+by hand:
+1. Play Console → **Create app** (name *Sonority*, App, language, free).
+2. Complete the **"Set up your app"** dashboard tasks (privacy policy, data
+   safety, content rating, target audience, ads) — required before *any* track
+   can go live.
+3. **Testing → Internal testing → Create new release** → upload the AAB from
+   step 2. Accept **Play App Signing** (let Google generate the app signing key;
+   your keystore becomes the *upload* key). Add testers, then roll out.
+
+### 4. Service account for CI
+1. Play Console → **Setup → API access** → link/create a Google Cloud project.
+2. In Google Cloud Console → **IAM & Admin → Service Accounts** → create one
+   (no GCP roles needed) → **Keys → Add key → JSON** → download.
+3. Back in Play Console API access → grant that service account access to this
+   app with **"Release to testing tracks"** (or Admin).
+
+### 5. GitHub repo secrets
+Settings → Secrets and variables → Actions → *New repository secret*:
+
+| Secret | Value |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | `base64 -i ~/upload-keystore.jks \| pbcopy` |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore (store) password |
+| `ANDROID_KEY_ALIAS` | `upload` |
+| `ANDROID_KEY_PASSWORD` | key password |
+| `PLAY_SERVICE_ACCOUNT_JSON` | full contents of the downloaded JSON |
+
+## Every release
+`versionCode` must strictly increase per upload — bump the build number in
+`pubspec.yaml` (`version: X.Y.Z+BUILD`), commit, then:
+```sh
+git tag vX.Y.Z && git push origin vX.Y.Z
+```
+CI signs the AAB and pushes it to internal testing; promote to production in the
+Console when ready.
