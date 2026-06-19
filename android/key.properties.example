@@ -1,0 +1,7 @@
+# Local release signing. Copy to android/key.properties (gitignored) so
+# `flutter build appbundle --release` signs with your upload key.
+# CI uses the ANDROID_* GitHub secrets instead (see .github/workflows/release.yml).
+storeFile=/absolute/path/to/upload-keystore.jks
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyAlias=upload
+keyPassword=YOUR_KEY_PASSWORD

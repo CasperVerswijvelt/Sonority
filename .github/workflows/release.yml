@@ -23,6 +23,16 @@ env:
 jobs:
   android:
     runs-on: ubuntu-latest
+    # Repo secrets that enable signing + Play publishing (all optional — without
+    # them the job still builds a debug-signed APK and skips the Play upload):
+    #   ANDROID_KEYSTORE_BASE64      base64 of upload-keystore.jks
+    #   ANDROID_KEYSTORE_PASSWORD    keystore (store) password
+    #   ANDROID_KEY_ALIAS            key alias
+    #   ANDROID_KEY_PASSWORD         key password
+    #   PLAY_SERVICE_ACCOUNT_JSON    Play service-account JSON (full contents)
+    env:
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      HAS_PLAY_SA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -35,7 +45,23 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build apk --release
+
+      - name: Decode upload keystore
+        if: env.HAS_KEYSTORE == 'true'
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "${{ github.workspace }}/upload-keystore.jks"
+
+      - name: Build release APK + AAB
+        env:
+          # If the keystore wasn't decoded this path won't exist and the build
+          # falls back to debug signing (see android/app/build.gradle.kts).
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/upload-keystore.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          flutter build apk --release
+          flutter build appbundle --release
+
       - name: Stage APK
         run: |
           mkdir -p dist
@@ -46,6 +72,16 @@ jobs:
           name: android
           path: dist/*.apk
           if-no-files-found: error
+
+      - name: Publish to Google Play (internal testing)
+        if: env.HAS_PLAY_SA == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: be.casperverswijvelt.sonority
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
 
   apple:
     runs-on: macos-14
