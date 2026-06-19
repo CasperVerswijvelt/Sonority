@@ -78,23 +78,29 @@ Before trusting any write, confirm the read path and capture the real channel-ma
 dart run tool/spike.dart
 ```
 
-This discovers your system and prints every home theater's raw `HTSatChanMapSet`. **Open issue:**
-the exact token layout for dedicated fronts coexisting with the bar/rears/sub is confirmed against
-real hardware here — compare the topology before/after a manual change and adjust
-`SonosRepository.buildDedicatedFrontsMap` (one isolated method) if needed.
+This discovers your system and prints every home theater's raw `HTSatChanMapSet`. The dedicated-front
+recipe (soundbar stays `CC`, added speakers map to `LF`/`RF`, rears/sub preserved) is **confirmed on a
+real Beam** and isolated in `buildDedicatedFrontsMap` (`lib/data/sonos/front_layout.dart`) — adjust
+there if a different model/firmware ever needs it.
 
 ## Tools
 
 - `tool/spike.dart` — read-only discovery + topology dump
 - `tool/roundtrip.dart` — live AddHTSatellite/RemoveHTSatellite (dry-run by default; `--confirm`, `--apply-only`, `--remove-only`)
+- `tool/stereopair.dart` — stereo-pair round-trip (create → verify → separate → restore names)
 - `tool/chirp.dart` — play the identify chime on one speaker (validates `IdentifyService`)
 
 ## Status
 
-- ✅ Data layer (discovery, topology, SOAP, bonding) + unit tests
 - ✅ Discovery + home-theater topology UI (Material 3, dark mode)
-- ✅ Guided 3-step add-fronts flow with restore point + one-tap remove
-- ✅ "Identify speaker" chime (AVTransport + in-app HTTP server) in the selection steps
-- ✅ Front `ChannelMapSet` recipe confirmed on real hardware (Beam = `CC`; fronts = `LF`/`RF`)
-- ✅ Live bonding verified end-to-end; GUI run on Android against the real system
-- ⚠️ macOS/iOS builds need a full Xcode (only CommandLineTools present on this machine)
+- ✅ Dedicated front surrounds — guided add flow (+ Identify chime), one-tap remove
+- ✅ Stereo pairs incl. mismatched models — create flow + separate with name restore
+- ✅ Recipe confirmed on real hardware (Beam stays `CC`; fronts = `LF`/`RF`)
+- ✅ CI release pipeline (APK + unsigned iOS/macOS) on `v*` tags
+
+## Contributing / architecture
+
+See **[CLAUDE.md](CLAUDE.md)** — the product principle (don't duplicate Sonos-app
+features), the pure-Dart engine vs. UI split, the local UPnP API details, and the
+critical gotchas (≈15s topology lag, poll-until-settled, authoritative channel-map
+parsing, firmware-gated pairs, the macOS-sandbox chime limitation).
