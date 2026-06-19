@@ -1,8 +1,20 @@
 # Sonority
 
-A clean, cross-platform (iOS + Android + macOS) Flutter app that unlocks **dedicated front
-left/right surround speakers** in a Sonos home theater — a configuration the official
-Sonos app refuses to create. A focused, better-UX alternative to *SonoSequencr*.
+A clean, cross-platform (iOS + Android + macOS) Flutter app that unlocks Sonos speaker
+configurations the official app refuses to create — **dedicated front left/right surround
+speakers** on a home theater, and **stereo pairs of mismatched / app‑blocked speakers** (e.g.
+a Sonos One paired with a Play:1) — via Sonos' undocumented local UPnP API. A focused,
+better‑UX alternative to *SonoSequencr*.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/01-discovery.png" width="30%" alt="System overview: home theaters, stereo pairs, rooms" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/02-home-theater.png" width="30%" alt="Home theater with dedicated front L/R speakers" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/03-stereo-pair.png" width="30%" alt="Creating a mismatched stereo pair" />
+</p>
 
 ## Install (prebuilt)
 
