@@ -399,9 +399,9 @@ class _Review extends StatelessWidget {
                 Gap.m,
                 Expanded(
                   child: Text(
-                    'We’ll save your current setup first so you can restore it '
-                    'anytime. The two speakers will become hidden satellites of '
-                    'the soundbar.',
+                    'The two speakers become hidden satellites of the soundbar, '
+                    'which switches to the center channel. You can remove them '
+                    'again anytime.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),

@@ -30,8 +30,6 @@ class SonosRepository {
         _topology = topology ?? ZoneTopologyClient(SonosSoapClient()),
         _deviceProps = deviceProps ?? DevicePropertiesClient(SonosSoapClient());
 
-  static const _restoreKeyPrefix = 'restore_point_';
-
   /// Full discovery: find players, read their descriptions, then read the
   /// system topology from any one of them.
   Future<SonosSystem> discover() async {
@@ -89,8 +87,6 @@ class SonosRepository {
   }) async {
     final ip = soundbarDevice.ip;
     if (ip == null) throw Exception('Soundbar IP unknown; rescan and retry.');
-
-    await _saveRestorePoint(soundbar);
 
     final map = buildDedicatedFrontsMap(
       soundbar: soundbar,
@@ -193,24 +189,5 @@ class SonosRepository {
         icon: j['config'] == null ? '' : (j['icon'] as String? ?? ''),
         configuration: j['config'] as String? ?? '');
     return (left: parse(m['left']), right: parse(m['right']));
-  }
-
-  Future<void> _saveRestorePoint(ZoneGroupMember soundbar) async {
-    final prefs = await SharedPreferences.getInstance();
-    final snapshot = jsonEncode({
-      'uuid': soundbar.uuid,
-      'htSatChanMapSet': soundbar.htSatChanMapSet,
-      'satelliteUuids': soundbar.satellites.map((s) => s.uuid).toList(),
-    });
-    await prefs.setString('$_restoreKeyPrefix${soundbar.uuid}', snapshot);
-  }
-
-  /// The raw `HTSatChanMapSet` captured before the last change, if any.
-  Future<String?> lastRestoreMapSet(String soundbarUuid) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('$_restoreKeyPrefix$soundbarUuid');
-    if (raw == null) return null;
-    final decoded = jsonDecode(raw) as Map<String, dynamic>;
-    return decoded['htSatChanMapSet'] as String?;
   }
 }

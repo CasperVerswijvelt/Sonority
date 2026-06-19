@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/sonos_models.dart';
@@ -10,7 +11,10 @@ final sonosRepositoryProvider =
 /// Plays a chime on a speaker to help identify Left vs Right. Holds a local
 /// HTTP server, so it's torn down when the provider is disposed.
 final identifyServiceProvider = Provider<IdentifyService>((ref) {
-  final service = IdentifyService();
+  final service = IdentifyService(
+    null,
+    kDebugMode ? (m) => debugPrint('[identify] $m') : null,
+  );
   ref.onDispose(service.dispose);
   return service;
 });
