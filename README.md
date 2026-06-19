@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/icon.png" width="160" alt="Sonority app icon" />
+</p>
+
 # Sonority
 
 A clean, cross-platform (iOS + Android + macOS) Flutter app that unlocks Sonos speaker
