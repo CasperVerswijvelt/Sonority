@@ -133,7 +133,17 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       return _pollUntil(
         previous: previous,
         ip: left.ip ?? _lastIp,
-        until: (s) => !_isPaired(s, left.uuid, right.uuid),
+        attempts: 8,
+        // Wait for not-paired AND the right speaker's restored name to
+        // propagate (it briefly keeps the pair name until topology catches up).
+        until: (s) {
+          if (_isPaired(s, left.uuid, right.uuid)) return false;
+          final r = s.allMembers
+              .where((m) => m.uuid == right.uuid)
+              .cast<ZoneGroupMember?>()
+              .firstOrNull;
+          return r != null && r.zoneName != left.roomName;
+        },
       );
     });
     state = result;
