@@ -109,7 +109,12 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       final system = await _pollUntil(
         previous: previous,
         ip: left.ip ?? _lastIp,
-        until: (s) => _isPaired(s, left.uuid, right.uuid),
+        attempts: 8,
+        // Paired AND the right speaker has gone Invisible (left the room list);
+        // its Invisible flag lags the pair forming by a few seconds.
+        until: (s) =>
+            _isPaired(s, left.uuid, right.uuid) &&
+            !s.allMembers.any((m) => m.uuid == right.uuid),
       );
       // Sonos accepts the command (200) but silently no-ops incompatible pairs.
       if (!_isPaired(system, left.uuid, right.uuid)) {
