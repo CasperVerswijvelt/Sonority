@@ -119,6 +119,82 @@ class SonosRepository {
     }
   }
 
+  /// Creates a (possibly mismatched) stereo pair. Snapshots both rooms' zone
+  /// attributes first so the original names can be restored on separation —
+  /// Sonos usually restores them, but this makes it a guarantee.
+  Future<void> createStereoPair({
+    required SonosDevice left,
+    required SonosDevice right,
+  }) async {
+    final leftIp = left.ip, rightIp = right.ip;
+    if (leftIp == null || rightIp == null) {
+      throw Exception('Speaker IP unknown; rescan and retry.');
+    }
+    final leftAttrs = await _deviceProps.getZoneAttributes(leftIp);
+    final rightAttrs = await _deviceProps.getZoneAttributes(rightIp);
+    await _savePairSnapshot(left.uuid, right.uuid, leftAttrs, rightAttrs);
+    await _deviceProps.createStereoPair(
+        ip: leftIp, leftUuid: left.uuid, rightUuid: right.uuid);
+  }
+
+  /// Separates a stereo pair and restores both rooms' original names (from the
+  /// snapshot taken at creation) if Sonos didn't bring them back itself.
+  Future<void> separateStereoPair({
+    required SonosDevice left,
+    required SonosDevice right,
+  }) async {
+    final leftIp = left.ip, rightIp = right.ip;
+    if (leftIp == null || rightIp == null) {
+      throw Exception('Speaker IP unknown; rescan and retry.');
+    }
+    await _deviceProps.separateStereoPair(
+        ip: leftIp, leftUuid: left.uuid, rightUuid: right.uuid);
+
+    final snap = await _loadPairSnapshot(left.uuid, right.uuid);
+    if (snap != null) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      // Right speaker is the one whose name gets absorbed; restore both to be safe.
+      if ((await _deviceProps.getZoneAttributes(rightIp)).zoneName !=
+          snap.right.zoneName) {
+        await _deviceProps.setZoneAttributes(rightIp, snap.right);
+      }
+      if ((await _deviceProps.getZoneAttributes(leftIp)).zoneName !=
+          snap.left.zoneName) {
+        await _deviceProps.setZoneAttributes(leftIp, snap.left);
+      }
+    }
+  }
+
+  String _pairKey(String a, String b) {
+    final s = [a, b]..sort();
+    return 'pair_snapshot_${s[0]}_${s[1]}';
+  }
+
+  Future<void> _savePairSnapshot(
+      String leftUuid, String rightUuid, ZoneAttributes l, ZoneAttributes r) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _pairKey(leftUuid, rightUuid),
+      jsonEncode({
+        'left': {'name': l.zoneName, 'icon': l.icon, 'config': l.configuration},
+        'right': {'name': r.zoneName, 'icon': r.icon, 'config': r.configuration},
+      }),
+    );
+  }
+
+  Future<({ZoneAttributes left, ZoneAttributes right})?> _loadPairSnapshot(
+      String leftUuid, String rightUuid) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_pairKey(leftUuid, rightUuid));
+    if (raw == null) return null;
+    final m = jsonDecode(raw) as Map<String, dynamic>;
+    ZoneAttributes parse(Map<String, dynamic> j) => ZoneAttributes(
+        zoneName: j['name'] as String,
+        icon: j['config'] == null ? '' : (j['icon'] as String? ?? ''),
+        configuration: j['config'] as String? ?? '');
+    return (left: parse(m['left']), right: parse(m['right']));
+  }
+
   Future<void> _saveRestorePoint(ZoneGroupMember soundbar) async {
     final prefs = await SharedPreferences.getInstance();
     final snapshot = jsonEncode({

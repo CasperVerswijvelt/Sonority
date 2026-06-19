@@ -97,6 +97,8 @@ class ZoneGroupMember {
   final String? location; // device_description.xml URL
   final String? htSatChanMapSet; // raw bonded layout, null if none
   final List<SonosSatellite> satellites;
+  final bool invisible; // hidden right-half of a stereo pair / bonded satellite
+  final String? channelMapSet; // stereo-pair map (UUID:LF,LF;UUID:RF,RF), else null
 
   const ZoneGroupMember({
     required this.uuid,
@@ -104,6 +106,8 @@ class ZoneGroupMember {
     this.location,
     this.htSatChanMapSet,
     this.satellites = const [],
+    this.invisible = false,
+    this.channelMapSet,
   });
 
   String? get ip {
@@ -113,6 +117,21 @@ class ZoneGroupMember {
   }
 
   bool get isHomeTheater => (htSatChanMapSet?.isNotEmpty ?? false) || satellites.isNotEmpty;
+
+  /// True when this visible member is a stereo pair (carries a ChannelMapSet
+  /// with doubled L/R channels). The hidden half is a separate Invisible member.
+  bool get isStereoPair => (channelMapSet?.contains(',') ?? false);
+
+  /// [leftUuid, rightUuid] of the stereo pair, parsed from the ChannelMapSet.
+  List<String> get stereoPairUuids {
+    final cms = channelMapSet;
+    if (cms == null || cms.isEmpty) return const [];
+    return cms
+        .split(';')
+        .map((e) => e.split(':').first.trim())
+        .where((u) => u.isNotEmpty)
+        .toList();
+  }
 
   /// UUIDs of bonded front (LF/RF) satellites, read straight from the
   /// authoritative `HTSatChanMapSet`. This is robust to the transient window
@@ -184,22 +203,32 @@ class SonosSystem {
 
   const SonosSystem({required this.groups, required this.devicesByUuid});
 
-  /// All visible rooms across all groups (home-theater primaries first).
-  List<ZoneGroupMember> get allMembers =>
-      groups.expand((g) => g.members).toList(growable: false);
+  /// All visible rooms across all groups. Excludes Invisible members (the
+  /// hidden half of a stereo pair / bonded satellites), which aren't rooms.
+  List<ZoneGroupMember> get allMembers => groups
+      .expand((g) => g.members)
+      .where((m) => !m.invisible)
+      .toList(growable: false);
 
   /// Home theaters present in the system (e.g. an Arc with surrounds).
   List<ZoneGroupMember> get homeTheaters =>
       allMembers.where((m) => m.isHomeTheater).toList(growable: false);
 
-  /// Standalone, un-bonded rooms — candidates to become dedicated fronts.
-  /// Excludes soundbars, subs, and rooms that are already part of a HT.
+  /// Stereo pairs present in the system.
+  List<ZoneGroupMember> get stereoPairs =>
+      allMembers.where((m) => m.isStereoPair).toList(growable: false);
+
+  /// Standalone, un-bonded speakers — candidates to bond as fronts or pair.
+  /// Excludes soundbars, subs, HT members, stereo pairs, and hidden halves.
   List<SonosDevice> get bondableSpeakers {
     final bondedUuids = <String>{
-      for (final m in allMembers) ...[
-        if (m.isHomeTheater) m.uuid,
-        ...m.satellites.map((s) => s.uuid),
-      ],
+      for (final g in groups)
+        for (final m in g.members) ...[
+          if (m.isHomeTheater) m.uuid,
+          if (m.invisible) m.uuid,
+          ...m.satellites.map((s) => s.uuid),
+          ...m.stereoPairUuids,
+        ],
     };
     return devicesByUuid.values
         .where((d) => !bondedUuids.contains(d.uuid) && !d.isSoundbar && !d.isSub)

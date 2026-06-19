@@ -69,6 +69,8 @@ class ZoneTopologyClient {
           location: member.getAttribute('Location'),
           htSatChanMapSet: mapSet,
           satellites: satellites,
+          invisible: member.getAttribute('Invisible') == '1',
+          channelMapSet: member.getAttribute('ChannelMapSet'),
         ));
       }
 

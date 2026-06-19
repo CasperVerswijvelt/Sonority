@@ -1,5 +1,20 @@
+import 'package:xml/xml.dart';
+
 import 'channel_map.dart';
 import 'soap_client.dart';
+
+/// A speaker's room name + icon/configuration, captured so it can be restored
+/// after un-pairing (Sonos doesn't reliably restore the hidden speaker's name).
+class ZoneAttributes {
+  final String zoneName;
+  final String icon;
+  final String configuration;
+  const ZoneAttributes({
+    required this.zoneName,
+    required this.icon,
+    required this.configuration,
+  });
+}
 
 /// Wraps the `DeviceProperties` bonding actions on a home-theater primary.
 ///
@@ -40,6 +55,74 @@ class DevicePropertiesClient {
       serviceType: _service,
       action: 'RemoveHTSatellite',
       args: {'SatRoomUUID': satelliteUuid},
+    );
+  }
+
+  /// Creates a stereo pair: [leftUuid] becomes the visible primary, [rightUuid]
+  /// becomes hidden. Sent to the left speaker's [ip]. The local API does not
+  /// enforce model matching, so mismatched pairs are possible here.
+  Future<void> createStereoPair({
+    required String ip,
+    required String leftUuid,
+    required String rightUuid,
+  }) async {
+    await _soap.call(
+      ip: ip,
+      controlPath: _control,
+      serviceType: _service,
+      action: 'CreateStereoPair',
+      args: {'ChannelMapSet': '$leftUuid:LF,LF;$rightUuid:RF,RF'},
+    );
+  }
+
+  /// Dissolves the stereo pair described by the same channel map.
+  Future<void> separateStereoPair({
+    required String ip,
+    required String leftUuid,
+    required String rightUuid,
+  }) async {
+    await _soap.call(
+      ip: ip,
+      controlPath: _control,
+      serviceType: _service,
+      action: 'SeparateStereoPair',
+      args: {'ChannelMapSet': '$leftUuid:LF,LF;$rightUuid:RF,RF'},
+    );
+  }
+
+  /// Reads a speaker's current zone attributes (name/icon/configuration).
+  Future<ZoneAttributes> getZoneAttributes(String ip) async {
+    final body = await _soap.call(
+      ip: ip,
+      controlPath: _control,
+      serviceType: _service,
+      action: 'GetZoneAttributes',
+    );
+    String val(String tag) {
+      final els = body.findAllElements(tag);
+      return els.isEmpty ? '' : els.first.innerText;
+    }
+
+    return ZoneAttributes(
+      zoneName: val('CurrentZoneName'),
+      icon: val('CurrentIcon'),
+      configuration: val('CurrentConfiguration'),
+    );
+  }
+
+  /// Sets a speaker's zone attributes — used to restore the original room name
+  /// after separating a pair.
+  Future<void> setZoneAttributes(String ip, ZoneAttributes attrs) async {
+    await _soap.call(
+      ip: ip,
+      controlPath: _control,
+      serviceType: _service,
+      action: 'SetZoneAttributes',
+      args: {
+        'DesiredZoneName': attrs.zoneName,
+        'DesiredIcon': attrs.icon,
+        'DesiredConfiguration': attrs.configuration,
+      },
     );
   }
 }

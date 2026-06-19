@@ -6,11 +6,13 @@ import 'core/theme.dart';
 import 'features/discovery/discovery_screen.dart';
 import 'features/front_surrounds/front_surrounds_flow.dart';
 import 'features/home_theater/home_theater_screen.dart';
+import 'features/stereo_pair/stereo_pair_flow.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (_, __) => const DiscoveryScreen()),
+    GoRoute(path: '/stereo-pair', builder: (_, __) => const StereoPairFlow()),
     GoRoute(
       path: '/theater/:uuid',
       builder: (_, state) =>

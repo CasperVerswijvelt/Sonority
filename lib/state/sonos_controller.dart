@@ -98,6 +98,56 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     if (result.hasError) rethrowLast(result);
   }
 
+  Future<void> createStereoPair({
+    required SonosDevice left,
+    required SonosDevice right,
+  }) async {
+    final previous = state.value;
+    state = const AsyncValue.loading();
+    final result = await AsyncValue.guard(() async {
+      await _repo.createStereoPair(left: left, right: right);
+      final system = await _pollUntil(
+        previous: previous,
+        ip: left.ip ?? _lastIp,
+        until: (s) => _isPaired(s, left.uuid, right.uuid),
+      );
+      // Sonos accepts the command (200) but silently no-ops incompatible pairs.
+      if (!_isPaired(system, left.uuid, right.uuid)) {
+        throw Exception(
+            'Sonos did not pair these speakers — they may be incompatible.');
+      }
+      return system;
+    });
+    state = result;
+    if (result.hasError) rethrowLast(result);
+  }
+
+  Future<void> separateStereoPair({
+    required SonosDevice left,
+    required SonosDevice right,
+  }) async {
+    final previous = state.value;
+    state = const AsyncValue.loading();
+    final result = await AsyncValue.guard(() async {
+      await _repo.separateStereoPair(left: left, right: right);
+      return _pollUntil(
+        previous: previous,
+        ip: left.ip ?? _lastIp,
+        until: (s) => !_isPaired(s, left.uuid, right.uuid),
+      );
+    });
+    state = result;
+    if (result.hasError) rethrowLast(result);
+  }
+
+  bool _isPaired(SonosSystem system, String leftUuid, String rightUuid) {
+    for (final p in system.stereoPairs) {
+      final uuids = p.stereoPairUuids.toSet();
+      if (uuids.contains(leftUuid) && uuids.contains(rightUuid)) return true;
+    }
+    return false;
+  }
+
   /// Re-reads topology until [until] holds or attempts run out. Sonos takes up
   /// to ~15s to re-enumerate satellites after a bonding change, so a single
   /// short delay would show a stale/transient layout.

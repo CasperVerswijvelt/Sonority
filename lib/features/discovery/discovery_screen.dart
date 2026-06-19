@@ -36,7 +36,7 @@ class DiscoveryScreen extends ConsumerWidget {
           error: (e, _) => _ErrorView(message: '$e', onRetry: controller.scan),
           data: (system) => system == null
               ? _Intro(onScan: controller.scan)
-              : _SystemView(system: system, onRescan: controller.scan),
+              : _SystemView(system: system),
         ),
       ),
     );
@@ -93,23 +93,24 @@ class _Intro extends StatelessWidget {
   }
 }
 
-class _SystemView extends StatelessWidget {
+class _SystemView extends ConsumerWidget {
   final SonosSystem system;
-  final VoidCallback onRescan;
-  const _SystemView({required this.system, required this.onRescan});
+  const _SystemView({required this.system});
 
   @override
-  Widget build(BuildContext context) {
-    // Soundbars (whether or not they already have surrounds) are the targets.
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pairs = system.stereoPairs;
+    // Soundbars (whether or not they already have surrounds) are the HT targets.
     final theaters = system.allMembers
         .where((m) => m.isHomeTheater || (system.device(m.uuid)?.isSoundbar ?? false))
         .toList();
     final otherRooms = system.allMembers
-        .where((m) => !theaters.contains(m))
+        .where((m) => !theaters.contains(m) && !pairs.contains(m))
         .toList();
+    final canPair = system.bondableSpeakers.length >= 2;
 
     return RefreshIndicator(
-      onRefresh: () async => onRescan(),
+      onRefresh: () async => ref.read(sonosControllerProvider.notifier).scan(),
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -121,6 +122,18 @@ class _SystemView extends StatelessWidget {
             ),
           ...theaters.map((m) => _TheaterCard(system: system, member: m)),
           Gap.l,
+          _SectionHeader('Stereo pairs', Icons.speaker_group_outlined),
+          ...pairs.map((m) => _PairCard(system: system, pair: m)),
+          if (canPair)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 4),
+              child: OutlinedButton.icon(
+                onPressed: () => context.push('/stereo-pair'),
+                icon: const Icon(Icons.add_link),
+                label: const Text('Create stereo pair'),
+              ),
+            ),
+          Gap.l,
           _SectionHeader('Other rooms', Icons.meeting_room_outlined),
           ...otherRooms.map((m) => ListTile(
                 leading: const Icon(Icons.speaker_outlined),
@@ -130,6 +143,70 @@ class _SystemView extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _PairCard extends ConsumerWidget {
+  final SonosSystem system;
+  final ZoneGroupMember pair;
+  const _PairCard({required this.system, required this.pair});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final uuids = pair.stereoPairUuids;
+    final left = uuids.isNotEmpty ? system.device(uuids[0]) : null;
+    final right = uuids.length > 1 ? system.device(uuids[1]) : null;
+    final models = [left?.modelName, right?.modelName]
+        .whereType<String>()
+        .toSet()
+        .join(' + ');
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: const Icon(Icons.speaker_group),
+        title: Text(pair.zoneName),
+        subtitle: Text(models.isEmpty ? 'Stereo pair' : models),
+        trailing: TextButton(
+          onPressed: (left != null && right != null)
+              ? () => _confirmSeparate(context, ref, left, right)
+              : null,
+          child: const Text('Separate'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmSeparate(
+      BuildContext context, WidgetRef ref, SonosDevice left, SonosDevice right) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.link_off),
+        title: const Text('Separate stereo pair?'),
+        content: const Text(
+            'The two speakers become standalone rooms again. Their original '
+            'room names will be restored.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+                foregroundColor: Theme.of(ctx).colorScheme.error),
+            child: const Text('Separate'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(sonosControllerProvider.notifier)
+          .separateStereoPair(left: left, right: right);
+      messenger.showSnackBar(const SnackBar(content: Text('Stereo pair separated.')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+    }
   }
 }
 
