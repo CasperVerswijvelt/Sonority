@@ -51,6 +51,38 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
+
+# App launcher icons — generate with: dart run flutter_launcher_icons
+# Rendered from design/export.html. Per-platform sources by deliberate design:
+#  • Android (legacy + adaptive foreground) = diagram-only — the launcher's
+#    CIRCULAR mask would clip a wordmark.
+#  • iOS / macOS = diagram + "SONORITY" — the squircle mask never clips centered
+#    text (verified in design/ios_preview.html before it was removed).
+flutter_launcher_icons:
+  image_path: "design/assets/icon.png"          # Android legacy (diagram-only)
+  image_path_ios: "design/assets/icon_text.png" # iOS (with wordmark)
+  android: true
+  adaptive_icon_background: "#0A0A0B"
+  adaptive_icon_foreground: "design/assets/icon_fg.png"  # diagram-only, scale 1.0
+  min_sdk_android: 21
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: "#0A0A0B"
+  macos:
+    generate: true
+    image_path: "design/assets/icon_text.png"   # macOS (with wordmark)
+
+# Splash screen — generate with: dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#0A0A0B"
+  image: "design/assets/icon.png"
+  branding: "design/assets/wordmark.png"
+  android_12:
+    color: "#0A0A0B"
+    image: "design/assets/icon.png"
+    branding: "design/assets/wordmark.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
