@@ -53,6 +53,11 @@ class SonosDevice {
 
   bool get isSub => modelName.toLowerCase().contains('sub');
 
+  /// A Sonos Amp / Connect:Amp drives passive L/R speakers, so it can serve as
+  /// BOTH front channels at once (`LF,RF`) — unlike a normal speaker, which is
+  /// a single side. Used to offer it as a one-box dedicated-fronts option.
+  bool get isAmp => modelName.toLowerCase().contains('amp');
+
   SonosDevice copyWith({String? ip}) => SonosDevice(
         uuid: uuid,
         roomName: roomName,

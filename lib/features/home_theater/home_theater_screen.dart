@@ -91,8 +91,8 @@ class HomeTheaterScreen extends ConsumerWidget {
         icon: const Icon(Icons.link_off),
         title: const Text('Remove front speakers?'),
         content: const Text(
-          'The two front speakers will be un-bonded and become standalone '
-          'rooms again. Your soundbar, rear surrounds and sub stay as they are.',
+          'Your front speakers will be un-bonded and become standalone rooms '
+          'again. Your soundbar, rear surrounds and sub stay as they are.',
         ),
         actions: [
           TextButton(

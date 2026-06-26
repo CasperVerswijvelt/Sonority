@@ -28,6 +28,22 @@ void main() {
     expect(member.hasDedicatedFronts, isFalse);
   });
 
+  test('detects a single Amp that takes both fronts (AMP:LF,RF)', () {
+    const map =
+        'RINCON_BEAM:CC;RINCON_LR:LR;RINCON_RR:RR;RINCON_SUB:SW;RINCON_AMP:LF,RF';
+    const member = ZoneGroupMember(
+      uuid: 'RINCON_BEAM',
+      zoneName: 'Woonkamer',
+      htSatChanMapSet: map,
+    );
+
+    // The Amp is the only front satellite — removal targets just this one UUID.
+    expect(member.frontSatelliteUuids, ['RINCON_AMP']);
+    expect(member.hasDedicatedFronts, isTrue);
+    expect(member.channelAssignments[SonosChannel.leftFront], 'RINCON_AMP');
+    expect(member.channelAssignments[SonosChannel.rightFront], 'RINCON_AMP');
+  });
+
   test('skips the primary even if the bar carries LF/RF tokens', () {
     const member = ZoneGroupMember(
       uuid: 'RINCON_BAR',

@@ -78,6 +78,18 @@ class SonosRepository {
         rightSpeaker: rightSpeaker,
       );
 
+  /// See [front_layout.buildAmpFrontsMap] — a single Amp as both fronts.
+  ChannelMap buildAmpFrontsMap({
+    required ZoneGroupMember soundbar,
+    required SonosDevice soundbarDevice,
+    required SonosDevice ampDevice,
+  }) =>
+      front_layout.buildAmpFrontsMap(
+        soundbar: soundbar,
+        soundbarDevice: soundbarDevice,
+        ampDevice: ampDevice,
+      );
+
   /// Applies dedicated front speakers, snapshotting current state first.
   Future<void> applyDedicatedFronts({
     required ZoneGroupMember soundbar,
@@ -93,6 +105,25 @@ class SonosRepository {
       soundbarDevice: soundbarDevice,
       leftSpeaker: leftSpeaker,
       rightSpeaker: rightSpeaker,
+    );
+    await _deviceProps.addHtSatellite(soundbarIp: ip, map: map);
+  }
+
+  /// Applies a single Sonos Amp as the dedicated fronts (it takes both
+  /// `LF,RF`). Removal reuses [removeDedicatedFronts] — the Amp entry is a
+  /// front satellite like any other.
+  Future<void> applyAmpFronts({
+    required ZoneGroupMember soundbar,
+    required SonosDevice soundbarDevice,
+    required SonosDevice ampDevice,
+  }) async {
+    final ip = soundbarDevice.ip;
+    if (ip == null) throw Exception('Soundbar IP unknown; rescan and retry.');
+
+    final map = buildAmpFrontsMap(
+      soundbar: soundbar,
+      soundbarDevice: soundbarDevice,
+      ampDevice: ampDevice,
     );
     await _deviceProps.addHtSatellite(soundbarIp: ip, map: map);
   }

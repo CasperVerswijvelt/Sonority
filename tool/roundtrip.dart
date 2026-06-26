@@ -13,7 +13,11 @@
 //   dart run tool/roundtrip.dart --bar "Woonkamer" --left "Gym" --right "Zolder"
 //   dart run tool/roundtrip.dart --bar "Woonkamer" --left "Gym" --right "Zolder" --confirm
 //
-// --bar/--left/--right accept a room name (must be unique) or a RINCON_ UUID.
+// Single-Amp fronts (one Amp drives both passive front speakers, AMP:LF,RF):
+//   dart run tool/roundtrip.dart --bar "Woonkamer" --amp "Studio"
+//   dart run tool/roundtrip.dart --bar "Woonkamer" --amp "Studio" --confirm
+//
+// --bar/--left/--right/--amp accept a room name (must be unique) or a RINCON_ UUID.
 
 // ignore_for_file: avoid_print
 
@@ -32,13 +36,15 @@ Future<void> main(List<String> argv) async {
   final barSel = args['bar'];
   final leftSel = args['left'];
   final rightSel = args['right'];
+  final ampSel = args['amp'];
   final confirm = args.containsKey('confirm');
   final applyOnly = args.containsKey('apply-only');
   final removeOnly = args.containsKey('remove-only');
+  final ampMode = ampSel != null;
 
-  if (barSel == null || leftSel == null || rightSel == null) {
+  if (barSel == null || (ampMode ? false : (leftSel == null || rightSel == null))) {
     print('Usage: dart run tool/roundtrip.dart --bar <room|uuid> '
-        '--left <room|uuid> --right <room|uuid> [--confirm]');
+        '(--left <room|uuid> --right <room|uuid> | --amp <room|uuid>) [--confirm]');
     exit(64);
   }
 
@@ -66,34 +72,52 @@ Future<void> main(List<String> argv) async {
     print('❌ Soundbar ${soundbarDevice.roomName} not found in topology.');
     exit(1);
   }
-  final left = _resolveDevice(devices, leftSel);
-  final right = _resolveDevice(devices, rightSel);
+  // Front devices: a single Amp (both channels) or a left/right pair.
+  final List<SonosDevice> fronts = ampMode
+      ? [_resolveDevice(devices, ampSel)]
+      : [_resolveDevice(devices, leftSel!), _resolveDevice(devices, rightSel!)];
 
   print('\nPlan:');
   print('  Soundbar : ${soundbarDevice.roomName} (${soundbarDevice.modelName}) '
       '${soundbarDevice.uuid} @ ${soundbar.ip}');
-  print('  Front L  : ${left.roomName} (${left.modelName}) ${left.uuid}');
-  print('  Front R  : ${right.roomName} (${right.modelName}) ${right.uuid}');
+  if (ampMode) {
+    final amp = fronts.first;
+    print('  Fronts   : ${amp.roomName} (${amp.modelName}) ${amp.uuid} '
+        '→ drives both L/R (AMP:LF,RF)');
+  } else {
+    print('  Front L  : ${fronts[0].roomName} (${fronts[0].modelName}) ${fronts[0].uuid}');
+    print('  Front R  : ${fronts[1].roomName} (${fronts[1].modelName}) ${fronts[1].uuid}');
+  }
 
   final snapshot = soundbar.htSatChanMapSet ?? '(none)';
   print('\n📸 Current HTSatChanMapSet (restore point):\n   $snapshot');
 
-  final targetMap = buildDedicatedFrontsMap(
-    soundbar: soundbar,
-    soundbarDevice: soundbarDevice,
-    leftSpeaker: left,
-    rightSpeaker: right,
-  );
+  final targetMap = ampMode
+      ? buildAmpFrontsMap(
+          soundbar: soundbar,
+          soundbarDevice: soundbarDevice,
+          ampDevice: fronts.first,
+        )
+      : buildDedicatedFrontsMap(
+          soundbar: soundbar,
+          soundbarDevice: soundbarDevice,
+          leftSpeaker: fronts[0],
+          rightSpeaker: fronts[1],
+        );
   final mode = removeOnly
-      ? 'REMOVE-ONLY (un-bond the two fronts)'
+      ? 'REMOVE-ONLY (un-bond the fronts)'
       : applyOnly
           ? 'APPLY-ONLY (bond fronts, leave active)'
           : 'ROUND-TRIP (apply then restore)';
   print('\n📝 Would send AddHTSatellite with:\n   ${targetMap.encode()}');
-  print('🧹 Remove command: RemoveHTSatellite ${left.uuid}, ${right.uuid}');
+  print('🧹 Remove command: RemoveHTSatellite ${fronts.map((d) => d.uuid).join(', ')}');
   print('🎚️  Mode: $mode');
 
-  _sanityCheck(left, right);
+  if (!ampMode) _sanityCheck(fronts[0], fronts[1]);
+  if (ampMode && !fronts.first.isAmp) {
+    print('⚠️  Note: ${fronts.first.modelName} is not an Amp; AMP:LF,RF assumes '
+        'one device that drives both passive front speakers.');
+  }
 
   if (!confirm) {
     print('\n✅ DRY RUN complete — nothing was changed. '
@@ -108,9 +132,9 @@ Future<void> main(List<String> argv) async {
   }
   final deviceProps = DevicePropertiesClient(SonosSoapClient());
 
-  // --remove-only: just un-bond the two fronts and verify.
+  // --remove-only: just un-bond the fronts and verify.
   if (removeOnly) {
-    await _remove(deviceProps, topology, barIp, soundbarDevice, left, right,
+    await _remove(deviceProps, topology, barIp, soundbarDevice, fronts,
         expected: snapshot);
     print('\n🎉 Remove complete.');
     return;
@@ -136,13 +160,16 @@ Future<void> main(List<String> argv) async {
   }
 
   if (applyOnly) {
+    final frontArgs = ampMode
+        ? '--amp "$ampSel"'
+        : '--left "$leftSel" --right "$rightSel"';
     print('\n🔊 Fronts are live — go listen! When you want them gone, run:');
     print('   dart run tool/roundtrip.dart --bar "$barSel" '
-        '--left "$leftSel" --right "$rightSel" --confirm --remove-only');
+        '$frontArgs --confirm --remove-only');
     return;
   }
 
-  await _remove(deviceProps, topology, barIp, soundbarDevice, left, right,
+  await _remove(deviceProps, topology, barIp, soundbarDevice, fronts,
       expected: snapshot);
   print('\n🎉 Round-trip complete.');
 }
@@ -152,14 +179,14 @@ Future<void> _remove(
   ZoneTopologyClient topology,
   String barIp,
   SonosDevice soundbarDevice,
-  SonosDevice left,
-  SonosDevice right, {
+  List<SonosDevice> fronts, {
   required String expected,
 }) async {
   try {
-    print('\n⬅️  Removing the two fronts…');
-    await deviceProps.removeHtSatellite(soundbarIp: barIp, satelliteUuid: left.uuid);
-    await deviceProps.removeHtSatellite(soundbarIp: barIp, satelliteUuid: right.uuid);
+    print('\n⬅️  Removing the front${fronts.length == 1 ? '' : 's'}…');
+    for (final f in fronts) {
+      await deviceProps.removeHtSatellite(soundbarIp: barIp, satelliteUuid: f.uuid);
+    }
     await _settle();
     final groups = await topology.getZoneGroups(barIp);
     final after = _findMember(groups, soundbarDevice.uuid);
@@ -172,7 +199,7 @@ Future<void> _remove(
   } catch (e) {
     print('❌ Remove failed: $e');
     print('   Recover manually — on the soundbar at $barIp call '
-        'RemoveHTSatellite for ${left.uuid} and ${right.uuid}, '
+        'RemoveHTSatellite for ${fronts.map((d) => d.uuid).join(' and ')}, '
         'or re-pair via the Sonos app.');
     exit(1);
   }

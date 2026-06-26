@@ -68,9 +68,9 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow> {
           ),
           steps: [
             Step(
-              title: const Text('Choose two speakers'),
+              title: const Text('Choose front speakers'),
               isActive: _step >= 0,
-              state: _selected.length == 2 ? StepState.complete : StepState.indexed,
+              state: _frontsChosen ? StepState.complete : StepState.indexed,
               content: _ChooseSpeakers(
                 candidates: candidates,
                 selected: _selected,
@@ -80,22 +80,31 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow> {
               ),
             ),
             Step(
-              title: const Text('Assign left & right'),
+              title: Text(_ampMode ? 'Connect your speakers' : 'Assign left & right'),
               isActive: _step >= 1,
-              content: _AssignSides(
-                system: system,
-                selected: _selected,
-                onSwap: () => setState(
-                    () => _selected.setAll(0, [_selected[1], _selected[0]])),
-                onIdentify: _identify,
-                identifying: _identifying,
-              ),
+              content: _ampMode
+                  ? _AmpWiringNote(
+                      amp: system.device(_selected.first),
+                      onIdentify: _identify,
+                      identifying: _identifying,
+                    )
+                  : _AssignSides(
+                      system: system,
+                      selected: _selected,
+                      onSwap: () => setState(
+                          () => _selected.setAll(0, [_selected[1], _selected[0]])),
+                      onIdentify: _identify,
+                      identifying: _identifying,
+                    ),
             ),
             Step(
               title: const Text('Review & apply'),
               isActive: _step >= 2,
               content: _Review(
-                  system: system, member: member, selected: _selected),
+                  system: system,
+                  member: member,
+                  selected: _selected,
+                  ampMode: _ampMode),
             ),
           ],
         ),
@@ -103,13 +112,31 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow> {
     );
   }
 
-  void _toggle(String uuid) {
+  bool _deviceIsAmp(String uuid) =>
+      ref.read(sonosControllerProvider).value?.device(uuid)?.isAmp ?? false;
+
+  /// A single Amp was chosen — it drives both front channels on its own.
+  bool get _ampMode => _selected.length == 1 && _deviceIsAmp(_selected.first);
+
+  /// Step 0 is satisfied by two regular speakers OR a single Amp.
+  bool get _frontsChosen => _selected.length == 2 || _ampMode;
+
+  void _toggle(SonosDevice d) {
     setState(() {
-      if (_selected.contains(uuid)) {
-        _selected.remove(uuid);
-      } else if (_selected.length < 2) {
-        _selected.add(uuid);
+      if (_selected.contains(d.uuid)) {
+        _selected.remove(d.uuid);
+        return;
       }
+      if (d.isAmp) {
+        // An Amp drives both fronts — exclusive, single selection.
+        _selected
+          ..clear()
+          ..add(d.uuid);
+        return;
+      }
+      // Picking a regular speaker clears a previously selected Amp.
+      if (_ampMode) _selected.clear();
+      if (_selected.length < 2) _selected.add(d.uuid);
     });
   }
 
@@ -149,7 +176,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow> {
     required List<SonosDevice> candidates,
   }) {
     final canNext = switch (_step) {
-      0 => _selected.length == 2,
+      0 => _frontsChosen,
       1 => true,
       _ => true,
     };
@@ -187,20 +214,32 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow> {
   Future<void> _apply(ZoneGroupMember member, SonosDevice soundbar) async {
     final system = ref.read(sonosControllerProvider).value;
     if (system == null) return;
-    final left = system.device(_selected[0]);
-    final right = system.device(_selected[1]);
-    if (left == null || right == null) return;
+    final controller = ref.read(sonosControllerProvider.notifier);
+    final ampMode = _ampMode;
+
+    final SonosDevice? amp = ampMode ? system.device(_selected.first) : null;
+    final SonosDevice? left = ampMode ? null : system.device(_selected[0]);
+    final SonosDevice? right = ampMode ? null : system.device(_selected[1]);
+    if (ampMode ? amp == null : (left == null || right == null)) return;
 
     setState(() => _applying = true);
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
     try {
-      await ref.read(sonosControllerProvider.notifier).applyDedicatedFronts(
-            soundbar: member,
-            soundbarDevice: soundbar,
-            leftSpeaker: left,
-            rightSpeaker: right,
-          );
+      if (ampMode) {
+        await controller.applyAmpFronts(
+          soundbar: member,
+          soundbarDevice: soundbar,
+          ampDevice: amp!,
+        );
+      } else {
+        await controller.applyDedicatedFronts(
+          soundbar: member,
+          soundbarDevice: soundbar,
+          leftSpeaker: left!,
+          rightSpeaker: right!,
+        );
+      }
       messenger.showSnackBar(
           const SnackBar(content: Text('Dedicated front speakers added!')));
       router.pop();
@@ -214,7 +253,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow> {
 class _ChooseSpeakers extends StatelessWidget {
   final List<SonosDevice> candidates;
   final List<String> selected;
-  final void Function(String uuid) onToggle;
+  final void Function(SonosDevice device) onToggle;
   final void Function(SonosDevice device) onIdentify;
   final String? identifying;
 
@@ -234,20 +273,28 @@ class _ChooseSpeakers extends StatelessWidget {
         '(not already part of a home theater or stereo pair).',
       );
     }
+    final hasAmp = candidates.any((d) => d.isAmp);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Pick exactly two — ideally an identical pair.',
+        Text(
+            hasAmp
+                ? 'Pick two speakers (ideally identical), or a single Sonos Amp '
+                    'that drives both front speakers.'
+                : 'Pick exactly two — ideally an identical pair.',
             style: Theme.of(context).textTheme.bodySmall),
         Gap.s,
         ...candidates.map((d) {
           final isSel = selected.contains(d.uuid);
-          final disabled = !isSel && selected.length >= 2;
+          // An Amp is always selectable (it switches to single-box mode);
+          // regular speakers are capped at two.
+          final disabled = !isSel && !d.isAmp && selected.length >= 2;
           return CheckboxListTile(
             value: isSel,
-            onChanged: disabled ? null : (_) => onToggle(d.uuid),
+            onChanged: disabled ? null : (_) => onToggle(d),
             title: Text(d.roomName),
-            subtitle: Text(d.modelName),
+            subtitle: Text(
+                d.isAmp ? '${d.modelName} — drives both fronts (L + R)' : d.modelName),
             controlAffinity: ListTileControlAffinity.leading,
             secondary: _IdentifyButton(
               busy: identifying == d.uuid,
@@ -255,6 +302,50 @@ class _ChooseSpeakers extends StatelessWidget {
             ),
           );
         }),
+      ],
+    );
+  }
+}
+
+/// Shown in amp mode in place of the L/R assignment step: the Amp handles both
+/// front channels itself, so there are no sides to assign in the app — the user
+/// wires their passive speakers to the Amp's left/right outputs.
+class _AmpWiringNote extends StatelessWidget {
+  final SonosDevice? amp;
+  final void Function(SonosDevice device) onIdentify;
+  final String? identifying;
+
+  const _AmpWiringNote({
+    required this.amp,
+    required this.onIdentify,
+    required this.identifying,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final amp = this.amp;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'The ${amp?.modelName ?? 'Amp'} drives both front channels. Wire your '
+          'left & right speakers to its L/R speaker outputs — there\'s nothing '
+          'to assign here.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        if (amp != null) ...[
+          Gap.s,
+          TextButton.icon(
+            onPressed: () => onIdentify(amp),
+            icon: identifying == amp.uuid
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.volume_up_outlined, size: 18),
+            label: Text('Identify ${amp.roomName}'),
+          ),
+        ],
       ],
     );
   }
@@ -365,16 +456,21 @@ class _Review extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember member;
   final List<String> selected;
+  final bool ampMode;
   const _Review(
-      {required this.system, required this.member, required this.selected});
+      {required this.system,
+      required this.member,
+      required this.selected,
+      required this.ampMode});
 
   @override
   Widget build(BuildContext context) {
-    if (selected.length != 2) {
+    if (ampMode ? selected.length != 1 : selected.length != 2) {
       return const Text('Selection incomplete.');
     }
+    // In amp mode a single device drives both fronts.
     final left = system.device(selected[0]);
-    final right = system.device(selected[1]);
+    final right = ampMode ? left : system.device(selected[1]);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -399,9 +495,13 @@ class _Review extends StatelessWidget {
                 Gap.m,
                 Expanded(
                   child: Text(
-                    'The two speakers become hidden satellites of the soundbar, '
-                    'which switches to the center channel. You can remove them '
-                    'again anytime.',
+                    ampMode
+                        ? 'The Amp becomes a hidden satellite driving both front '
+                            'channels, and the soundbar switches to the center '
+                            'channel. You can remove it again anytime.'
+                        : 'The two speakers become hidden satellites of the '
+                            'soundbar, which switches to the center channel. You '
+                            'can remove them again anytime.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),

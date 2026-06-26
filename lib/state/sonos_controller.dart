@@ -81,6 +81,29 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     if (result.hasError) rethrowLast(result);
   }
 
+  Future<void> applyAmpFronts({
+    required ZoneGroupMember soundbar,
+    required SonosDevice soundbarDevice,
+    required SonosDevice ampDevice,
+  }) async {
+    final previous = state.value;
+    state = const AsyncValue.loading();
+    final result = await AsyncValue.guard(() async {
+      await _repo.applyAmpFronts(
+        soundbar: soundbar,
+        soundbarDevice: soundbarDevice,
+        ampDevice: ampDevice,
+      );
+      return _pollUntil(
+        previous: previous,
+        ip: soundbarDevice.ip ?? _lastIp,
+        until: (s) => _memberHasFronts(s, soundbar.uuid, expected: true),
+      );
+    });
+    state = result;
+    if (result.hasError) rethrowLast(result);
+  }
+
   Future<void> removeDedicatedFronts({
     required ZoneGroupMember soundbar,
     required SonosDevice soundbarDevice,
