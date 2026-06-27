@@ -53,8 +53,17 @@ Settings → Secrets and variables → Actions → *New repository secret*:
 | `PLAY_SERVICE_ACCOUNT_JSON` | full contents of the downloaded JSON |
 
 ## Every release
-`versionCode` must strictly increase per upload — bump the build number in
-`pubspec.yaml` (`version: X.Y.Z+BUILD`), commit, then:
+`versionCode` (the `+N` in `pubspec.yaml`'s `version: X.Y.Z+N`) is **derived from
+the semver**, not hand-incremented:
+
+    versionCode = major*1000000 + minor*10000 + patch*100 + build
+
+`build` (0+) only distinguishes rebuilds of the *same* X.Y.Z. Examples:
+`0.3.0` → `30000`, `0.3.0` rebuild → `30001`, `0.3.1` → `30100`, `1.0.0` →
+`1000000`. Stays strictly increasing as long as the version climbs (≤99 rebuilds
+per patch, ≤99 patches per minor, etc.).
+
+Set `version:` in pubspec to the computed `+N`, commit, then:
 ```sh
 git tag vX.Y.Z && git push origin vX.Y.Z
 ```
