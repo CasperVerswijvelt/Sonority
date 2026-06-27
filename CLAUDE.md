@@ -87,6 +87,10 @@ exactly this reason.
   soundbar is **`CC` (center)**, NOT `LF,RF`. To add **dedicated fronts**: keep the
   bar as `CC`, append the two chosen speakers as `LF` / `RF`, preserve existing
   rears/sub. This produces a real 5.1 with discrete fronts. (`front_layout.dart`.)
+- **Amp as fronts**: a single Sonos Amp drives two passive front speakers, so it
+  occupies BOTH front channels in one entry — `AMP:LF,RF` — instead of two
+  separate Sonos speakers. Bar still becomes `CC`. (`buildAmpFrontsMap`;
+  detected via `SonosDevice.isAmp`. Confirmed working on hardware.)
 - Adding fronts to a setup that already has rears yields 4 satellites — that's the
   natural max; Sonos has no true 7.1 (6 boxes).
 - **Stereo pair** map: `UUID_LEFT:LF,LF;UUID_RIGHT:RF,RF`. Left stays visible; right
@@ -151,7 +155,8 @@ Run on the same Wi-Fi as the Sonos system:
 
 ## Feature status
 - ✅ Discovery + topology + Material 3 UI (discovery → home-theater diagram).
-- ✅ Dedicated front surrounds (add with guided flow + Identify; remove).
+- ✅ Dedicated front surrounds (add with guided flow + Identify; remove), incl. a
+  single **Sonos Amp** driving passive fronts (`AMP:LF,RF`; exclusive selection).
 - ✅ Stereo pairs incl. mismatched models (create flow; separate with name restore).
 - ✅ CI release pipeline.
 - Candidate next (ranked, all "not in the Sonos app"): **(1) config profiles /
