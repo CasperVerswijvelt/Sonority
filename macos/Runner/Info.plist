@@ -28,5 +28,15 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<!-- macOS 15+ prompts for local-network access; describe why we need it. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Sonority finds your speakers on your Wi‑Fi network to set up home‑theater and stereo configurations.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_sonos._tcp</string>
+	</array>
+	<!-- Standard HTTP/SOAP over the LAN only — exempt encryption. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

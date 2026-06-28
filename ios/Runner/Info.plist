@@ -43,12 +43,16 @@
 		<!-- Required (iOS 14+) to discover Sonos players via SSDP on the LAN.
 	     Without this, all local-network traffic is silently blocked. -->
 		<key>NSLocalNetworkUsageDescription</key>
-		<string>SoYes finds your Sonos speakers on your Wi‑Fi network to configure dedicated front surround speakers.</string>
+		<string>Sonority finds your speakers on your Wi‑Fi network to set up home‑theater and stereo configurations.</string>
 		<key>NSBonjourServices</key>
 		<array>
 			<string>_sonos._tcp</string>
 		</array>
 		<key>UIStatusBarHidden</key>
+		<false/>
+		<!-- The app uses only standard HTTP/SOAP over the LAN — exempt encryption.
+		     Declared so App Store Connect doesn't prompt on every upload. -->
+		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
 	</dict>
 </plist>
