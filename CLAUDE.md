@@ -91,6 +91,12 @@ exactly this reason.
     (non-destructive, instant), which is the part the Sonos app won't expose for
     the unofficial fronts config. Toggle ALL bonded members so the separately-tuned
     fronts engage; **Amp-driven fronts can't be Trueplay'd** (native speakers only).
+  - **Gotcha (confirmed on hardware):** Sonos **invalidates** a speaker's tuning
+    when its bonded set changes — adding/removing fronts or breaking/rebuilding the
+    HT drops `available` back to 0 (a standalone bar has no HT tuning). An
+    untouched standalone keeps its tuning. So the "tune-then-bond" workaround is
+    firmware-flaky; Sonority reads/reports this honestly but can't restore a
+    tuning Sonos has cleared.
 
 ### Channel maps (`channel_map.dart`)
 `HTSatChanMapSet` format: `UUID:CH[,CH];UUID:CH;…`. Tokens: `LF RF CC LR RR SW`.
