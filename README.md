@@ -2,6 +2,20 @@
   <img src="docs/icon.png" width="160" alt="Sonority app icon" />
 </p>
 
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=be.casperverswijvelt.sonority">
+    <img src="docs/badges/google-play.png" height="48" alt="Get it on Google Play" title="Get it on Google Play" />
+  </a>
+  &nbsp;&nbsp;
+  <img src="docs/badges/app-store-soon.png" height="48" alt="App Store — coming soon" title="iOS App Store — not available yet, hopefully soon!" />
+  &nbsp;&nbsp;
+  <img src="docs/badges/mac-app-store-soon.png" height="48" alt="Mac App Store — coming soon" title="Mac App Store — not available yet, hopefully soon!" />
+</p>
+
+<p align="center">
+  <sub><i>iOS &amp; macOS — coming soon</i></sub>
+</p>
+
 # Sonority
 
 A clean, cross-platform (iOS + Android + macOS) Flutter app that unlocks Sonos speaker
