@@ -4,9 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
-import '../../data/sonos/identify_service.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/busy_view.dart';
+import '../widgets/identify_controls.dart';
+import '../widgets/speaker_side_card.dart';
 
 /// Guided flow to bond two standalone speakers into a stereo pair — including
 /// mismatched models the official app won't pair (Sonos still validates real
@@ -18,9 +19,9 @@ class StereoPairFlow extends ConsumerStatefulWidget {
   ConsumerState<StereoPairFlow> createState() => _StereoPairFlowState();
 }
 
-class _StereoPairFlowState extends ConsumerState<StereoPairFlow> {
+class _StereoPairFlowState extends ConsumerState<StereoPairFlow>
+    with IdentifyMixin {
   final List<String> _selected = []; // [left, right]
-  String? _identifying;
   bool _applying = false;
 
   @override
@@ -59,17 +60,7 @@ class _StereoPairFlowState extends ConsumerState<StereoPairFlow> {
                 title: Text(d.roomName),
                 subtitle: Text(d.modelName),
                 controlAffinity: ListTileControlAffinity.leading,
-                secondary: IconButton(
-                  tooltip: 'Play a test chime',
-                  onPressed:
-                      _identifying == d.uuid ? null : () => _identify(d),
-                  icon: _identifying == d.uuid
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.volume_up_outlined),
-                ),
+                secondary: identifyButtons(d),
               );
             }),
             if (candidates.length < 2)
@@ -97,14 +88,22 @@ class _StereoPairFlowState extends ConsumerState<StereoPairFlow> {
       children: [
         Row(
           children: [
-            Expanded(child: _sideCard('LEFT', left)),
+            Expanded(
+                child: SpeakerSideCard(
+                    side: 'LEFT',
+                    device: left,
+                    controls: left == null ? null : identifyButtons(left))),
             IconButton.filledTonal(
               onPressed: () =>
                   setState(() => _selected.setAll(0, [_selected[1], _selected[0]])),
               icon: const Icon(Icons.swap_horiz),
               tooltip: 'Swap sides',
             ),
-            Expanded(child: _sideCard('RIGHT', right)),
+            Expanded(
+                child: SpeakerSideCard(
+                    side: 'RIGHT',
+                    device: right,
+                    controls: right == null ? null : identifyButtons(right))),
           ],
         ),
         Gap.s,
@@ -130,33 +129,6 @@ class _StereoPairFlowState extends ConsumerState<StereoPairFlow> {
     );
   }
 
-  Widget _sideCard(String side, SonosDevice? d) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Text(side,
-                style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700)),
-            Gap.xs,
-            Text(d?.roomName ?? '—',
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelLarge),
-            if (d != null)
-              TextButton.icon(
-                onPressed: _identifying == d.uuid ? null : () => _identify(d),
-                icon: const Icon(Icons.volume_up_outlined, size: 18),
-                label: const Text('Identify'),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _toggle(String uuid) => setState(() {
         if (_selected.contains(uuid)) {
           _selected.remove(uuid);
@@ -164,23 +136,6 @@ class _StereoPairFlowState extends ConsumerState<StereoPairFlow> {
           _selected.add(uuid);
         }
       });
-
-  Future<void> _identify(SonosDevice device) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final ip = device.ip;
-    if (ip == null) return;
-    setState(() => _identifying = device.uuid);
-    try {
-      await ref.read(identifyServiceProvider).chirp(ip);
-    } on SpeakerUnreachable catch (e) {
-      messenger.showSnackBar(
-          SnackBar(content: Text('$e'), duration: const Duration(seconds: 6)));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Couldn’t play: $e')));
-    } finally {
-      if (mounted) setState(() => _identifying = null);
-    }
-  }
 
   Future<void> _create(SonosSystem system) async {
     final left = system.device(_selected[0]);

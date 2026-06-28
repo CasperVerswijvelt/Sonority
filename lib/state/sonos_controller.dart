@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/sonos_models.dart';
 import '../data/sonos/identify_service.dart';
+import '../data/sonos/led_identify.dart';
 import '../data/sonos/sonos_repository.dart';
 
 final sonosRepositoryProvider =
@@ -17,6 +18,16 @@ final identifyServiceProvider = Provider<IdentifyService>((ref) {
   );
   ref.onDispose(service.dispose);
   return service;
+});
+
+/// Blinks a speaker's status LED to identify it. The default identify action:
+/// silent, non-intrusive, and works on every platform (including the sandboxed
+/// macOS app, where the chime can't).
+final ledIdentifyProvider = Provider<LedIdentifyClient>((ref) {
+  return LedIdentifyClient(
+    null,
+    kDebugMode ? (m) => debugPrint('[led] $m') : null,
+  );
 });
 
 final sonosControllerProvider =

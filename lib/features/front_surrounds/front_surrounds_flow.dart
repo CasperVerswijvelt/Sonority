@@ -4,11 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
-import '../../data/sonos/identify_service.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/diagram_labels.dart';
+import '../widgets/identify_controls.dart';
 import '../widgets/speaker_diagram.dart';
+import '../widgets/speaker_side_card.dart';
 
 /// Guided 3-step flow to bond two speakers as dedicated front L/R.
 class FrontSurroundsFlow extends ConsumerStatefulWidget {
@@ -19,11 +20,11 @@ class FrontSurroundsFlow extends ConsumerStatefulWidget {
   ConsumerState<FrontSurroundsFlow> createState() => _FrontSurroundsFlowState();
 }
 
-class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow> {
+class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
+    with IdentifyMixin {
   int _step = 0;
   final List<String> _selected = []; // uuids, order = [left, right]
   bool _applying = false;
-  String? _identifying; // uuid currently chiming, for a spinner
 
   @override
   Widget build(BuildContext context) {
@@ -75,8 +76,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow> {
                 candidates: candidates,
                 selected: _selected,
                 onToggle: _toggle,
-                onIdentify: _identify,
-                identifying: _identifying,
+                identifyControls: identifyButtons,
               ),
             ),
             Step(
@@ -85,16 +85,16 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow> {
               content: _ampMode
                   ? _AmpWiringNote(
                       amp: system.device(_selected.first),
-                      onIdentify: _identify,
-                      identifying: _identifying,
+                      onIdentify: identify,
+                      onChime: onChime,
+                      identifying: identifyingUuid,
                     )
                   : _AssignSides(
                       system: system,
                       selected: _selected,
                       onSwap: () => setState(
                           () => _selected.setAll(0, [_selected[1], _selected[0]])),
-                      onIdentify: _identify,
-                      identifying: _identifying,
+                      identifyControls: identifyButtons,
                     ),
             ),
             Step(
@@ -138,35 +138,6 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow> {
       if (_ampMode) _selected.clear();
       if (_selected.length < 2) _selected.add(d.uuid);
     });
-  }
-
-  /// Plays a chime on a speaker so the user can identify which box it is.
-  Future<void> _identify(SonosDevice device) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final ip = device.ip;
-    if (ip == null) {
-      messenger.showSnackBar(
-          SnackBar(content: Text('No address for ${device.roomName}.')));
-      return;
-    }
-    setState(() => _identifying = device.uuid);
-    messenger.showSnackBar(SnackBar(
-      content: Text('🔊 Playing a chime on ${device.roomName}…'),
-      duration: const Duration(seconds: 2),
-    ));
-    try {
-      await ref.read(identifyServiceProvider).chirp(ip);
-    } on SpeakerUnreachable catch (e) {
-      messenger.showSnackBar(SnackBar(
-        content: Text('$e'),
-        duration: const Duration(seconds: 6),
-      ));
-    } catch (e) {
-      messenger.showSnackBar(
-          SnackBar(content: Text('Couldn’t play on ${device.roomName}: $e')));
-    } finally {
-      if (mounted) setState(() => _identifying = null);
-    }
   }
 
   Widget _controls(
@@ -254,15 +225,13 @@ class _ChooseSpeakers extends StatelessWidget {
   final List<SonosDevice> candidates;
   final List<String> selected;
   final void Function(SonosDevice device) onToggle;
-  final void Function(SonosDevice device) onIdentify;
-  final String? identifying;
+  final Widget Function(SonosDevice device) identifyControls;
 
   const _ChooseSpeakers({
     required this.candidates,
     required this.selected,
     required this.onToggle,
-    required this.onIdentify,
-    required this.identifying,
+    required this.identifyControls,
   });
 
   @override
@@ -296,10 +265,7 @@ class _ChooseSpeakers extends StatelessWidget {
             subtitle: Text(
                 d.isAmp ? '${d.modelName} — drives both fronts (L + R)' : d.modelName),
             controlAffinity: ListTileControlAffinity.leading,
-            secondary: _IdentifyButton(
-              busy: identifying == d.uuid,
-              onPressed: () => onIdentify(d),
-            ),
+            secondary: identifyControls(d),
           );
         }),
       ],
@@ -313,11 +279,13 @@ class _ChooseSpeakers extends StatelessWidget {
 class _AmpWiringNote extends StatelessWidget {
   final SonosDevice? amp;
   final void Function(SonosDevice device) onIdentify;
+  final Future<void> Function(SonosDevice device)? onChime;
   final String? identifying;
 
   const _AmpWiringNote({
     required this.amp,
     required this.onIdentify,
+    required this.onChime,
     required this.identifying,
   });
 
@@ -335,15 +303,27 @@ class _AmpWiringNote extends StatelessWidget {
         ),
         if (amp != null) ...[
           Gap.s,
-          TextButton.icon(
-            onPressed: () => onIdentify(amp),
-            icon: identifying == amp.uuid
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.volume_up_outlined, size: 18),
-            label: Text('Identify ${amp.roomName}'),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton.icon(
+                onPressed: identifying == amp.uuid ? null : () => onIdentify(amp),
+                icon: identifying == amp.uuid
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.lightbulb_outline, size: 18),
+                label: Text('Blink ${amp.roomName}'),
+              ),
+              if (onChime != null)
+                TextButton.icon(
+                  onPressed:
+                      identifying == amp.uuid ? null : () => onChime!(amp),
+                  icon: const Icon(Icons.volume_up_outlined, size: 18),
+                  label: const Text('Chime'),
+                ),
+            ],
           ),
         ],
       ],
@@ -355,15 +335,13 @@ class _AssignSides extends StatelessWidget {
   final SonosSystem system;
   final List<String> selected;
   final VoidCallback onSwap;
-  final void Function(SonosDevice device) onIdentify;
-  final String? identifying;
+  final Widget Function(SonosDevice device) identifyControls;
 
   const _AssignSides({
     required this.system,
     required this.selected,
     required this.onSwap,
-    required this.onIdentify,
-    required this.identifying,
+    required this.identifyControls,
   });
 
   @override
@@ -377,77 +355,27 @@ class _AssignSides extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(child: _sideCard(context, 'LEFT', left)),
+            Expanded(
+                child: SpeakerSideCard(
+                    side: 'LEFT',
+                    device: left,
+                    controls: left == null ? null : identifyControls(left))),
             IconButton.filledTonal(
               onPressed: onSwap,
               icon: const Icon(Icons.swap_horiz),
               tooltip: 'Swap sides',
             ),
-            Expanded(child: _sideCard(context, 'RIGHT', right)),
+            Expanded(
+                child: SpeakerSideCard(
+                    side: 'RIGHT',
+                    device: right,
+                    controls: right == null ? null : identifyControls(right))),
           ],
         ),
         Gap.s,
         Text('Tap swap if the sides are reversed.',
             style: Theme.of(context).textTheme.bodySmall),
       ],
-    );
-  }
-
-  Widget _sideCard(BuildContext context, String side, SonosDevice? d) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Text(side,
-                style: TextStyle(
-                    color: scheme.primary, fontWeight: FontWeight.w700)),
-            Gap.s,
-            Icon(Icons.speaker, color: scheme.onSurfaceVariant),
-            Gap.xs,
-            Text(d?.roomName ?? '—',
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelLarge),
-            if (d != null) ...[
-              Gap.xs,
-              TextButton.icon(
-                onPressed: () => onIdentify(d),
-                icon: identifying == d.uuid
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.volume_up_outlined, size: 18),
-                label: const Text('Identify'),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A speaker-icon button that plays a chime to identify a speaker.
-class _IdentifyButton extends StatelessWidget {
-  final bool busy;
-  final VoidCallback onPressed;
-  const _IdentifyButton({required this.busy, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: 'Play a test chime',
-      onPressed: busy ? null : onPressed,
-      icon: busy
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2))
-          : const Icon(Icons.volume_up_outlined),
     );
   }
 }
