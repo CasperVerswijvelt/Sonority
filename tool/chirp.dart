@@ -9,10 +9,9 @@
 
 import 'dart:io';
 
-import 'package:sonority/data/models/sonos_models.dart';
-import 'package:sonority/data/sonos/device_description.dart';
 import 'package:sonority/data/sonos/identify_service.dart';
-import 'package:sonority/data/sonos/ssdp_discovery.dart';
+
+import 'discover_util.dart';
 
 Future<void> main(List<String> argv) async {
   final target = argv.isNotEmpty ? argv.first : null;
@@ -21,40 +20,9 @@ Future<void> main(List<String> argv) async {
     exit(64);
   }
 
-  print('🔎 Discovering…');
-  final locations = await SsdpDiscovery().discover();
-  final desc = DeviceDescriptionClient();
-  final devices = <SonosDevice>[];
-  for (final l in locations) {
-    try {
-      devices.add(await desc.fetch(l));
-    } catch (_) {}
-  }
-
-  String? ip;
-  String label = target;
-  final byIp = devices.where((d) => d.ip == target);
-  final byUuid = devices.where((d) => d.uuid == target);
-  final byRoom =
-      devices.where((d) => d.roomName.toLowerCase() == target.toLowerCase());
-  if (byIp.isNotEmpty) {
-    ip = byIp.first.ip;
-    label = byIp.first.roomName;
-  } else if (byUuid.isNotEmpty) {
-    ip = byUuid.first.ip;
-    label = byUuid.first.roomName;
-  } else if (byRoom.length == 1) {
-    ip = byRoom.first.ip;
-    label = byRoom.first.roomName;
-  } else if (byRoom.length > 1) {
-    print('❌ "$target" matches ${byRoom.length} devices — use an IP or uuid.');
-    exit(1);
-  }
-
-  if (ip == null) {
-    print('❌ Could not resolve "$target".');
-    exit(1);
-  }
+  final resolved = await resolveSpeaker(target);
+  if (resolved == null) exit(1);
+  final (:ip, :label) = resolved;
 
   print('🔊 Chiming on $label ($ip)…');
   final svc = IdentifyService(null, (m) => print('   · $m'));
