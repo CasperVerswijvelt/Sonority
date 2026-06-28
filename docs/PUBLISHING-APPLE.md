@@ -10,6 +10,7 @@ iOS **and** Mac App Store.
 ## One-time setup
 
 ### 1. Account & agreements (App Store Connect)
+
 1. Enroll in the Apple Developer Program (individual, ~€109/yr).
 2. **Agreements, Tax, and Banking** → accept the **Paid Apps** agreement and
    complete **banking + tax (W-8BEN)**. Required even at $1.49.
@@ -18,30 +19,36 @@ iOS **and** Mac App Store.
    the EU. Use a P.O. box + dedicated email if you don't want home details public.
 
 ### 2. Xcode signing + privacy manifest
+
 Open `ios/Runner.xcworkspace` and `macos/Runner.xcworkspace`:
+
 1. Runner target → **Signing & Capabilities** → set your **Team**
    (sets `DEVELOPMENT_TEAM`). Set the macOS target to **Automatic** signing.
 2. **Add `PrivacyInfo.xcprivacy` to the Runner target.** The files exist
    (`ios/Runner/PrivacyInfo.xcprivacy`, `macos/Runner/PrivacyInfo.xcprivacy`) but
-   must be in the target's *Copy Bundle Resources* or they won't ship. In Xcode:
-   right-click the Runner group → *Add Files…* → select the file → tick the
+   must be in the target's _Copy Bundle Resources_ or they won't ship. In Xcode:
+   right-click the Runner group → _Add Files…_ → select the file → tick the
    **Runner** target. (Already declared: no tracking, no data, UserDefaults
    `CA92.1`.)
 3. `ITSAppUsesNonExemptEncryption=false` is already in both `Info.plist`s, so
    uploads won't prompt for export compliance.
 
 ### 3. Create the app records
+
 App Store Connect → **Apps → +** → New App, for the bundle id
 `be.casperverswijvelt.sonority`. Create an **iOS** app and (separately) a
 **macOS** app. Set:
+
 - Price: **$1.49 / €1.49** tier.
 - Primary category: **Utilities**. Age rating: 4+.
 - Privacy "Data collection": **No, we do not collect data** (matches the manifest).
 
 ### 4. Listing content
+
 From `app-store/listing.md`: name, subtitle, description, keywords, promo text,
 **review notes** (critical — reviewers won't have speakers; include a demo video
 link). Host the two pages and set the URLs:
+
 - **Privacy Policy URL** (required): host `privacy-policy.html`.
 - **Support URL** (required): host `support.html`.
 - **Hosting (GitHub Pages):** repo **Settings → Pages → Build and deployment →
@@ -49,18 +56,22 @@ link). Host the two pages and set the URLs:
   (`docs/index.html`) links both. URLs become:
   - `https://casperverswijvelt.github.io/Sonority/privacy-policy.html`
   - `https://casperverswijvelt.github.io/Sonority/support.html`
-  (This is a one-time GitHub setting — can't be flipped from the CLI without a
-  token. Give it a minute after saving to go live.)
-- Replace `SUPPORT_EMAIL` / `REPLACE_DATE` / `DEMO_VIDEO_URL` placeholders first.
+    (This is a one-time GitHub setting — can't be flipped from the CLI without a
+    token. Give it a minute after saving to go live.)
+- Support email + privacy "last updated" date are filled in. Only `DEMO_VIDEO_URL`
+  (in the listing's review notes) remains — paste it once you've recorded the demo.
 
 ### 5. Screenshots
+
 Required sizes (Apple rejects missing ones):
+
 - iPhone 6.9" and 6.5".
 - iPad 13" only if you keep iPad support enabled.
 - macOS (1280×800 or 2560×1600).
-Starting frames are in `docs/screenshots/`; regenerate at the exact sizes.
+  Starting frames are in `docs/screenshots/`; regenerate at the exact sizes.
 
 ## Build, test, submit
+
 1. Xcode → select **Any iOS Device** → **Product → Archive** → Organizer →
    **Validate App** (catches missing manifest/encryption issues), then
    **Distribute App → App Store Connect → Upload**. Repeat for the macOS scheme.
@@ -71,17 +82,20 @@ Starting frames are in `docs/screenshots/`; regenerate at the exact sizes.
    **Submit for Review**. Ship **iOS first**; submit macOS once iOS is approved.
 
 ## Per-release
+
 Version numbering is shared with Android — see the `versionCode` formula in
 `PUBLISHING.md` (`pubspec.yaml` `version: X.Y.Z+N`). For Apple, `X.Y.Z` is the
 version string and `N` (`CFBundleVersion`) must strictly increase per upload.
 Bump `pubspec.yaml`, update `CHANGELOG.md`, archive, upload, submit.
 
 ## Automate with Fastlane (scaffolded — `fastlane/`)
+
 Lanes are ready; they build the Flutter app, sign/export via `gym`, and upload
 via `pilot`/`deliver`, authenticating with an **App Store Connect API key** (no
 2FA). Local-first (run from your Mac); also usable in CI later.
 
 **One-time, after enrollment:**
+
 1. `bundle install` (installs Fastlane from the `Gemfile`).
 2. Create the API key: App Store Connect → Users and Access → Integrations →
    App Store Connect API → Team Keys → **(+)**, role **App Manager**. Download
@@ -92,12 +106,14 @@ via `pilot`/`deliver`, authenticating with an **App Store Connect API key** (no
    lanes use automatic signing via `-allowProvisioningUpdates`.
 
 **Then, per build:**
+
 ```sh
 bundle exec fastlane ios beta       # → TestFlight
 bundle exec fastlane ios release    # → submit for App Store review
 bundle exec fastlane mac beta       # → TestFlight (macOS)
 bundle exec fastlane mac release    # → submit (macOS)
 ```
+
 The first `release` still needs the screenshots/description filled in App Store
 Connect (or run `deliver` with a metadata folder later).
 

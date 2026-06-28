@@ -1,8 +1,9 @@
 # App Store listing copy — Sonority
 
 Paste these into App Store Connect. Character limits noted; stay under them.
-Replace `SUPPORT_EMAIL` / `SUPPORT_URL` / `PRIVACY_URL` with the real values
-once hosted (see `docs/support.html`, `docs/privacy-policy.html`).
+Support email + the hosted privacy/support URLs are filled in below. The only
+remaining placeholder is `DEMO_VIDEO_URL` (in the review notes) — record the demo
+first, then paste its link.
 
 > **Trademark note (important for review):** "Sonos" is deliberately kept out of
 > the **app name, subtitle, and icon**. It appears only descriptively in the
@@ -12,28 +13,34 @@ once hosted (see `docs/support.html`, `docs/privacy-policy.html`).
 ---
 
 ## App name (≤30)
+
 ```
 Sonority
 ```
 
 ## Subtitle (≤30)
+
 ```
 Advanced home-theater setups
 ```
 
 ## Promotional text (≤170, editable anytime without review)
+
 ```
 Create the speaker layouts the standard app won’t: dedicated front speakers on your soundbar, mismatched stereo pairs, and more. Your speakers, your rules.
 ```
 
 ## Keywords (≤100, comma-separated, not shown publicly)
+
 ```
 sonos,home theater,surround,stereo pair,speakers,soundbar,satellite,front,5.1,trueplay,amp,wifi
 ```
+
 (Trim to fit 100 chars. "sonos" as a keyword for an app that controls Sonos is
 common but carries a small rejection risk — drop it first if asked.)
 
 ## Description (≤4000)
+
 ```
 Sonority configures your speakers in ways the standard controller app doesn’t allow — using only the local network connection on your home Wi-Fi. It does no audio processing of its own; all the sound comes from your real speakers. The configurations it creates are standard, supported speaker bondings — just ones the official app chooses not to expose.
 
@@ -61,6 +68,7 @@ Sonority is an independent app and is not affiliated with, authorized, maintaine
 ```
 
 ## What's New (first release)
+
 ```
 First release of Sonority:
 • Dedicated front speakers on a soundbar
@@ -70,11 +78,13 @@ First release of Sonority:
 ```
 
 ## Support / marketing URLs
-- Support URL: `SUPPORT_URL`
-- Marketing URL (optional): same or a project page
-- Privacy Policy URL: `PRIVACY_URL`  ← **required**
+
+- Support URL: `https://casperverswijvelt.github.io/Sonority/support.html`
+- Marketing URL (optional): `https://casperverswijvelt.github.io/Sonority/`
+- Privacy Policy URL: `https://casperverswijvelt.github.io/Sonority/privacy-policy.html` ← **required**
 
 ## Category & rating
+
 - Primary category: **Utilities** (alt: Music)
 - Age rating: 4+ (no objectionable content)
 - Price: **$1.49 / €1.49** tier
@@ -82,6 +92,7 @@ First release of Sonority:
 ---
 
 ## App Review notes (paste into "Notes for Review") — READ THIS
+
 App Review almost certainly does **not** have compatible speakers on their test
 network, so the app will look empty to them. Pre-empt a "can't evaluate / app
 incomplete" rejection:
@@ -99,8 +110,12 @@ via the manufacturer's documented local network service, are previewed before
 being applied, and are fully reversible in-app. The app is independent and not
 affiliated with the speaker manufacturer; this is stated in the description.
 
-Contact for any questions: SUPPORT_EMAIL
+Contact for any questions: casperverswijveltdev@gmail.com
 ```
+
 Record a ~60s screen capture of discovery → adding fronts → identify → undo, and
 host it (unlisted YouTube/Vimeo or a direct link); put the URL in `DEMO_VIDEO_URL`.
+
+```
+
 ```
