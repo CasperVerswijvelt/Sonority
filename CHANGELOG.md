@@ -10,6 +10,8 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-28
+
 ### Added
 - **Trueplay (room calibration) read + toggle** on home theaters, stereo pairs
   and standalone rooms. Tuning is still measured in the Sonos app on iOS;
@@ -21,6 +23,7 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 - "Create stereo pair" is now a filled call-to-action button.
 - Home-theater and room detail pages show a spinner on refresh and reload
   Trueplay status, not just the topology.
+- GitHub Release notes are now generated from this changelog.
 
 ### Notes
 - Sonos invalidates a speaker's Trueplay when its bonded set changes (adding or
