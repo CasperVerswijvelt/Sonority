@@ -79,9 +79,12 @@ First release of Sonority:
 
 ## Support / marketing URLs
 
-- Support URL: `https://casperverswijvelt.github.io/Sonority/support.html`
-- Marketing URL (optional): `https://casperverswijvelt.github.io/Sonority/`
-- Privacy Policy URL: `https://casperverswijvelt.github.io/Sonority/privacy-policy.html` ← **required**
+- Support URL: `https://casperverswijvelt.be/Sonority/support.html`
+- Marketing URL (optional): `https://casperverswijvelt.be/Sonority/`
+- Privacy Policy URL: `https://casperverswijvelt.be/Sonority/privacy-policy.html` ← **required**
+
+(Canonical custom domain; the `casperverswijvelt.github.io/Sonority/…` URLs
+301-redirect here, so either works — but App Store Connect prefers the final URL.)
 
 ## Category & rating
 

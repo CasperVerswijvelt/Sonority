@@ -53,9 +53,10 @@ link). Host the two pages and set the URLs:
 - **Support URL** (required): host `support.html`.
 - **Hosting (GitHub Pages):** repo **Settings → Pages → Build and deployment →
   Deploy from a branch → `main` / `/docs`** → Save. A landing page
-  (`docs/index.html`) links both. URLs become:
-  - `https://casperverswijvelt.github.io/Sonority/privacy-policy.html`
-  - `https://casperverswijvelt.github.io/Sonority/support.html`
+  (`docs/index.html`) links both. Live URLs (the github.io paths 301-redirect to
+  the `casperverswijvelt.be` custom domain — use the `.be` ones in App Store Connect):
+  - `https://casperverswijvelt.be/Sonority/privacy-policy.html`
+  - `https://casperverswijvelt.be/Sonority/support.html`
     (This is a one-time GitHub setting — can't be flipped from the CLI without a
     token. Give it a minute after saving to go live.)
 - Support email + privacy "last updated" date are filled in. Only `DEMO_VIDEO_URL`
