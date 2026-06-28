@@ -15,6 +15,7 @@ class _FakeSoap extends SonosSoapClient {
     required String serviceType,
     required String action,
     Map<String, String> args = const {},
+    Duration timeout = const Duration(seconds: 8),
   }) async =>
       XmlDocument.parse(bodyXml).rootElement;
 }

@@ -14,13 +14,16 @@ class SonosSoapClient {
   static const int port = 1400;
 
   /// Invoke [action] on [serviceType] at [controlPath] of the player at [ip].
-  /// Returns the parsed `<Body>` element of the response.
+  /// Returns the parsed `<Body>` element of the response. [timeout] can be
+  /// shortened for rapid-fire calls (e.g. the LED blink) so a stalled request
+  /// fails fast instead of freezing.
   Future<XmlElement> call({
     required String ip,
     required String controlPath,
     required String serviceType,
     required String action,
     Map<String, String> args = const {},
+    Duration timeout = const Duration(seconds: 8),
   }) async {
     final uri = Uri.parse('http://$ip:$port$controlPath');
     final body = buildEnvelope(serviceType: serviceType, action: action, args: args);
@@ -30,9 +33,14 @@ class SonosSoapClient {
       headers: {
         'Content-Type': 'text/xml; charset="utf-8"',
         'SOAPACTION': '"$serviceType#$action"',
+        // Sonos players are unreliable with HTTP keep-alive: a pooled socket the
+        // player has already closed makes the next request hang until timeout
+        // (very visible when firing many calls in a row, like the LED blink).
+        // Closing per request avoids reusing a dead connection.
+        'Connection': 'close',
       },
       body: body,
-    ).timeout(const Duration(seconds: 8));
+    ).timeout(timeout);
 
     final doc = XmlDocument.parse(res.body);
     if (res.statusCode != 200) {
