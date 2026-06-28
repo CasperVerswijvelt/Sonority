@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
+import '../../state/trueplay_controller.dart';
+import '../widgets/refresh_icon_button.dart';
 import '../widgets/trueplay_control.dart';
 
 /// Detail page for a standalone room or a stereo pair. Currently hosts the
@@ -35,7 +37,17 @@ class RoomScreen extends ConsumerWidget {
         devices.map((d) => d.modelName).toSet().join(' + ');
 
     return Scaffold(
-      appBar: AppBar(title: Text(member?.zoneName ?? 'Room')),
+      appBar: AppBar(
+        title: Text(member?.zoneName ?? 'Room'),
+        actions: [
+          RefreshIconButton(onRefresh: () async {
+            await ref.read(sonosControllerProvider.notifier).refresh();
+            if (devices.isNotEmpty) {
+              await ref.read(trueplayControllerProvider.notifier).load(devices);
+            }
+          }),
+        ],
+      ),
       body: SafeArea(
         child: member == null
             ? _missing(context)

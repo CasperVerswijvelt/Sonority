@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
+import '../../state/trueplay_controller.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/diagram_labels.dart';
+import '../widgets/refresh_icon_button.dart';
 import '../widgets/speaker_diagram.dart';
 import '../widgets/trueplay_control.dart';
 
@@ -27,16 +29,26 @@ class HomeTheaterScreen extends ConsumerWidget {
         .firstOrNull;
     final device = system?.device(soundbarUuid);
 
+    // Bonded native members (bar + fronts + rears + sub); Amp fronts excluded.
+    final bonded = (system != null && member != null)
+        ? <String>{member.uuid, ...member.channelAssignments.values}
+            .map((u) => system.device(u))
+            .whereType<SonosDevice>()
+            .where((d) => !d.isAmp)
+            .toList()
+        : <SonosDevice>[];
+
+    Future<void> refreshAll() async {
+      await controller.refresh();
+      if (bonded.isNotEmpty) {
+        await ref.read(trueplayControllerProvider.notifier).load(bonded);
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(member?.zoneName ?? 'Home theater'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: state.isLoading ? null : controller.refresh,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
+        actions: [RefreshIconButton(onRefresh: refreshAll)],
       ),
       body: SafeArea(
         child: state.isLoading
@@ -52,9 +64,10 @@ class HomeTheaterScreen extends ConsumerWidget {
                     system: system!,
                     member: member,
                     device: device,
+                    bonded: bonded,
                     onRemove: () => _confirmRemove(context, ref, member, device),
                     onAdd: () => context.push('/theater/$soundbarUuid/fronts'),
-                    onRefresh: controller.refresh,
+                    onRefresh: refreshAll,
                   ),
       ),
     );
@@ -128,6 +141,7 @@ class _Content extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember member;
   final SonosDevice device;
+  final List<SonosDevice> bonded;
   final VoidCallback onRemove;
   final VoidCallback onAdd;
   final Future<void> Function() onRefresh;
@@ -136,6 +150,7 @@ class _Content extends StatelessWidget {
     required this.system,
     required this.member,
     required this.device,
+    required this.bonded,
     required this.onRemove,
     required this.onAdd,
     required this.onRefresh,
@@ -144,14 +159,6 @@ class _Content extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasFronts = member.hasDedicatedFronts;
-    // Every bonded native member (bar + fronts + rears + sub); an Amp used as
-    // fronts is excluded — Sonos can't Trueplay it. Toggling all of them is what
-    // engages the separately-tuned fronts (see CLAUDE.md / docs).
-    final bonded = <String>{member.uuid, ...member.channelAssignments.values}
-        .map((u) => system.device(u))
-        .whereType<SonosDevice>()
-        .where((d) => !d.isAmp)
-        .toList();
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
