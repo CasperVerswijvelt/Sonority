@@ -74,7 +74,11 @@ exactly this reason.
 - **Topology**: `ZoneGroupTopology.GetZoneGroupState` returns the whole system as
   a **double-encoded** XML string (unescape `<ZoneGroupState>` innerText, parse again).
 - **All SOAP**: POST to `http://<ip>:1400<controlPath>` with `SOAPACTION` header.
-  See `soap_client.dart`.
+  See `soap_client.dart`. **Send `Connection: close`** — Sonos players are flaky
+  with HTTP keep-alive: a pooled socket the player already closed makes the next
+  request hang to timeout. Harmless for occasional calls, but rapid-fire bursts
+  (e.g. the LED blink's ~9 calls) intermittently 8s-timeout without it.
+  **Confirmed on hardware:** adding `Connection: close` fixed a flaky LED blink.
 - **`DeviceProperties` service** (`/DeviceProperties/Control`):
   - `AddHTSatellite` / `RemoveHTSatellite` — bond/unbond satellites & sub.
   - `CreateStereoPair` / `SeparateStereoPair` — stereo pairs.
