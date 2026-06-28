@@ -80,6 +80,11 @@ exactly this reason.
   - `CreateStereoPair` / `SeparateStereoPair` — stereo pairs.
   - `GetZoneAttributes` / `SetZoneAttributes` — read/set room name (used to restore
     names after un-pairing).
+  - `GetLEDState` / `SetLEDState` (`CurrentLEDState`/`DesiredLEDState` = `On`/`Off`)
+    — the white status light. Used by the **LED-blink identify**
+    (`led_identify.dart`): an outbound-only SOAP call, so unlike the audio chime it
+    works under the macOS sandbox. `blink()` snapshots the state and restores it in
+    a `finally` (self-reverting, like the chime's volume save/restore).
 - **`RenderingControl` service** (`/MediaRenderer/RenderingControl/Control`):
   - `GetVolume`/`SetVolume`/`GetMute`/`SetMute` (used by the identify chime).
   - **Trueplay / room calibration** (`room_calibration.dart`): per-speaker,
@@ -149,8 +154,10 @@ exactly this reason.
    `RenderingControl` volume save/bump/restore. The clip needs lead/trail silence
    (~1.25s) or Sonos clips the start. Works on **CLI, iOS, Android**;
    **fails on the sandboxed macOS app** (App Sandbox blocks the inbound LAN
-   connection despite `network.server` + firewall off — known limitation, low
-   priority since Identify is a mobile setup aid).
+   connection despite `network.server` + firewall off). **The default identify is
+   now the LED blink** (`led_identify.dart`, outbound-only → works on macOS too,
+   default on all platforms). The chime is a **separate button** shown only on
+   iOS/Android (`_chimeSupported` gates `_onChime`); hidden on macOS.
 
 ## CLI tools (validate against hardware before/without the GUI)
 
@@ -161,6 +168,8 @@ Run on the same Wi-Fi as the Sonos system:
 - `tool/stereopair.dart` — stereo-pair round-trip (create→verify→separate→restore
   names); dry-run by default, `--confirm`.
 - `tool/chirp.dart <room|uuid|ip>` — play the identify chime on one speaker.
+- `tool/led_probe.dart <room|uuid|ip>` — dump DeviceProperties SCPD LED actions +
+  blink one speaker's status LED (read-only/self-reverting; the macOS-safe identify).
 - `tool/dump_chime.dart <path>` — write the generated WAV to disk.
 - `tool/trueplay_probe.dart` — read-only Trueplay/room-calibration status per
   speaker (+ SCPD dump); `--enable/--disable <room|uuid>` to toggle (reversible).
@@ -179,6 +188,8 @@ Run on the same Wi-Fi as the Sonos system:
 - ✅ Discovery + topology + Material 3 UI (discovery → home-theater diagram).
 - ✅ Dedicated front surrounds (add with guided flow + Identify; remove), incl. a
   single **Sonos Amp** driving passive fronts (`AMP:LF,RF`; exclusive selection).
+- ✅ Identify a speaker by **blinking its status LED** (`led_identify.dart`, default,
+  all platforms incl. macOS) with the audio chime as a mobile-only long-press extra.
 - ✅ Stereo pairs incl. mismatched models (create flow; separate with name restore).
 - ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
   all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't
@@ -195,4 +206,12 @@ Run on the same Wi-Fi as the Sonos system:
   recipe logic (see `test/`).
 - Match the existing engine/UI style; isolate all UPnP wire-format details in
   `lib/data/sonos/` so firmware quirks are cheap to patch.
+- **Don't duplicate logic where sharing is logical.** If the same widget, action,
+  or helper is being copy-pasted across features/tools, extract it. Established
+  shared pieces to reuse (don't reinvent): `features/widgets/identify_controls.dart`
+  (`IdentifyButtons` + `IdentifyMixin` — speaker blink/chime), `features/widgets/
+  speaker_side_card.dart` (the L/R card), and `tool/discover_util.dart`
+  (`resolveSpeaker` — CLI room/uuid/IP resolution). Prefer a shared widget/mixin/
+  helper over a second copy; only keep a bespoke variant when forcing it into the
+  shared shape would genuinely hurt readability.
 - Commit only when asked; end commit messages with the Co-Authored-By trailer.
