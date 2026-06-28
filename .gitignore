@@ -1,3 +1,11 @@
+# Fastlane / App Store Connect secrets — never commit these
+fastlane/.env
+fastlane/*.p8
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/
+**/.fastlane/
+
 # Miscellaneous
 *.class
 *.log

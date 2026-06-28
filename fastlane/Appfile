@@ -1,0 +1,7 @@
+app_identifier("be.casperverswijvelt.sonority")
+
+# Auth uses an App Store Connect API key (set in fastlane/.env), so no Apple ID
+# or 2FA is needed here. Once enrollment finishes you can optionally pin your
+# team ids (find them in App Store Connect → membership / Users and Access):
+# itc_team_id("YOUR_TEAM_ID")   # App Store Connect team
+# team_id("YOUR_TEAM_ID")       # Developer Portal team

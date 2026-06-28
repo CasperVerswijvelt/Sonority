@@ -1,0 +1,100 @@
+# Fastlane lanes to build + upload Sonority to TestFlight / the App Store.
+#
+# Auth: an App Store Connect API key (no Apple ID 2FA). Put the key id, issuer
+# id, and .p8 path in fastlane/.env (see .env.example). Signing: relies on Xcode
+# *automatic* signing — set your Team on the Runner targets in Xcode once, then
+# `-allowProvisioningUpdates` lets the API key create/fetch profiles.
+#
+# Run from the repo root:
+#   bundle exec fastlane ios beta       # build + upload to TestFlight
+#   bundle exec fastlane ios release    # build + submit for App Store review
+#   bundle exec fastlane mac beta
+#   bundle exec fastlane mac release
+#
+# Prereqs: enrollment complete, Team set in Xcode, the two PrivacyInfo.xcprivacy
+# files added to the Runner targets, and the app records created in App Store
+# Connect (see docs/PUBLISHING-APPLE.md).
+
+# fvm-managed Flutter (this machine — see CLAUDE.md). Override with $FLUTTER_BIN.
+FLUTTER = ENV["FLUTTER_BIN"] || File.expand_path("~/fvm/versions/3.35.2/bin/flutter")
+
+def asc_key
+  app_store_connect_api_key(
+    key_id: ENV.fetch("ASC_KEY_ID"),
+    issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+    key_filepath: ENV.fetch("ASC_KEY_FILEPATH"),
+    in_house: false,
+  )
+end
+
+platform :ios do
+  desc "Build and upload an iOS build to TestFlight"
+  lane :beta do
+    key = asc_key
+    sh("#{FLUTTER} build ios --release --no-codesign")
+    build_app(
+      workspace: "ios/Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      output_directory: "build/fastlane-ios",
+      xcargs: "-allowProvisioningUpdates",
+    )
+    upload_to_testflight(api_key: key, skip_waiting_for_build_processing: true)
+  end
+
+  desc "Build and submit the iOS app for App Store review"
+  lane :release do
+    key = asc_key
+    sh("#{FLUTTER} build ios --release --no-codesign")
+    build_app(
+      workspace: "ios/Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      output_directory: "build/fastlane-ios",
+      xcargs: "-allowProvisioningUpdates",
+    )
+    upload_to_app_store(
+      api_key: key,
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,                       # skip the HTML metadata preview prompt
+      precheck_include_in_app_purchases: false,
+      submission_information: { add_id_info_uses_idfa: false },
+    )
+  end
+end
+
+platform :mac do
+  desc "Build and upload a macOS build to TestFlight"
+  lane :beta do
+    key = asc_key
+    sh("#{FLUTTER} build macos --release")
+    build_app(
+      workspace: "macos/Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      output_directory: "build/fastlane-macos",
+      xcargs: "-allowProvisioningUpdates",
+    )
+    upload_to_testflight(api_key: key, skip_waiting_for_build_processing: true)
+  end
+
+  desc "Build and submit the macOS app for App Store review"
+  lane :release do
+    key = asc_key
+    sh("#{FLUTTER} build macos --release")
+    build_app(
+      workspace: "macos/Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      output_directory: "build/fastlane-macos",
+      xcargs: "-allowProvisioningUpdates",
+    )
+    upload_to_app_store(
+      api_key: key,
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+    )
+  end
+end

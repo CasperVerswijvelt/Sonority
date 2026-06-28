@@ -44,9 +44,13 @@ From `app-store/listing.md`: name, subtitle, description, keywords, promo text,
 link). Host the two pages and set the URLs:
 - **Privacy Policy URL** (required): host `privacy-policy.html`.
 - **Support URL** (required): host `support.html`.
-- Easiest hosting: enable **GitHub Pages** on this repo (Settings → Pages →
-  deploy from `main` `/docs`) → URLs become
-  `https://casperverswijvelt.github.io/Sonority/privacy-policy.html` etc.
+- **Hosting (GitHub Pages):** repo **Settings → Pages → Build and deployment →
+  Deploy from a branch → `main` / `/docs`** → Save. A landing page
+  (`docs/index.html`) links both. URLs become:
+  - `https://casperverswijvelt.github.io/Sonority/privacy-policy.html`
+  - `https://casperverswijvelt.github.io/Sonority/support.html`
+  (This is a one-time GitHub setting — can't be flipped from the CLI without a
+  token. Give it a minute after saving to go live.)
 - Replace `SUPPORT_EMAIL` / `REPLACE_DATE` / `DEMO_VIDEO_URL` placeholders first.
 
 ### 5. Screenshots
@@ -72,9 +76,32 @@ Version numbering is shared with Android — see the `versionCode` formula in
 version string and `N` (`CFBundleVersion`) must strictly increase per upload.
 Bump `pubspec.yaml`, update `CHANGELOG.md`, archive, upload, submit.
 
-## Later: automate (optional)
-Signed CLI builds + uploads via **Fastlane** (`gym` + `deliver`/`pilot`) using an
-**App Store Connect API key** (Users and Access → Integrations → Keys). This lets
-CI build/upload on a `v*` tag like the Android lane does. Not set up yet — ask
-when you want it; it needs the Team ID + an API key, which exist only after
-enrollment finishes.
+## Automate with Fastlane (scaffolded — `fastlane/`)
+Lanes are ready; they build the Flutter app, sign/export via `gym`, and upload
+via `pilot`/`deliver`, authenticating with an **App Store Connect API key** (no
+2FA). Local-first (run from your Mac); also usable in CI later.
+
+**One-time, after enrollment:**
+1. `bundle install` (installs Fastlane from the `Gemfile`).
+2. Create the API key: App Store Connect → Users and Access → Integrations →
+   App Store Connect API → Team Keys → **(+)**, role **App Manager**. Download
+   `AuthKey_XXXX.p8` (one-time) into `fastlane/`.
+3. `cp fastlane/.env.example fastlane/.env` and fill in `ASC_KEY_ID`,
+   `ASC_ISSUER_ID`, `ASC_KEY_FILEPATH`. (`.env` and `*.p8` are gitignored.)
+4. Make sure the Team is set on the Runner targets in Xcode (step 2 above) — the
+   lanes use automatic signing via `-allowProvisioningUpdates`.
+
+**Then, per build:**
+```sh
+bundle exec fastlane ios beta       # → TestFlight
+bundle exec fastlane ios release    # → submit for App Store review
+bundle exec fastlane mac beta       # → TestFlight (macOS)
+bundle exec fastlane mac release    # → submit (macOS)
+```
+The first `release` still needs the screenshots/description filled in App Store
+Connect (or run `deliver` with a metadata folder later).
+
+**CI (optional, later):** the same lanes can run in GitHub Actions on a `v*` tag
+like the Android lane, with the `.p8` + key ids as repo secrets. iOS signing in
+CI is the fiddly part (needs the cert/profile available to the runner); defer
+until the local flow is proven.
