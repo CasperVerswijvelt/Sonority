@@ -63,9 +63,15 @@ the semver**, not hand-incremented:
 `1000000`. Stays strictly increasing as long as the version climbs (≤99 rebuilds
 per patch, ≤99 patches per minor, etc.).
 
-Set `version:` in pubspec to the computed `+N`, commit, then:
+Before tagging:
+1. Set `version:` in `pubspec.yaml` to the computed `+N`.
+2. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` (and
+   start a fresh empty `[Unreleased]` above it). CI slices that section into the
+   GitHub Release notes, followed by the install instructions.
+3. Commit, then:
 ```sh
 git tag vX.Y.Z && git push origin vX.Y.Z
 ```
-CI signs the AAB and pushes it to internal testing; promote to production in the
-Console when ready.
+CI signs the AAB, pushes it to Play internal testing, and publishes the GitHub
+Release (changelog section + install notes). Promote to production in the Console
+when ready.

@@ -141,10 +141,31 @@ jobs:
           else
             echo "No existing release to delete"
           fi
+      - name: Compose release notes (changelog section + install notes)
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # Extract the "## [<version>] ..." section from CHANGELOG.md, stopping
+          # at the next "## [" heading.
+          section=$(awk -v ver="$version" '
+            $0 ~ ("^## \\[" ver "\\]") {flag=1; print; next}
+            /^## \[/ && flag {exit}
+            flag {print}
+          ' CHANGELOG.md)
+          {
+            if [ -n "$section" ]; then
+              printf '%s\n\n---\n\n' "$section"
+            else
+              echo "::warning::No CHANGELOG.md section for $version"
+            fi
+            cat .github/release-install-notes.md
+          } > release-body.md
+          echo "----- release-body.md -----"
+          cat release-body.md
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/*
           # NOTE: do not enable generate_release_notes — it overrides body_path.
-          body_path: .github/release-install-notes.md
+          # body = the matching CHANGELOG.md section + the install instructions.
+          body_path: release-body.md
           fail_on_unmatched_files: false
