@@ -82,9 +82,12 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       subtitle = 'Checking…';
     } else if (tunedCount == 0) {
       subtitle = 'Not tuned — run Trueplay once in the Sonos app (iOS).';
+    } else if (withIp.length == 1) {
+      // Single speaker — the x/y counter adds nothing.
+      subtitle = isOn ? 'Active' : 'Tuned · off';
     } else {
-      // Always surface the active counter; add tuned coverage when some bonded
-      // speakers have no stored tuning at all.
+      // Multi-speaker (HT / pair): always show the active counter, plus tuned
+      // coverage when some bonded speakers have no stored tuning at all.
       final parts = <String>['$enabledCount/${withIp.length} active'];
       if (tunedCount < withIp.length) {
         parts.add('$tunedCount/${withIp.length} tuned');

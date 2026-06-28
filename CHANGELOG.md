@@ -10,6 +10,10 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 
 ## [Unreleased]
 
+### Changed
+- Trueplay: the "x/y active" counter is hidden for single speakers (shown only
+  for home theaters and stereo pairs).
+
 ## [0.4.0] - 2026-06-28
 
 ### Added
