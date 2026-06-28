@@ -8,6 +8,7 @@ import '../../state/sonos_controller.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/speaker_diagram.dart';
+import '../widgets/trueplay_control.dart';
 
 /// Shows one home theater's current layout and the add/remove-fronts actions.
 class HomeTheaterScreen extends ConsumerWidget {
@@ -143,6 +144,14 @@ class _Content extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasFronts = member.hasDedicatedFronts;
+    // Every bonded native member (bar + fronts + rears + sub); an Amp used as
+    // fronts is excluded — Sonos can't Trueplay it. Toggling all of them is what
+    // engages the separately-tuned fronts (see CLAUDE.md / docs).
+    final bonded = <String>{member.uuid, ...member.channelAssignments.values}
+        .map((u) => system.device(u))
+        .whereType<SonosDevice>()
+        .where((d) => !d.isAmp)
+        .toList();
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
@@ -179,6 +188,19 @@ class _Content extends StatelessWidget {
               icon: const Icon(Icons.add_link),
               label: const Text('Add dedicated front speakers'),
             ),
+          Gap.l,
+          TrueplayControl(devices: bonded),
+          if (hasFronts) ...[
+            Gap.s,
+            Text(
+              'Trueplay is set up once in the Sonos app (iOS): tune this home '
+              'theater, and tune the front speakers separately as a stereo pair '
+              '(their tuning isn’t included when fronts are bonded this way). '
+              'Sonority only switches the stored result on/off.',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+          ],
           Gap.m,
           Text(
             'Tip: tap the refresh icon after Sonos finishes reconfiguring.',

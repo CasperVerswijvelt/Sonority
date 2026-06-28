@@ -1,0 +1,73 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/theme.dart';
+import '../../data/models/sonos_models.dart';
+import '../../state/sonos_controller.dart';
+import '../widgets/trueplay_control.dart';
+
+/// Detail page for a standalone room or a stereo pair. Currently hosts the
+/// Trueplay control (kept off the main list to avoid clutter).
+class RoomScreen extends ConsumerWidget {
+  final String uuid;
+  const RoomScreen({super.key, required this.uuid});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final system = ref.watch(sonosControllerProvider).value;
+    final member = system?.allMembers
+        .where((m) => m.uuid == uuid)
+        .cast<ZoneGroupMember?>()
+        .firstOrNull;
+
+    // A stereo pair acts on both speakers; a standalone room on just itself.
+    final devices = <SonosDevice>[
+      if (system != null && member != null)
+        if (member.isStereoPair)
+          ...member.stereoPairUuids
+              .map(system.device)
+              .whereType<SonosDevice>()
+        else if (system.device(uuid) != null)
+          system.device(uuid)!,
+    ];
+    final models =
+        devices.map((d) => d.modelName).toSet().join(' + ');
+
+    return Scaffold(
+      appBar: AppBar(title: Text(member?.zoneName ?? 'Room')),
+      body: SafeArea(
+        child: member == null
+            ? _missing(context)
+            : ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text(models.isEmpty ? 'Speaker' : models,
+                      style: Theme.of(context).textTheme.titleMedium),
+                  Gap.l,
+                  TrueplayControl(devices: devices),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _missing(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.help_outline, size: 56),
+              Gap.m,
+              const Text('This room is no longer available. Rescan to refresh.'),
+              Gap.l,
+              FilledButton(
+                onPressed: () => context.go('/'),
+                child: const Text('Back to scan'),
+              ),
+            ],
+          ),
+        ),
+      );
+}

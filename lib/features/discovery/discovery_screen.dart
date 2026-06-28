@@ -126,19 +126,29 @@ class _SystemView extends ConsumerWidget {
           ...pairs.map((m) => _PairCard(system: system, pair: m)),
           if (canPair)
             Padding(
-              padding: const EdgeInsets.only(top: 4, bottom: 4),
-              child: OutlinedButton.icon(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: FilledButton.tonalIcon(
                 onPressed: () => context.push('/stereo-pair'),
-                icon: const Icon(Icons.add_link),
+                icon: const Icon(Icons.add_link, size: 24),
                 label: const Text('Create stereo pair'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(56),
+                  textStyle: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600),
+                ),
               ),
             ),
           Gap.l,
           _SectionHeader('Other rooms', Icons.meeting_room_outlined),
-          ...otherRooms.map((m) => ListTile(
-                leading: const Icon(Icons.speaker_outlined),
-                title: Text(m.zoneName),
-                subtitle: Text(system.device(m.uuid)?.modelName ?? ''),
+          ...otherRooms.map((m) => Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  onTap: () => context.push('/room/${m.uuid}'),
+                  leading: const Icon(Icons.speaker_outlined),
+                  title: Text(m.zoneName),
+                  subtitle: Text(system.device(m.uuid)?.modelName ?? ''),
+                  trailing: const Icon(Icons.chevron_right),
+                ),
               )),
         ],
       ),
@@ -163,6 +173,7 @@ class _PairCard extends ConsumerWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
+        onTap: () => context.push('/room/${pair.uuid}'),
         leading: const Icon(Icons.speaker_group),
         title: Text(pair.zoneName),
         subtitle: Text(models.isEmpty ? 'Stereo pair' : models),

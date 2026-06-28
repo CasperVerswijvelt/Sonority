@@ -8,6 +8,7 @@ import 'channel_map.dart' show ChannelMap;
 import 'device_description.dart';
 import 'device_properties.dart';
 import 'front_layout.dart' as front_layout;
+import 'room_calibration.dart';
 import 'soap_client.dart';
 import 'ssdp_discovery.dart';
 import 'zone_topology.dart';
@@ -19,16 +20,19 @@ class SonosRepository {
   final DeviceDescriptionClient _descriptions;
   final ZoneTopologyClient _topology;
   final DevicePropertiesClient _deviceProps;
+  final RoomCalibrationClient _calibration;
 
   SonosRepository({
     SsdpDiscovery? ssdp,
     DeviceDescriptionClient? descriptions,
     ZoneTopologyClient? topology,
     DevicePropertiesClient? deviceProps,
+    RoomCalibrationClient? calibration,
   })  : _ssdp = ssdp ?? SsdpDiscovery(),
         _descriptions = descriptions ?? DeviceDescriptionClient(),
         _topology = topology ?? ZoneTopologyClient(SonosSoapClient()),
-        _deviceProps = deviceProps ?? DevicePropertiesClient(SonosSoapClient());
+        _deviceProps = deviceProps ?? DevicePropertiesClient(SonosSoapClient()),
+        _calibration = calibration ?? RoomCalibrationClient(SonosSoapClient());
 
   /// Full discovery: find players, read their descriptions, then read the
   /// system topology from any one of them.
@@ -62,6 +66,14 @@ class SonosRepository {
     final groups = await _topology.getZoneGroups(ip);
     return SonosSystem(groups: groups, devicesByUuid: previous.devicesByUuid);
   }
+
+  /// Reads Trueplay / room-calibration state for one speaker.
+  Future<RoomCalibration> roomCalibration(String ip) =>
+      _calibration.getStatus(ip);
+
+  /// Switches a speaker's stored Trueplay calibration on/off (non-destructive).
+  Future<void> setRoomCalibration(String ip, bool on) =>
+      _calibration.setEnabled(ip, on);
 
   /// See [front_layout.buildDedicatedFrontsMap]. Delegated to a Flutter-free
   /// helper so CLI tools can reuse it without pulling in shared_preferences.

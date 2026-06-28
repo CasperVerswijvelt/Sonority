@@ -80,6 +80,17 @@ exactly this reason.
   - `CreateStereoPair` / `SeparateStereoPair` — stereo pairs.
   - `GetZoneAttributes` / `SetZoneAttributes` — read/set room name (used to restore
     names after un-pairing).
+- **`RenderingControl` service** (`/MediaRenderer/RenderingControl/Control`):
+  - `GetVolume`/`SetVolume`/`GetMute`/`SetMute` (used by the identify chime).
+  - **Trueplay / room calibration** (`room_calibration.dart`): per-speaker,
+    confirmed via the device SCPD — `GetRoomCalibrationStatus(InstanceID)` →
+    `RoomCalibrationEnabled` + `RoomCalibrationAvailable`; `SetRoomCalibrationStatus
+    (InstanceID, RoomCalibrationEnabled)`. **available = a tuning is stored**
+    (measured once in the **iOS** Sonos app — cloud DSP + Apple-only mic profiles,
+    **cannot** be done from Android); **enabled = applied**. We only read + toggle
+    (non-destructive, instant), which is the part the Sonos app won't expose for
+    the unofficial fronts config. Toggle ALL bonded members so the separately-tuned
+    fronts engage; **Amp-driven fronts can't be Trueplay'd** (native speakers only).
 
 ### Channel maps (`channel_map.dart`)
 `HTSatChanMapSet` format: `UUID:CH[,CH];UUID:CH;…`. Tokens: `LF RF CC LR RR SW`.
@@ -142,6 +153,8 @@ Run on the same Wi-Fi as the Sonos system:
   names); dry-run by default, `--confirm`.
 - `tool/chirp.dart <room|uuid|ip>` — play the identify chime on one speaker.
 - `tool/dump_chime.dart <path>` — write the generated WAV to disk.
+- `tool/trueplay_probe.dart` — read-only Trueplay/room-calibration status per
+  speaker (+ SCPD dump); `--enable/--disable <room|uuid>` to toggle (reversible).
 
 ## Platform notes
 - iOS: `Info.plist` has `NSLocalNetworkUsageDescription` + `NSBonjourServices`
@@ -158,6 +171,9 @@ Run on the same Wi-Fi as the Sonos system:
 - ✅ Dedicated front surrounds (add with guided flow + Identify; remove), incl. a
   single **Sonos Amp** driving passive fronts (`AMP:LF,RF`; exclusive selection).
 - ✅ Stereo pairs incl. mismatched models (create flow; separate with name restore).
+- ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
+  all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't
+  expose for unofficial fronts. Measurement stays iOS-only (out of scope).
 - ✅ CI release pipeline.
 - Candidate next (ranked, all "not in the Sonos app"): **(1) config profiles /
   one-tap Cinema↔Music switching** (top pick), then channel-level/height trim
