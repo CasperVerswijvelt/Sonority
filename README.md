@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <sub><i>iOS &amp; macOS — coming soon</i></sub>
+  <sub><i>iOS &amp; macOS — App Store coming soon; already available via manual installation — check out the <a href="https://github.com/CasperVerswijvelt/Sonority/releases">Releases</a> page for more info.</i></sub>
 </p>
 
 # Sonority
