@@ -261,36 +261,31 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             sys = await _settleRead(sys, bar.ip!);
           }
         }
-        bool isFront(SonosChannel c) =>
-            c == SonosChannel.leftFront || c == SonosChannel.rightFront;
-        ChannelMap target(Map<SonosChannel, String> roles) {
-          final member = sys.allMembers
-              .where((m) => m.uuid == bar!.uuid)
-              .cast<ZoneGroupMember?>()
-              .firstOrNull;
-          return front_layout.buildLayoutMap(
-            soundbar: member ?? ZoneGroupMember(uuid: bar!.uuid, zoneName: ''),
-            soundbarDevice: bar!,
-            desired: roles,
-            preserveExisting: false,
-          );
+        // Strip the coordinator to bare first — AddHTSatellite rejects a map that
+        // would drop currently-bonded speakers, so a rebuild must start clean.
+        final cur = sys.allMembers
+            .where((m) => m.uuid == bar!.uuid)
+            .cast<ZoneGroupMember?>()
+            .firstOrNull;
+        if (cur != null && cur.channelAssignments.isNotEmpty) {
+          note('clearing current layout');
+          await _repo.stripHomeTheater(coordinator: bar!, member: cur);
+          sys = await _settleRead(sys, bar.ip!);
         }
-
-        // Stage rears+sub first, then fronts (the Phase 0 stable order).
-        final nonFront = {
-          for (final r in desired.entries) if (!isFront(r.key)) r.key: r.value
-        };
-        if (nonFront.isNotEmpty) {
-          note('bonding surrounds & sub');
-          sys = await _repo.bondAndVerify(
-              coordinator: bar!, target: target(nonFront), previous: sys, onNote: note);
-        }
-        if (desired.keys.any(isFront)) {
-          note('bonding fronts');
-          sys = await _repo.bondAndVerify(
-              coordinator: bar!, target: target(desired), previous: sys, onNote: note);
-        }
-        await _repo.setRoomName(ip: bar!.ip!, name: e.names[bar.uuid] ?? bar.roomName);
+        // Re-bond the full saved layout in one converging call. From a bare bar
+        // a single full map needs a few re-asserts to settle (Sonos drops then
+        // re-accepts satellites mid-reshuffle); bondAndVerify retries through the
+        // transient timeouts/UPnPErrors until every channel is present.
+        note('bonding ${desired.length} channels');
+        final fullTarget = front_layout.buildLayoutMap(
+          soundbar: ZoneGroupMember(uuid: bar!.uuid, zoneName: ''),
+          soundbarDevice: bar,
+          desired: desired,
+          preserveExisting: false,
+        );
+        sys = await _repo.bondAndVerify(
+            coordinator: bar, target: fullTarget, previous: sys, onNote: note);
+        await _repo.setRoomName(ip: bar.ip!, name: e.names[bar.uuid] ?? bar.roomName);
         return sys;
     }
   }

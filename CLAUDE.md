@@ -99,13 +99,20 @@ exactly this reason.
     does NOT hold — it 8s-times-out, briefly reads back as applied, then Sonos
     tears the whole bond down after the ~15–30s settle (satellites that don't
     finish joining are **silently dropped**, reverting to standalone with old
-    names). So always bond **in stages** (rears+sub first, then fronts) and
-    **re-read + re-assert any dropped channel in a retry loop** — never trust one
-    big call or one early read. Treat the 8s `TimeoutException` as "go verify",
-    not "failed" (the write still takes effect). This is `SonosRepository.
-    bondAndVerify` + the staged `SonosController.applyHomeTheaterLayout` /
-    `applyProfile`. **Sub-on-a-stereo-pair is NOT supported** — `AddHTSatellite`
-    on a pair coordinator returns UPnPError 401 (dropped from scope).
+    names). The reliable primitive is **converge by re-assertion**: write the
+    target map, settle ~16s, re-read the authoritative `HTSatChanMapSet`, and
+    **re-write the SAME map until every channel is present** (a real Beam rebuild
+    needed ~4–6 re-asserts). Bonding is eventually-consistent and BOTH failure
+    modes are transient: the 8s `TimeoutException` AND `UPnPError 800` ("can't add
+    a satellite mid-reshuffle") — the write still partially applies, so treat
+    either as "go verify", never as fatal. This is `SonosRepository.bondAndVerify`
+    (retries=8), used by `SonosController.applyHomeTheaterLayout` / `applyProfile`.
+    **Rebuilding a saved layout must strip the coordinator to bare first**
+    (`stripHomeTheater`) — `AddHTSatellite` 800s on a map that would *drop* a
+    currently-bonded speaker, so you can't edit a live HT in place; remove then
+    re-add. **Validated end-to-end on real hardware** via the Android E2E test
+    (`integration_test/profile_e2e_test.dart`). **Sub-on-a-stereo-pair is NOT
+    supported** — `AddHTSatellite` on a pair coordinator returns UPnPError 401.
   - `CreateStereoPair` / `SeparateStereoPair` — stereo pairs.
   - `GetZoneAttributes` / `SetZoneAttributes` — read/set room name (used to restore
     names after un-pairing).

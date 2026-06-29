@@ -124,7 +124,7 @@ class SonosRepository {
     required SonosDevice coordinator,
     required ChannelMap target,
     required SonosSystem? previous,
-    int retries = 3,
+    int retries = 8,
     Duration settle = const Duration(seconds: 16),
     void Function(String note)? onNote,
   }) async {
@@ -146,6 +146,15 @@ class SonosRepository {
         await _deviceProps.addHtSatellite(soundbarIp: ip, map: target);
       } on TimeoutException {
         // Big bonding calls time out at 8s but the write still takes effect.
+        onNote?.call('attempt $attempt: write timed out, verifying');
+      } catch (e) {
+        // Bonding is eventually-consistent (confirmed on hardware): a write can
+        // partially apply then settle, or return a transient UPnPError (e.g. 800
+        // — "can't add a satellite that's still mid-reshuffle") while leaving some
+        // channels bonded. Re-asserting the SAME map then converges (took ~4
+        // tries on a real Beam rebuild). So treat ANY write error as "go verify",
+        // and only fail if the topology never reaches the target.
+        onNote?.call('attempt $attempt: write error, re-asserting');
       }
       await Future<void>.delayed(settle);
       try {
@@ -264,6 +273,25 @@ class SonosRepository {
           return;
         }
       }
+    }
+  }
+
+  /// Unbonds every satellite from [member] so the coordinator is bare. Profile
+  /// apply does this before re-bonding a saved layout: `AddHTSatellite` rejects
+  /// (UPnPError 800) a map that would *drop* currently-bonded speakers, so a
+  /// rebuild must start from bare (matches the proven Phase 0 sequence).
+  Future<void> stripHomeTheater({
+    required SonosDevice coordinator,
+    required ZoneGroupMember member,
+  }) async {
+    final ip = coordinator.ip;
+    if (ip == null) return;
+    final sats = <String>{
+      ...member.channelAssignments.values,
+      ...member.satellites.map((s) => s.uuid),
+    };
+    for (final uuid in sats) {
+      await _deviceProps.removeHtSatellite(soundbarIp: ip, satelliteUuid: uuid);
     }
   }
 
