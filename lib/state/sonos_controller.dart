@@ -333,6 +333,17 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     }
   }
 
+  /// Renames a room (the visible zone) via SetZoneAttributes, then refreshes.
+  Future<void> renameRoom({
+    required SonosDevice device,
+    required String name,
+  }) async {
+    final ip = device.ip;
+    if (ip == null) throw Exception('Speaker IP unknown; rescan and retry.');
+    await _repo.setRoomName(ip: ip, name: name);
+    await refresh();
+  }
+
   Future<void> removeDedicatedFronts({
     required ZoneGroupMember soundbar,
     required SonosDevice soundbarDevice,

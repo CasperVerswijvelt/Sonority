@@ -7,6 +7,7 @@ import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/refresh_icon_button.dart';
+import '../widgets/rename_dialog.dart';
 import '../widgets/trueplay_control.dart';
 
 /// Detail page for a standalone room or a stereo pair. Currently hosts the
@@ -40,6 +41,12 @@ class RoomScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(member?.zoneName ?? 'Room'),
         actions: [
+          if (member != null)
+            IconButton(
+              icon: const Icon(Icons.drive_file_rename_outline),
+              tooltip: 'Rename room',
+              onPressed: () => _rename(context, ref, system, member),
+            ),
           RefreshIconButton(onRefresh: () async {
             await ref.read(sonosControllerProvider.notifier).refresh();
             if (devices.isNotEmpty) {
@@ -64,4 +71,20 @@ class RoomScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _rename(BuildContext context, WidgetRef ref,
+      SonosSystem? system, ZoneGroupMember member) async {
+    final device = system?.device(member.uuid);
+    if (device == null) return;
+    final name = await showRenameDialog(context, member.zoneName);
+    if (name == null || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(sonosControllerProvider.notifier)
+          .renameRoom(device: device, name: name);
+      messenger.showSnackBar(SnackBar(content: Text('Renamed to “$name”.')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+    }
+  }
 }

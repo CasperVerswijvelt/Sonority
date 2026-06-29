@@ -9,6 +9,7 @@ import '../../state/trueplay_controller.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/refresh_icon_button.dart';
+import '../widgets/rename_dialog.dart';
 import '../widgets/speaker_diagram.dart';
 import '../widgets/trueplay_control.dart';
 
@@ -48,7 +49,15 @@ class HomeTheaterScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(member?.zoneName ?? 'Home theater'),
-        actions: [RefreshIconButton(onRefresh: refreshAll)],
+        actions: [
+          if (member != null && device != null)
+            IconButton(
+              icon: const Icon(Icons.drive_file_rename_outline),
+              tooltip: 'Rename room',
+              onPressed: () => _rename(context, ref, device, member.zoneName),
+            ),
+          RefreshIconButton(onRefresh: refreshAll),
+        ],
       ),
       body: SafeArea(
         child: state.isLoading
@@ -71,6 +80,21 @@ class HomeTheaterScreen extends ConsumerWidget {
                   ),
       ),
     );
+  }
+
+  Future<void> _rename(BuildContext context, WidgetRef ref, SonosDevice device,
+      String current) async {
+    final name = await showRenameDialog(context, current);
+    if (name == null || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(sonosControllerProvider.notifier)
+          .renameRoom(device: device, name: name);
+      messenger.showSnackBar(SnackBar(content: Text('Renamed to “$name”.')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+    }
   }
 
   Future<void> _confirmRemove(
