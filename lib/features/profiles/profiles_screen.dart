@@ -245,10 +245,11 @@ class _ApplyConfirmDialog extends StatelessWidget {
                 ),
                 title: Text('${i.entity.kindLabel}: ${i.entity.label}'),
                 subtitle: i.blocked
-                    ? Text('Missing: ${i.missing.join(', ')} — will be skipped',
+                    ? Text(
+                        'Missing: ${i.missing.toSet().join(', ')} — will be skipped',
                         style: TextStyle(color: theme.colorScheme.error))
                     : i.conflicts.isNotEmpty
-                        ? Text('Will free: ${i.conflicts.join(', ')}')
+                        ? Text('Will free: ${i.conflicts.toSet().join(', ')}')
                         : null,
               ),
             if (applicable.isEmpty)
