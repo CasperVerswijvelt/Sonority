@@ -274,7 +274,7 @@ class _ApplyConfirmDialog extends StatelessWidget {
         TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel')),
-        FilledButton(
+        TextButton(
             onPressed: applicable.isEmpty
                 ? null
                 : () => Navigator.pop(context, true),

@@ -304,13 +304,9 @@ class _GroupChips extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final chips = <Widget>[];
     for (final (label, icon, channels) in _groups) {
-      final names = <String>[];
-      for (final c in channels) {
-        final n = labelForChannel(system, member, c);
-        if (n != null && !names.contains(n)) names.add(n);
+      if (channels.any((c) => hasChannel(member, c))) {
+        chips.add(_chip(scheme, icon, label, scheme.primary));
       }
-      if (names.isEmpty) continue;
-      chips.add(_chip(scheme, icon, '$label: ${names.join(', ')}', scheme.primary));
     }
     if (chips.isEmpty) {
       chips.add(_chip(scheme, Icons.info_outline, 'No extra speakers',

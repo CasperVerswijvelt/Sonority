@@ -19,7 +19,7 @@ Future<String?> showRenameDialog(BuildContext context, String current) async {
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-        FilledButton(
+        TextButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
             child: const Text('Save')),
       ],

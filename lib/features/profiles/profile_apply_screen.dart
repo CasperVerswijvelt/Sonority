@@ -56,10 +56,7 @@ class _ProfileApplyScreenState extends ConsumerState<ProfileApplyScreen> {
         body: SafeArea(
           child: Column(
             children: [
-              Expanded(
-                child: ApplyProgressView(
-                    steps: steps, title: 'Applying “${widget.profile.name}”…'),
-              ),
+              Expanded(child: ApplyProgressView(steps: steps)),
               if (_failed)
                 Padding(
                   padding: const EdgeInsets.all(16),

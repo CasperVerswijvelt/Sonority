@@ -184,12 +184,17 @@ class _Content extends StatelessWidget {
     required this.onConfigure,
   });
 
-  /// Resolved, de-duplicated speaker names for a group's channels.
-  List<String> _names(Set<SonosChannel> channels) {
+  /// Speaker model per bonded speaker in a group (e.g. "Play:1, Play:1") — the
+  /// room name just echoes the HT name, so the model is the useful detail. One
+  /// entry per distinct device (an Amp driving both fronts shows once).
+  List<String> _models(Set<SonosChannel> channels) {
+    final seen = <String>{};
     final out = <String>[];
     for (final c in channels) {
-      final label = labelForChannel(system, member, c);
-      if (label != null && !out.contains(label)) out.add(label);
+      final uuid = member.channelAssignments[c];
+      if (uuid == null || !seen.add(uuid)) continue;
+      final model = system.device(uuid)?.modelName ?? '';
+      out.add(model.replaceFirst(RegExp(r'^Sonos\s+'), '').trim());
     }
     return out;
   }
@@ -234,7 +239,7 @@ class _Content extends StatelessWidget {
             for (final g in present) ...[
               _GroupCard(
                 group: g,
-                names: _names(g.channels),
+                models: _models(g.channels),
                 onRemove: () => onRemoveGroup(g.channels, g.label),
               ),
               Gap.s,
@@ -261,10 +266,10 @@ class _Content extends StatelessWidget {
 
 class _GroupCard extends StatelessWidget {
   final _Group group;
-  final List<String> names;
+  final List<String> models;
   final VoidCallback onRemove;
   const _GroupCard(
-      {required this.group, required this.names, required this.onRemove});
+      {required this.group, required this.models, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +279,7 @@ class _GroupCard extends StatelessWidget {
       child: ListTile(
         leading: Icon(group.icon, color: theme.colorScheme.primary),
         title: Text(group.label),
-        subtitle: Text(names.isEmpty ? 'Bonded' : names.join(' · ')),
+        subtitle: Text(models.isEmpty ? 'Bonded' : models.join(', ')),
         trailing: TextButton(
           onPressed: onRemove,
           style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),

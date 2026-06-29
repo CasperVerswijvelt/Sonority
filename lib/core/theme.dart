@@ -14,12 +14,19 @@ class AppTheme {
       );
 
   static ThemeData _build(ColorScheme scheme) {
+    // The page background must sit clearly BELOW the cards / bottom nav (both
+    // `surfaceContainerHigh`). Dynamic-colour dark palettes flatten the
+    // container tones, so in dark mode we blend the surface toward black to
+    // guarantee that contrast; light mode keeps its (already lighter) surface.
+    final pageBg = scheme.brightness == Brightness.dark
+        ? Color.alphaBlend(Colors.black.withValues(alpha: 0.35), scheme.surface)
+        : scheme.surface;
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surface,
+      scaffoldBackgroundColor: pageBg,
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.surface,
+        backgroundColor: pageBg,
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
         titleTextStyle: TextStyle(

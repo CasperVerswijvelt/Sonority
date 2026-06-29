@@ -10,13 +10,8 @@ import '../../data/sonos/apply_progress.dart';
 /// error. Used by the HT setup flow and profile-apply.
 class ApplyProgressView extends StatelessWidget {
   final List<ApplyStep> steps;
-  final String title;
 
-  const ApplyProgressView({
-    super.key,
-    required this.steps,
-    this.title = 'Setting up your home theater…',
-  });
+  const ApplyProgressView({super.key, required this.steps});
 
   @override
   Widget build(BuildContext context) {
@@ -40,24 +35,14 @@ class ApplyProgressView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(title,
-                  style: theme.textTheme.titleMedium,
-                  textAlign: TextAlign.center),
-              Gap.s,
-              Text(
-                failed
-                    ? 'Something went wrong — see the step below.'
-                    : 'Bonding can take ~15–20s per step while Sonos applies and '
-                        're-reads the layout.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                textAlign: TextAlign.center,
-              ),
-            ],
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+          child: Text(
+            failed
+                ? 'Something went wrong — see the step below.'
+                : 'Bonding can take ~15–20s per step while Sonos applies and '
+                    're-reads the layout.',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         ),
         Expanded(
