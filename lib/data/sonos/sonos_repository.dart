@@ -236,6 +236,49 @@ class SonosRepository {
     }
   }
 
+  /// Frees [uuid] from whatever role it currently holds so it can be re-bonded
+  /// elsewhere (profile-apply conflict resolution): unbonds it if it's a
+  /// satellite, or separates the pair if it's a pair member. No-op if it's
+  /// already standalone. Caller should settle + re-read afterward.
+  Future<void> freeSpeaker(SonosSystem system, String uuid) async {
+    for (final g in system.groups) {
+      for (final m in g.members) {
+        // A satellite (front/rear/sub) of an HT primary.
+        if (m.uuid != uuid &&
+            (m.channelAssignments.values.contains(uuid) ||
+                m.satellites.any((s) => s.uuid == uuid))) {
+          final ip = m.ip;
+          if (ip != null) {
+            await _deviceProps.removeHtSatellite(soundbarIp: ip, satelliteUuid: uuid);
+          }
+          return;
+        }
+        // A half of a stereo pair.
+        if (m.isStereoPair && m.stereoPairUuids.contains(uuid)) {
+          final uuids = m.stereoPairUuids;
+          final ip = system.device(uuids.first)?.ip ?? m.ip;
+          if (ip != null && uuids.length == 2) {
+            await _deviceProps.separateStereoPair(
+                ip: ip, leftUuid: uuids[0], rightUuid: uuids[1]);
+          }
+          return;
+        }
+      }
+    }
+  }
+
+  /// Sets a speaker's room name (used to restore names on profile-apply), only
+  /// writing if it differs — preserving the current icon/configuration.
+  Future<void> setRoomName({required String ip, required String name}) async {
+    final attrs = await _deviceProps.getZoneAttributes(ip);
+    if (attrs.zoneName == name) return;
+    await _deviceProps.setZoneAttributes(
+      ip,
+      ZoneAttributes(
+          zoneName: name, icon: attrs.icon, configuration: attrs.configuration),
+    );
+  }
+
   String _pairKey(String a, String b) {
     final s = [a, b]..sort();
     return 'pair_snapshot_${s[0]}_${s[1]}';

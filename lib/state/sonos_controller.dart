@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/sonos_models.dart';
 import '../data/sonos/apply_progress.dart';
+import '../data/sonos/channel_map.dart';
 import '../data/sonos/front_layout.dart' as front_layout;
 import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
 import '../data/sonos/sonos_repository.dart';
+import '../features/profiles/profile.dart';
 
 final sonosRepositoryProvider =
     Provider<SonosRepository>((ref) => SonosRepository());
@@ -156,6 +158,179 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     });
     state = result;
     if (result.hasError) rethrowLast(result);
+  }
+
+  /// Re-applies a saved [profile] to the live system: one progress step per
+  /// entity (HT / stereo pair / single room), skipping any whose primary UUID is
+  /// in [skip] (e.g. a speaker the pre-flight found missing). Each entity frees
+  /// conflicting speakers, re-bonds (staged for HT), and restores its room
+  /// names. Emits per-step progress via [applyProgressProvider].
+  Future<void> applyProfile(Profile profile, {Set<String> skip = const {}}) async {
+    final current = state.value;
+    if (current == null) return;
+    final entities =
+        profile.entities.where((e) => !skip.contains(e.primaryUuid)).toList();
+    if (entities.isEmpty) return;
+
+    final progress = ref.read(applyProgressProvider.notifier);
+    final tracker = ApplyProgress(
+      [
+        for (final e in entities)
+          ApplyStep(id: e.primaryUuid, label: '${e.kindLabel}: ${e.label}'),
+      ],
+      onChange: progress.set,
+    );
+
+    final previous = current;
+    state = const AsyncValue.loading();
+    final result = await AsyncValue.guard(() async {
+      SonosSystem? sys = previous;
+      for (final e in entities) {
+        tracker.start(e.primaryUuid);
+        try {
+          sys = await _applyEntity(e, sys!, (n) => tracker.note(e.primaryUuid, n));
+          tracker.done(e.primaryUuid);
+        } catch (err) {
+          tracker.fail(e.primaryUuid, '$err');
+          rethrow;
+        }
+      }
+      return sys ?? await _repo.discover();
+    });
+    state = result;
+    if (result.hasError) rethrowLast(result);
+  }
+
+  Future<SonosSystem> _applyEntity(
+      EntitySnapshot e, SonosSystem sys, void Function(String) note) async {
+    switch (e.kind) {
+      case EntityKind.single:
+        final dev = sys.device(e.primaryUuid);
+        if (dev?.ip == null) {
+          throw Exception('“${e.label}” isn’t on the network.');
+        }
+        if (_ownerOf(sys, e.primaryUuid) != null) {
+          note('freeing from its current bond');
+          await _repo.freeSpeaker(sys, e.primaryUuid);
+          sys = await _settleRead(sys, dev!.ip!);
+        }
+        await _repo.setRoomName(ip: dev!.ip!, name: e.names[e.primaryUuid] ?? dev.roomName);
+        return sys;
+
+      case EntityKind.stereoPair:
+        final uuids = e.involvedUuids.toList();
+        if (uuids.length != 2) throw Exception('Stored pair is malformed.');
+        final left = sys.device(uuids[0]);
+        final right = sys.device(uuids[1]);
+        if (left?.ip == null || right?.ip == null) {
+          throw Exception('A paired speaker isn’t on the network.');
+        }
+        for (final u in uuids) {
+          if (_ownerOf(sys, u) != null && _ownerOf(sys, u) != uuids[0]) {
+            await _repo.freeSpeaker(sys, u);
+            sys = await _settleRead(sys, left!.ip!);
+          }
+        }
+        await _repo.createStereoPair(left: left!, right: right!);
+        sys = await _pollUntil(
+          previous: sys,
+          ip: left.ip,
+          attempts: 8,
+          until: (s) => _isPaired(s, left.uuid, right.uuid),
+        );
+        if (!_isPaired(sys, left.uuid, right.uuid)) {
+          throw Exception('Sonos did not pair “${e.label}”.');
+        }
+        await _repo.setRoomName(ip: left.ip!, name: e.names[left.uuid] ?? left.roomName);
+        return sys;
+
+      case EntityKind.homeTheater:
+        final bar = sys.device(e.primaryUuid);
+        if (bar?.ip == null) {
+          throw Exception('Soundbar for “${e.label}” isn’t on the network.');
+        }
+        final map = e.mapSet;
+        if (map == null) throw Exception('Stored home theater is malformed.');
+        final desired = _channelsOf(map);
+        // Free any satellite currently bonded to a different coordinator/pair.
+        for (final u in desired.values.toSet()) {
+          final owner = _ownerOf(sys, u);
+          if (owner != null && owner != bar!.uuid) {
+            note('freeing $u');
+            await _repo.freeSpeaker(sys, u);
+            sys = await _settleRead(sys, bar.ip!);
+          }
+        }
+        bool isFront(SonosChannel c) =>
+            c == SonosChannel.leftFront || c == SonosChannel.rightFront;
+        ChannelMap target(Map<SonosChannel, String> roles) {
+          final member = sys.allMembers
+              .where((m) => m.uuid == bar!.uuid)
+              .cast<ZoneGroupMember?>()
+              .firstOrNull;
+          return front_layout.buildLayoutMap(
+            soundbar: member ?? ZoneGroupMember(uuid: bar!.uuid, zoneName: ''),
+            soundbarDevice: bar!,
+            desired: roles,
+            preserveExisting: false,
+          );
+        }
+
+        // Stage rears+sub first, then fronts (the Phase 0 stable order).
+        final nonFront = {
+          for (final r in desired.entries) if (!isFront(r.key)) r.key: r.value
+        };
+        if (nonFront.isNotEmpty) {
+          note('bonding surrounds & sub');
+          sys = await _repo.bondAndVerify(
+              coordinator: bar!, target: target(nonFront), previous: sys, onNote: note);
+        }
+        if (desired.keys.any(isFront)) {
+          note('bonding fronts');
+          sys = await _repo.bondAndVerify(
+              coordinator: bar!, target: target(desired), previous: sys, onNote: note);
+        }
+        await _repo.setRoomName(ip: bar!.ip!, name: e.names[bar.uuid] ?? bar.roomName);
+        return sys;
+    }
+  }
+
+  /// The coordinator/pair-primary UUID that currently owns [uuid] as a bonded
+  /// member, or null if it's standalone.
+  String? _ownerOf(SonosSystem sys, String uuid) {
+    for (final g in sys.groups) {
+      for (final m in g.members) {
+        if (m.uuid != uuid &&
+            (m.channelAssignments.values.contains(uuid) ||
+                m.satellites.any((s) => s.uuid == uuid))) {
+          return m.uuid;
+        }
+        if (m.isStereoPair && m.stereoPairUuids.contains(uuid)) {
+          return m.stereoPairUuids.first;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Parses a saved map string into channel → UUID, skipping the CC primary.
+  Map<SonosChannel, String> _channelsOf(String mapSet) {
+    final out = <SonosChannel, String>{};
+    for (final entry in ChannelMap.parse(mapSet).entries.skip(1)) {
+      for (final ch in entry.channels) {
+        out[ch] = entry.uuid;
+      }
+    }
+    return out;
+  }
+
+  Future<SonosSystem> _settleRead(SonosSystem sys, String ip) async {
+    await Future<void>.delayed(const Duration(seconds: 4));
+    try {
+      return await _repo.refresh(sys, ip);
+    } catch (_) {
+      return sys;
+    }
   }
 
   Future<void> removeDedicatedFronts({
