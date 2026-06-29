@@ -11,13 +11,22 @@ refuses to create**, via Sonos' undocumented **local UPnP/SOAP API** (port 1400)
 It's a cleaner, focused alternative to *SonoSequencr*.
 
 ### Product principle (important)
-**Do NOT duplicate features the official Sonos app already has** (EQ/bass/treble,
-volume, grouping, surround level sliders, night sound, Trueplay, …). Every
+**Default: do NOT duplicate features the official Sonos app already has** (EQ/bass/
+treble, volume, grouping, surround level sliders, night sound, Trueplay, …). Every
 feature should be something the Sonos app **won't** let users do. Examples:
 - **Dedicated front L/R speakers** on a soundbar (the bar becomes center). ✅ built
 - **Mismatched / app-blocked stereo pairs**. ✅ built
-- Candidate next features (ranked): **config profiles / one-tap layout switching**
-  (Cinema ↔ Music) is the strongest unique idea; see "Feature status" below.
+- **Config profiles** — snapshot the current unofficial layout + room names and
+  re-apply it in one tap (rebuild fronts/surrounds after moving speakers away).
+  The validated #1 SonoSequencr request; unique because the Sonos app won't
+  recreate a blocked config. ✅ built
+
+**Deliberate exception (softened principle):** full in-app **surround/sub setup**
+and **room renaming** DO exist in the official app, but we now do them anyway —
+because profiles are only useful if a *complete* HT/stereo setup can be finished
+inside Sonority (otherwise you snapshot a half-config and still bounce to the
+Sonos app). Justified by "finish a setup in one app, then save it." Keep this the
+*only* exception; don't widen it to EQ/volume/grouping/etc.
 
 The app does **no audio processing** — it only issues the bonding/config SOAP
 calls the official app blocks. Audio quality comes from the real speakers.
@@ -54,13 +63,17 @@ lib/
   data/sonos/      THE ENGINE (pure Dart, no Flutter):
                      ssdp_discovery · device_description · soap_client
                      zone_topology  · device_properties (bonding + stereo + zone attrs)
-                     channel_map    · front_layout (CC+LF/RF recipe)
+                     channel_map    · front_layout (buildLayoutMap — any role; + recipes)
+                     apply_progress (ApplyStep/ApplyProgress — per-step status)
                      identify_service (chime)
-                     sonos_repository (orchestrates; + shared_preferences ⇒ Flutter dep)
-  state/           sonos_controller.dart — Riverpod AsyncNotifier<SonosSystem?>
-  features/        discovery / home_theater / front_surrounds / stereo_pair / widgets
-  app.dart, main.dart — go_router, portrait lock, ProviderScope
-tool/              spike, roundtrip, chirp, dump_chime, stereopair (see below)
+                     sonos_repository (orchestrates; bondAndVerify staged write+retry;
+                       freeSpeaker; setRoomName; + shared_preferences ⇒ Flutter dep)
+  state/           sonos_controller.dart — AsyncNotifier<SonosSystem?>; applyHomeTheaterLayout,
+                     applyProfile, renameRoom; applyProgressProvider (live steps)
+  features/        discovery / home_theater / front_surrounds (full HT setup) /
+                     stereo_pair / profiles / room / widgets
+  app.dart, main.dart — go_router StatefulShellRoute (System|Profiles tabs), ProviderScope
+tool/              spike, roundtrip, full_layout, chirp, dump_chime, stereopair (see below)
 ```
 Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
 `shared_preferences` → Flutter). The pure recipe lives in `front_layout.dart` for
@@ -81,6 +94,18 @@ exactly this reason.
   **Confirmed on hardware:** adding `Connection: close` fixed a flaky LED blink.
 - **`DeviceProperties` service** (`/DeviceProperties/Control`):
   - `AddHTSatellite` / `RemoveHTSatellite` — bond/unbond satellites & sub.
+    **Staged-bonding rule (confirmed on hardware, Phase 0):** a *single*
+    `AddHTSatellite` with a full map (CC+LF/RF+LR/RR+SW) from a **bare** soundbar
+    does NOT hold — it 8s-times-out, briefly reads back as applied, then Sonos
+    tears the whole bond down after the ~15–30s settle (satellites that don't
+    finish joining are **silently dropped**, reverting to standalone with old
+    names). So always bond **in stages** (rears+sub first, then fronts) and
+    **re-read + re-assert any dropped channel in a retry loop** — never trust one
+    big call or one early read. Treat the 8s `TimeoutException` as "go verify",
+    not "failed" (the write still takes effect). This is `SonosRepository.
+    bondAndVerify` + the staged `SonosController.applyHomeTheaterLayout` /
+    `applyProfile`. **Sub-on-a-stereo-pair is NOT supported** — `AddHTSatellite`
+    on a pair coordinator returns UPnPError 401 (dropped from scope).
   - `CreateStereoPair` / `SeparateStereoPair` — stereo pairs.
   - `GetZoneAttributes` / `SetZoneAttributes` — read/set room name (used to restore
     names after un-pairing).
@@ -169,6 +194,9 @@ Run on the same Wi-Fi as the Sonos system:
 - `tool/spike.dart` — read-only: discover + dump full topology (incl. raw maps).
 - `tool/roundtrip.dart` — live HT fronts; dry-run by default; `--confirm`,
   `--apply-only`, `--remove-only`.
+- `tool/full_layout.dart` — strip the bar to bare → rebuild a FULL HT map in one
+  `AddHTSatellite` → verify each channel → restore. The Phase 0 spike that proved
+  staged bonding is required; dry-run by default, `--confirm`. ⚠️ wipes Trueplay.
 - `tool/stereopair.dart` — stereo-pair round-trip (create→verify→separate→restore
   names); dry-run by default, `--confirm`.
 - `tool/chirp.dart <room|uuid|ip>` — play the identify chime on one speaker.
@@ -195,15 +223,23 @@ Run on the same Wi-Fi as the Sonos system:
 - ✅ Identify a speaker by **blinking its status LED** (`led_identify.dart`, default,
   all platforms incl. macOS) with the audio chime as a mobile-only long-press extra.
 - ✅ Stereo pairs incl. mismatched models (create flow; separate with name restore).
+- ✅ **Full in-app HT setup** — the guided flow now bonds fronts **+ rear surrounds
+  (LR/RR) + a sub (SW)**, each optional, applied with **staged bonding** + a live
+  per-step progress stepper that shows the active step and exactly where it failed
+  (`front_surrounds_flow.dart`, `apply_progress_view.dart`, `applyHomeTheaterLayout`).
+- ✅ **Config profiles** (`features/profiles/`) — bottom-tab page; a profile is a
+  snapshot of current state trimmed to chosen entities (one HT / pair / unbonded
+  room = one entity), with stored room names. Create-from-snapshot only (no config
+  builder); tiles **edit** + **apply (play)**. Apply does pre-flight resolution
+  (missing/conflicting speakers), frees conflicts, re-bonds (staged), restores names,
+  and reports per-step progress. Sub-on-stereo-pair is out (hardware-rejected).
+- ✅ **Room renaming** from the room / HT detail pages (`renameRoom` + `rename_dialog`).
 - ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
   all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't
   expose for unofficial fronts. Measurement stays iOS-only (out of scope).
 - ✅ CI release pipeline.
-- Candidate next (ranked, all "not in the Sonos app"): **(1) config profiles /
-  one-tap Cinema↔Music switching** (top pick), then channel-level/height trim
-  (overlaps the app — weak), and a discovery-robustness nit: a device present in
-  topology but whose `device_description.xml` fetch transiently fails is missing
-  from `bondableSpeakers` (fall back to topology data).
+- Candidate next: channel-level/height trim (overlaps the app — weak). Discovery
+  now recovers topology-only speakers when a description fetch fails (done upstream).
 
 ## Conventions
 - Keep `flutter analyze` clean and unit tests passing; add tests for new parsing/
