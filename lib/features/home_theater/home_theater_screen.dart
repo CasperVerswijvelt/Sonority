@@ -191,9 +191,10 @@ class _Content extends StatelessWidget {
     final seen = <String>{};
     final out = <String>[];
     for (final c in channels) {
-      final uuid = member.channelAssignments[c];
-      if (uuid == null || !seen.add(uuid)) continue;
-      out.add(system.device(uuid)?.typeLabel ?? 'Speaker');
+      for (final uuid in member.uuidsForChannel(c)) {
+        if (!seen.add(uuid)) continue;
+        out.add(system.device(uuid)?.typeLabel ?? 'Speaker');
+      }
     }
     return out;
   }

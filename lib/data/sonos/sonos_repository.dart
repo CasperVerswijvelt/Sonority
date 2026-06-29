@@ -131,11 +131,13 @@ class SonosRepository {
     final ip = coordinator.ip;
     if (ip == null) throw Exception('Coordinator IP unknown; rescan and retry.');
 
-    // Desired channel → UUID, skipping the CC primary (target.entries.first).
-    final wanted = <SonosChannel, String>{};
+    // Desired channel → set of UUIDs, skipping the CC primary
+    // (target.entries.first). A set per channel so dual subs (two SW entries)
+    // are both required, not collapsed to one.
+    final wanted = <SonosChannel, Set<String>>{};
     for (final e in target.entries.skip(1)) {
       for (final ch in e.channels) {
-        wanted[ch] = e.uuid;
+        (wanted[ch] ??= <String>{}).add(e.uuid);
       }
     }
 
@@ -163,13 +165,16 @@ class SonosRepository {
         onNote?.call('attempt $attempt: topology read failed, retrying');
         continue;
       }
-      final got = system.allMembers
-              .where((m) => m.uuid == coordinator.uuid)
-              .cast<ZoneGroupMember?>()
-              .firstOrNull
-              ?.channelAssignments ??
-          const {};
-      missing = [for (final e in wanted.entries) if (got[e.key] != e.value) e.key];
+      final member = system.allMembers
+          .where((m) => m.uuid == coordinator.uuid)
+          .cast<ZoneGroupMember?>()
+          .firstOrNull;
+      missing = [
+        for (final e in wanted.entries)
+          if (!(member?.uuidsForChannel(e.key).toSet() ?? const <String>{})
+              .containsAll(e.value))
+            e.key,
+      ];
       if (missing.isEmpty) {
         onNote?.call(attempt == 1 ? 'bonded' : 're-asserted after $attempt tries');
         return system;

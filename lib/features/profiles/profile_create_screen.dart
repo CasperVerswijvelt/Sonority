@@ -164,7 +164,6 @@ class _SelectableEntityCard extends StatelessWidget {
         secondary: Icon(entityIcon(entity.kind)),
         title: Text(entity.label),
         subtitle: Text(entitySummary(entity, system)),
-        isThreeLine: entity.kind == EntityKind.homeTheater,
       ),
     );
   }

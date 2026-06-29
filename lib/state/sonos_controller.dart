@@ -251,9 +251,13 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         final map = e.mapSet;
         if (map == null) throw Exception('Stored home theater is malformed.');
-        final desired = _channelsOf(map);
+        // The saved map IS the exact target (bar + every satellite, including a
+        // second Sub in a dual-sub setup) — use it directly rather than a
+        // channel→uuid map, which would collapse two SW entries into one.
+        final fullTarget = ChannelMap.parse(map);
+        final satUuids = fullTarget.entries.skip(1).map((e) => e.uuid).toSet();
         // Free any satellite currently bonded to a different coordinator/pair.
-        for (final u in desired.values.toSet()) {
+        for (final u in satUuids) {
           final owner = _ownerOf(sys, u);
           if (owner != null && owner != bar!.uuid) {
             note('freeing $u');
@@ -276,15 +280,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // a single full map needs a few re-asserts to settle (Sonos drops then
         // re-accepts satellites mid-reshuffle); bondAndVerify retries through the
         // transient timeouts/UPnPErrors until every channel is present.
-        note('bonding ${desired.length} channels');
-        final fullTarget = front_layout.buildLayoutMap(
-          soundbar: ZoneGroupMember(uuid: bar!.uuid, zoneName: ''),
-          soundbarDevice: bar,
-          desired: desired,
-          preserveExisting: false,
-        );
+        note('bonding ${satUuids.length} speakers');
         sys = await _repo.bondAndVerify(
-            coordinator: bar, target: fullTarget, previous: sys, onNote: note);
+            coordinator: bar!, target: fullTarget, previous: sys, onNote: note);
         await _repo.setRoomName(ip: bar.ip!, name: e.names[bar.uuid] ?? bar.roomName);
         return sys;
     }
@@ -306,17 +304,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       }
     }
     return null;
-  }
-
-  /// Parses a saved map string into channel → UUID, skipping the CC primary.
-  Map<SonosChannel, String> _channelsOf(String mapSet) {
-    final out = <SonosChannel, String>{};
-    for (final entry in ChannelMap.parse(mapSet).entries.skip(1)) {
-      for (final ch in entry.channels) {
-        out[ch] = entry.uuid;
-      }
-    }
-    return out;
   }
 
   Future<SonosSystem> _settleRead(SonosSystem sys, String ip) async {
@@ -371,8 +358,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final ip = soundbarDevice.ip;
     if (ip == null) throw Exception('Soundbar IP unknown; rescan and retry.');
     final uuids = <String>{
-      for (final c in channels)
-        if (soundbar.channelAssignments[c] != null) soundbar.channelAssignments[c]!,
+      for (final c in channels) ...soundbar.uuidsForChannel(c),
     };
     if (uuids.isEmpty) return;
 

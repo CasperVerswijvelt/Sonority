@@ -206,6 +206,35 @@ class ZoneGroupMember {
     }
     return result;
   }
+
+  /// Every bonded satellite UUID from the `HTSatChanMapSet` (skips the soundbar
+  /// primary), in map order. Unlike [channelAssignments] (a 1:1 channel→uuid
+  /// map) this keeps ALL satellites — including a second Sub in a dual-sub HT.
+  List<String> get satelliteUuids => _uuidsWhere((_) => true);
+
+  /// All satellite UUIDs assigned to [channel] — more than one for dual subs.
+  List<String> uuidsForChannel(SonosChannel channel) =>
+      _uuidsWhere((tokens) => tokens.contains(channel.token));
+
+  List<String> _uuidsWhere(bool Function(List<String> tokens) test) {
+    final raw = htSatChanMapSet;
+    if (raw == null) return const [];
+    final out = <String>[];
+    final parts = raw.split(';');
+    for (var i = 1; i < parts.length; i++) {
+      final p = parts[i].trim();
+      final colon = p.indexOf(':');
+      if (colon < 0) continue;
+      final uuid = p.substring(0, colon).trim();
+      final tokens = p
+          .substring(colon + 1)
+          .split(',')
+          .map((t) => t.trim().toUpperCase())
+          .toList();
+      if (uuid.isNotEmpty && !out.contains(uuid) && test(tokens)) out.add(uuid);
+    }
+    return out;
+  }
 }
 
 /// A Sonos zone group (the coordinator plus any grouped rooms).

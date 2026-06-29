@@ -93,9 +93,9 @@ class _State extends ConsumerState<ProfileDetailScreen> {
                   margin: EdgeInsets.zero,
                   child: ListTile(
                     leading: Icon(entityIcon(e.kind)),
+                    titleAlignment: ListTileTitleAlignment.center,
                     title: Text(e.label),
                     subtitle: Text(entitySummary(e, system)),
-                    isThreeLine: e.kind == EntityKind.homeTheater,
                   ),
                 ),
                 Gap.s,
