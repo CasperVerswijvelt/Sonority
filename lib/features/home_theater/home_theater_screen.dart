@@ -193,8 +193,7 @@ class _Content extends StatelessWidget {
     for (final c in channels) {
       final uuid = member.channelAssignments[c];
       if (uuid == null || !seen.add(uuid)) continue;
-      final model = system.device(uuid)?.modelName ?? '';
-      out.add(model.replaceFirst(RegExp(r'^Sonos\s+'), '').trim());
+      out.add(system.device(uuid)?.typeLabel ?? 'Speaker');
     }
     return out;
   }
@@ -211,12 +210,12 @@ class _Content extends StatelessWidget {
       sliver: SliverList.list(
         children: [
           SpeakerDiagram(
-            frontLeftLabel: labelForChannel(system, member, SonosChannel.leftFront),
+            frontLeftLabel: typeForChannel(system, member, SonosChannel.leftFront),
             frontRightLabel:
-                labelForChannel(system, member, SonosChannel.rightFront),
-            rearLeftLabel: labelForChannel(system, member, SonosChannel.leftRear),
+                typeForChannel(system, member, SonosChannel.rightFront),
+            rearLeftLabel: typeForChannel(system, member, SonosChannel.leftRear),
             rearRightLabel:
-                labelForChannel(system, member, SonosChannel.rightRear),
+                typeForChannel(system, member, SonosChannel.rightRear),
             hasSub: hasChannel(member, SonosChannel.sub),
           ),
           Gap.l,

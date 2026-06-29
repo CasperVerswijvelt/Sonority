@@ -35,8 +35,7 @@ class RoomScreen extends ConsumerWidget {
         else if (system.device(uuid) != null)
           system.device(uuid)!,
     ];
-    final models =
-        devices.map((d) => d.modelName).toSet().join(' + ');
+    final models = devices.map((d) => d.typeLabel).toSet().join(' + ');
 
     return CollapsingScaffold(
       title: member?.zoneName ?? 'Room',

@@ -60,6 +60,20 @@ class SonosDevice {
 
   bool get isSub => modelName.toLowerCase().contains('sub');
 
+  /// Friendly speaker type for display, e.g. "Play:1", "One SL", "Beam". For a
+  /// Sub the generation is surfaced: Gen 1 & 2 are hardware-identical and both
+  /// report model number "Sub" → "Sub (Gen 1/2)"; a newer Sub reports a distinct
+  /// model code, which we append so the generation is explicit.
+  String get typeLabel {
+    final base = modelName.replaceFirst(RegExp(r'^Sonos\s+'), '').trim();
+    if (!isSub) return base.isEmpty ? 'Speaker' : base;
+    final n = modelNumber;
+    if (n == null || n.isEmpty || n.toLowerCase() == 'sub') {
+      return 'Sub (Gen 1/2)';
+    }
+    return 'Sub ($n)';
+  }
+
   /// A Sonos Amp / Connect:Amp drives passive L/R speakers, so it can serve as
   /// BOTH front channels at once (`LF,RF`) — unlike a normal speaker, which is
   /// a single side. Used to offer it as a one-box dedicated-fronts option.

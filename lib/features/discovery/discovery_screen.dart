@@ -158,7 +158,7 @@ class _SystemView extends ConsumerWidget {
                 ),
                 title: Text(m.zoneName),
                 subtitle: Text(
-                  unreachable ? unreachableSpeakerHint : (device?.modelName ?? ''),
+                  unreachable ? unreachableSpeakerHint : (device?.typeLabel ?? ''),
                   style: unreachable ? TextStyle(color: scheme.error) : null,
                 ),
                 trailing: unreachable ? null : const Icon(Icons.chevron_right),
@@ -181,9 +181,8 @@ class _PairCard extends ConsumerWidget {
     final uuids = pair.stereoPairUuids;
     final left = uuids.isNotEmpty ? system.device(uuids[0]) : null;
     final right = uuids.length > 1 ? system.device(uuids[1]) : null;
-    final models = [left?.modelName, right?.modelName]
+    final models = [left?.typeLabel, right?.typeLabel]
         .whereType<String>()
-        .toSet()
         .join(' + ');
     return Card(
       margin: const EdgeInsets.only(bottom: 12),

@@ -188,7 +188,7 @@ class _ChooseSpeakers extends StatelessWidget {
             device: d,
             selected: isSel,
             onChanged: disabled ? null : (_) => onToggle(d.uuid),
-            subtitle: d.modelName,
+            subtitle: d.typeLabel,
             secondary: identifyControls(d),
           );
         }),

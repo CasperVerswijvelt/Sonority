@@ -19,43 +19,47 @@ IconData entityIcon(EntityKind kind) => switch (kind) {
       EntityKind.single => Icons.speaker,
     };
 
-/// A short human description of what an entity snapshot bonds, resolving speaker
-/// names against the live [system] when available (falling back to the names
-/// captured at snapshot time, then the UUID). Used on profile tiles.
+/// A short human description of what an entity snapshot bonds, by speaker TYPE
+/// (the room names just echo the entity name, so the type is the useful detail).
+/// Resolves types against the live [system]; falls back to the captured room
+/// name only when the device isn't currently present.
 ///
-/// - HT: `Fronts: A, B · Surrounds: C, D · Sub: S`
-/// - Pair: `A + B`
-/// - Single: the model name (or "Standalone speaker").
+/// - HT: `Fronts: One SL, One SL · Surrounds: Play:1, Play:1 · Sub: Sub (Gen 1/2)`
+/// - Pair: `Play:1 + Play:1`
+/// - Single: the type (or "Standalone speaker").
 String entitySummary(EntitySnapshot e, SonosSystem? system) {
-  String nameOf(String uuid) =>
-      system?.device(uuid)?.roomName ?? e.names[uuid] ?? 'Speaker';
+  String typeOf(String uuid) =>
+      system?.device(uuid)?.typeLabel ?? e.names[uuid] ?? 'Speaker';
 
   switch (e.kind) {
     case EntityKind.single:
-      return system?.device(e.primaryUuid)?.modelName ?? 'Standalone speaker';
+      return system?.device(e.primaryUuid)?.typeLabel ?? 'Standalone speaker';
 
     case EntityKind.stereoPair:
       final uuids = e.involvedUuids.toList();
       if (uuids.length < 2) return 'Stereo pair';
-      return '${nameOf(uuids[0])} + ${nameOf(uuids[1])}';
+      return '${typeOf(uuids[0])} + ${typeOf(uuids[1])}';
 
     case EntityKind.homeTheater:
       final map = e.mapSet;
       if (map == null) return e.kindLabel;
       final fronts = <String>[], surrounds = <String>[], sub = <String>[];
-      // Skip the first entry (the soundbar primary / CC). Collect resolved
-      // names, de-duped (two satellites can share a room name, e.g. both
-      // "Woonkamer" — show it once rather than "Woonkamer, Woonkamer").
+      final fSeen = <String>{}, sSeen = <String>{}, wSeen = <String>{};
+      // Skip the first entry (the soundbar primary / CC). One type per distinct
+      // speaker (an Amp on both fronts shows once; two Play:1 surrounds show
+      // twice — "Play:1, Play:1").
       for (final entry in ChannelMap.parse(map).entries.skip(1)) {
         for (final ch in entry.channels) {
-          final bucket = switch (ch) {
-            SonosChannel.leftFront || SonosChannel.rightFront => fronts,
-            SonosChannel.leftRear || SonosChannel.rightRear => surrounds,
-            SonosChannel.sub => sub,
-            SonosChannel.center => null,
-          };
-          final name = nameOf(entry.uuid);
-          if (bucket != null && !bucket.contains(name)) bucket.add(name);
+          switch (ch) {
+            case SonosChannel.leftFront || SonosChannel.rightFront:
+              if (fSeen.add(entry.uuid)) fronts.add(typeOf(entry.uuid));
+            case SonosChannel.leftRear || SonosChannel.rightRear:
+              if (sSeen.add(entry.uuid)) surrounds.add(typeOf(entry.uuid));
+            case SonosChannel.sub:
+              if (wSeen.add(entry.uuid)) sub.add(typeOf(entry.uuid));
+            case SonosChannel.center:
+              break;
+          }
         }
       }
       final parts = <String>[

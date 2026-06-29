@@ -363,8 +363,8 @@ class _ChooseSpeakers extends StatelessWidget {
             selected: isSel,
             onChanged: disabled ? null : (_) => onToggle(d),
             subtitle: isAmp
-                ? '${d.modelName} — drives both fronts (L + R)'
-                : d.modelName,
+                ? '${d.typeLabel} — drives both fronts (L + R)'
+                : d.typeLabel,
             secondary: identifyControls(d),
           );
         }),
@@ -403,7 +403,7 @@ class _ChooseSub extends StatelessWidget {
               device: d,
               selected: selected == d.uuid,
               onChanged: (_) => onToggle(d),
-              subtitle: d.modelName,
+              subtitle: d.typeLabel,
               secondary: identifyControls(d),
             )),
       ],
