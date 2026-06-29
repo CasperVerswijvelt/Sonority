@@ -328,32 +328,69 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     }
   }
 
-  /// Renames a room (the visible zone) via SetZoneAttributes, then refreshes.
+  /// Renames a room (the visible zone) via SetZoneAttributes, then polls until
+  /// the new name propagates — the topology lags ~15s, so a single refresh would
+  /// show the old name and the AppBar wouldn't update until a manual refresh.
   Future<void> renameRoom({
     required SonosDevice device,
     required String name,
   }) async {
     final ip = device.ip;
     if (ip == null) throw Exception('Speaker IP unknown; rescan and retry.');
-    await _repo.setRoomName(ip: ip, name: name);
-    await refresh();
-  }
-
-  Future<void> removeDedicatedFronts({
-    required ZoneGroupMember soundbar,
-    required SonosDevice soundbarDevice,
-  }) async {
     final previous = state.value;
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
-      await _repo.removeDedicatedFronts(
-        soundbar: soundbar,
-        soundbarDevice: soundbarDevice,
+      await _repo.setRoomName(ip: ip, name: name);
+      var system = await _pollUntil(
+        previous: previous,
+        ip: ip,
+        attempts: 8,
+        until: (s) => s.allMembers.any((m) => m.uuid == device.uuid && m.zoneName == name),
       );
+      // refresh() reuses the prior device index, so patch the renamed device so
+      // its roomName isn't stale until the next full scan.
+      final patched = {
+        for (final e in system.devicesByUuid.entries)
+          e.key: e.key == device.uuid ? e.value.copyWith(roomName: name) : e.value
+      };
+      system = SonosSystem(groups: system.groups, devicesByUuid: patched);
+      return system;
+    });
+    state = result;
+    if (result.hasError) rethrowLast(result);
+  }
+
+  /// Unbonds the satellites occupying [channels] (e.g. {LF,RF} fronts, {LR,RR}
+  /// surrounds, {SW} sub) from the soundbar, polling until those channels are
+  /// gone. UUIDs come from the authoritative `channelAssignments`.
+  Future<void> removeHtRoles({
+    required ZoneGroupMember soundbar,
+    required SonosDevice soundbarDevice,
+    required Set<SonosChannel> channels,
+  }) async {
+    final ip = soundbarDevice.ip;
+    if (ip == null) throw Exception('Soundbar IP unknown; rescan and retry.');
+    final uuids = <String>{
+      for (final c in channels)
+        if (soundbar.channelAssignments[c] != null) soundbar.channelAssignments[c]!,
+    };
+    if (uuids.isEmpty) return;
+
+    final previous = state.value;
+    state = const AsyncValue.loading();
+    final result = await AsyncValue.guard(() async {
+      await _repo.removeHtSatellites(soundbarIp: ip, uuids: uuids);
       return _pollUntil(
         previous: previous,
-        ip: soundbarDevice.ip ?? _lastIp,
-        until: (s) => _memberHasFronts(s, soundbar.uuid, expected: false),
+        ip: ip,
+        until: (s) {
+          final m = s.allMembers
+              .where((x) => x.uuid == soundbar.uuid)
+              .cast<ZoneGroupMember?>()
+              .firstOrNull;
+          if (m == null) return true;
+          return channels.every((c) => !m.channelAssignments.containsKey(c));
+        },
       );
     });
     state = result;
@@ -448,16 +485,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       }
     }
     return system ?? await _repo.discover();
-  }
-
-  bool _memberHasFronts(SonosSystem system, String uuid,
-      {required bool expected}) {
-    final member = system.allMembers
-        .where((m) => m.uuid == uuid)
-        .cast<ZoneGroupMember?>()
-        .firstOrNull;
-    if (member == null) return false;
-    return member.hasDedicatedFronts == expected;
   }
 
   /// Surfaces the error to the caller (so the UI can show a SnackBar) while

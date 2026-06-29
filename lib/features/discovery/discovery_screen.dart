@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/bondable_speaker_tile.dart';
+import '../widgets/diagram_labels.dart';
 
 /// Entry screen: scan the LAN and present the system, leading with anything
 /// that can host dedicated front speakers (soundbars).
@@ -243,7 +244,6 @@ class _TheaterCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final device = system.device(member.uuid);
-    final hasFronts = member.hasDedicatedFronts;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
@@ -270,8 +270,8 @@ class _TheaterCard extends StatelessWidget {
                       Text(device?.modelName ?? 'Soundbar',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: scheme.onSurfaceVariant)),
-                      Gap.xs,
-                      _StatusPill(hasFronts: hasFronts),
+                      Gap.s,
+                      _GroupChips(system: system, member: member),
                     ],
                   ),
                 ),
@@ -285,26 +285,57 @@ class _TheaterCard extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  final bool hasFronts;
-  const _StatusPill({required this.hasFronts});
+/// Small chips on a home-theater card showing which extra-speaker groups are
+/// bonded (Fronts / Surrounds / Sub) with their speaker names.
+class _GroupChips extends StatelessWidget {
+  final SonosSystem system;
+  final ZoneGroupMember member;
+  const _GroupChips({required this.system, required this.member});
+
+  static const _groups = [
+    ('Fronts', Icons.speaker, [SonosChannel.leftFront, SonosChannel.rightFront]),
+    ('Surrounds', Icons.surround_sound, [SonosChannel.leftRear, SonosChannel.rightRear]),
+    ('Sub', Icons.graphic_eq, [SonosChannel.sub]),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final color = hasFronts ? scheme.primary : scheme.onSurfaceVariant;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        hasFronts ? 'Dedicated fronts active' : 'No dedicated fronts',
-        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
-      ),
-    );
+    final chips = <Widget>[];
+    for (final (label, icon, channels) in _groups) {
+      final names = <String>[];
+      for (final c in channels) {
+        final n = labelForChannel(system, member, c);
+        if (n != null && !names.contains(n)) names.add(n);
+      }
+      if (names.isEmpty) continue;
+      chips.add(_chip(scheme, icon, '$label: ${names.join(', ')}', scheme.primary));
+    }
+    if (chips.isEmpty) {
+      chips.add(_chip(scheme, Icons.info_outline, 'No extra speakers',
+          scheme.onSurfaceVariant));
+    }
+    return Wrap(spacing: 6, runSpacing: 6, children: chips);
   }
+
+  Widget _chip(ColorScheme scheme, IconData icon, String text, Color color) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 5),
+            Text(text,
+                style: TextStyle(
+                    color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
 }
 
 class _SectionHeader extends StatelessWidget {

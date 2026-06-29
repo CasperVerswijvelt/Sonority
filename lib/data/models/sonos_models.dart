@@ -65,9 +65,9 @@ class SonosDevice {
   /// a single side. Used to offer it as a one-box dedicated-fronts option.
   bool get isAmp => modelName.toLowerCase().contains('amp');
 
-  SonosDevice copyWith({String? ip}) => SonosDevice(
+  SonosDevice copyWith({String? ip, String? roomName}) => SonosDevice(
         uuid: uuid,
-        roomName: roomName,
+        roomName: roomName ?? this.roomName,
         modelName: modelName,
         modelNumber: modelNumber,
         ip: ip ?? this.ip,

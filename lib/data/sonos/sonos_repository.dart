@@ -181,21 +181,13 @@ class SonosRepository {
         '${missing.map((c) => c.token).join(', ')}. Try again, or finish in the Sonos app.');
   }
 
-  /// Removes the dedicated front satellites currently bonded to [soundbar].
-  Future<void> removeDedicatedFronts({
-    required ZoneGroupMember soundbar,
-    required SonosDevice soundbarDevice,
+  /// Unbonds the given satellite [uuids] from the soundbar at [soundbarIp].
+  Future<void> removeHtSatellites({
+    required String soundbarIp,
+    required Iterable<String> uuids,
   }) async {
-    final ip = soundbarDevice.ip;
-    if (ip == null) throw Exception('Soundbar IP unknown; rescan and retry.');
-
-    // Derive removal targets from the HTSatChanMapSet (authoritative) rather
-    // than the <Satellite> list, which can be transiently empty after changes.
-    final frontUuids = soundbar.frontSatelliteUuids.isNotEmpty
-        ? soundbar.frontSatelliteUuids
-        : soundbar.satellites.where((s) => s.isFront).map((s) => s.uuid).toList();
-    for (final uuid in frontUuids) {
-      await _deviceProps.removeHtSatellite(soundbarIp: ip, satelliteUuid: uuid);
+    for (final uuid in uuids) {
+      await _deviceProps.removeHtSatellite(soundbarIp: soundbarIp, satelliteUuid: uuid);
     }
   }
 

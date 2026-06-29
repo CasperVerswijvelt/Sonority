@@ -74,8 +74,10 @@ class HomeTheaterScreen extends ConsumerWidget {
                     member: member,
                     device: device,
                     bonded: bonded,
-                    onRemove: () => _confirmRemove(context, ref, member, device),
-                    onAdd: () => context.push('/theater/$soundbarUuid/fronts'),
+                    onRemoveGroup: (channels, label) => _confirmRemoveGroup(
+                        context, ref, member, device, channels, label),
+                    onConfigure: () =>
+                        context.push('/theater/$soundbarUuid/fronts'),
                     onRefresh: refreshAll,
                   ),
       ),
@@ -97,21 +99,23 @@ class HomeTheaterScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _confirmRemove(
+  Future<void> _confirmRemoveGroup(
     BuildContext context,
     WidgetRef ref,
     ZoneGroupMember member,
     SonosDevice device,
+    Set<SonosChannel> channels,
+    String label,
   ) async {
     final scheme = Theme.of(context).colorScheme;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.link_off),
-        title: const Text('Remove front speakers?'),
-        content: const Text(
-          'Your front speakers will be un-bonded and become standalone rooms '
-          'again. Your soundbar, rear surrounds and sub stay as they are.',
+        title: Text('Remove $label?'),
+        content: Text(
+          'These speakers will be un-bonded and become standalone rooms again. '
+          'The rest of your home theater stays as it is.',
         ),
         actions: [
           TextButton(
@@ -130,25 +134,39 @@ class HomeTheaterScreen extends ConsumerWidget {
 
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(sonosControllerProvider.notifier).removeDedicatedFronts(
+      await ref.read(sonosControllerProvider.notifier).removeHtRoles(
             soundbar: member,
             soundbarDevice: device,
+            channels: channels,
           );
-      messenger.showSnackBar(
-          const SnackBar(content: Text('Front speakers removed.')));
+      messenger.showSnackBar(SnackBar(content: Text('$label removed.')));
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
     }
   }
 }
 
+/// One bonded-speaker group on the HT detail (Fronts / Surrounds / Sub).
+class _Group {
+  final String label;
+  final IconData icon;
+  final Set<SonosChannel> channels;
+  const _Group(this.label, this.icon, this.channels);
+}
+
+const _htGroups = [
+  _Group('Fronts', Icons.speaker, {SonosChannel.leftFront, SonosChannel.rightFront}),
+  _Group('Surrounds', Icons.surround_sound, {SonosChannel.leftRear, SonosChannel.rightRear}),
+  _Group('Sub', Icons.graphic_eq, {SonosChannel.sub}),
+];
+
 class _Content extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember member;
   final SonosDevice device;
   final List<SonosDevice> bonded;
-  final VoidCallback onRemove;
-  final VoidCallback onAdd;
+  final void Function(Set<SonosChannel> channels, String label) onRemoveGroup;
+  final VoidCallback onConfigure;
   final Future<void> Function() onRefresh;
 
   const _Content({
@@ -156,14 +174,28 @@ class _Content extends StatelessWidget {
     required this.member,
     required this.device,
     required this.bonded,
-    required this.onRemove,
-    required this.onAdd,
+    required this.onRemoveGroup,
+    required this.onConfigure,
     required this.onRefresh,
   });
 
+  /// Resolved, de-duplicated speaker names for a group's channels.
+  List<String> _names(Set<SonosChannel> channels) {
+    final out = <String>[];
+    for (final c in channels) {
+      final label = labelForChannel(system, member, c);
+      if (label != null && !out.contains(label)) out.add(label);
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hasFronts = member.hasDedicatedFronts;
+    final theme = Theme.of(context);
+    final present = [
+      for (final g in _htGroups)
+        if (g.channels.any((c) => hasChannel(member, c))) g,
+    ];
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
@@ -179,31 +211,33 @@ class _Content extends StatelessWidget {
             hasSub: hasChannel(member, SonosChannel.sub),
           ),
           Gap.l,
-          Text(device.modelName, style: Theme.of(context).textTheme.titleMedium),
-          Text(
-            hasFronts
-                ? 'Dedicated front left & right speakers are active.'
-                : 'No dedicated front speakers yet.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ),
-          Gap.l,
           FilledButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add_link),
-            label: Text(hasFronts ? 'Add speakers' : 'Set up speakers'),
+            onPressed: onConfigure,
+            icon: const Icon(Icons.tune),
+            label: const Text('Configure home theater'),
           ),
-          if (hasFronts) ...[
-            Gap.s,
-            FilledButton.tonalIcon(
-              onPressed: onRemove,
-              icon: const Icon(Icons.link_off),
-              label: const Text('Remove front speakers'),
-            ),
-          ],
           Gap.l,
+          Text('Bonded speakers', style: theme.textTheme.titleSmall),
+          Gap.s,
+          if (present.isEmpty)
+            Text(
+              'Just the soundbar — no fronts, surrounds or sub bonded yet. '
+              'Tap “Configure home theater” to add some.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            )
+          else
+            for (final g in present) ...[
+              _GroupCard(
+                group: g,
+                names: _names(g.channels),
+                onRemove: () => onRemoveGroup(g.channels, g.label),
+              ),
+              Gap.s,
+            ],
+          Gap.m,
           TrueplayControl(devices: bonded),
-          if (hasFronts) ...[
+          if (member.hasDedicatedFronts) ...[
             Gap.s,
             Text(
               'Trueplay can’t be measured from Android — tune in the Sonos app '
@@ -211,18 +245,37 @@ class _Content extends StatelessWidget {
               'pair. Heads-up: Sonos often clears a tuning when speakers are '
               'bonded/unbonded, so you may see “Not tuned” after changing the '
               'layout and have to redo it. Sonority only toggles a stored tuning.',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
-          Gap.m,
-          Text(
-            'Tip: tap the refresh icon after Sonos finishes reconfiguring.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ),
         ],
+      ),
+    );
+  }
+}
+
+class _GroupCard extends StatelessWidget {
+  final _Group group;
+  final List<String> names;
+  final VoidCallback onRemove;
+  const _GroupCard(
+      {required this.group, required this.names, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: Icon(group.icon, color: theme.colorScheme.primary),
+        title: Text(group.label),
+        subtitle: Text(names.isEmpty ? 'Bonded' : names.join(' · ')),
+        trailing: TextButton(
+          onPressed: onRemove,
+          style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
+          child: const Text('Remove'),
+        ),
       ),
     );
   }
