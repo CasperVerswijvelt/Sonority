@@ -5,14 +5,17 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/apply_progress_view.dart';
 import '../widgets/bondable_speaker_tile.dart';
-import '../widgets/busy_view.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/speaker_diagram.dart';
 import '../widgets/speaker_side_card.dart';
 
-/// Guided 3-step flow to bond two speakers as dedicated front L/R.
+/// Guided flow to complete a home-theater layout in-app: dedicated front L/R
+/// (two speakers or a single Amp), rear surrounds (L/R), and a sub — each step
+/// optional. Applies in stages with live per-step progress (see
+/// [SonosController.applyHomeTheaterLayout]).
 class FrontSurroundsFlow extends ConsumerStatefulWidget {
   final String soundbarUuid;
   const FrontSurroundsFlow({super.key, required this.soundbarUuid});
@@ -24,8 +27,11 @@ class FrontSurroundsFlow extends ConsumerStatefulWidget {
 class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     with IdentifyMixin {
   int _step = 0;
-  final List<String> _selected = []; // uuids, order = [left, right]
+  final List<String> _fronts = []; // uuids, order [left, right] (or [amp])
+  final List<String> _surrounds = []; // uuids, order [rearLeft, rearRight]
+  String? _sub; // uuid
   bool _applying = false;
+  bool _failed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -35,76 +41,153 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         .cast<ZoneGroupMember?>()
         .firstOrNull;
     final soundbar = system?.device(widget.soundbarUuid);
-    final candidates = system?.bondableSpeakers ?? const <SonosDevice>[];
 
     if (system == null || member == null || soundbar == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_applying) {
+      final steps = ref.watch(applyProgressProvider);
       return Scaffold(
-        appBar: AppBar(title: const Text('Add front speakers')),
-        body: const SafeArea(
-          child: BusyView(
-            title: 'Setting up your front speakers…',
-            subtitle:
-                'Bonding them to the soundbar and waiting for Sonos to apply '
-                'the new layout. This can take up to ~20 seconds.',
+        appBar: AppBar(
+          title: const Text('Setting up home theater'),
+          automaticallyImplyLeading: _failed,
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(child: ApplyProgressView(steps: steps)),
+              if (_failed)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => setState(() {
+                            _applying = false;
+                            _failed = false;
+                          }),
+                          child: const Text('Back'),
+                        ),
+                      ),
+                      Gap.s,
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => _apply(member, soundbar),
+                          child: const Text('Retry'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
         ),
       );
     }
 
+    // Speakers free to assign, minus ones already chosen in another role here.
+    final chosenElsewhere = <String>{..._fronts, ..._surrounds, if (_sub != null) _sub!};
+    List<SonosDevice> avail(List<String> keepFor) => system.bondableSpeakers
+        .where((d) => keepFor.contains(d.uuid) || !chosenElsewhere.contains(d.uuid))
+        .toList();
+    final freeSubs = system.bondableSubs;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Add front speakers')),
+      appBar: AppBar(title: const Text('Set up home theater')),
       body: SafeArea(
         child: Stepper(
           currentStep: _step,
           type: StepperType.vertical,
-          onStepTapped: _applying ? null : (i) => setState(() => _step = i),
-          controlsBuilder: (context, _) => _controls(
-            context,
-            member: member,
-            soundbar: soundbar,
-          ),
+          onStepTapped: (i) => setState(() => _step = i),
+          controlsBuilder: (context, _) => _controls(context, member, soundbar),
           steps: [
             Step(
-              title: const Text('Choose front speakers'),
+              title: const Text('Front speakers'),
+              subtitle: const Text('Optional'),
               isActive: _step >= 0,
-              state: _frontsChosen ? StepState.complete : StepState.indexed,
+              state: _frontsValid && _fronts.isNotEmpty
+                  ? StepState.complete
+                  : StepState.indexed,
               content: _ChooseSpeakers(
-                candidates: candidates,
-                selected: _selected,
-                onToggle: _toggle,
+                candidates: avail(_fronts),
+                selected: _fronts,
+                onToggle: _toggleFront,
                 identifyControls: identifyButtons,
               ),
             ),
             Step(
               title: Text(_ampMode ? 'Connect your speakers' : 'Assign left & right'),
               isActive: _step >= 1,
-              content: _ampMode
-                  ? _AmpWiringNote(
-                      amp: system.device(_selected.first),
-                      onIdentify: identify,
-                      onChime: onChime,
-                      identifying: identifyingUuid,
-                    )
-                  : _AssignSides(
+              content: _fronts.isEmpty
+                  ? const Text('No front speakers selected — nothing to assign.')
+                  : _ampMode
+                      ? _AmpWiringNote(
+                          amp: system.device(_fronts.first),
+                          onIdentify: identify,
+                          onChime: onChime,
+                          identifying: identifyingUuid,
+                        )
+                      : _AssignSides(
+                          system: system,
+                          selected: _fronts,
+                          leftLabel: 'LEFT',
+                          rightLabel: 'RIGHT',
+                          onSwap: () => setState(() =>
+                              _fronts.setAll(0, [_fronts[1], _fronts[0]])),
+                          identifyControls: identifyButtons,
+                        ),
+            ),
+            Step(
+              title: const Text('Rear surrounds'),
+              subtitle: const Text('Optional'),
+              isActive: _step >= 2,
+              state: _surrounds.length == 2 ? StepState.complete : StepState.indexed,
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Pick two speakers for the rear left & right surrounds.',
+                      style: Theme.of(context).textTheme.bodySmall),
+                  Gap.s,
+                  _ChooseSpeakers(
+                    candidates: avail(_surrounds),
+                    selected: _surrounds,
+                    onToggle: _toggleSurround,
+                    identifyControls: identifyButtons,
+                    allowAmp: false,
+                  ),
+                  if (_surrounds.length == 2) ...[
+                    Gap.m,
+                    _AssignSides(
                       system: system,
-                      selected: _selected,
-                      onSwap: () => setState(
-                          () => _selected.setAll(0, [_selected[1], _selected[0]])),
+                      selected: _surrounds,
+                      leftLabel: 'REAR LEFT',
+                      rightLabel: 'REAR RIGHT',
+                      onSwap: () => setState(() =>
+                          _surrounds.setAll(0, [_surrounds[1], _surrounds[0]])),
                       identifyControls: identifyButtons,
                     ),
+                  ],
+                ],
+              ),
+            ),
+            Step(
+              title: const Text('Sub'),
+              subtitle: const Text('Optional'),
+              isActive: _step >= 3,
+              state: _sub != null ? StepState.complete : StepState.indexed,
+              content: _ChooseSub(
+                subs: freeSubs,
+                selected: _sub,
+                onToggle: (d) => setState(() => _sub = _sub == d.uuid ? null : d.uuid),
+                identifyControls: identifyButtons,
+              ),
             ),
             Step(
               title: const Text('Review & apply'),
-              isActive: _step >= 2,
-              content: _Review(
-                  system: system,
-                  member: member,
-                  selected: _selected,
-                  ampMode: _ampMode),
+              isActive: _step >= 4,
+              content: _Review(system: system, member: member, additions: _additions(system)),
             ),
           ],
         ),
@@ -115,65 +198,92 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   bool _deviceIsAmp(String uuid) =>
       ref.read(sonosControllerProvider).value?.device(uuid)?.isAmp ?? false;
 
-  /// A single Amp was chosen — it drives both front channels on its own.
-  bool get _ampMode => _selected.length == 1 && _deviceIsAmp(_selected.first);
+  bool get _ampMode => _fronts.length == 1 && _deviceIsAmp(_fronts.first);
+  bool get _frontsValid => _fronts.isEmpty || _fronts.length == 2 || _ampMode;
+  bool get _surroundsValid => _surrounds.isEmpty || _surrounds.length == 2;
+  bool get _anyChosen =>
+      (_fronts.length == 2 || _ampMode) || _surrounds.length == 2 || _sub != null;
+  bool get _canApply => _anyChosen && _frontsValid && _surroundsValid;
 
-  /// Step 0 is satisfied by two regular speakers OR a single Amp.
-  bool get _frontsChosen => _selected.length == 2 || _ampMode;
+  void _toggleFront(SonosDevice d) => setState(() {
+        if (_fronts.contains(d.uuid)) {
+          _fronts.remove(d.uuid);
+          return;
+        }
+        if (d.isAmp) {
+          _fronts
+            ..clear()
+            ..add(d.uuid);
+          return;
+        }
+        if (_ampMode) _fronts.clear();
+        if (_fronts.length < 2) _fronts.add(d.uuid);
+      });
 
-  void _toggle(SonosDevice d) {
-    setState(() {
-      if (_selected.contains(d.uuid)) {
-        _selected.remove(d.uuid);
-        return;
+  void _toggleSurround(SonosDevice d) => setState(() {
+        if (_surrounds.contains(d.uuid)) {
+          _surrounds.remove(d.uuid);
+        } else if (_surrounds.length < 2) {
+          _surrounds.add(d.uuid);
+        }
+      });
+
+  /// The role → speaker map this flow will bond.
+  Map<SonosChannel, SonosDevice> _additions(SonosSystem system) {
+    final out = <SonosChannel, SonosDevice>{};
+    SonosDevice? dev(String uuid) => system.device(uuid);
+    if (_ampMode) {
+      final amp = dev(_fronts.first);
+      if (amp != null) {
+        out[SonosChannel.leftFront] = amp;
+        out[SonosChannel.rightFront] = amp;
       }
-      if (d.isAmp) {
-        // An Amp drives both fronts — exclusive, single selection.
-        _selected
-          ..clear()
-          ..add(d.uuid);
-        return;
+    } else if (_fronts.length == 2) {
+      final l = dev(_fronts[0]), r = dev(_fronts[1]);
+      if (l != null && r != null) {
+        out[SonosChannel.leftFront] = l;
+        out[SonosChannel.rightFront] = r;
       }
-      // Picking a regular speaker clears a previously selected Amp.
-      if (_ampMode) _selected.clear();
-      if (_selected.length < 2) _selected.add(d.uuid);
-    });
+    }
+    if (_surrounds.length == 2) {
+      final l = dev(_surrounds[0]), r = dev(_surrounds[1]);
+      if (l != null && r != null) {
+        out[SonosChannel.leftRear] = l;
+        out[SonosChannel.rightRear] = r;
+      }
+    }
+    final sub = _sub;
+    if (sub != null) {
+      final s = dev(sub);
+      if (s != null) out[SonosChannel.sub] = s;
+    }
+    return out;
   }
 
   Widget _controls(
-    BuildContext context, {
-    required ZoneGroupMember member,
-    required SonosDevice soundbar,
-  }) {
+      BuildContext context, ZoneGroupMember member, SonosDevice soundbar) {
     final canNext = switch (_step) {
-      0 => _frontsChosen,
-      1 => true,
+      0 => _frontsValid,
+      2 => _surroundsValid,
       _ => true,
     };
-    final isLast = _step == 2;
+    final isLast = _step == 4;
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Row(
         children: [
           if (_step > 0)
             TextButton(
-              onPressed: _applying ? null : () => setState(() => _step--),
+              onPressed: () => setState(() => _step--),
               child: const Text('Back'),
             ),
           Gap.s,
           Expanded(
             child: FilledButton(
-              onPressed: !canNext || _applying
-                  ? null
-                  : isLast
-                      ? () => _apply(member, soundbar)
-                      : () => setState(() => _step++),
-              child: _applying
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text(isLast ? 'Apply' : 'Continue'),
+              onPressed: isLast
+                  ? (_canApply ? () => _apply(member, soundbar) : null)
+                  : (canNext ? () => setState(() => _step++) : null),
+              child: Text(isLast ? 'Apply' : 'Continue'),
             ),
           ),
         ],
@@ -184,38 +294,28 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   Future<void> _apply(ZoneGroupMember member, SonosDevice soundbar) async {
     final system = ref.read(sonosControllerProvider).value;
     if (system == null) return;
+    final additions = _additions(system);
+    if (additions.isEmpty) return;
+
     final controller = ref.read(sonosControllerProvider.notifier);
-    final ampMode = _ampMode;
-
-    final SonosDevice? amp = ampMode ? system.device(_selected.first) : null;
-    final SonosDevice? left = ampMode ? null : system.device(_selected[0]);
-    final SonosDevice? right = ampMode ? null : system.device(_selected[1]);
-    if (ampMode ? amp == null : (left == null || right == null)) return;
-
-    setState(() => _applying = true);
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
+    setState(() {
+      _applying = true;
+      _failed = false;
+    });
     try {
-      if (ampMode) {
-        await controller.applyAmpFronts(
-          soundbar: member,
-          soundbarDevice: soundbar,
-          ampDevice: amp!,
-        );
-      } else {
-        await controller.applyDedicatedFronts(
-          soundbar: member,
-          soundbarDevice: soundbar,
-          leftSpeaker: left!,
-          rightSpeaker: right!,
-        );
-      }
+      await controller.applyHomeTheaterLayout(
+        soundbar: member,
+        soundbarDevice: soundbar,
+        additions: additions,
+      );
       messenger.showSnackBar(
-          const SnackBar(content: Text('Dedicated front speakers added!')));
+          const SnackBar(content: Text('Home theater updated!')));
       router.pop();
-    } catch (e) {
-      if (mounted) setState(() => _applying = false);
-      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+    } catch (_) {
+      // Keep the progress view up so the user sees which step failed + why.
+      if (mounted) setState(() => _failed = true);
     }
   }
 }
@@ -225,23 +325,25 @@ class _ChooseSpeakers extends StatelessWidget {
   final List<String> selected;
   final void Function(SonosDevice device) onToggle;
   final Widget Function(SonosDevice device) identifyControls;
+  final bool allowAmp;
 
   const _ChooseSpeakers({
     required this.candidates,
     required this.selected,
     required this.onToggle,
     required this.identifyControls,
+    this.allowAmp = true,
   });
 
   @override
   Widget build(BuildContext context) {
     if (candidates.isEmpty) {
       return const Text(
-        'No free speakers found to use as fronts. They must be standalone '
-        '(not already part of a home theater or stereo pair).',
+        'No free speakers available. They must be standalone (not already part '
+        'of a home theater or stereo pair).',
       );
     }
-    final hasAmp = candidates.any((d) => d.isAmp);
+    final hasAmp = allowAmp && candidates.any((d) => d.isAmp);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -254,14 +356,13 @@ class _ChooseSpeakers extends StatelessWidget {
         Gap.s,
         ...candidates.map((d) {
           final isSel = selected.contains(d.uuid);
-          // An Amp is always selectable (it switches to single-box mode);
-          // regular speakers are capped at two.
-          final disabled = !isSel && !d.isAmp && selected.length >= 2;
+          final isAmp = allowAmp && d.isAmp;
+          final disabled = !isSel && !isAmp && selected.length >= 2;
           return BondableSpeakerTile(
             device: d,
             selected: isSel,
             onChanged: disabled ? null : (_) => onToggle(d),
-            subtitle: d.isAmp
+            subtitle: isAmp
                 ? '${d.modelName} — drives both fronts (L + R)'
                 : d.modelName,
             secondary: identifyControls(d),
@@ -272,9 +373,45 @@ class _ChooseSpeakers extends StatelessWidget {
   }
 }
 
-/// Shown in amp mode in place of the L/R assignment step: the Amp handles both
-/// front channels itself, so there are no sides to assign in the app — the user
-/// wires their passive speakers to the Amp's left/right outputs.
+class _ChooseSub extends StatelessWidget {
+  final List<SonosDevice> subs;
+  final String? selected;
+  final void Function(SonosDevice device) onToggle;
+  final Widget Function(SonosDevice device) identifyControls;
+
+  const _ChooseSub({
+    required this.subs,
+    required this.selected,
+    required this.onToggle,
+    required this.identifyControls,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (subs.isEmpty) {
+      return const Text(
+          'No free Sonos Sub found. A Sub must be standalone (not already '
+          'bonded to another home theater).');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Pick a Sub to add as the low-frequency channel.',
+            style: Theme.of(context).textTheme.bodySmall),
+        Gap.s,
+        ...subs.map((d) => BondableSpeakerTile(
+              device: d,
+              selected: selected == d.uuid,
+              onChanged: (_) => onToggle(d),
+              subtitle: d.modelName,
+              secondary: identifyControls(d),
+            )),
+      ],
+    );
+  }
+}
+
+/// Amp mode: the Amp drives both fronts itself — nothing to assign in-app.
 class _AmpWiringNote extends StatelessWidget {
   final SonosDevice? amp;
   final void Function(SonosDevice device) onIdentify;
@@ -333,12 +470,16 @@ class _AmpWiringNote extends StatelessWidget {
 class _AssignSides extends StatelessWidget {
   final SonosSystem system;
   final List<String> selected;
+  final String leftLabel;
+  final String rightLabel;
   final VoidCallback onSwap;
   final Widget Function(SonosDevice device) identifyControls;
 
   const _AssignSides({
     required this.system,
     required this.selected,
+    required this.leftLabel,
+    required this.rightLabel,
     required this.onSwap,
     required this.identifyControls,
   });
@@ -346,7 +487,7 @@ class _AssignSides extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (selected.length != 2) {
-      return const Text('Go back and choose two speakers first.');
+      return const Text('Choose two speakers first.');
     }
     final left = system.device(selected[0]);
     final right = system.device(selected[1]);
@@ -356,7 +497,7 @@ class _AssignSides extends StatelessWidget {
           children: [
             Expanded(
                 child: SpeakerSideCard(
-                    side: 'LEFT',
+                    side: leftLabel,
                     device: left,
                     controls: left == null ? null : identifyControls(left))),
             IconButton.filledTonal(
@@ -366,7 +507,7 @@ class _AssignSides extends StatelessWidget {
             ),
             Expanded(
                 child: SpeakerSideCard(
-                    side: 'RIGHT',
+                    side: rightLabel,
                     device: right,
                     controls: right == null ? null : identifyControls(right))),
           ],
@@ -382,34 +523,30 @@ class _AssignSides extends StatelessWidget {
 class _Review extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember member;
-  final List<String> selected;
-  final bool ampMode;
+  final Map<SonosChannel, SonosDevice> additions;
   const _Review(
-      {required this.system,
-      required this.member,
-      required this.selected,
-      required this.ampMode});
+      {required this.system, required this.member, required this.additions});
 
   @override
   Widget build(BuildContext context) {
-    if (ampMode ? selected.length != 1 : selected.length != 2) {
-      return const Text('Selection incomplete.');
+    if (additions.isEmpty) {
+      return const Text('Nothing selected yet — choose speakers above.');
     }
-    // In amp mode a single device drives both fronts.
-    final left = system.device(selected[0]);
-    final right = ampMode ? left : system.device(selected[1]);
+    // Final layout = what's already bonded, overlaid with the new picks.
+    String? label(SonosChannel ch) =>
+        additions[ch]?.roomName ?? labelForChannel(system, member, ch);
+    final hasSub =
+        additions.containsKey(SonosChannel.sub) || hasChannel(member, SonosChannel.sub);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Shows the full resulting layout: the new fronts plus the existing
-        // rears and sub that stay bonded.
         SpeakerDiagram(
-          frontLeftLabel: left?.roomName,
-          frontRightLabel: right?.roomName,
-          rearLeftLabel: labelForChannel(system, member, SonosChannel.leftRear),
-          rearRightLabel:
-              labelForChannel(system, member, SonosChannel.rightRear),
-          hasSub: hasChannel(member, SonosChannel.sub),
+          frontLeftLabel: label(SonosChannel.leftFront),
+          frontRightLabel: label(SonosChannel.rightFront),
+          rearLeftLabel: label(SonosChannel.leftRear),
+          rearRightLabel: label(SonosChannel.rightRear),
+          hasSub: hasSub,
         ),
         Gap.m,
         Card(
@@ -422,13 +559,10 @@ class _Review extends StatelessWidget {
                 Gap.m,
                 Expanded(
                   child: Text(
-                    ampMode
-                        ? 'The Amp becomes a hidden satellite driving both front '
-                            'channels, and the soundbar switches to the center '
-                            'channel. You can remove it again anytime.'
-                        : 'The two speakers become hidden satellites of the '
-                            'soundbar, which switches to the center channel. You '
-                            'can remove them again anytime.',
+                    'The chosen speakers become hidden satellites of the '
+                    'soundbar (which stays the center channel). Bonding runs in '
+                    'steps and can take a little while; Trueplay may need '
+                    're-tuning afterward. You can change this anytime.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),

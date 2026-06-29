@@ -164,18 +164,19 @@ class _Content extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           Gap.l,
-          if (hasFronts)
+          FilledButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add_link),
+            label: Text(hasFronts ? 'Add speakers' : 'Set up speakers'),
+          ),
+          if (hasFronts) ...[
+            Gap.s,
             FilledButton.tonalIcon(
               onPressed: onRemove,
               icon: const Icon(Icons.link_off),
               label: const Text('Remove front speakers'),
-            )
-          else
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_link),
-              label: const Text('Add dedicated front speakers'),
             ),
+          ],
           Gap.l,
           TrueplayControl(devices: bonded),
           if (hasFronts) ...[

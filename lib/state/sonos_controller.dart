@@ -2,12 +2,27 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/sonos_models.dart';
+import '../data/sonos/apply_progress.dart';
+import '../data/sonos/front_layout.dart' as front_layout;
 import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
 import '../data/sonos/sonos_repository.dart';
 
 final sonosRepositoryProvider =
     Provider<SonosRepository>((ref) => SonosRepository());
+
+/// Live per-step progress of the in-flight bonding operation (full HT setup /
+/// profile-apply). The flow/profile UI watches this to show a stepper with the
+/// active step and exactly where a failure happened. Empty when idle.
+class ApplyProgressNotifier extends Notifier<List<ApplyStep>> {
+  @override
+  List<ApplyStep> build() => const [];
+  void set(List<ApplyStep> steps) => state = steps;
+}
+
+final applyProgressProvider =
+    NotifierProvider<ApplyProgressNotifier, List<ApplyStep>>(
+        ApplyProgressNotifier.new);
 
 /// Plays a chime on a speaker to help identify Left vs Right. Holds a local
 /// HTTP server, so it's torn down when the provider is disposed.
@@ -67,49 +82,77 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     state = await AsyncValue.guard(() => _repo.refresh(current, ip));
   }
 
-  Future<void> applyDedicatedFronts({
+  /// Bonds one or more roles ([additions]: channel → speaker) onto the
+  /// soundbar in a single guided pass — fronts (LF/RF or an Amp on both),
+  /// surrounds (LR/RR), and/or a sub (SW). Stages the writes per the Phase 0
+  /// finding (surrounds+sub first, then fronts) and emits per-step progress via
+  /// [applyProgressProvider] so the UI shows which step is active and exactly
+  /// where it failed. Each stage verifies + re-asserts via [bondAndVerify].
+  Future<void> applyHomeTheaterLayout({
     required ZoneGroupMember soundbar,
     required SonosDevice soundbarDevice,
-    required SonosDevice leftSpeaker,
-    required SonosDevice rightSpeaker,
+    required Map<SonosChannel, SonosDevice> additions,
   }) async {
-    final previous = state.value;
-    state = const AsyncValue.loading();
-    final result = await AsyncValue.guard(() async {
-      await _repo.applyDedicatedFronts(
-        soundbar: soundbar,
-        soundbarDevice: soundbarDevice,
-        leftSpeaker: leftSpeaker,
-        rightSpeaker: rightSpeaker,
-      );
-      return _pollUntil(
-        previous: previous,
-        ip: soundbarDevice.ip ?? _lastIp,
-        until: (s) => _memberHasFronts(s, soundbar.uuid, expected: true),
-      );
-    });
-    state = result;
-    if (result.hasError) rethrowLast(result);
-  }
+    if (additions.isEmpty) return;
 
-  Future<void> applyAmpFronts({
-    required ZoneGroupMember soundbar,
-    required SonosDevice soundbarDevice,
-    required SonosDevice ampDevice,
-  }) async {
+    bool isFront(SonosChannel c) =>
+        c == SonosChannel.leftFront || c == SonosChannel.rightFront;
+    final addsFronts = additions.keys.any(isFront);
+    final addsNonFronts = additions.keys.any((c) => !isFront(c));
+
+    // Desired = existing layout overlaid with the new assignments.
+    final desired = <SonosChannel, String>{
+      ...soundbar.channelAssignments,
+      for (final e in additions.entries) e.key: e.value.uuid,
+    };
+
+    final progress = ref.read(applyProgressProvider.notifier);
+    final tracker = ApplyProgress(
+      [
+        if (addsNonFronts)
+          const ApplyStep(id: 'surrounds', label: 'Bond surrounds & sub'),
+        if (addsFronts)
+          const ApplyStep(id: 'fronts', label: 'Bond front speakers'),
+      ],
+      onChange: progress.set,
+    );
+
     final previous = state.value;
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
-      await _repo.applyAmpFronts(
-        soundbar: soundbar,
-        soundbarDevice: soundbarDevice,
-        ampDevice: ampDevice,
-      );
-      return _pollUntil(
-        previous: previous,
-        ip: soundbarDevice.ip ?? _lastIp,
-        until: (s) => _memberHasFronts(s, soundbar.uuid, expected: true),
-      );
+      SonosSystem? sys = previous;
+
+      Future<void> stage(String id, Map<SonosChannel, String> roles) async {
+        tracker.start(id);
+        try {
+          sys = await _repo.bondAndVerify(
+            coordinator: soundbarDevice,
+            target: front_layout.buildLayoutMap(
+              soundbar: soundbar,
+              soundbarDevice: soundbarDevice,
+              desired: roles,
+            ),
+            previous: sys,
+            onNote: (n) => tracker.note(id, n),
+          );
+          tracker.done(id);
+        } catch (e) {
+          tracker.fail(id, '$e');
+          rethrow;
+        }
+      }
+
+      // Stage 1: everything except fronts (so satellites settle before fronts
+      // are layered on — the order that proved stable on hardware).
+      if (addsNonFronts) {
+        await stage('surrounds',
+            {for (final e in desired.entries) if (!isFront(e.key)) e.key: e.value});
+      }
+      // Stage 2: the full layout (adds the fronts).
+      if (addsFronts) {
+        await stage('fronts', desired);
+      }
+      return sys ?? await _repo.discover();
     });
     state = result;
     if (result.hasError) rethrowLast(result);

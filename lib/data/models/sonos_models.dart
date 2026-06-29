@@ -231,20 +231,32 @@ class SonosSystem {
   List<ZoneGroupMember> get stereoPairs =>
       allMembers.where((m) => m.isStereoPair).toList(growable: false);
 
-  /// Standalone, un-bonded speakers — candidates to bond as fronts or pair.
-  /// Excludes soundbars, subs, HT members, stereo pairs, and hidden halves.
+  /// UUIDs already committed to a role (HT primary/satellite, stereo pair, or a
+  /// hidden half) and therefore not free to bond elsewhere.
+  Set<String> get _bondedUuids => {
+        for (final g in groups)
+          for (final m in g.members) ...[
+            if (m.isHomeTheater) m.uuid,
+            if (m.invisible) m.uuid,
+            ...m.satellites.map((s) => s.uuid),
+            ...m.stereoPairUuids,
+          ],
+      };
+
+  /// Standalone, un-bonded speakers — candidates to bond as fronts/surrounds or
+  /// pair. Excludes soundbars, subs, HT members, stereo pairs, and hidden halves.
   List<SonosDevice> get bondableSpeakers {
-    final bondedUuids = <String>{
-      for (final g in groups)
-        for (final m in g.members) ...[
-          if (m.isHomeTheater) m.uuid,
-          if (m.invisible) m.uuid,
-          ...m.satellites.map((s) => s.uuid),
-          ...m.stereoPairUuids,
-        ],
-    };
+    final bonded = _bondedUuids;
     return devicesByUuid.values
-        .where((d) => !bondedUuids.contains(d.uuid) && !d.isSoundbar && !d.isSub)
+        .where((d) => !bonded.contains(d.uuid) && !d.isSoundbar && !d.isSub)
+        .toList(growable: false);
+  }
+
+  /// Standalone Sonos Subs free to bond as the `SW` channel of a home theater.
+  List<SonosDevice> get bondableSubs {
+    final bonded = _bondedUuids;
+    return devicesByUuid.values
+        .where((d) => d.isSub && !bonded.contains(d.uuid))
         .toList(growable: false);
   }
 

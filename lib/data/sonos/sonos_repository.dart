@@ -7,7 +7,6 @@ import '../models/sonos_models.dart';
 import 'channel_map.dart' show ChannelMap;
 import 'device_description.dart';
 import 'device_properties.dart';
-import 'front_layout.dart' as front_layout;
 import 'room_calibration.dart';
 import 'soap_client.dart';
 import 'ssdp_discovery.dart';
@@ -110,44 +109,6 @@ class SonosRepository {
   /// Switches a speaker's stored Trueplay calibration on/off (non-destructive).
   Future<void> setRoomCalibration(String ip, bool on) =>
       _calibration.setEnabled(ip, on);
-
-  /// Applies dedicated front speakers, snapshotting current state first.
-  Future<void> applyDedicatedFronts({
-    required ZoneGroupMember soundbar,
-    required SonosDevice soundbarDevice,
-    required SonosDevice leftSpeaker,
-    required SonosDevice rightSpeaker,
-  }) async {
-    final ip = soundbarDevice.ip;
-    if (ip == null) throw Exception('Soundbar IP unknown; rescan and retry.');
-
-    final map = front_layout.buildDedicatedFrontsMap(
-      soundbar: soundbar,
-      soundbarDevice: soundbarDevice,
-      leftSpeaker: leftSpeaker,
-      rightSpeaker: rightSpeaker,
-    );
-    await _deviceProps.addHtSatellite(soundbarIp: ip, map: map);
-  }
-
-  /// Applies a single Sonos Amp as the dedicated fronts (it takes both
-  /// `LF,RF`). Removal reuses [removeDedicatedFronts] — the Amp entry is a
-  /// front satellite like any other.
-  Future<void> applyAmpFronts({
-    required ZoneGroupMember soundbar,
-    required SonosDevice soundbarDevice,
-    required SonosDevice ampDevice,
-  }) async {
-    final ip = soundbarDevice.ip;
-    if (ip == null) throw Exception('Soundbar IP unknown; rescan and retry.');
-
-    final map = front_layout.buildAmpFrontsMap(
-      soundbar: soundbar,
-      soundbarDevice: soundbarDevice,
-      ampDevice: ampDevice,
-    );
-    await _deviceProps.addHtSatellite(soundbarIp: ip, map: map);
-  }
 
   /// Writes [target] to the coordinator and VERIFIES every requested channel
   /// actually landed, RE-ASSERTING up to [retries] times if Sonos silently drops

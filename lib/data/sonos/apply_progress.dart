@@ -56,6 +56,15 @@ class ApplyProgress {
   void done(String id, {String? detail}) => _set(id, ApplyStatus.done, detail);
   void fail(String id, String detail) => _set(id, ApplyStatus.failed, detail);
 
+  /// Updates the live detail of a step without changing its status — used to
+  /// surface per-attempt notes ("re-asserting…") while a step is active.
+  void note(String id, String detail) {
+    final i = _indexOf(id);
+    if (i < 0) return;
+    _steps[i] = _steps[i].copyWith(detail: detail);
+    _emit();
+  }
+
   void _set(String id, ApplyStatus status, [String? detail]) {
     final i = _indexOf(id);
     if (i < 0) return;
