@@ -7,7 +7,8 @@ import 'features/discovery/discovery_screen.dart';
 import 'features/front_surrounds/front_surrounds_flow.dart';
 import 'features/home_theater/home_theater_screen.dart';
 import 'features/profiles/profiles_screen.dart';
-import 'features/profiles/profile_edit_screen.dart';
+import 'features/profiles/profile_create_screen.dart';
+import 'features/profiles/profile_detail_screen.dart';
 import 'features/room/room_screen.dart';
 import 'features/stereo_pair/stereo_pair_flow.dart';
 
@@ -48,12 +49,11 @@ final _router = GoRouter(
               builder: (_, __) => const ProfilesScreen(),
               routes: [
                 GoRoute(
-                    path: 'new',
-                    builder: (_, __) => const ProfileEditScreen(profileId: null)),
+                    path: 'new', builder: (_, __) => const ProfileCreateScreen()),
                 GoRoute(
                   path: 'edit/:id',
                   builder: (_, s) =>
-                      ProfileEditScreen(profileId: s.pathParameters['id']),
+                      ProfileDetailScreen(profileId: s.pathParameters['id']!),
                 ),
               ],
             ),

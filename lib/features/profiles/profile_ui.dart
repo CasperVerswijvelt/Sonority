@@ -4,6 +4,14 @@ import '../../data/models/sonos_models.dart';
 import '../../data/sonos/channel_map.dart';
 import 'profile.dart';
 
+/// True if [name] (trimmed, case-insensitive) is already used by another
+/// profile in [existing], excluding the profile with [exceptId] (the one being
+/// edited). Used to keep profile names unique on create/rename.
+bool isProfileNameTaken(List<Profile> existing, String name, {String? exceptId}) {
+  final n = name.trim().toLowerCase();
+  return existing.any((p) => p.id != exceptId && p.name.trim().toLowerCase() == n);
+}
+
 /// Icon for a profile entity, matching the system-overview iconography.
 IconData entityIcon(EntityKind kind) => switch (kind) {
       EntityKind.homeTheater => Icons.surround_sound,

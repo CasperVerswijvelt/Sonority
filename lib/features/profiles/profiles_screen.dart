@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/collapsing_scaffold.dart';
 import 'profile.dart';
 import 'profile_apply_screen.dart';
 import 'profile_controller.dart';
@@ -17,8 +18,37 @@ class ProfilesScreen extends ConsumerWidget {
     final profiles = ref.watch(profilesProvider);
     final hasSystem = ref.watch(sonosControllerProvider).value != null;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Profiles')),
+    Widget filler(Widget child) =>
+        SliverFillRemaining(hasScrollBody: false, child: child);
+
+    final slivers = profiles.when(
+      loading: () => [filler(const Center(child: CircularProgressIndicator()))],
+      error: (e, _) => [filler(Center(child: Text('Couldn’t load profiles: $e')))],
+      data: (list) => list.isEmpty
+          ? [filler(const _EmptyState())]
+          : [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
+                sliver: SliverList.list(
+                  children: [
+                    for (final p in list)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _ProfileTile(
+                          profile: p,
+                          onApply: () => _apply(context, ref, p),
+                          onEdit: () => context.go('/profiles/edit/${p.id}'),
+                          onDelete: () => _confirmDelete(context, ref, p),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+    );
+
+    return CollapsingScaffold(
+      title: 'Profiles',
       floatingActionButton: FloatingActionButton.extended(
         onPressed: hasSystem
             ? () => context.go('/profiles/new')
@@ -29,26 +59,7 @@ class ProfilesScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('New profile'),
       ),
-      body: SafeArea(
-        child: profiles.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Couldn’t load profiles: $e')),
-          data: (list) => list.isEmpty
-              ? const _EmptyState()
-              : ListView(
-                  padding: const EdgeInsets.all(12),
-                  children: [
-                    for (final p in list)
-                      _ProfileTile(
-                        profile: p,
-                        onApply: () => _apply(context, ref, p),
-                        onEdit: () => context.go('/profiles/edit/${p.id}'),
-                        onDelete: () => _confirmDelete(context, ref, p),
-                      ),
-                  ],
-                ),
-        ),
-      ),
+      slivers: slivers,
     );
   }
 
@@ -113,33 +124,52 @@ class _ProfileTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final summary = profile.entities.map((e) => e.label).join(' · ');
     return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-        title: Text(profile.name,
-            style: Theme.of(context).textTheme.titleMedium),
-        subtitle: Text(
-          summary.isEmpty ? 'No entities' : summary,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-                onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined),
-                tooltip: 'Edit'),
-            IconButton(
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline),
-                tooltip: 'Delete'),
-            IconButton.filled(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onEdit,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(profile.name, style: theme.textTheme.titleMedium),
+                    Gap.xs,
+                    Text(
+                      summary.isEmpty ? 'No entities' : summary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              Gap.s,
+              FilledButton.icon(
                 onPressed: onApply,
-                icon: const Icon(Icons.play_arrow),
-                tooltip: 'Apply'),
-          ],
+                icon: const Icon(Icons.play_arrow, size: 20),
+                label: const Text('Apply'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+              ),
+              PopupMenuButton<String>(
+                onSelected: (v) => v == 'edit' ? onEdit() : onDelete(),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  PopupMenuItem(value: 'delete', child: Text('Delete')),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

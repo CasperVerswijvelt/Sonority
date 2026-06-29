@@ -6,6 +6,7 @@ import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
 import '../widgets/busy_view.dart';
+import '../widgets/collapsing_scaffold.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
 import '../widgets/trueplay_control.dart';
@@ -37,37 +38,37 @@ class RoomScreen extends ConsumerWidget {
     final models =
         devices.map((d) => d.modelName).toSet().join(' + ');
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(member?.zoneName ?? 'Room'),
-        actions: [
-          if (member != null)
-            IconButton(
-              icon: const Icon(Icons.drive_file_rename_outline),
-              tooltip: 'Rename room',
-              onPressed: () => _rename(context, ref, system, member),
-            ),
-          RefreshIconButton(onRefresh: () async {
-            await ref.read(sonosControllerProvider.notifier).refresh();
-            if (devices.isNotEmpty) {
-              await ref.read(trueplayControllerProvider.notifier).load(devices);
-            }
-          }),
-        ],
-      ),
-      body: SafeArea(
-        child: member == null
-            ? const MissingRoomView()
-            : ListView(
+    return CollapsingScaffold(
+      title: member?.zoneName ?? 'Room',
+      actions: [
+        if (member != null)
+          IconButton(
+            icon: const Icon(Icons.drive_file_rename_outline),
+            tooltip: 'Rename room',
+            onPressed: () => _rename(context, ref, system, member),
+          ),
+        RefreshIconButton(onRefresh: () async {
+          await ref.read(sonosControllerProvider.notifier).refresh();
+          if (devices.isNotEmpty) {
+            await ref.read(trueplayControllerProvider.notifier).load(devices);
+          }
+        }),
+      ],
+      slivers: member == null
+          ? [const SliverFillRemaining(hasScrollBody: false, child: MissingRoomView())]
+          : [
+              SliverPadding(
                 padding: const EdgeInsets.all(20),
-                children: [
-                  Text(models.isEmpty ? 'Speaker' : models,
-                      style: Theme.of(context).textTheme.titleMedium),
-                  Gap.l,
-                  TrueplayControl(devices: devices),
-                ],
+                sliver: SliverList.list(
+                  children: [
+                    Text(models.isEmpty ? 'Speaker' : models,
+                        style: Theme.of(context).textTheme.titleMedium),
+                    Gap.l,
+                    TrueplayControl(devices: devices),
+                  ],
+                ),
               ),
-      ),
+            ],
     );
   }
 

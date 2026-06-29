@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/bondable_speaker_tile.dart';
+import '../widgets/collapsing_scaffold.dart';
 import '../widgets/diagram_labels.dart';
 
 /// Entry screen: scan the LAN and present the system, leading with anything
@@ -18,28 +19,29 @@ class DiscoveryScreen extends ConsumerWidget {
     final state = ref.watch(sonosControllerProvider);
     final controller = ref.read(sonosControllerProvider.notifier);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sonority'),
-        actions: [
-          // Only when there's a discovered system to refresh; the intro/error
-          // states use their own CTA buttons to scan.
-          if (state.value != null)
-            IconButton(
-              tooltip: 'Rescan',
-              onPressed: state.isLoading ? null : controller.scan,
-              icon: const Icon(Icons.refresh),
-            ),
-        ],
-      ),
-      body: SafeArea(
-        child: state.when(
-          loading: () => const Center(child: _Scanning()),
-          error: (e, _) => _ErrorView(message: '$e', onRetry: controller.scan),
-          data: (system) => system == null
-              ? _Intro(onScan: controller.scan)
-              : _SystemView(system: system),
-        ),
+    Widget fill(Widget child) =>
+        SliverFillRemaining(hasScrollBody: false, child: child);
+
+    return CollapsingScaffold(
+      title: 'Sonority',
+      onRefresh: state.value != null ? () => controller.scan() : null,
+      actions: [
+        // Only when there's a discovered system to refresh; the intro/error
+        // states use their own CTA buttons to scan.
+        if (state.value != null)
+          IconButton(
+            tooltip: 'Rescan',
+            onPressed: state.isLoading ? null : controller.scan,
+            icon: const Icon(Icons.refresh),
+          ),
+      ],
+      slivers: state.when(
+        loading: () => [fill(const Center(child: _Scanning()))],
+        error: (e, _) =>
+            [fill(_ErrorView(message: '$e', onRetry: controller.scan))],
+        data: (system) => system == null
+            ? [fill(_Intro(onScan: controller.scan))]
+            : [_SystemView(system: system)],
       ),
     );
   }
@@ -112,10 +114,9 @@ class _SystemView extends ConsumerWidget {
     final canPair =
         system.bondableSpeakers.where((d) => d.reachable).length >= 2;
 
-    return RefreshIndicator(
-      onRefresh: () async => ref.read(sonosControllerProvider.notifier).scan(),
-      child: ListView(
-        padding: const EdgeInsets.all(16),
+    return SliverPadding(
+      padding: const EdgeInsets.all(16),
+      sliver: SliverList.list(
         children: [
           _SectionHeader('Home theaters', Icons.theaters_outlined),
           if (theaters.isEmpty)

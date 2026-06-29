@@ -7,6 +7,7 @@ import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
 import '../widgets/busy_view.dart';
+import '../widgets/collapsing_scaffold.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
@@ -46,30 +47,37 @@ class HomeTheaterScreen extends ConsumerWidget {
       }
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(member?.zoneName ?? 'Home theater'),
-        actions: [
-          if (member != null && device != null)
-            IconButton(
-              icon: const Icon(Icons.drive_file_rename_outline),
-              tooltip: 'Rename room',
-              onPressed: () => _rename(context, ref, device, member.zoneName),
-            ),
-          RefreshIconButton(onRefresh: refreshAll),
-        ],
-      ),
-      body: SafeArea(
-        child: state.isLoading
-            ? const BusyView(
-                title: 'Updating your home theater…',
-                subtitle:
-                    'This can take up to ~20 seconds while Sonos reconfigures '
-                    'and re-reads the layout.',
+    return CollapsingScaffold(
+      title: member?.zoneName ?? 'Home theater',
+      onRefresh: refreshAll,
+      actions: [
+        if (member != null && device != null)
+          IconButton(
+            icon: const Icon(Icons.drive_file_rename_outline),
+            tooltip: 'Rename room',
+            onPressed: () => _rename(context, ref, device, member.zoneName),
+          ),
+        RefreshIconButton(onRefresh: refreshAll),
+      ],
+      slivers: state.isLoading
+          ? [
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: BusyView(
+                  title: 'Updating your home theater…',
+                  subtitle:
+                      'This can take up to ~20 seconds while Sonos reconfigures '
+                      'and re-reads the layout.',
+                ),
               )
-            : (member == null || device == null)
-                ? const MissingRoomView()
-                : _Content(
+            ]
+          : (member == null || device == null)
+              ? [
+                  const SliverFillRemaining(
+                      hasScrollBody: false, child: MissingRoomView())
+                ]
+              : [
+                  _Content(
                     system: system!,
                     member: member,
                     device: device,
@@ -78,9 +86,8 @@ class HomeTheaterScreen extends ConsumerWidget {
                         context, ref, member, device, channels, label),
                     onConfigure: () =>
                         context.push('/theater/$soundbarUuid/fronts'),
-                    onRefresh: refreshAll,
                   ),
-      ),
+                ],
     );
   }
 
@@ -167,7 +174,6 @@ class _Content extends StatelessWidget {
   final List<SonosDevice> bonded;
   final void Function(Set<SonosChannel> channels, String label) onRemoveGroup;
   final VoidCallback onConfigure;
-  final Future<void> Function() onRefresh;
 
   const _Content({
     required this.system,
@@ -176,7 +182,6 @@ class _Content extends StatelessWidget {
     required this.bonded,
     required this.onRemoveGroup,
     required this.onConfigure,
-    required this.onRefresh,
   });
 
   /// Resolved, de-duplicated speaker names for a group's channels.
@@ -196,10 +201,9 @@ class _Content extends StatelessWidget {
       for (final g in _htGroups)
         if (g.channels.any((c) => hasChannel(member, c))) g,
     ];
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
+    return SliverPadding(
+      padding: const EdgeInsets.all(20),
+      sliver: SliverList.list(
         children: [
           SpeakerDiagram(
             frontLeftLabel: labelForChannel(system, member, SonosChannel.leftFront),
