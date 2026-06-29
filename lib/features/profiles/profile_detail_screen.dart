@@ -56,9 +56,17 @@ class _State extends ConsumerState<ProfileDetailScreen> {
 
     return CollapsingScaffold(
       title: 'Profile',
+      // Save only appears once the name actually differs from what's stored.
+      floatingActionButton: changed
+          ? FloatingActionButton.extended(
+              onPressed: () => _save(profile, name),
+              icon: const Icon(Icons.check),
+              label: const Text('Save'),
+            )
+          : null,
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
           sliver: SliverList.list(
             children: [
               TextField(
@@ -70,11 +78,6 @@ class _State extends ConsumerState<ProfileDetailScreen> {
                   border: const OutlineInputBorder(),
                   errorText: taken ? 'A profile with this name exists' : null,
                 ),
-              ),
-              Gap.s,
-              FilledButton(
-                onPressed: changed ? () => _save(profile, name) : null,
-                child: const Text('Save'),
               ),
               Gap.l,
               Text('Included', style: theme.textTheme.titleSmall),

@@ -71,22 +71,30 @@ class _HomeShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: shell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: shell.currentIndex,
-        onDestinationSelected: (i) =>
-            shell.goBranch(i, initialLocation: i == shell.currentIndex),
-        destinations: const [
-          NavigationDestination(
-              icon: Icon(Icons.speaker_group_outlined),
-              selectedIcon: Icon(Icons.speaker_group),
-              label: 'System'),
-          NavigationDestination(
-              icon: Icon(Icons.dashboard_customize_outlined),
-              selectedIcon: Icon(Icons.dashboard_customize),
-              label: 'Profiles'),
-        ],
+      bottomNavigationBar: DecoratedBox(
+        // Hairline divider so the nav bar reads as a separate surface from the
+        // page behind it (dynamic-colour tones alone don't separate them).
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: scheme.outlineVariant)),
+        ),
+        child: NavigationBar(
+          selectedIndex: shell.currentIndex,
+          onDestinationSelected: (i) =>
+              shell.goBranch(i, initialLocation: i == shell.currentIndex),
+          destinations: const [
+            NavigationDestination(
+                icon: Icon(Icons.speaker_group_outlined),
+                selectedIcon: Icon(Icons.speaker_group),
+                label: 'System'),
+            NavigationDestination(
+                icon: Icon(Icons.dashboard_customize_outlined),
+                selectedIcon: Icon(Icons.dashboard_customize),
+                label: 'Profiles'),
+          ],
+        ),
       ),
     );
   }

@@ -28,11 +28,24 @@ class AppTheme {
           fontWeight: FontWeight.w600,
         ),
       ),
+      // Cards: a lifted container tone PLUS a hairline outline so they always
+      // read as distinct panels — dynamic-colour palettes flatten the container
+      // tones, so tone alone isn't enough separation from the page.
       cardTheme: CardThemeData(
         elevation: 0,
         color: scheme.surfaceContainerHigh,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
         margin: EdgeInsets.zero,
+      ),
+      // A distinct bottom nav surface (the top divider is added in the shell).
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: scheme.surfaceContainerHigh,
+        indicatorColor: scheme.secondaryContainer,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
