@@ -59,7 +59,7 @@ class HomeTheaterScreen extends ConsumerWidget {
                     'and re-reads the layout.',
               )
             : (member == null || device == null)
-                ? _missing(context)
+                ? const MissingRoomView()
                 : _Content(
                     system: system!,
                     member: member,
@@ -72,25 +72,6 @@ class HomeTheaterScreen extends ConsumerWidget {
       ),
     );
   }
-
-  Widget _missing(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.help_outline, size: 56),
-              Gap.m,
-              const Text('This room is no longer available. Rescan to refresh.'),
-              Gap.l,
-              FilledButton(
-                onPressed: () => context.go('/'),
-                child: const Text('Back to scan'),
-              ),
-            ],
-          ),
-        ),
-      );
 
   Future<void> _confirmRemove(
     BuildContext context,

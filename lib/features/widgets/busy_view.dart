@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 
@@ -48,4 +49,30 @@ class BusyView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Shown when a room/member referenced by the route no longer exists in the
+/// current topology (e.g. after a rescan). Offers a way back to discovery.
+class MissingRoomView extends StatelessWidget {
+  const MissingRoomView({super.key});
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.help_outline, size: 56),
+              Gap.m,
+              const Text('This room is no longer available. Rescan to refresh.'),
+              Gap.l,
+              FilledButton(
+                onPressed: () => context.go('/'),
+                child: const Text('Back to scan'),
+              ),
+            ],
+          ),
+        ),
+      );
 }

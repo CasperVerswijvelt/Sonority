@@ -24,15 +24,15 @@
 import 'dart:io';
 
 import 'package:sonority/data/models/sonos_models.dart';
-import 'package:sonority/data/sonos/device_description.dart';
 import 'package:sonority/data/sonos/device_properties.dart';
 import 'package:sonority/data/sonos/front_layout.dart';
 import 'package:sonority/data/sonos/soap_client.dart';
-import 'package:sonority/data/sonos/ssdp_discovery.dart';
 import 'package:sonority/data/sonos/zone_topology.dart';
 
+import 'discover_util.dart';
+
 Future<void> main(List<String> argv) async {
-  final args = _parseArgs(argv);
+  final args = parseArgs(argv, flags: {'confirm', 'apply-only', 'remove-only'});
   final barSel = args['bar'];
   final leftSel = args['left'];
   final rightSel = args['right'];
@@ -49,14 +49,7 @@ Future<void> main(List<String> argv) async {
   }
 
   print('🔎 Discovering system…');
-  final locations = await SsdpDiscovery().discover();
-  final descriptions = DeviceDescriptionClient();
-  final devices = <SonosDevice>[];
-  for (final loc in locations) {
-    try {
-      devices.add(await descriptions.fetch(loc));
-    } catch (_) {}
-  }
+  final devices = await discoverDevices();
   if (devices.isEmpty) {
     print('❌ No devices found.');
     exit(1);
@@ -66,7 +59,7 @@ Future<void> main(List<String> argv) async {
   var groups = await topology.getZoneGroups(anyIp);
 
   // Resolve the soundbar member + device.
-  final soundbarDevice = _resolveDevice(devices, barSel, mustBeSoundbar: true);
+  final soundbarDevice = resolveDevice(devices, barSel, mustBeSoundbar: true);
   final soundbar = _findMember(groups, soundbarDevice.uuid);
   if (soundbar == null) {
     print('❌ Soundbar ${soundbarDevice.roomName} not found in topology.');
@@ -74,8 +67,8 @@ Future<void> main(List<String> argv) async {
   }
   // Front devices: a single Amp (both channels) or a left/right pair.
   final List<SonosDevice> fronts = ampMode
-      ? [_resolveDevice(devices, ampSel)]
-      : [_resolveDevice(devices, leftSel!), _resolveDevice(devices, rightSel!)];
+      ? [resolveDevice(devices, ampSel)]
+      : [resolveDevice(devices, leftSel!), resolveDevice(devices, rightSel!)];
 
   print('\nPlan:');
   print('  Soundbar : ${soundbarDevice.roomName} (${soundbarDevice.modelName}) '
@@ -143,7 +136,7 @@ Future<void> main(List<String> argv) async {
   try {
     print('\n➡️  Applying dedicated fronts…');
     await deviceProps.addHtSatellite(soundbarIp: barIp, map: targetMap);
-    await _settle();
+    await settle();
     groups = await topology.getZoneGroups(barIp);
     final afterAdd = _findMember(groups, soundbarDevice.uuid);
     final ok = afterAdd?.hasDedicatedFronts ?? false;
@@ -187,7 +180,7 @@ Future<void> _remove(
     for (final f in fronts) {
       await deviceProps.removeHtSatellite(soundbarIp: barIp, satelliteUuid: f.uuid);
     }
-    await _settle();
+    await settle();
     final groups = await topology.getZoneGroups(barIp);
     final after = _findMember(groups, soundbarDevice.uuid);
     final restored = after?.htSatChanMapSet ?? '(none)';
@@ -204,8 +197,6 @@ Future<void> _remove(
     exit(1);
   }
 }
-
-Future<void> _settle() => Future<void>.delayed(const Duration(seconds: 4));
 
 void _sanityCheck(SonosDevice left, SonosDevice right) {
   if (left.uuid == right.uuid) {
@@ -227,46 +218,3 @@ ZoneGroupMember? _findMember(List<ZoneGroup> groups, String uuid) {
   return null;
 }
 
-SonosDevice _resolveDevice(List<SonosDevice> devices, String selector,
-    {bool mustBeSoundbar = false}) {
-  if (selector.startsWith('RINCON_')) {
-    final match = devices.where((d) => d.uuid == selector);
-    if (match.isEmpty) {
-      print('❌ No device with uuid $selector');
-      exit(1);
-    }
-    return match.first;
-  }
-  final byName = devices
-      .where((d) => d.roomName.toLowerCase() == selector.toLowerCase())
-      .where((d) => !mustBeSoundbar || d.isSoundbar)
-      .toList();
-  if (byName.isEmpty) {
-    print('❌ No ${mustBeSoundbar ? "soundbar" : "device"} in room "$selector". '
-        'Use a RINCON_ uuid instead.');
-    exit(1);
-  }
-  if (byName.length > 1) {
-    print('❌ Room "$selector" matches ${byName.length} devices: '
-        '${byName.map((d) => "${d.modelName} ${d.uuid}").join(", ")}. '
-        'Use a RINCON_ uuid to disambiguate.');
-    exit(1);
-  }
-  return byName.first;
-}
-
-Map<String, String> _parseArgs(List<String> argv) {
-  final out = <String, String>{};
-  for (var i = 0; i < argv.length; i++) {
-    final a = argv[i];
-    if (!a.startsWith('--')) continue;
-    final key = a.substring(2);
-    const flags = {'confirm', 'apply-only', 'remove-only'};
-    if (flags.contains(key)) {
-      out[key] = 'true';
-    } else if (i + 1 < argv.length) {
-      out[key] = argv[++i];
-    }
-  }
-  return out;
-}

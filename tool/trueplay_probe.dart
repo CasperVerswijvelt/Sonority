@@ -16,10 +16,10 @@
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
-import 'package:sonority/data/sonos/device_description.dart';
 import 'package:sonority/data/sonos/soap_client.dart';
-import 'package:sonority/data/sonos/ssdp_discovery.dart';
 import 'package:sonority/data/sonos/zone_topology.dart';
+
+import 'discover_util.dart';
 
 const _rcService = 'urn:schemas-upnp-org:service:RenderingControl:1';
 const _rcControl = '/MediaRenderer/RenderingControl/Control';
@@ -89,24 +89,14 @@ Future<void> _setEnabled(String ip, bool on) => _soap.call(
 
 Future<void> main(List<String> argv) async {
   print('🔎 Discovery…');
-  final locations = await SsdpDiscovery().discover();
-  if (locations.isEmpty) {
-    print('❌ No players. Same Wi-Fi? Local network allowed?');
-    return;
-  }
-
-  final descriptions = DeviceDescriptionClient();
   final ipByUuid = <String, String>{};
   final labelByUuid = <String, String>{};
   String? anyIp;
-  for (final loc in locations) {
-    try {
-      final d = await descriptions.fetch(loc);
-      if (d.ip == null) continue;
-      anyIp ??= d.ip;
-      ipByUuid[d.uuid] = d.ip!;
-      labelByUuid[d.uuid] = '${d.roomName} (${d.modelName})';
-    } catch (_) {}
+  for (final d in await discoverDevices()) {
+    if (d.ip == null) continue;
+    anyIp ??= d.ip;
+    ipByUuid[d.uuid] = d.ip!;
+    labelByUuid[d.uuid] = '${d.roomName} (${d.modelName})';
   }
   if (anyIp == null) {
     print('❌ Could not read any device description.');

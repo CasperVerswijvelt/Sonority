@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
+import '../widgets/busy_view.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/trueplay_control.dart';
 
@@ -50,7 +50,7 @@ class RoomScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: member == null
-            ? _missing(context)
+            ? const MissingRoomView()
             : ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
@@ -64,22 +64,4 @@ class RoomScreen extends ConsumerWidget {
     );
   }
 
-  Widget _missing(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.help_outline, size: 56),
-              Gap.m,
-              const Text('This room is no longer available. Rescan to refresh.'),
-              Gap.l,
-              FilledButton(
-                onPressed: () => context.go('/'),
-                child: const Text('Back to scan'),
-              ),
-            ],
-          ),
-        ),
-      );
 }

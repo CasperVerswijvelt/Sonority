@@ -12,15 +12,14 @@
 
 import 'dart:io';
 
-import 'package:sonority/data/models/sonos_models.dart';
-import 'package:sonority/data/sonos/device_description.dart';
 import 'package:sonority/data/sonos/device_properties.dart';
 import 'package:sonority/data/sonos/soap_client.dart';
-import 'package:sonority/data/sonos/ssdp_discovery.dart';
 import 'package:sonority/data/sonos/zone_topology.dart';
 
+import 'discover_util.dart';
+
 Future<void> main(List<String> argv) async {
-  final args = _parseArgs(argv);
+  final args = parseArgs(argv, flags: {'confirm'});
   final leftSel = args['left'];
   final rightSel = args['right'];
   final confirm = args.containsKey('confirm');
@@ -30,16 +29,9 @@ Future<void> main(List<String> argv) async {
   }
 
   print('🔎 Discovering…');
-  final locations = await SsdpDiscovery().discover();
-  final descriptions = DeviceDescriptionClient();
-  final devices = <SonosDevice>[];
-  for (final loc in locations) {
-    try {
-      devices.add(await descriptions.fetch(loc));
-    } catch (_) {}
-  }
-  final left = _resolve(devices, leftSel);
-  final right = _resolve(devices, rightSel);
+  final devices = await discoverDevices();
+  final left = resolveDevice(devices, leftSel);
+  final right = resolveDevice(devices, rightSel);
   if (left.uuid == right.uuid) {
     print('❌ Left and right must differ.');
     exit(64);
@@ -83,7 +75,7 @@ Future<void> main(List<String> argv) async {
 
   print('\n⬅️  Separating…');
   await props.separateStereoPair(ip: left.ip!, leftUuid: left.uuid, rightUuid: right.uuid);
-  await _settle();
+  await settle();
 
   final leftAfter = await props.getZoneAttributes(left.ip!);
   final rightAfter = await props.getZoneAttributes(right.ip!);
@@ -102,42 +94,4 @@ Future<void> main(List<String> argv) async {
     print('   🔧 Restored right -> "${rightAttrs.zoneName}"');
   }
   print('\n🎉 Done. Names are back to the originals.');
-}
-
-Future<void> _settle() => Future<void>.delayed(const Duration(seconds: 4));
-
-SonosDevice _resolve(List<SonosDevice> devices, String sel) {
-  if (sel.startsWith('RINCON_')) {
-    final m = devices.where((d) => d.uuid == sel);
-    if (m.isEmpty) {
-      print('❌ No device $sel');
-      exit(1);
-    }
-    return m.first;
-  }
-  final byName = devices.where((d) => d.roomName.toLowerCase() == sel.toLowerCase()).toList();
-  if (byName.isEmpty) {
-    print('❌ No device in room "$sel".');
-    exit(1);
-  }
-  if (byName.length > 1) {
-    print('❌ "$sel" matches ${byName.length} devices — use a RINCON_ uuid.');
-    exit(1);
-  }
-  return byName.first;
-}
-
-Map<String, String> _parseArgs(List<String> argv) {
-  final out = <String, String>{};
-  for (var i = 0; i < argv.length; i++) {
-    final a = argv[i];
-    if (!a.startsWith('--')) continue;
-    final key = a.substring(2);
-    if (key == 'confirm') {
-      out[key] = 'true';
-    } else if (i + 1 < argv.length) {
-      out[key] = argv[++i];
-    }
-  }
-  return out;
 }

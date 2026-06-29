@@ -1,8 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
-import '../../core/result.dart';
-
 /// Minimal SOAP client for the Sonos local UPnP API (port 1400).
 ///
 /// Every Sonos service is reached the same way: an HTTP POST to a control path
@@ -89,4 +87,18 @@ class SonosSoapClient {
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&apos;');
+}
+
+/// Raised when a Sonos device returns a SOAP fault.
+class SonosSoapException implements Exception {
+  final String action;
+  final int? statusCode;
+  final String? faultCode;
+  final String? faultString;
+
+  SonosSoapException(this.action, {this.statusCode, this.faultCode, this.faultString});
+
+  @override
+  String toString() =>
+      'SonosSoapException($action, status=$statusCode, code=$faultCode, msg=$faultString)';
 }

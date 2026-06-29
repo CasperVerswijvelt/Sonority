@@ -1,10 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
-import 'package:sonority/data/sonos/sonos_repository.dart';
+import 'package:sonority/data/sonos/front_layout.dart';
 
 void main() {
-  final repo = SonosRepository();
-
   const beamUuid = 'RINCON_BEAM01400';
   const flUuid = 'RINCON_FL01400';
   const frUuid = 'RINCON_FR01400';
@@ -22,7 +20,7 @@ void main() {
       htSatChanMapSet: existing,
     );
 
-    final map = repo.buildDedicatedFrontsMap(
+    final map = buildDedicatedFrontsMap(
       soundbar: soundbar,
       soundbarDevice: dev(beamUuid, 'Sonos Beam'),
       leftSpeaker: dev(flUuid, 'Sonos One SL'),
@@ -41,7 +39,7 @@ void main() {
   test('bare soundbar (no satellites) becomes center + two fronts', () {
     final soundbar = ZoneGroupMember(uuid: beamUuid, zoneName: 'Woonkamer');
 
-    final map = repo.buildDedicatedFrontsMap(
+    final map = buildDedicatedFrontsMap(
       soundbar: soundbar,
       soundbarDevice: dev(beamUuid, 'Sonos Beam'),
       leftSpeaker: dev(flUuid, 'Sonos One SL'),
@@ -59,7 +57,7 @@ void main() {
       htSatChanMapSet: withFronts,
     );
 
-    final map = repo.buildDedicatedFrontsMap(
+    final map = buildDedicatedFrontsMap(
       soundbar: soundbar,
       soundbarDevice: dev(beamUuid, 'Sonos Beam'),
       leftSpeaker: dev(flUuid, 'Sonos One SL'),
@@ -82,7 +80,7 @@ void main() {
       htSatChanMapSet: existing,
     );
 
-    final map = repo.buildAmpFrontsMap(
+    final map = buildAmpFrontsMap(
       soundbar: soundbar,
       soundbarDevice: dev(beamUuid, 'Sonos Beam'),
       ampDevice: dev(ampUuid, 'Sonos Amp'),
@@ -100,7 +98,7 @@ void main() {
   test('bare soundbar + Amp becomes center + one Amp on both fronts', () {
     final soundbar = ZoneGroupMember(uuid: beamUuid, zoneName: 'Woonkamer');
 
-    final map = repo.buildAmpFrontsMap(
+    final map = buildAmpFrontsMap(
       soundbar: soundbar,
       soundbarDevice: dev(beamUuid, 'Sonos Beam'),
       ampDevice: dev(ampUuid, 'Sonos Amp'),
@@ -117,7 +115,7 @@ void main() {
       htSatChanMapSet: withFronts,
     );
 
-    final map = repo.buildAmpFrontsMap(
+    final map = buildAmpFrontsMap(
       soundbar: soundbar,
       soundbarDevice: dev(beamUuid, 'Sonos Beam'),
       ampDevice: dev(ampUuid, 'Sonos Amp'),

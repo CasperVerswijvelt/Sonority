@@ -56,5 +56,4 @@ class Gap {
   static const s = SizedBox(height: 8, width: 8);
   static const m = SizedBox(height: 16, width: 16);
   static const l = SizedBox(height: 24, width: 24);
-  static const xl = SizedBox(height: 40, width: 40);
 }

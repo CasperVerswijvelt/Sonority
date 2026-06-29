@@ -62,11 +62,10 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           currentStep: _step,
           type: StepperType.vertical,
           onStepTapped: _applying ? null : (i) => setState(() => _step = i),
-          controlsBuilder: (context, details) => _controls(
+          controlsBuilder: (context, _) => _controls(
             context,
             member: member,
             soundbar: soundbar,
-            candidates: candidates,
           ),
           steps: [
             Step(
@@ -145,7 +144,6 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     BuildContext context, {
     required ZoneGroupMember member,
     required SonosDevice soundbar,
-    required List<SonosDevice> candidates,
   }) {
     final canNext = switch (_step) {
       0 => _frontsChosen,

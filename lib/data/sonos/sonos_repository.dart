@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/sonos_models.dart';
-import 'channel_map.dart' show ChannelMap;
 import 'device_description.dart';
 import 'device_properties.dart';
 import 'front_layout.dart' as front_layout;
@@ -111,33 +110,6 @@ class SonosRepository {
   Future<void> setRoomCalibration(String ip, bool on) =>
       _calibration.setEnabled(ip, on);
 
-  /// See [front_layout.buildDedicatedFrontsMap]. Delegated to a Flutter-free
-  /// helper so CLI tools can reuse it without pulling in shared_preferences.
-  ChannelMap buildDedicatedFrontsMap({
-    required ZoneGroupMember soundbar,
-    required SonosDevice soundbarDevice,
-    required SonosDevice leftSpeaker,
-    required SonosDevice rightSpeaker,
-  }) =>
-      front_layout.buildDedicatedFrontsMap(
-        soundbar: soundbar,
-        soundbarDevice: soundbarDevice,
-        leftSpeaker: leftSpeaker,
-        rightSpeaker: rightSpeaker,
-      );
-
-  /// See [front_layout.buildAmpFrontsMap] — a single Amp as both fronts.
-  ChannelMap buildAmpFrontsMap({
-    required ZoneGroupMember soundbar,
-    required SonosDevice soundbarDevice,
-    required SonosDevice ampDevice,
-  }) =>
-      front_layout.buildAmpFrontsMap(
-        soundbar: soundbar,
-        soundbarDevice: soundbarDevice,
-        ampDevice: ampDevice,
-      );
-
   /// Applies dedicated front speakers, snapshotting current state first.
   Future<void> applyDedicatedFronts({
     required ZoneGroupMember soundbar,
@@ -148,7 +120,7 @@ class SonosRepository {
     final ip = soundbarDevice.ip;
     if (ip == null) throw Exception('Soundbar IP unknown; rescan and retry.');
 
-    final map = buildDedicatedFrontsMap(
+    final map = front_layout.buildDedicatedFrontsMap(
       soundbar: soundbar,
       soundbarDevice: soundbarDevice,
       leftSpeaker: leftSpeaker,
@@ -168,7 +140,7 @@ class SonosRepository {
     final ip = soundbarDevice.ip;
     if (ip == null) throw Exception('Soundbar IP unknown; rescan and retry.');
 
-    final map = buildAmpFrontsMap(
+    final map = front_layout.buildAmpFrontsMap(
       soundbar: soundbar,
       soundbarDevice: soundbarDevice,
       ampDevice: ampDevice,

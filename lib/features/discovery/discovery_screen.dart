@@ -33,7 +33,7 @@ class DiscoveryScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: state.when(
-          loading: () => const _Centered(child: _Scanning()),
+          loading: () => const Center(child: _Scanning()),
           error: (e, _) => _ErrorView(message: '$e', onRetry: controller.scan),
           data: (system) => system == null
               ? _Intro(onScan: controller.scan)
@@ -392,11 +392,4 @@ class _ErrorView extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Centered extends StatelessWidget {
-  final Widget child;
-  const _Centered({required this.child});
-  @override
-  Widget build(BuildContext context) => Center(child: child);
 }
