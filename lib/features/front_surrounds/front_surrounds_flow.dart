@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/identify_controls.dart';
@@ -258,13 +259,13 @@ class _ChooseSpeakers extends StatelessWidget {
           // An Amp is always selectable (it switches to single-box mode);
           // regular speakers are capped at two.
           final disabled = !isSel && !d.isAmp && selected.length >= 2;
-          return CheckboxListTile(
-            value: isSel,
+          return BondableSpeakerTile(
+            device: d,
+            selected: isSel,
             onChanged: disabled ? null : (_) => onToggle(d),
-            title: Text(d.roomName),
-            subtitle: Text(
-                d.isAmp ? '${d.modelName} — drives both fronts (L + R)' : d.modelName),
-            controlAffinity: ListTileControlAffinity.leading,
+            subtitle: d.isAmp
+                ? '${d.modelName} — drives both fronts (L + R)'
+                : d.modelName,
             secondary: identifyControls(d),
           );
         }),

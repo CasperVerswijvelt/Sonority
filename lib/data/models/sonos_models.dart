@@ -33,12 +33,19 @@ class SonosDevice {
   final String? modelNumber; // e.g. "S27"
   final String? ip;
 
+  /// False when we couldn't read this player's device_description.xml: it's
+  /// present in the authoritative topology but its model/capabilities are
+  /// unknown, so the UI surfaces it disabled with a warning rather than
+  /// offering it as a real bonding candidate.
+  final bool reachable;
+
   const SonosDevice({
     required this.uuid,
     required this.roomName,
     required this.modelName,
     this.modelNumber,
     this.ip,
+    this.reachable = true,
   });
 
   /// Soundbars are the only valid `AddHTSatellite` targets.
@@ -64,6 +71,7 @@ class SonosDevice {
         modelName: modelName,
         modelNumber: modelNumber,
         ip: ip ?? this.ip,
+        reachable: reachable,
       );
 
   @override

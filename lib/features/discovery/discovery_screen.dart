@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/bondable_speaker_tile.dart';
 
 /// Entry screen: scan the LAN and present the system, leading with anything
 /// that can host dedicated front speakers (soundbars).
@@ -107,7 +108,8 @@ class _SystemView extends ConsumerWidget {
     final otherRooms = system.allMembers
         .where((m) => !theaters.contains(m) && !pairs.contains(m))
         .toList();
-    final canPair = system.bondableSpeakers.length >= 2;
+    final canPair =
+        system.bondableSpeakers.where((d) => d.reachable).length >= 2;
 
     return RefreshIndicator(
       onRefresh: () async => ref.read(sonosControllerProvider.notifier).scan(),
@@ -140,16 +142,27 @@ class _SystemView extends ConsumerWidget {
             ),
           Gap.l,
           _SectionHeader('Other rooms', Icons.meeting_room_outlined),
-          ...otherRooms.map((m) => Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  onTap: () => context.push('/room/${m.uuid}'),
-                  leading: const Icon(Icons.speaker_outlined),
-                  title: Text(m.zoneName),
-                  subtitle: Text(system.device(m.uuid)?.modelName ?? ''),
-                  trailing: const Icon(Icons.chevron_right),
+          ...otherRooms.map((m) {
+            final device = system.device(m.uuid);
+            final unreachable = device != null && !device.reachable;
+            final scheme = Theme.of(context).colorScheme;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                onTap: unreachable ? null : () => context.push('/room/${m.uuid}'),
+                leading: Icon(
+                  unreachable ? Icons.warning_amber_rounded : Icons.speaker_outlined,
+                  color: unreachable ? scheme.error : null,
                 ),
-              )),
+                title: Text(m.zoneName),
+                subtitle: Text(
+                  unreachable ? unreachableSpeakerHint : (device?.modelName ?? ''),
+                  style: unreachable ? TextStyle(color: scheme.error) : null,
+                ),
+                trailing: unreachable ? null : const Icon(Icons.chevron_right),
+              ),
+            );
+          }),
         ],
       ),
     );

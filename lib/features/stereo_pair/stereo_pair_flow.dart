@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/speaker_side_card.dart';
@@ -54,12 +55,11 @@ class _StereoPairFlowState extends ConsumerState<StereoPairFlow>
             ...candidates.map((d) {
               final isSel = _selected.contains(d.uuid);
               final disabled = !isSel && _selected.length >= 2;
-              return CheckboxListTile(
-                value: isSel,
+              return BondableSpeakerTile(
+                device: d,
+                selected: isSel,
                 onChanged: disabled ? null : (_) => _toggle(d.uuid),
-                title: Text(d.roomName),
-                subtitle: Text(d.modelName),
-                controlAffinity: ListTileControlAffinity.leading,
+                subtitle: d.modelName,
                 secondary: identifyButtons(d),
               );
             }),

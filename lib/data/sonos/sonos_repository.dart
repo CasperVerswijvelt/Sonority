@@ -58,6 +58,42 @@ class SonosRepository {
 
     final devicesByUuid = {for (final d in found) d.uuid: d};
     final groups = await _topology.getZoneGroups(found.first.ip!);
+
+    // Topology is authoritative; SSDP and the per-device description fetch are
+    // both lossy. Re-fetch any visible member we don't yet have a description
+    // for, straight from its topology-provided Location — this recovers a
+    // transient fetch failure and any device SSDP's multicast missed entirely.
+    final missing = [
+      for (final g in groups)
+        for (final m in g.members)
+          if (!m.invisible &&
+              m.location != null &&
+              !devicesByUuid.containsKey(m.uuid))
+            m,
+    ];
+    if (missing.isNotEmpty) {
+      final recovered = await Future.wait(missing.map((m) async {
+        try {
+          return await _descriptions.fetch(m.location!);
+        } catch (_) {
+          // Re-fetch failed too. Keep the device — it's in the authoritative
+          // topology — but flag it unreachable (model/capabilities unknown) so
+          // the UI surfaces it disabled with a warning instead of dropping it
+          // silently.
+          return SonosDevice(
+            uuid: m.uuid,
+            roomName: m.zoneName,
+            modelName: '',
+            ip: m.ip,
+            reachable: false,
+          );
+        }
+      }));
+      for (final d in recovered) {
+        devicesByUuid[d.uuid] = d;
+      }
+    }
+
     return SonosSystem(groups: groups, devicesByUuid: devicesByUuid);
   }
 
