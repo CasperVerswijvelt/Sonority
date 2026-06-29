@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/sonos_models.dart';
+import 'channel_map.dart' show ChannelMap;
 import 'device_description.dart';
 import 'device_properties.dart';
 import 'front_layout.dart' as front_layout;
@@ -146,6 +147,68 @@ class SonosRepository {
       ampDevice: ampDevice,
     );
     await _deviceProps.addHtSatellite(soundbarIp: ip, map: map);
+  }
+
+  /// Writes [target] to the coordinator and VERIFIES every requested channel
+  /// actually landed, RE-ASSERTING up to [retries] times if Sonos silently drops
+  /// satellites that don't finish joining (the Phase 0 finding — see
+  /// [[phase0-ht-bonding-finding]]). The 8s SOAP timeout fires on big bonding
+  /// calls but the write still takes effect, so a timeout is treated as "go
+  /// verify", not "failed". Returns the verified [SonosSystem]; throws naming the
+  /// channels that never bonded if it can't converge.
+  ///
+  /// Staging (e.g. rears+sub first, then fronts) is the caller's job: call this
+  /// once per stage. [onNote] surfaces per-attempt progress for the UI.
+  Future<SonosSystem> bondAndVerify({
+    required SonosDevice coordinator,
+    required ChannelMap target,
+    required SonosSystem? previous,
+    int retries = 3,
+    Duration settle = const Duration(seconds: 16),
+    void Function(String note)? onNote,
+  }) async {
+    final ip = coordinator.ip;
+    if (ip == null) throw Exception('Coordinator IP unknown; rescan and retry.');
+
+    // Desired channel → UUID, skipping the CC primary (target.entries.first).
+    final wanted = <SonosChannel, String>{};
+    for (final e in target.entries.skip(1)) {
+      for (final ch in e.channels) {
+        wanted[ch] = e.uuid;
+      }
+    }
+
+    SonosSystem? system = previous;
+    List<SonosChannel> missing = wanted.keys.toList();
+    for (var attempt = 1; attempt <= retries; attempt++) {
+      try {
+        await _deviceProps.addHtSatellite(soundbarIp: ip, map: target);
+      } on TimeoutException {
+        // Big bonding calls time out at 8s but the write still takes effect.
+      }
+      await Future<void>.delayed(settle);
+      try {
+        system = system == null ? await discover() : await refresh(system, ip);
+      } catch (_) {
+        onNote?.call('attempt $attempt: topology read failed, retrying');
+        continue;
+      }
+      final got = system.allMembers
+              .where((m) => m.uuid == coordinator.uuid)
+              .cast<ZoneGroupMember?>()
+              .firstOrNull
+              ?.channelAssignments ??
+          const {};
+      missing = [for (final e in wanted.entries) if (got[e.key] != e.value) e.key];
+      if (missing.isEmpty) {
+        onNote?.call(attempt == 1 ? 'bonded' : 're-asserted after $attempt tries');
+        return system;
+      }
+      onNote?.call(
+          'attempt $attempt: ${missing.map((c) => c.token).join('/')} not bonded yet');
+    }
+    throw Exception('Bonding did not complete — these channels never joined: '
+        '${missing.map((c) => c.token).join(', ')}. Try again, or finish in the Sonos app.');
   }
 
   /// Removes the dedicated front satellites currently bonded to [soundbar].
