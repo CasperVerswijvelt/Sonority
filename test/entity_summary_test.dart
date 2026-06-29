@@ -19,6 +19,15 @@ void main() {
         'Fronts: Left, Right · Surrounds: RearL, RearR · Sub: Sub');
   });
 
+  test('two satellites sharing a room name are shown once', () {
+    final e = ht('BEAM:CC;LR:LR;RR:RR', {
+      'BEAM': 'WK',
+      'LR': 'Woonkamer',
+      'RR': 'Woonkamer',
+    });
+    expect(entitySummary(e, null), 'Surrounds: Woonkamer');
+  });
+
   test('HT with only fronts omits empty groups', () {
     final e = ht('BEAM:CC;FL:LF;FR:RF', {'BEAM': 'WK', 'FL': 'L', 'FR': 'R'});
     expect(entitySummary(e, null), 'Fronts: L, R');

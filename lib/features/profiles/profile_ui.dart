@@ -43,7 +43,9 @@ String entitySummary(EntitySnapshot e, SonosSystem? system) {
       final map = e.mapSet;
       if (map == null) return e.kindLabel;
       final fronts = <String>[], surrounds = <String>[], sub = <String>[];
-      // Skip the first entry (the soundbar primary / CC).
+      // Skip the first entry (the soundbar primary / CC). Collect resolved
+      // names, de-duped (two satellites can share a room name, e.g. both
+      // "Woonkamer" — show it once rather than "Woonkamer, Woonkamer").
       for (final entry in ChannelMap.parse(map).entries.skip(1)) {
         for (final ch in entry.channels) {
           final bucket = switch (ch) {
@@ -52,13 +54,14 @@ String entitySummary(EntitySnapshot e, SonosSystem? system) {
             SonosChannel.sub => sub,
             SonosChannel.center => null,
           };
-          if (bucket != null && !bucket.contains(entry.uuid)) bucket.add(entry.uuid);
+          final name = nameOf(entry.uuid);
+          if (bucket != null && !bucket.contains(name)) bucket.add(name);
         }
       }
       final parts = <String>[
-        if (fronts.isNotEmpty) 'Fronts: ${fronts.map(nameOf).join(', ')}',
-        if (surrounds.isNotEmpty) 'Surrounds: ${surrounds.map(nameOf).join(', ')}',
-        if (sub.isNotEmpty) 'Sub: ${sub.map(nameOf).join(', ')}',
+        if (fronts.isNotEmpty) 'Fronts: ${fronts.join(', ')}',
+        if (surrounds.isNotEmpty) 'Surrounds: ${surrounds.join(', ')}',
+        if (sub.isNotEmpty) 'Sub: ${sub.join(', ')}',
       ];
       return parts.isEmpty ? 'Soundbar only' : parts.join(' · ');
   }

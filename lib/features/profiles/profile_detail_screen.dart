@@ -58,7 +58,7 @@ class _State extends ConsumerState<ProfileDetailScreen> {
       title: 'Profile',
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           sliver: SliverList.list(
             children: [
               TextField(

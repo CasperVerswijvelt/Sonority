@@ -75,7 +75,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
                 SliverAppBar.large(
                     pinned: true, title: const Text('New profile')),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                   sliver: SliverList.list(
                     children: [
                       TextField(
