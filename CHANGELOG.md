@@ -8,7 +8,7 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 `[X.Y.Z] - YYYY-MM-DD`. CI copies that section into the GitHub Release notes
 (see `.github/workflows/release.yml`).
 
-## [Unreleased]
+## [0.5.0] - 2026-06-30
 
 ### Added
 - **Speaker groups** — one "Group speakers" page (Stereo / Zone / Custom) to bond
