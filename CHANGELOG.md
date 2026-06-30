@@ -10,7 +10,21 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 
 ## [Unreleased]
 
+### Added
+- **Config profiles** — snapshot your current layout (home theaters, stereo
+  pairs, rooms, with their names) and re-apply it in one tap, e.g. to rebuild a
+  fronts/surrounds setup after moving speakers. A dedicated bottom tab.
+- **Full in-app home-theater setup** — the guided flow now bonds dedicated
+  fronts plus **rear surrounds and a sub** (each optional), with a live
+  per-step progress timeline showing the active step and exactly where it
+  failed. Applied with staged bonding (re-asserted until Sonos converges).
+- **Room renaming** from the room and home-theater detail pages.
+
 ### Changed
+- UI overhaul: collapsing large-title app bars, a stepped stereo-pair creation
+  flow, distinct card/nav-bar surfaces on a darker page background, and speaker
+  **types** (e.g. "Beam (Gen 2)", "Play:1") shown wherever a model appears —
+  in diagrams, bonded-speaker cards, and profile summaries.
 - Trueplay: the "x/y active" counter is hidden for single speakers (shown only
   for home theaters and stereo pairs).
 

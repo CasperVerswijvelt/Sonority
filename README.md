@@ -18,9 +18,10 @@
 
 A clean, cross-platform (iOS + Android + macOS) Flutter app that unlocks Sonos speaker
 configurations the official app refuses to create — **dedicated front left/right surround
-speakers** on a home theater, and **stereo pairs of mismatched / app‑blocked speakers** (e.g.
-a Sonos One paired with a Play:1) — via Sonos' undocumented local UPnP API. A focused,
-better‑UX alternative to *SonoSequencr*.
+speakers** on a home theater, a **full in-app home-theater setup** (fronts + rear surrounds +
+sub), **stereo pairs of mismatched / app‑blocked speakers** (e.g. a Sonos One paired with a
+Play:1), and **config profiles** that snapshot a layout and re-apply it in one tap — via Sonos'
+undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr*.
 
 ## Screenshots
 
@@ -66,20 +67,26 @@ audio processing; it simply issues the bonding call the official app won't:
    `device_description.dart`
 2. **Topology** — `ZoneGroupTopology.GetZoneGroupState` for the full system layout.
    → `lib/data/sonos/zone_topology.dart`
-3. **The unlock** — `DeviceProperties.AddHTSatellite` with a `HTSatChanMapSet` mapping the two
-   chosen speakers to the front channels (`LF`/`RF`). `RemoveHTSatellite` undoes it.
-   → `lib/data/sonos/device_properties.dart`, `channel_map.dart`
+3. **The unlock** — `DeviceProperties.AddHTSatellite` with a `HTSatChanMapSet` mapping the
+   chosen speakers to channels (fronts `LF`/`RF`, rears `LR`/`RR`, sub `SW`). `RemoveHTSatellite`
+   undoes it. Bonding is eventually-consistent, so writes are **staged and re-asserted** until the
+   topology converges. → `lib/data/sonos/device_properties.dart`, `channel_map.dart`,
+   `sonos_repository.dart` (`bondAndVerify`)
 
 A restore point (the soundbar's current `HTSatChanMapSet`) is saved before every change.
+**Config profiles** snapshot a whole layout (maps + room names) so it can be rebuilt later in one
+tap. → `lib/features/profiles/`
 
 ## Project layout
 
 ```
 lib/
   core/        result + theme
-  data/        models + sonos/ (ssdp, descriptions, soap, topology, device props, channel map, repository)
-  state/       Riverpod controller
-  features/    discovery / home_theater / front_surrounds / widgets
+  data/        models + sonos/ (ssdp, descriptions, soap, topology, device props, channel map,
+               front_layout, apply_progress, repository — staged bondAndVerify)
+  state/       Riverpod controllers (system + apply-progress)
+  features/    discovery / home_theater / front_surrounds (full HT setup) / stereo_pair /
+               profiles / room / widgets
 tool/spike.dart  read-only hardware validation CLI
 ```
 
@@ -115,14 +122,23 @@ there if a different model/firmware ever needs it.
 
 - `tool/spike.dart` — read-only discovery + topology dump
 - `tool/roundtrip.dart` — live AddHTSatellite/RemoveHTSatellite (dry-run by default; `--confirm`, `--apply-only`, `--remove-only`)
+- `tool/full_layout.dart` — strip to bare → rebuild a full HT map → verify each channel (dry-run by default; `--confirm`)
 - `tool/stereopair.dart` — stereo-pair round-trip (create → verify → separate → restore names)
 - `tool/chirp.dart` — play the identify chime on one speaker (validates `IdentifyService`)
+- `tool/led_probe.dart` — blink a speaker's status LED (the macOS-safe identify; read-only/self-reverting)
+- `tool/trueplay_probe.dart` — read/toggle per-speaker Trueplay status
 
 ## Status
 
 - ✅ Discovery + home-theater topology UI (Material 3, dark mode)
-- ✅ Dedicated front surrounds — guided add flow (+ Identify chime), one-tap remove
-- ✅ Stereo pairs incl. mismatched models — create flow + separate with name restore
+- ✅ Dedicated front surrounds — guided add flow (+ Identify), one-tap remove
+- ✅ Full in-app home-theater setup — fronts + rear surrounds + sub (each optional),
+  staged bonding with a live per-step progress timeline
+- ✅ Config profiles — snapshot a layout (maps + room names) and re-apply in one tap
+- ✅ Room renaming from the room / home-theater detail pages
+- ✅ Stereo pairs incl. mismatched models — stepped create flow + separate with name restore
+- ✅ Identify a speaker by blinking its status LED (default; macOS-safe) or a chime (mobile)
+- ✅ Trueplay read + toggle on speakers / pairs / home theaters
 - ✅ Recipe confirmed on real hardware (Beam stays `CC`; fronts = `LF`/`RF`)
 - ✅ CI release pipeline (APK + unsigned iOS/macOS) on `v*` tags
 
