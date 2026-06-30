@@ -164,7 +164,7 @@ class _Group {
 const _htGroups = [
   _Group('Fronts', Icons.speaker, {SonosChannel.leftFront, SonosChannel.rightFront}),
   _Group('Surrounds', Icons.surround_sound, {SonosChannel.leftRear, SonosChannel.rightRear}),
-  _Group('Sub', Icons.graphic_eq, {SonosChannel.sub}),
+  _Group('Subwoofer', Icons.graphic_eq, {SonosChannel.sub}),
 ];
 
 class _Content extends StatelessWidget {

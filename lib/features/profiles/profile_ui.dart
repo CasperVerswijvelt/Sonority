@@ -24,7 +24,7 @@ IconData entityIcon(EntityKind kind) => switch (kind) {
 /// Resolves types against the live [system]; falls back to the captured room
 /// name only when the device isn't currently present.
 ///
-/// - HT: `Fronts: One SL, One SL · Surrounds: Play:1, Play:1 · Sub: Sub (Gen 1/2)`
+/// - HT: `Fronts: One SL, One SL · Surrounds: Play:1, Play:1 · Subwoofer: Sub`
 /// - Pair: `Play:1 + Play:1`
 /// - Single: the type (or "Standalone speaker").
 String entitySummary(EntitySnapshot e, SonosSystem? system) {
@@ -65,7 +65,7 @@ String entitySummary(EntitySnapshot e, SonosSystem? system) {
       final parts = <String>[
         if (fronts.isNotEmpty) 'Fronts: ${fronts.join(', ')}',
         if (surrounds.isNotEmpty) 'Surrounds: ${surrounds.join(', ')}',
-        if (sub.isNotEmpty) 'Sub: ${sub.join(', ')}',
+        if (sub.isNotEmpty) 'Subwoofer: ${sub.join(', ')}',
       ];
       return parts.isEmpty ? 'Soundbar only' : parts.join(' · ');
   }

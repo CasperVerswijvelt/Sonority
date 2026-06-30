@@ -60,18 +60,19 @@ class SonosDevice {
 
   bool get isSub => modelName.toLowerCase().contains('sub');
 
-  /// Friendly speaker type for display, e.g. "Play:1", "One SL", "Beam". For a
-  /// Sub the generation is surfaced: Gen 1 & 2 are hardware-identical and both
-  /// report model number "Sub" → "Sub (Gen 1/2)"; a newer Sub reports a distinct
-  /// model code, which we append so the generation is explicit.
+  /// Friendly speaker type for display, e.g. "Play:1", "One SL", "Beam (Gen 2)".
+  /// - A Sub's generation isn't reliably reported (Gen 1 & 2 are identical and
+  ///   both report model number "Sub"), so we just say "Sub".
+  /// - The Beam generation IS identifiable by model number (S14 = Gen 1,
+  ///   S31 = Gen 2) so it's shown.
   String get typeLabel {
     final base = modelName.replaceFirst(RegExp(r'^Sonos\s+'), '').trim();
-    if (!isSub) return base.isEmpty ? 'Speaker' : base;
-    final n = modelNumber;
-    if (n == null || n.isEmpty || n.toLowerCase() == 'sub') {
-      return 'Sub (Gen 1/2)';
+    if (isSub) return 'Sub';
+    if (base.toLowerCase() == 'beam') {
+      if (modelNumber == 'S14') return 'Beam (Gen 1)';
+      if (modelNumber == 'S31') return 'Beam (Gen 2)';
     }
-    return 'Sub ($n)';
+    return base.isEmpty ? 'Speaker' : base;
   }
 
   /// A Sonos Amp / Connect:Amp drives passive L/R speakers, so it can serve as

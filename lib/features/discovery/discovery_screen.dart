@@ -295,7 +295,7 @@ class _GroupChips extends StatelessWidget {
   static const _groups = [
     ('Fronts', Icons.speaker, [SonosChannel.leftFront, SonosChannel.rightFront]),
     ('Surrounds', Icons.surround_sound, [SonosChannel.leftRear, SonosChannel.rightRear]),
-    ('Sub', Icons.graphic_eq, [SonosChannel.sub]),
+    ('Subwoofer', Icons.graphic_eq, [SonosChannel.sub]),
   ];
 
   @override

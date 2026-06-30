@@ -173,7 +173,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
               ),
             ),
             Step(
-              title: const Text('Sub'),
+              title: const Text('Subwoofer'),
               subtitle: const Text('Optional'),
               isActive: _step >= 3,
               state: _sub != null ? StepState.complete : StepState.indexed,
@@ -390,13 +390,13 @@ class _ChooseSub extends StatelessWidget {
   Widget build(BuildContext context) {
     if (subs.isEmpty) {
       return const Text(
-          'No free Sonos Sub found. A Sub must be standalone (not already '
+          'No free subwoofer found. A Sonos Sub must be standalone (not already '
           'bonded to another home theater).');
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Pick a Sub to add as the low-frequency channel.',
+        Text('Pick a subwoofer to add as the low-frequency channel.',
             style: Theme.of(context).textTheme.bodySmall),
         Gap.s,
         ...subs.map((d) => BondableSpeakerTile(

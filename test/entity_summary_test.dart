@@ -26,19 +26,22 @@ void main() {
       expect(_dev('x', 'Sonos Play:1', 'S1').typeLabel, 'Play:1');
       expect(_dev('x', 'Sonos One SL', 'S22').typeLabel, 'One SL');
     });
-    test('Sub (Gen 1/2) reports model number "Sub"', () {
-      expect(_dev('x', 'Sonos Sub', 'Sub').typeLabel, 'Sub (Gen 1/2)');
-      expect(_dev('x', 'Sonos Sub', null).typeLabel, 'Sub (Gen 1/2)');
+    test('a Sub omits the (unknowable) generation', () {
+      expect(_dev('x', 'Sonos Sub', 'Sub').typeLabel, 'Sub');
+      expect(_dev('x', 'Sonos Sub', null).typeLabel, 'Sub');
+      expect(_dev('x', 'Sonos Sub', 'S27').typeLabel, 'Sub');
     });
-    test('a newer Sub surfaces its model code', () {
-      expect(_dev('x', 'Sonos Sub', 'S27').typeLabel, 'Sub (S27)');
+    test('the Beam generation is shown from its model number', () {
+      expect(_dev('x', 'Sonos Beam', 'S14').typeLabel, 'Beam (Gen 1)');
+      expect(_dev('x', 'Sonos Beam', 'S31').typeLabel, 'Beam (Gen 2)');
+      expect(_dev('x', 'Sonos Beam', null).typeLabel, 'Beam');
     });
   });
 
-  test('HT summary groups by type (per speaker), with sub generation', () {
+  test('HT summary groups by type (per speaker)', () {
     final e = ht('BEAM:CC;FL:LF;FR:RF;LR:LR;RR:RR;SUB:SW');
     expect(entitySummary(e, system),
-        'Fronts: One SL, One SL · Surrounds: Play:1, Play:1 · Sub: Sub (Gen 1/2)');
+        'Fronts: One SL, One SL · Surrounds: Play:1, Play:1 · Subwoofer: Sub');
   });
 
   test('two same-type surrounds are both shown', () {
