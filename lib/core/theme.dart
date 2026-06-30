@@ -107,6 +107,11 @@ class AppTheme {
         backgroundColor: pageBg,
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
+        // Flat at rest; a subtle shadow appears once content scrolls under it
+        // (surfaceTint stays off, so the affordance is the shadow, not a tint).
+        elevation: 0,
+        scrolledUnderElevation: 3,
+        shadowColor: scheme.shadow,
         titleTextStyle: TextStyle(
           color: scheme.onSurface,
           fontSize: 22,

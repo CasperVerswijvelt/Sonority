@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 
-/// A Scaffold whose app bar is a Material 3 large title that collapses to a
-/// regular app bar on scroll (`SliverAppBar.large`). Callers pass their content
-/// as slivers (wrap plain widgets in `SliverList`/`SliverToBoxAdapter`).
+/// A Scaffold with a fixed (standard-height) Material 3 app bar over a sliver
+/// scroll body. Callers pass their content as slivers (wrap plain widgets in
+/// `SliverList`/`SliverToBoxAdapter`). The app bar picks up its scroll-under
+/// elevation from the theme.
 ///
-/// Used by the main scrollable screens so the large-title behaviour is
-/// consistent app-wide.
+/// Used by the main scrollable screens so the app bar is consistent app-wide.
 class CollapsingScaffold extends StatelessWidget {
   final String title;
+
+  /// Optional custom title widget (e.g. the brand wordmark) shown instead of
+  /// `Text(title)`.
+  final Widget? titleWidget;
+
   final List<Widget> actions;
   final List<Widget> slivers;
   final Future<void> Function()? onRefresh;
@@ -22,6 +27,7 @@ class CollapsingScaffold extends StatelessWidget {
     super.key,
     required this.title,
     required this.slivers,
+    this.titleWidget,
     this.actions = const [],
     this.onRefresh,
     this.floatingActionButton,
@@ -30,22 +36,19 @@ class CollapsingScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget scroll = CustomScrollView(
-      slivers: [
-        SliverAppBar.large(
-          pinned: true,
-          title: Text(title),
-          actions: actions,
-        ),
-        ...slivers,
-      ],
-    );
+    Widget scroll = CustomScrollView(slivers: slivers);
     if (onRefresh != null) {
       scroll = RefreshIndicator(onRefresh: onRefresh!, child: scroll);
     }
     return Scaffold(
+      appBar: AppBar(
+        title: titleWidget ?? Text(title),
+        actions: actions,
+      ),
       floatingActionButton: floatingActionButton,
+      // AppBar owns the top inset, so the body only needs the bottom safe area.
       body: SafeArea(
+        top: false,
         child: bottomOverlay == null
             ? scroll
             : Stack(

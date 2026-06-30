@@ -132,36 +132,28 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        // Large M3 title, matching the rest of the app's pages.
-        body: CustomScrollView(
-          slivers: [
-            SliverAppBar.large(
-              pinned: true,
-              automaticallyImplyLeading: false,
-              title: Text(widget.title),
-              actions: [
-                IconButton(
-                  tooltip: 'Copy logs',
-                  onPressed: _copyLogs,
-                  icon: const Icon(Icons.copy_all),
-                ),
-                IconButton(
-                  tooltip: _showLogs ? 'Show steps' : 'Show raw log',
-                  onPressed: () => setState(() => _showLogs = !_showLogs),
-                  icon: Icon(_showLogs
-                      ? Icons.view_timeline_outlined
-                      : Icons.terminal),
-                ),
-              ],
+        // Fixed app bar, matching the rest of the app's pages.
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: Text(widget.title),
+          actions: [
+            IconButton(
+              tooltip: 'Copy logs',
+              onPressed: _copyLogs,
+              icon: const Icon(Icons.copy_all),
             ),
-            SliverFillRemaining(
-              hasScrollBody: true,
-              child: _showLogs
-                  ? const _RawLogView()
-                  : ApplyProgressView(steps: steps),
+            IconButton(
+              tooltip: _showLogs ? 'Show steps' : 'Show raw log',
+              onPressed: () => setState(() => _showLogs = !_showLogs),
+              icon: Icon(_showLogs
+                  ? Icons.view_timeline_outlined
+                  : Icons.terminal),
             ),
           ],
         ),
+        body: _showLogs
+            ? const _RawLogView()
+            : ApplyProgressView(steps: steps),
         bottomNavigationBar: SafeArea(
           child: _BottomBar(
             finished: _finished,

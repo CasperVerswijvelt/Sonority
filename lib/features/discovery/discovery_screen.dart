@@ -38,6 +38,13 @@ class DiscoveryScreen extends ConsumerWidget {
 
     return CollapsingScaffold(
       title: 'Sonority',
+      titleWidget: Image.asset(
+        'assets/brand/sonority_wordmark.png',
+        height: 18,
+        // White glyphs on alpha → default srcIn tint recolors them to the
+        // theme text colour, so the one asset works in light and dark.
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
       onRefresh: state.value != null ? () => controller.scan() : null,
       actions: [
         // Only when there's a discovered system to refresh; the error state
