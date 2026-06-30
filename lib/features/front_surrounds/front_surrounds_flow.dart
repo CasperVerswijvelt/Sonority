@@ -542,6 +542,7 @@ class _Review extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SpeakerDiagram(
+          soundbarLabel: system.device(member.uuid)?.typeLabel,
           frontLeftLabel: label(SonosChannel.leftFront),
           frontRightLabel: label(SonosChannel.rightFront),
           rearLeftLabel: label(SonosChannel.leftRear),

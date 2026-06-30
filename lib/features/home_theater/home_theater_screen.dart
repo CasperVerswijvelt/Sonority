@@ -211,6 +211,7 @@ class _Content extends StatelessWidget {
       sliver: SliverList.list(
         children: [
           SpeakerDiagram(
+            soundbarLabel: device.typeLabel,
             frontLeftLabel: typeForChannel(system, member, SonosChannel.leftFront),
             frontRightLabel:
                 typeForChannel(system, member, SonosChannel.rightFront),

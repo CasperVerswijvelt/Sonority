@@ -10,6 +10,10 @@ class SpeakerDiagram extends StatelessWidget {
   final String? rearRightLabel;
   final bool hasSub;
 
+  /// The soundbar's type (e.g. "Beam", "Arc") shown under the screen bar.
+  /// Falls back to a generic label when unknown.
+  final String? soundbarLabel;
+
   const SpeakerDiagram({
     super.key,
     this.frontLeftLabel,
@@ -17,6 +21,7 @@ class SpeakerDiagram extends StatelessWidget {
     this.rearLeftLabel,
     this.rearRightLabel,
     this.hasSub = false,
+    this.soundbarLabel,
   });
 
   @override
@@ -42,7 +47,7 @@ class SpeakerDiagram extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text('TV / Soundbar',
+            Text(soundbarLabel ?? 'TV / Soundbar',
                 style: Theme.of(context)
                     .textTheme
                     .labelSmall
