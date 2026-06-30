@@ -166,6 +166,17 @@ class _SystemView extends ConsumerWidget {
               ),
             );
           }),
+          // Unbonded Subs: shown so they're visible (they're Invisible members
+          // with no room), but not tappable — there's nothing to configure for a
+          // standalone sub; add it to a home theater from the HT setup flow.
+          ...system.bondableSubs.map((sub) => Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: const Icon(Icons.graphic_eq),
+                  title: Text(sub.roomName),
+                  subtitle: const Text('Subwoofer — not in a home theater'),
+                ),
+              )),
         ],
       ),
     );
