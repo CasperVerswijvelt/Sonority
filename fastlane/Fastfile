@@ -1,22 +1,42 @@
 # Fastlane lanes to build + upload Sonority to TestFlight / the App Store.
 #
 # Auth: an App Store Connect API key (no Apple ID 2FA). Put the key id, issuer
-# id, and .p8 path in fastlane/.env (see .env.example). Signing: relies on Xcode
-# *automatic* signing — set your Team on the Runner targets in Xcode once, then
-# `-allowProvisioningUpdates` lets the API key create/fetch profiles.
+# id, and .p8 path in fastlane/.env (see .env.example).
+#
+# Signing — two paths, picked automatically by is_ci:
+#   * Local: Xcode *automatic* signing (Team set on the Runner targets) +
+#     `-allowProvisioningUpdates`, so the API key creates/fetches profiles. No
+#     match repo needed to build from your own Mac.
+#   * CI: fastlane *match* — fetch the shared cert+profile (readonly) from the
+#     private certs repo and switch Release to *manual* signing. This avoids
+#     minting a new distribution cert on every ephemeral runner (Apple caps you
+#     at ~2-3). Populate the repo once with the `certificates` lanes below.
 #
 # Run from the repo root:
-#   bundle exec fastlane ios beta       # build + upload to TestFlight
-#   bundle exec fastlane ios release    # build + submit for App Store review
-#   bundle exec fastlane mac beta
-#   bundle exec fastlane mac release
+#   bundle exec fastlane ios beta        # build + upload to TestFlight
+#   bundle exec fastlane ios release     # build + submit for App Store review
+#   bundle exec fastlane mac beta / release
+#   bundle exec fastlane ios certificates  # (one-time) create/refresh match repo
+#   bundle exec fastlane mac certificates
 #
-# Prereqs: enrollment complete, Team set in Xcode, the two PrivacyInfo.xcprivacy
-# files added to the Runner targets, and the app records created in App Store
-# Connect (see docs/PUBLISHING-APPLE.md).
+# Prereqs: enrollment complete, Team set in Xcode, PrivacyInfo.xcprivacy in the
+# Runner targets, app records in App Store Connect, and — for CI — the match repo
+# populated + secrets set (see docs/PUBLISHING-APPLE.md).
 
-# fvm-managed Flutter (this machine — see CLAUDE.md). Override with $FLUTTER_BIN.
+# fvm-managed Flutter (this machine — see CLAUDE.md). CI sets FLUTTER_BIN=flutter.
 FLUTTER = ENV["FLUTTER_BIN"] || File.expand_path("~/fvm/versions/3.35.2/bin/flutter")
+
+APP_ID = "be.casperverswijvelt.sonority"
+TEAM_ID = "V95M6HBV65"
+
+# The provisioning-profile name match installs differs per platform (macOS gets a
+# " macos" suffix). match exports it into ENV after it runs; fall back to the
+# documented naming if absent.
+def match_profile_name(platform)
+  suffix = platform == "macos" ? "_macos" : ""
+  ENV["sigh_#{APP_ID}#{suffix}_profile-name"] ||
+    "match AppStore #{APP_ID}#{platform == "macos" ? " macos" : ""}"
+end
 
 def asc_key
   app_store_connect_api_key(
@@ -47,32 +67,71 @@ def prov_xcargs
     "-authenticationKeyIssuerID #{ENV.fetch("ASC_ISSUER_ID")}"
 end
 
+# CI only: prepare a temp keychain, fetch the shared signing assets from the
+# match repo (readonly), and switch Release to manual signing pointed at them.
+# No-op locally, so local builds keep using automatic signing.
+def ci_signing(platform)
+  return unless is_ci
+
+  setup_ci
+  match(
+    type: "appstore",
+    platform: platform,
+    readonly: true,
+    api_key: asc_key,
+    additional_cert_types: platform == "macos" ? ["mac_installer_distribution"] : nil,
+  )
+  update_code_signing_settings(
+    use_automatic_signing: false,
+    path: platform == "macos" ? "macos/Runner.xcodeproj" : "ios/Runner.xcodeproj",
+    team_id: TEAM_ID,
+    code_sign_identity: "Apple Distribution",
+    profile_name: match_profile_name(platform),
+    targets: ["Runner"],
+    build_configurations: ["Release"],
+  )
+end
+
+# One build_app config for both platforms; adds CI-only manual export options.
+def archive_apple(platform)
+  opts = {
+    workspace: platform == "macos" ? "macos/Runner.xcworkspace" : "ios/Runner.xcworkspace",
+    scheme: "Runner",
+    export_method: "app-store",
+    output_directory: platform == "macos" ? "build/fastlane-macos" : "build/fastlane-ios",
+    xcargs: prov_xcargs,
+  }
+  opts[:export_team_id] = TEAM_ID if platform == "macos" # "No Team Found in Archive" otherwise
+  if is_ci
+    opts[:export_options] = {
+      signingStyle: "manual",
+      provisioningProfiles: { APP_ID => match_profile_name(platform) },
+    }
+  end
+  build_app(opts)
+end
+
 platform :ios do
+  desc "Create/refresh the shared iOS signing assets in the match repo"
+  lane :certificates do
+    match(type: "appstore", platform: "ios", readonly: false, api_key: asc_key)
+  end
+
   desc "Build and upload an iOS build to TestFlight"
   lane :beta do
     key = asc_key
+    ci_signing("ios")
     flutter_build("build ios --release --no-codesign")
-    build_app(
-      workspace: "ios/Runner.xcworkspace",
-      scheme: "Runner",
-      export_method: "app-store",
-      output_directory: "build/fastlane-ios",
-      xcargs: prov_xcargs,
-    )
+    archive_apple("ios")
     upload_to_testflight(api_key: key, skip_waiting_for_build_processing: true)
   end
 
   desc "Build and submit the iOS app for App Store review"
   lane :release do
     key = asc_key
+    ci_signing("ios")
     flutter_build("build ios --release --no-codesign")
-    build_app(
-      workspace: "ios/Runner.xcworkspace",
-      scheme: "Runner",
-      export_method: "app-store",
-      output_directory: "build/fastlane-ios",
-      xcargs: prov_xcargs,
-    )
+    archive_apple("ios")
     upload_to_app_store(
       api_key: key,
       submit_for_review: true,
@@ -85,33 +144,27 @@ platform :ios do
 end
 
 platform :mac do
+  desc "Create/refresh the shared macOS signing assets in the match repo"
+  lane :certificates do
+    match(type: "appstore", platform: "macos", readonly: false, api_key: asc_key,
+          additional_cert_types: ["mac_installer_distribution"])
+  end
+
   desc "Build and upload a macOS build to TestFlight"
   lane :beta do
     key = asc_key
+    ci_signing("macos")
     flutter_build("build macos --release")
-    build_app(
-      workspace: "macos/Runner.xcworkspace",
-      scheme: "Runner",
-      export_method: "app-store",
-      output_directory: "build/fastlane-macos",
-      export_team_id: "V95M6HBV65",      # macOS export needs the team explicitly ("No Team Found in Archive")
-      xcargs: prov_xcargs,
-    )
+    archive_apple("macos")
     upload_to_testflight(api_key: key, skip_waiting_for_build_processing: true)
   end
 
   desc "Build and submit the macOS app for App Store review"
   lane :release do
     key = asc_key
+    ci_signing("macos")
     flutter_build("build macos --release")
-    build_app(
-      workspace: "macos/Runner.xcworkspace",
-      scheme: "Runner",
-      export_method: "app-store",
-      output_directory: "build/fastlane-macos",
-      export_team_id: "V95M6HBV65",      # macOS export needs the team explicitly ("No Team Found in Archive")
-      xcargs: prov_xcargs,
-    )
+    archive_apple("macos")
     upload_to_app_store(
       api_key: key,
       submit_for_review: true,

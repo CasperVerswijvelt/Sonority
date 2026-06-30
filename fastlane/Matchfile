@@ -1,0 +1,16 @@
+# fastlane match — shared code-signing certs + provisioning profiles, stored
+# encrypted in a PRIVATE git repo so CI (and any machine) can fetch them.
+#
+# Auth to Apple is via the App Store Connect API key (the Fastfile passes
+# api_key:), so no Apple ID / 2FA. The repo URL + encryption passphrase come
+# from the environment (fastlane/.env locally, GitHub secrets in CI):
+#   MATCH_GIT_URL   git URL of the private certs repo
+#   MATCH_PASSWORD  passphrase that encrypts the repo contents
+#
+# One-time / yearly refresh (writes to the repo):
+#   bundle exec fastlane ios certificates
+#   bundle exec fastlane mac certificates
+git_url(ENV["MATCH_GIT_URL"])
+storage_mode("git")
+type("appstore")
+app_identifier(["be.casperverswijvelt.sonority"])

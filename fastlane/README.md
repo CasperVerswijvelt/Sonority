@@ -15,6 +15,14 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 ## iOS
 
+### ios certificates
+
+```sh
+[bundle exec] fastlane ios certificates
+```
+
+Create/refresh the shared iOS signing assets in the match repo
+
 ### ios beta
 
 ```sh
@@ -35,6 +43,14 @@ Build and submit the iOS app for App Store review
 
 
 ## Mac
+
+### mac certificates
+
+```sh
+[bundle exec] fastlane mac certificates
+```
+
+Create/refresh the shared macOS signing assets in the match repo
 
 ### mac beta
 

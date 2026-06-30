@@ -117,6 +117,60 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  app-store:
+    # Tag builds → TestFlight (iOS + macOS) via fastlane match. Entirely gated on
+    # signing secrets; the steps no-op if they're unset, so forks/secret-less
+    # repos still get a green run. Set in repo Settings → Secrets → Actions:
+    #   ASC_KEY_ID, ASC_ISSUER_ID    App Store Connect API key id + issuer (Admin role)
+    #   ASC_KEY_BASE64               base64 of the AuthKey_XXXX.p8
+    #   MATCH_PASSWORD               match repo encryption passphrase
+    #   MATCH_GIT_URL                https URL of the private certs repo
+    #   MATCH_GIT_BASIC_AUTHORIZATION  base64 of "user:PAT" with read access to it
+    runs-on: macos-14
+    env:
+      HAS_SIGNING: ${{ secrets.MATCH_PASSWORD != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - run: flutter pub get
+
+      - name: Decode App Store Connect API key
+        if: env.HAS_SIGNING == 'true'
+        run: echo "${{ secrets.ASC_KEY_BASE64 }}" | base64 --decode > "${{ github.workspace }}/fastlane/AuthKey.p8"
+
+      - name: iOS → TestFlight
+        if: env.HAS_SIGNING == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_FILEPATH: ./fastlane/AuthKey.p8
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          FLUTTER_BIN: flutter
+        run: bundle exec fastlane ios beta
+
+      - name: macOS → TestFlight (best-effort)
+        if: env.HAS_SIGNING == 'true'
+        continue-on-error: true
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_FILEPATH: ./fastlane/AuthKey.p8
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          FLUTTER_BIN: flutter
+        run: bundle exec fastlane mac beta
+
   release:
     needs: [android, apple]
     # Publish as long as the APK built; iOS/macOS are included if present.
