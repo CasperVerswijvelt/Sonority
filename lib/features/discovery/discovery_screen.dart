@@ -173,8 +173,8 @@ class _SystemView extends ConsumerWidget {
                 margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
                   leading: const Icon(Icons.graphic_eq),
-                  title: Text(sub.roomName),
-                  subtitle: const Text('Subwoofer — not in a home theater'),
+                  title: const Text('Subwoofer'),
+                  subtitle: Text(sub.typeLabel),
                 ),
               )),
         ],
