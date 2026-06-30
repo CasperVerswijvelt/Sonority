@@ -94,6 +94,7 @@ platform :mac do
       scheme: "Runner",
       export_method: "app-store",
       output_directory: "build/fastlane-macos",
+      export_team_id: "V95M6HBV65",      # macOS export needs the team explicitly ("No Team Found in Archive")
       xcargs: prov_xcargs,
     )
     upload_to_testflight(api_key: key, skip_waiting_for_build_processing: true)
@@ -108,6 +109,7 @@ platform :mac do
       scheme: "Runner",
       export_method: "app-store",
       output_directory: "build/fastlane-macos",
+      export_team_id: "V95M6HBV65",      # macOS export needs the team explicitly ("No Team Found in Archive")
       xcargs: prov_xcargs,
     )
     upload_to_app_store(
