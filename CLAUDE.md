@@ -261,4 +261,12 @@ Run on the same Wi-Fi as the Sonos system:
   (`resolveSpeaker` — CLI room/uuid/IP resolution). Prefer a shared widget/mixin/
   helper over a second copy; only keep a bespoke variant when forcing it into the
   shared shape would genuinely hurt readability.
+- **Names vs. types in the UI.** Once a speaker is bonded into an HT or stereo
+  entity its individual room name stops mattering — Sonos absorbs it into the
+  entity name (a satellite/hidden half just echoes the HT/pair name), so showing
+  it is noise. Inside a bonded entity we therefore show the speaker **type**
+  (`SonosDevice.typeLabel` — "Beam (Gen 2)", "Play:1", "Sub") via
+  `typeForChannel` / `entitySummary`. The **name** only matters for the entity as
+  a whole (the HT / pair) and for individual standalone speakers — that's where
+  rename and the room-name labels live.
 - Commit only when asked; end commit messages with the Co-Authored-By trailer.

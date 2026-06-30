@@ -57,16 +57,8 @@ class EntitySnapshot {
   /// Every UUID this entity bonds — used for pre-flight resolution + conflict
   /// detection. For an HT that's the coordinator + all satellites; for a pair
   /// both halves; for a single just itself.
-  Set<String> get involvedUuids {
-    switch (kind) {
-      case EntityKind.single:
-        return {primaryUuid};
-      case EntityKind.stereoPair:
-        return _mapUuids().toSet();
-      case EntityKind.homeTheater:
-        return _mapUuids().toSet();
-    }
-  }
+  Set<String> get involvedUuids =>
+      kind == EntityKind.single ? {primaryUuid} : _mapUuids().toSet();
 
   /// UUIDs parsed from [mapSet] (`UUID:CH...;UUID:CH...`), primary first.
   List<String> _mapUuids() {

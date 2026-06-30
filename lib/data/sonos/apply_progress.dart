@@ -1,6 +1,5 @@
 /// Progress reporting for multi-step bonding operations (full HT setup,
-/// profile-apply). Pure Dart (no Flutter) so the engine can emit it and the CLI
-/// tools can print it; the UI renders the list as a stepper.
+/// profile-apply). Pure Dart (no Flutter); the UI renders the list as a stepper.
 ///
 /// Phase 0 proved that bonding is inherently multi-step and can fail partway
 /// (a satellite silently fails to join), so the user must see which step is

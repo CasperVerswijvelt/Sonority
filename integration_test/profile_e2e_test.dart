@@ -50,18 +50,30 @@ void main() {
         timeout: const Duration(seconds: 10), what: 'edit screen');
 
     // 3. Name it and create (all current entities are included by default).
+    //    Wait until we're back on the list — signalled by the tile's Apply
+    //    button. ('E2E TEST' text alone is ambiguous: the create screen's
+    //    TextField already contains it, so it'd match before navigation.)
     await tester.enterText(find.byType(TextField).first, 'E2E TEST');
     await tester.pump();
     await tester.tap(find.text('Create profile'));
-    await _until(tester, () => _text('E2E TEST'),
-        timeout: const Duration(seconds: 10), what: 'profile saved');
+    // Back on the list once the tile shows AND the create screen's button is
+    // gone (the TextField also contains 'E2E TEST', so that text alone is
+    // ambiguous while the create screen is still up).
+    await _until(
+        tester,
+        () => _text('E2E TEST') && !_text('Create profile'),
+        timeout: const Duration(seconds: 10),
+        what: 'profile saved + back on list');
     debugPrint('E2E: profile created');
 
-    // 4. Apply it (play button → confirm dialog → Apply).
-    await tester.tap(find.byTooltip('Apply'));
+    // 4. Apply it (tile Apply → confirm dialog → Apply). The list has a single
+    //    'Apply' (the tile button); the dialog's Apply is an exact-type
+    //    TextButton (the tile's is a FilledButton.icon subtype, so type-based
+    //    finders don't confuse the two).
+    await tester.tap(find.text('Apply'));
     await _until(tester, () => _text('Cancel') && _text('Apply'),
         timeout: const Duration(seconds: 10), what: 'confirm dialog');
-    await tester.tap(find.widgetWithText(FilledButton, 'Apply'));
+    await tester.tap(find.widgetWithText(TextButton, 'Apply'));
 
     // 5. Wait for the apply screen to finish. On success it auto-pops back to
     //    the profiles list; on failure it shows Retry/Close.
@@ -98,8 +110,10 @@ void main() {
     expect(ch.contains(SonosChannel.rightRear), isTrue, reason: 'RR bonded');
     expect(ch.contains(SonosChannel.sub), isTrue, reason: 'SW bonded');
 
-    // 7. Clean up the test profile.
-    await tester.tap(find.byTooltip('Delete'));
+    // 7. Clean up the test profile (overflow menu → Delete → confirm dialog).
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete').last);
     await _until(tester, () => _text('Delete') && _text('Cancel'),
         timeout: const Duration(seconds: 10), what: 'delete dialog');
     await tester.tap(find.widgetWithText(TextButton, 'Delete'));

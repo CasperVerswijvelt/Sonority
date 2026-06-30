@@ -208,11 +208,6 @@ class ZoneGroupMember {
     return result;
   }
 
-  /// Every bonded satellite UUID from the `HTSatChanMapSet` (skips the soundbar
-  /// primary), in map order. Unlike [channelAssignments] (a 1:1 channel→uuid
-  /// map) this keeps ALL satellites — including a second Sub in a dual-sub HT.
-  List<String> get satelliteUuids => _uuidsWhere((_) => true);
-
   /// All satellite UUIDs assigned to [channel] — more than one for dual subs.
   List<String> uuidsForChannel(SonosChannel channel) =>
       _uuidsWhere((tokens) => tokens.contains(channel.token));
