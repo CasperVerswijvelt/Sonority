@@ -79,4 +79,14 @@ void main() {
     );
     expect(map.encode(), '$beam:CC;$lr:LR;$rr:RR');
   });
+
+  test('isAmp matches Amp / Connect:Amp but not speakers, subs, or soundbars', () {
+    SonosDevice d(String model) =>
+        SonosDevice(uuid: amp, roomName: amp, modelName: model, ip: '1.2.3.4');
+    expect(d('Sonos Amp').isAmp, isTrue);
+    expect(d('Sonos Connect:Amp').isAmp, isTrue);
+    expect(d('Sonos Beam').isAmp, isFalse);
+    expect(d('Sonos One SL').isAmp, isFalse);
+    expect(d('Sonos Sub').isAmp, isFalse);
+  });
 }

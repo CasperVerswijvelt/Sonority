@@ -120,7 +120,11 @@ Future<void> main(List<String> argv) async {
     print('❌ Failed mid-spike: $e');
   } finally {
     final restored = await _restore(props, topology, barDevice, snapshot);
-    final ok = restored?.htSatChanMapSet == snapshot;
+    // Normalise "bare" so a bar that started bare (snapshot '(none)') matches a
+    // restored null/empty map instead of spuriously reporting a difference.
+    String norm(String? m) =>
+        (m == null || m.isEmpty || m == '(none)') ? '' : m;
+    final ok = norm(restored?.htSatChanMapSet) == norm(snapshot);
     print(ok
         ? '\n🎉 Restored to the original layout.'
         : '\n⚠️  Final layout differs from snapshot — check the Sonos app.\n   Original: $snapshot');

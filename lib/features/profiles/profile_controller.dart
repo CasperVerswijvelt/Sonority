@@ -62,22 +62,6 @@ List<EntityIssue> preflightProfile(Profile profile, SonosSystem system) {
           .firstWhere((n) => n != null, orElse: () => null) ??
       uuid;
 
-  // A speaker is "owned" elsewhere if it's a satellite or pair half of some
-  // member (excluding the entity's own primary, which legitimately owns it).
-  bool bonded(String uuid) {
-    for (final g in system.groups) {
-      for (final m in g.members) {
-        if (m.uuid != uuid &&
-            (m.channelAssignments.values.contains(uuid) ||
-                m.satellites.any((s) => s.uuid == uuid) ||
-                (m.isStereoPair && m.stereoPairUuids.contains(uuid)))) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
   return [
     for (final e in profile.entities)
       EntityIssue(
@@ -87,11 +71,14 @@ List<EntityIssue> preflightProfile(Profile profile, SonosSystem system) {
             if (system.device(u) == null || system.device(u)!.reachable == false)
               label(u),
         ],
+        // A speaker is conflicting if it's currently bonded into ANY other
+        // entity — HT satellite, stereo-pair half, OR zone/custom group member.
+        // Uses the shared [SonosSystem.ownerOf] so pre-flight and apply agree.
         conflicts: [
           for (final u in e.involvedUuids)
             if (u != e.primaryUuid &&
                 system.device(u) != null &&
-                bonded(u))
+                system.ownerOf(u) != null)
               label(u),
         ],
       ),

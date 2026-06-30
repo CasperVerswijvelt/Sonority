@@ -29,7 +29,3 @@ String buildGroupMap(
   if (subUuid != null) parts.add('$subUuid:SW');
   return parts.join(';');
 }
-
-/// Shorthand for an all-full-range zone (every member `LF,RF`). Coordinator first.
-String buildZoneMap(List<String> uuids) => buildGroupMap(
-    [for (final u in uuids) (uuid: u, channel: GroupChannel.both)]);

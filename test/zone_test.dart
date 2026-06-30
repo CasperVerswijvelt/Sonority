@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
-import 'package:sonority/data/sonos/zone_layout.dart';
 import 'package:sonority/data/sonos/zone_topology.dart';
 import 'package:sonority/features/profiles/profile.dart';
 
@@ -86,6 +85,24 @@ void main() {
     expect(system.zoneableSpeakers, isEmpty);
   });
 
+  test('ownerOf catches zone/custom group members (not just HT/pairs)', () {
+    final system = SonosSystem(
+      groups: ZoneTopologyClient.parseZoneGroupState(_zoned),
+      devicesByUuid: {
+        'RINCON_KEUKEN01400': _dev('RINCON_KEUKEN01400', 'Keuken'),
+        'RINCON_ZOLDER01400': _dev('RINCON_ZOLDER01400', 'Zolder'),
+        'RINCON_GYM01400': _dev('RINCON_GYM01400', 'Gym'),
+        'standalone': _dev('standalone', 'Spare'),
+      },
+    );
+    // A non-coordinator zone member is owned by the coordinator — the case the
+    // profile pre-flight previously missed (it only checked HT/stereo pairs).
+    expect(system.ownerOf('RINCON_ZOLDER01400'), 'RINCON_KEUKEN01400');
+    expect(system.ownerOf('RINCON_GYM01400'), 'RINCON_KEUKEN01400');
+    // A speaker that isn't in any group is unowned.
+    expect(system.ownerOf('standalone'), isNull);
+  });
+
   test('zoneableSpeakers excludes amps, subs, soundbars; offers free speakers', () {
     final system = SonosSystem(
       groups: const [],
@@ -98,10 +115,6 @@ void main() {
       },
     );
     expect(system.zoneableSpeakers.map((d) => d.uuid).toSet(), {'one', 'play'});
-  });
-
-  test('buildZoneMap encodes every member as full-range LF,RF', () {
-    expect(buildZoneMap(['A', 'B', 'C']), 'A:LF,RF;B:LF,RF;C:LF,RF');
   });
 
   test('EntitySnapshot captures a zone and round-trips through JSON', () {

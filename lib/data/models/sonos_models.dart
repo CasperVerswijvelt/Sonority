@@ -407,4 +407,25 @@ class SonosSystem {
   }
 
   SonosDevice? device(String uuid) => devicesByUuid[uuid];
+
+  /// The coordinator/primary UUID that currently owns [uuid] as a bonded member
+  /// — an HT satellite, a stereo-pair half, or any zone/custom group member — or
+  /// null if [uuid] is standalone. The single source of truth for "is this
+  /// speaker bonded elsewhere?", shared by profile pre-flight and apply so they
+  /// can't disagree (a group member must be caught by BOTH).
+  String? ownerOf(String uuid) {
+    for (final g in groups) {
+      for (final m in g.members) {
+        if (m.uuid != uuid &&
+            (m.channelAssignments.values.contains(uuid) ||
+                m.satellites.any((s) => s.uuid == uuid))) {
+          return m.uuid;
+        }
+        if (m.isGroup && m.channelMapUuids.contains(uuid)) {
+          return m.channelMapUuids.first;
+        }
+      }
+    }
+    return null;
+  }
 }

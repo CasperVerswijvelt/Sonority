@@ -85,18 +85,21 @@ Future<void> main(List<String> argv) async {
   final snapshot = soundbar.htSatChanMapSet ?? '(none)';
   print('\n📸 Current HTSatChanMapSet (restore point):\n   $snapshot');
 
-  final targetMap = ampMode
-      ? buildAmpFrontsMap(
-          soundbar: soundbar,
-          soundbarDevice: soundbarDevice,
-          ampDevice: fronts.first,
-        )
-      : buildDedicatedFrontsMap(
-          soundbar: soundbar,
-          soundbarDevice: soundbarDevice,
-          leftSpeaker: fronts[0],
-          rightSpeaker: fronts[1],
-        );
+  // Fronts overlaid on the existing layout (rears/sub preserved). An Amp drives
+  // both front channels, so it takes LF+RF on one UUID; two speakers split L/R.
+  final targetMap = buildLayoutMap(
+    soundbar: soundbar,
+    soundbarDevice: soundbarDevice,
+    desired: ampMode
+        ? {
+            SonosChannel.leftFront: fronts.first.uuid,
+            SonosChannel.rightFront: fronts.first.uuid,
+          }
+        : {
+            SonosChannel.leftFront: fronts[0].uuid,
+            SonosChannel.rightFront: fronts[1].uuid,
+          },
+  );
   final mode = removeOnly
       ? 'REMOVE-ONLY (un-bond the fronts)'
       : applyOnly

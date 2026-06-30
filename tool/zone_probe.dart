@@ -11,7 +11,7 @@
 // (BecomeCoordinatorOfStandaloneGroup) then SeparateStereoPair — RemoveBondedZones
 // returns 200 OK but silently no-ops on the 2025 zones feature (confirmed here).
 //
-// The captured ChannelMapSet (UUID:LF,RF;…) is the ground truth for buildZoneMap
+// The captured ChannelMapSet (UUID:LF,RF;…) is the ground truth for buildGroupMap
 // + the isZone/isStereoPair detection; trust what topology echoes back.
 
 // ignore_for_file: avoid_print
@@ -525,7 +525,7 @@ Future<void> main(List<String> argv) async {
     }
   }
 
-  print('\n🔬 REAL ChannelMapSet captured above is the ground truth — encode buildZoneMap to match it.');
+  print('\n🔬 REAL ChannelMapSet captured above is the ground truth — encode buildGroupMap to match it.');
 
   print('\n⬅️  Separating (detach → SeparateStereoPair)…');
   await AvTransportClient(SonosSoapClient())

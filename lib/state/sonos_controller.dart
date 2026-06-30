@@ -217,7 +217,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (dev?.ip == null) {
           throw Exception('“${e.label}” isn’t on the network.');
         }
-        if (_ownerOf(sys, e.primaryUuid) != null) {
+        if (sys.ownerOf(e.primaryUuid) != null) {
           note('freeing from its current bond');
           await _repo.freeSpeaker(sys, e.primaryUuid);
           sys = await _settleRead(sys, dev!.ip!);
@@ -242,7 +242,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         // Free any member currently bonded outside this group.
         for (final u in involved) {
-          final owner = _ownerOf(sys, u);
+          final owner = sys.ownerOf(u);
           if (owner != null && !involved.contains(owner)) {
             note('freeing $u');
             await _repo.freeSpeaker(sys, u);
@@ -297,7 +297,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         final satUuids = fullTarget.entries.skip(1).map((e) => e.uuid).toSet();
         // Free any satellite currently bonded to a different coordinator/pair.
         for (final u in satUuids) {
-          final owner = _ownerOf(sys, u);
+          final owner = sys.ownerOf(u);
           if (owner != null && owner != bar!.uuid) {
             note('freeing $u');
             await _repo.freeSpeaker(sys, u);
@@ -356,24 +356,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         previous: sys,
         onNote: note,
         cancel: _activeOp);
-  }
-
-  /// The coordinator/pair-primary UUID that currently owns [uuid] as a bonded
-  /// member, or null if it's standalone.
-  String? _ownerOf(SonosSystem sys, String uuid) {
-    for (final g in sys.groups) {
-      for (final m in g.members) {
-        if (m.uuid != uuid &&
-            (m.channelAssignments.values.contains(uuid) ||
-                m.satellites.any((s) => s.uuid == uuid))) {
-          return m.uuid;
-        }
-        if (m.isGroup && m.channelMapUuids.contains(uuid)) {
-          return m.channelMapUuids.first;
-        }
-      }
-    }
-    return null;
   }
 
   Future<SonosSystem> _settleRead(SonosSystem sys, String ip) async {

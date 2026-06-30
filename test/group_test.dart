@@ -27,9 +27,15 @@ void main() {
       );
     });
 
-    test('buildZoneMap == all-both buildGroupMap', () {
-      expect(buildZoneMap(['A', 'B', 'C']),
-          'A:LF,RF;B:LF,RF;C:LF,RF');
+    test('all-both members encode as a full-range zone map', () {
+      expect(
+        buildGroupMap([
+          (uuid: 'A', channel: GroupChannel.both),
+          (uuid: 'B', channel: GroupChannel.both),
+          (uuid: 'C', channel: GroupChannel.both),
+        ]),
+        'A:LF,RF;B:LF,RF;C:LF,RF',
+      );
     });
   });
 
