@@ -29,7 +29,7 @@ class ApplyProgressView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
           child: Text(
             failed
                 ? 'Something went wrong — see the step below.'
@@ -41,7 +41,7 @@ class ApplyProgressView extends StatelessWidget {
         ),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+            padding: const EdgeInsets.fromLTRB(20, 28, 20, 16),
             child: Column(
               children: [
                 for (var i = 0; i < steps.length; i++)
@@ -197,16 +197,14 @@ class _PulsingDotState extends State<_PulsingDot>
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
-    final curved = CurvedAnimation(parent: _c, curve: Curves.easeInOut);
-    return ScaleTransition(
-      scale: Tween(begin: 0.6, end: 1.0).animate(curved),
-      child: FadeTransition(
-        opacity: Tween(begin: 0.4, end: 1.0).animate(curved),
-        child: Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-        ),
+    // Fixed size; pulse opacity only.
+    return FadeTransition(
+      opacity: Tween(begin: 0.3, end: 1.0)
+          .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
+      child: Container(
+        width: 12,
+        height: 12,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
       ),
     );
   }

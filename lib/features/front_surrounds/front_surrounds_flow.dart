@@ -262,7 +262,6 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     if (additions.isEmpty) return;
 
     final controller = ref.read(sonosControllerProvider.notifier);
-    final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
     final outcome = await showBondingProgress(
       context,
@@ -273,11 +272,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         additions: additions,
       ),
     );
-    if (outcome == BondingOutcome.success) {
-      messenger.showSnackBar(
-          const SnackBar(content: Text('Home theater updated!')));
-      router.pop();
-    }
+    // No success toast — the progress screen already showed the outcome.
+    if (outcome == BondingOutcome.success) router.pop();
   }
 }
 

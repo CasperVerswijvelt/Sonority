@@ -225,16 +225,12 @@ class _PairCard extends ConsumerWidget {
     );
     if (ok != true || !context.mounted) return;
     final controller = ref.read(sonosControllerProvider.notifier);
-    final messenger = ScaffoldMessenger.of(context);
-    final outcome = await showBondingProgress(
+    // No success toast — the progress screen already showed the outcome.
+    await showBondingProgress(
       context,
       title: 'Separate stereo pair',
       run: () => controller.separateStereoPair(left: left, right: right),
     );
-    if (outcome == BondingOutcome.success) {
-      messenger.showSnackBar(
-          const SnackBar(content: Text('Stereo pair separated.')));
-    }
   }
 }
 

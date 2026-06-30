@@ -126,9 +126,9 @@ class _StereoPairFlowState extends ConsumerState<StereoPairFlow>
       title: 'Create stereo pair',
       run: () => controller.createStereoPair(left: left, right: right),
     );
+    // No success toast — the progress screen already showed the outcome. On
+    // failure, add the actionable hint the raw error doesn't make obvious.
     if (outcome == BondingOutcome.success) {
-      messenger.showSnackBar(SnackBar(
-          content: Text('Paired ${left.roomName} + ${right.roomName}.')));
       router.pop();
     } else if (outcome == BondingOutcome.failed) {
       messenger.showSnackBar(const SnackBar(

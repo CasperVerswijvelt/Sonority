@@ -141,8 +141,8 @@ class HomeTheaterScreen extends ConsumerWidget {
     if (ok != true || !context.mounted) return;
 
     final controller = ref.read(sonosControllerProvider.notifier);
-    final messenger = ScaffoldMessenger.of(context);
-    final outcome = await showBondingProgress(
+    // No success toast — the progress screen already showed the outcome.
+    await showBondingProgress(
       context,
       title: 'Remove $label',
       run: () => controller.removeHtRoles(
@@ -152,9 +152,6 @@ class HomeTheaterScreen extends ConsumerWidget {
         label: label,
       ),
     );
-    if (outcome == BondingOutcome.success) {
-      messenger.showSnackBar(SnackBar(content: Text('$label removed.')));
-    }
   }
 }
 

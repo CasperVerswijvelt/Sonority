@@ -81,15 +81,12 @@ class ProfilesScreen extends ConsumerWidget {
         if (i.blocked) i.entity.primaryUuid
     };
     final ctrl = ref.read(sonosControllerProvider.notifier);
-    final messenger = ScaffoldMessenger.of(context);
-    final outcome = await showBondingProgress(
+    // No success toast — the progress screen already shows the outcome.
+    await showBondingProgress(
       context,
       title: 'Applying “${p.name}”',
       run: () => ctrl.applyProfile(p, skip: skip),
     );
-    if (outcome == BondingOutcome.success) {
-      messenger.showSnackBar(SnackBar(content: Text('Applied “${p.name}”.')));
-    }
   }
 
   Future<void> _confirmDelete(
@@ -245,7 +242,7 @@ class _ApplyConfirmDialog extends StatelessWidget {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
-                  i.blocked ? Icons.error_outline : Icons.check_circle_outline,
+                  i.blocked ? Icons.warning_amber_rounded : Icons.check,
                   color: i.blocked
                       ? theme.colorScheme.error
                       : theme.colorScheme.primary,

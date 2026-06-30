@@ -270,13 +270,18 @@ class SonosSystem {
   List<ZoneGroupMember> get stereoPairs =>
       allMembers.where((m) => m.isStereoPair).toList(growable: false);
 
-  /// UUIDs already committed to a role (HT primary/satellite, stereo pair, or a
-  /// hidden half) and therefore not free to bond elsewhere.
+  /// UUIDs already committed to a role (HT primary/satellite, or either half of
+  /// a stereo pair) and therefore not free to bond elsewhere.
+  ///
+  /// NB: we deliberately do NOT treat every `Invisible` member as bonded — a
+  /// standalone Sub is its own Invisible group member (Subs have no visible
+  /// room), and excluding it here is what hid freed Subs from `bondableSubs`.
+  /// The hidden half of a stereo pair is already covered by the visible
+  /// primary's [stereoPairUuids], and bonded satellites by [satellites].
   Set<String> get _bondedUuids => {
         for (final g in groups)
           for (final m in g.members) ...[
             if (m.isHomeTheater) m.uuid,
-            if (m.invisible) m.uuid,
             ...m.satellites.map((s) => s.uuid),
             ...m.stereoPairUuids,
           ],
