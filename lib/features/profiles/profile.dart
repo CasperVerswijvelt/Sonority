@@ -2,7 +2,7 @@ import '../../data/models/sonos_models.dart';
 
 /// What kind of bonded entity a snapshot captures. One visible
 /// [ZoneGroupMember] == one selectable entity.
-enum EntityKind { homeTheater, stereoPair, single }
+enum EntityKind { homeTheater, stereoPair, zone, custom, single }
 
 /// An immutable snapshot of one "entity" (a home theater, a stereo pair, or a
 /// single unbonded speaker) as it was at capture time — just the authoritative
@@ -30,17 +30,26 @@ class EntitySnapshot {
   factory EntitySnapshot.fromMember(ZoneGroupMember member) {
     final kind = member.isHomeTheater
         ? EntityKind.homeTheater
-        : member.isStereoPair
-            ? EntityKind.stereoPair
-            : EntityKind.single;
+        : switch (member.groupKind) {
+            GroupKind.stereoPair => EntityKind.stereoPair,
+            GroupKind.zone => EntityKind.zone,
+            GroupKind.custom => EntityKind.custom,
+            GroupKind.none => EntityKind.single,
+          };
     return EntitySnapshot(
       kind: kind,
       primaryUuid: member.uuid,
       mapSet: switch (kind) {
         EntityKind.homeTheater => member.htSatChanMapSet,
-        EntityKind.stereoPair => member.channelMapSet,
+        EntityKind.stereoPair ||
+        EntityKind.zone ||
+        EntityKind.custom =>
+          member.channelMapSet,
         EntityKind.single => null,
       },
+      // Just the coordinator (= group) name. A group absorbs its members'
+      // individual names; whatever profile later turns them back into single
+      // rooms restores those.
       names: {member.uuid: member.zoneName},
     );
   }
@@ -51,6 +60,8 @@ class EntitySnapshot {
   String get kindLabel => switch (kind) {
         EntityKind.homeTheater => 'Home theater',
         EntityKind.stereoPair => 'Stereo pair',
+        EntityKind.zone => 'Zone',
+        EntityKind.custom => 'Custom group',
         EntityKind.single => 'Speaker',
       };
 

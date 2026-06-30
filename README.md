@@ -19,8 +19,9 @@
 A clean, cross-platform (iOS + Android + macOS) Flutter app that unlocks Sonos speaker
 configurations the official app refuses to create — **dedicated front left/right surround
 speakers** on a home theater, a **full in-app home-theater setup** (fronts + rear surrounds +
-sub), **stereo pairs of mismatched / app‑blocked speakers** (e.g. a Sonos One paired with a
-Play:1), and **config profiles** that snapshot a layout and re-apply it in one tap — via Sonos'
+sub), **speaker groups** — one page to bond 2–16 speakers as a stereo pair, a zone, or a
+custom per‑speaker L/R/Both layout (mismatched models + an optional Sub, no model‑list
+restriction) — and **config profiles** that snapshot a layout and re-apply it in one tap — via Sonos'
 undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr*.
 
 ## Screenshots
@@ -83,10 +84,10 @@ tap. → `lib/features/profiles/`
 lib/
   core/        result + theme
   data/        models + sonos/ (ssdp, descriptions, soap, topology, device props, channel map,
-               front_layout, apply_progress, repository — staged bondAndVerify)
+               front_layout, zone_layout, apply_progress, repository — staged bondAndVerify)
   state/       Riverpod controllers (system + apply-progress)
-  features/    discovery / home_theater / front_surrounds (full HT setup) / stereo_pair /
-               profiles / room / widgets
+  features/    discovery / home_theater / front_surrounds (full HT setup) /
+               group (unified Stereo/Zone/Custom) / profiles / room / widgets
 tool/spike.dart  read-only hardware validation CLI
 ```
 
@@ -123,7 +124,8 @@ there if a different model/firmware ever needs it.
 - `tool/spike.dart` — read-only discovery + topology dump
 - `tool/roundtrip.dart` — live AddHTSatellite/RemoveHTSatellite (dry-run by default; `--confirm`, `--apply-only`, `--remove-only`)
 - `tool/full_layout.dart` — strip to bare → rebuild a full HT map → verify each channel (dry-run by default; `--confirm`)
-- `tool/stereopair.dart` — stereo-pair round-trip (create → verify → separate → restore names)
+- `tool/zone_probe.dart` — speaker-group probe: dump zone/bond SCPD actions + round-trip a group (`--members a,b,c [--confirm]`, `--separate`, `--explore`); confirmed the `ChannelMapSet` format on hardware
+- `tool/lr_audiotest.dart` — play an L/R voice track on a group to verify per-speaker channel routing
 - `tool/chirp.dart` — play the identify chime on one speaker (validates `IdentifyService`)
 - `tool/led_probe.dart` — blink a speaker's status LED (the macOS-safe identify; read-only/self-reverting)
 - `tool/trueplay_probe.dart` — read/toggle per-speaker Trueplay status
@@ -136,7 +138,9 @@ there if a different model/firmware ever needs it.
   staged bonding with a live per-step progress timeline
 - ✅ Config profiles — snapshot a layout (maps + room names) and re-apply in one tap
 - ✅ Room renaming from the room / home-theater detail pages
-- ✅ Stereo pairs incl. mismatched models — stepped create flow + separate with name restore
+- ✅ Speaker groups — one page (Stereo / Zone / Custom) to bond 2–16 speakers as a stereo
+  pair, a full-range zone, or a custom per-speaker L/R/Both layout, each with an optional Sub;
+  separate with name restore, captured in profiles; not restricted to Sonos' official model list
 - ✅ Identify a speaker by blinking its status LED (default; macOS-safe) or a chime (mobile)
 - ✅ Trueplay read + toggle on speakers / pairs / home theaters
 - ✅ Recipe confirmed on real hardware (Beam stays `CC`; fronts = `LF`/`RF`)

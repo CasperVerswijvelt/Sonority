@@ -58,35 +58,40 @@ class DevicePropertiesClient {
     );
   }
 
-  /// Creates a stereo pair: [leftUuid] becomes the visible primary, [rightUuid]
-  /// becomes hidden. Sent to the left speaker's [ip]. The local API does not
-  /// enforce model matching, so mismatched pairs are possible here.
-  Future<void> createStereoPair({
+  /// Bonds the speakers in [channelMapSet] into a single Sonos **speaker group**
+  /// — the universal create for stereo pairs, zones, and custom L/R layouts (and
+  /// an optional `:SW` Sub). Each member plays its assigned channel(s). Sent to
+  /// the coordinator's [ip]; the other members go Invisible. Distinct from a
+  /// temporary playback group. Token format confirmed via `tool/zone_probe.dart`.
+  Future<void> addBondedZones({
     required String ip,
-    required String leftUuid,
-    required String rightUuid,
+    required String channelMapSet,
   }) async {
     await _soap.call(
       ip: ip,
       controlPath: _control,
       serviceType: _service,
-      action: 'CreateStereoPair',
-      args: {'ChannelMapSet': '$leftUuid:LF,LF;$rightUuid:RF,RF'},
+      action: 'AddBondedZones',
+      args: {'ChannelMapSet': channelMapSet},
     );
   }
 
-  /// Dissolves the stereo pair described by the same channel map.
-  Future<void> separateStereoPair({
+  /// Dissolves the zone described by [channelMapSet], returning its members to
+  /// standalone rooms. Uses `SeparateStereoPair` — confirmed on hardware that
+  /// `RemoveBondedZones` returns 200 OK but silently no-ops on the 2025 zones
+  /// feature, while `SeparateStereoPair` (a zone shares the pair's `ChannelMapSet`
+  /// bond mechanism) actually works. The zone must be its own group coordinator
+  /// first (see `AvTransportClient.becomeCoordinatorOfStandaloneGroup`).
+  Future<void> separateBondedZones({
     required String ip,
-    required String leftUuid,
-    required String rightUuid,
+    required String channelMapSet,
   }) async {
     await _soap.call(
       ip: ip,
       controlPath: _control,
       serviceType: _service,
       action: 'SeparateStereoPair',
-      args: {'ChannelMapSet': '$leftUuid:LF,LF;$rightUuid:RF,RF'},
+      args: {'ChannelMapSet': channelMapSet},
     );
   }
 

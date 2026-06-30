@@ -90,21 +90,19 @@ class _SystemView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pairs = system.stereoPairs;
+    final groups = system.speakerGroups;
     // Soundbars (whether or not they already have surrounds) are the HT targets.
     final theaters = system.allMembers
         .where((m) => m.isHomeTheater || (system.device(m.uuid)?.isSoundbar ?? false))
         .toList();
-    final otherRooms = system.allMembers
-        .where((m) => !theaters.contains(m) && !pairs.contains(m))
+    final singleRooms = system.allMembers
+        .where((m) => !theaters.contains(m) && !m.isGroup)
         .toList();
-    final canPair =
-        system.bondableSpeakers.where((d) => d.reachable).length >= 2;
-
-    // A plain (non-scrolling) box so it can ride inside the body's
-    // PageTransitionSwitcher; SliverFillRemaining sizes it by intrinsic height
-    // and the OUTER CustomScrollView does the scrolling (no nested scroll).
-    return Padding(
+    // Scrolls internally: the body's PageTransitionSwitcher can't pass intrinsic
+    // height through to the outer CustomScrollView (SliverFillRemaining would
+    // then clip a tall list), so the list owns its own scroll. The app bar is
+    // fixed, so there's no collapse to lose; Rescan covers refresh.
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -117,48 +115,55 @@ class _SystemView extends ConsumerWidget {
             ),
           ...theaters.map((m) => _TheaterCard(system: system, member: m)),
           Gap.l,
-          _SectionHeader('Stereo pairs', Icons.speaker_group_outlined),
-          ...pairs.map((m) => _PairCard(system: system, pair: m)),
-          if (canPair)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: FilledButton.tonalIcon(
-                onPressed: () => context.push('/stereo-pair'),
-                icon: const Icon(Icons.add_link, size: 24),
-                label: const Text('Create stereo pair'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(56),
-                  textStyle: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600),
+          // The "+" lives in the header; the flow itself explains if there
+          // aren't two free speakers to bond.
+          _SectionHeader('Speaker groups', Icons.speaker_group_outlined,
+              onAdd: () => context.push('/group'),
+              addTooltip: 'Group speakers'),
+          if (groups.isEmpty)
+            const _EmptySectionCard('No speaker groups yet')
+          else
+            ...groups.map((m) => _GroupCard(system: system, group: m)),
+          // Single speaker rooms — hidden entirely when there are none.
+          if (singleRooms.isNotEmpty) ...[
+            Gap.l,
+            _SectionHeader('Single speaker rooms', Icons.meeting_room_outlined),
+            ...singleRooms.map((m) {
+              final device = system.device(m.uuid);
+              final unreachable = device != null && !device.reachable;
+              final scheme = Theme.of(context).colorScheme;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  titleAlignment: ListTileTitleAlignment.center,
+                  onTap:
+                      unreachable ? null : () => context.push('/room/${m.uuid}'),
+                  leading: Icon(
+                    unreachable
+                        ? Icons.warning_amber_rounded
+                        : Icons.speaker_outlined,
+                    color: unreachable ? scheme.error : null,
+                  ),
+                  title: Text(m.zoneName),
+                  subtitle: Text(
+                    unreachable
+                        ? unreachableSpeakerHint
+                        : (device?.typeLabel ?? ''),
+                    style: unreachable ? TextStyle(color: scheme.error) : null,
+                  ),
+                  trailing: unreachable ? null : const Icon(Icons.chevron_right),
                 ),
-              ),
-            ),
-          Gap.l,
-          _SectionHeader('Other rooms', Icons.meeting_room_outlined),
-          ...otherRooms.map((m) {
-            final device = system.device(m.uuid);
-            final unreachable = device != null && !device.reachable;
-            final scheme = Theme.of(context).colorScheme;
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                onTap: unreachable ? null : () => context.push('/room/${m.uuid}'),
-                leading: Icon(
-                  unreachable ? Icons.warning_amber_rounded : Icons.speaker_outlined,
-                  color: unreachable ? scheme.error : null,
-                ),
-                title: Text(m.zoneName),
-                subtitle: Text(
-                  unreachable ? unreachableSpeakerHint : (device?.typeLabel ?? ''),
-                  style: unreachable ? TextStyle(color: scheme.error) : null,
-                ),
-                trailing: unreachable ? null : const Icon(Icons.chevron_right),
-              ),
-            );
-          }),
-          // Unbonded Subs: shown so they're visible (they're Invisible members
-          // with no room), but not tappable — there's nothing to configure for a
-          // standalone sub; add it to a home theater from the HT setup flow.
+              );
+            }),
+          ],
+          // Other devices: unbonded Subs are shown so they're visible (they're
+          // Invisible members with no room), but not tappable — there's nothing
+          // to configure for a standalone sub; add it to a home theater from the
+          // HT setup flow.
+          if (system.bondableSubs.isNotEmpty) ...[
+            Gap.l,
+            _SectionHeader('Other devices', Icons.devices_other_outlined),
+          ],
           ...system.bondableSubs.map((sub) => Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
@@ -173,48 +178,65 @@ class _SystemView extends ConsumerWidget {
   }
 }
 
-class _PairCard extends ConsumerWidget {
+/// A bonded speaker group (stereo pair / zone / custom) in the overview.
+class _GroupCard extends ConsumerWidget {
   final SonosSystem system;
-  final ZoneGroupMember pair;
-  const _PairCard({required this.system, required this.pair});
+  final ZoneGroupMember group;
+  const _GroupCard({required this.system, required this.group});
+
+  static String _kindLabel(GroupKind k) => switch (k) {
+        GroupKind.stereoPair => 'Stereo pair',
+        GroupKind.zone => 'Zone',
+        GroupKind.custom => 'Custom',
+        GroupKind.none => 'Group',
+      };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final uuids = pair.stereoPairUuids;
-    final left = uuids.isNotEmpty ? system.device(uuids[0]) : null;
-    final right = uuids.length > 1 ? system.device(uuids[1]) : null;
-    final models = [left?.typeLabel, right?.typeLabel]
+    final memberUuids = group.groupChannels.keys.toList();
+    final types = memberUuids
+        .map((u) => system.device(u)?.typeLabel)
         .whereType<String>()
-        .join(' + ');
+        .toList();
+    final subtitle = [
+      _kindLabel(group.groupKind),
+      '${memberUuids.length} speakers',
+      if (types.isNotEmpty) types.join(', '),
+      if (group.subUuid != null) 'Sub',
+    ].join(' · ');
+    final icon = switch (group.groupKind) {
+      GroupKind.stereoPair => Icons.speaker_group,
+      GroupKind.custom => Icons.tune,
+      _ => Icons.groups_2,
+    };
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        onTap: () => context.push('/room/${pair.uuid}'),
-        leading: const Icon(Icons.speaker_group),
-        title: Text(pair.zoneName),
-        subtitle: Text(models.isEmpty ? 'Stereo pair' : models),
+        titleAlignment: ListTileTitleAlignment.center,
+        leading: Icon(icon),
+        title: Text(group.zoneName),
+        subtitle: Text(subtitle),
         trailing: TextButton(
-          onPressed: (left != null && right != null)
-              ? () => _confirmSeparate(context, ref, left, right)
-              : null,
+          onPressed: () => _confirmSeparate(context, ref),
           child: const Text('Separate'),
         ),
       ),
     );
   }
 
-  Future<void> _confirmSeparate(
-      BuildContext context, WidgetRef ref, SonosDevice left, SonosDevice right) async {
+  Future<void> _confirmSeparate(BuildContext context, WidgetRef ref) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.link_off),
-        title: const Text('Separate stereo pair?'),
+        title: const Text('Separate group?'),
         content: const Text(
-            'The two speakers become standalone rooms again. Their original '
-            'room names will be restored.'),
+            'The speakers become standalone rooms again. Their original room '
+            'names will be restored.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(
@@ -226,11 +248,10 @@ class _PairCard extends ConsumerWidget {
     );
     if (ok != true || !context.mounted) return;
     final controller = ref.read(sonosControllerProvider.notifier);
-    // No success toast — the progress screen already showed the outcome.
     await showBondingProgress(
       context,
-      title: 'Separate stereo pair',
-      run: () => controller.separateStereoPair(left: left, right: right),
+      title: 'Separate group',
+      run: () => controller.separateGroup(group),
     );
   }
 }
@@ -337,7 +358,12 @@ class _GroupChips extends StatelessWidget {
 class _SectionHeader extends StatelessWidget {
   final String title;
   final IconData icon;
-  const _SectionHeader(this.title, this.icon);
+
+  /// When set, a small right-aligned "+" button that triggers this (e.g. create
+  /// a stereo pair / zone).
+  final VoidCallback? onAdd;
+  final String? addTooltip;
+  const _SectionHeader(this.title, this.icon, {this.onAdd, this.addTooltip});
 
   @override
   Widget build(BuildContext context) {
@@ -348,12 +374,57 @@ class _SectionHeader extends StatelessWidget {
         children: [
           Icon(icon, size: 20, color: scheme.onSurfaceVariant),
           Gap.s,
-          Text(title,
+          Expanded(
+            child: Text(title,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(color: scheme.onSurfaceVariant)),
+          ),
+          if (onAdd != null)
+            IconButton.outlined(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add),
+              tooltip: addTooltip,
+              iconSize: 20,
+              visualDensity: VisualDensity.compact,
+              style: IconButton.styleFrom(
+                shape: const CircleBorder(),
+                side: BorderSide(color: scheme.outlineVariant),
+                foregroundColor: scheme.onSurfaceVariant,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A subtle, fill-free outlined card with centered text for an empty section.
+/// Uses a transparent [Card] so its shape + hairline outline come straight from
+/// `cardTheme` (theme.dart) — radius stays in sync with the real cards, nothing
+/// hardcoded.
+class _EmptySectionCard extends StatelessWidget {
+  final String text;
+  const _EmptySectionCard(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      color: Colors.transparent,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          child: Text(text,
+              textAlign: TextAlign.center,
               style: Theme.of(context)
                   .textTheme
-                  .titleSmall
+                  .bodySmall
                   ?.copyWith(color: scheme.onSurfaceVariant)),
-        ],
+        ),
       ),
     );
   }

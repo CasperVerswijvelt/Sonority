@@ -11,8 +11,15 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 ## [Unreleased]
 
 ### Added
-- **Config profiles** — snapshot your current layout (home theaters, stereo
-  pairs, rooms, with their names) and re-apply it in one tap, e.g. to rebuild a
+- **Speaker groups** — one "Group speakers" page (Stereo / Zone / Custom) to bond
+  2–16 speakers as a **stereo pair**, a full-range **zone**, or a **custom**
+  per-speaker Left/Right/Both layout, each with an **optional Sub**. Mismatched
+  models welcome; not restricted to Sonos' official model list (Play:1 and a
+  Sub-in-group both confirmed working on hardware, audio routing verified).
+  Separate restores original room names; groups are captured in config profiles.
+  (Distinct from temporary playback groups, which the Sonos app already does.)
+- **Config profiles** — snapshot your current layout (home theaters, speaker
+  groups, rooms, with their names) and re-apply it in one tap, e.g. to rebuild a
   fronts/surrounds setup after moving speakers. A dedicated bottom tab.
 - **Full in-app home-theater setup** — the guided flow now bonds dedicated
   fronts plus **rear surrounds and a sub** (each optional), with a live
@@ -25,6 +32,8 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   flow, distinct card/nav-bar surfaces on a darker page background, and speaker
   **types** (e.g. "Beam (Gen 2)", "Play:1") shown wherever a model appears —
   in diagrams, bonded-speaker cards, and profile summaries.
+- System overview re-sectioned: home theaters → speaker groups → single speaker
+  rooms → other devices, with a compact "+" in the Speaker groups header.
 - Trueplay: the "x/y active" counter is hidden for single speakers (shown only
   for home theaters and stereo pairs).
 

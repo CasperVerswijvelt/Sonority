@@ -16,6 +16,10 @@ treble, volume, grouping, surround level sliders, night sound, Trueplay, …). E
 feature should be something the Sonos app **won't** let users do. Examples:
 - **Dedicated front L/R speakers** on a soundbar (the bar becomes center). ✅ built
 - **Mismatched / app-blocked stereo pairs**. ✅ built
+- **Zones** — bond 2–16 speakers into one room (full-range L+R, no L/R split),
+  including models the app blocks from zones (Play:1 zones fine on hardware).
+  NB: this is the Sonos *zone* feature, NOT temporary playback grouping (which
+  the app already does and we don't duplicate). ✅ built
 - **Config profiles** — snapshot the current unofficial layout + room names and
   re-apply it in one tap (rebuild fronts/surrounds after moving speakers away).
   The validated #1 SonoSequencr request; unique because the Sonos app won't
@@ -71,13 +75,13 @@ lib/
   state/           sonos_controller.dart — AsyncNotifier<SonosSystem?>; applyHomeTheaterLayout,
                      applyProfile, _applyHtTarget (diff-based), renameRoom; applyProgressProvider
   features/        discovery / home_theater / front_surrounds (full HT setup) /
-                     stereo_pair / profiles / room / widgets
+                     group (unified Stereo/Zone/Custom) / profiles / room / widgets
   app.dart, main.dart — go_router StatefulShellRoute (System|Profiles tabs), ProviderScope
-tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, stereopair
+tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, zone_probe, lr_audiotest
 ```
 Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
-`shared_preferences` → Flutter). The pure recipe lives in `front_layout.dart` for
-exactly this reason.
+`shared_preferences` → Flutter). The pure recipes live in `front_layout.dart` /
+`zone_layout.dart` for exactly this reason.
 
 ## Sonos local API — the knowledge that matters
 
@@ -126,8 +130,74 @@ exactly this reason.
     now a no-op apply). **Sub-on-a-stereo-pair is NOT supported** —
     `AddHTSatellite` on a pair coordinator returns UPnPError 401.
   - `CreateStereoPair` / `SeparateStereoPair` — stereo pairs.
+  - `AddBondedZones(ChannelMapSet)` — **creates** a Sonos **zone** (the 2025
+    multi-speaker bond: 2–16 individual speakers play as one room, full-range
+    L+R, no L/R split). **Confirmed on hardware** (`tool/zone_probe.dart`):
+    `ChannelMapSet = UUID:LF,RF;UUID:LF,RF;…` (coordinator first, every member
+    full-range — vs a pair's single-sided `LF,LF`/`RF,RF`). Structurally like a
+    pair (coordinator stays visible carrying the map, the rest go Invisible).
+    Sonos does NOT restore member names on separate, so we snapshot + restore
+    them like pairs.
+  - **Zone REMOVAL is a two-step gotcha (hardware-confirmed, cost real debugging):**
+    1. `RemoveBondedZones` **does not work** on the 2025 zones feature — it
+       returns `200 OK` but silently no-ops (it's the legacy bonded-zone action).
+       The working dissolve is **`SeparateStereoPair`** with the zone's full
+       `ChannelMapSet` (a zone shares the pair's bond mechanism) →
+       `DevicePropertiesClient.separateBondedZones`.
+    2. Even `SeparateStereoPair` no-ops while the zone coordinator is a
+       **non-coordinator member of a larger playback group**. So you must FIRST
+       detach it into its own group via `AVTransport.
+       BecomeCoordinatorOfStandaloneGroup` (`AvTransportClient`), poll until it's
+       standalone, THEN `SeparateStereoPair`. `SonosController.separateZone`
+       orchestrates detach → poll-standalone → separate → poll; `freeSpeaker`
+       does detach + fixed settle + separate for profile-apply conflict freeing.
+  - **Supported-speaker findings (read carefully — the eligibility list is part
+    measured, part assumed):**
+    - Sonos *officially* allows only Era 100/300/100 Pro, One, One SL, Five.
+    - **Measured on hardware:** a **Play:1 zones fine** (One + 2× Play:1) even
+      though Play:1 is NOT on Sonos' official list. So we deliberately do **not**
+      gate creation on the official model list — that would block configs that
+      actually work, against the whole point of the app.
+    - **Assumed, NOT yet hardware-verified:** Amp, Sub, and soundbars are
+      excluded as zone candidates (`SonosSystem.zoneableSpeakers` drops
+      amps/subs/soundbars) per Sonos' stated limits — but we never probed an Amp
+      (none on the test system) or a Sub/soundbar reject, so those exclusions are
+      defensive policy, not a confirmed finding. The real backstop is runtime:
+      `createZone` polls and throws "a speaker may be incompatible" if Sonos
+      silently no-ops the bond. If an Amp/Sub/soundbar ever needs revisiting,
+      probe it with `tool/zone_probe.dart --members …` first.
+  - **`AddBondedZones` accepts almost ANY channel map (API-only finding,
+    `tool/zone_probe.dart --explore`):** a 19-config hardware battery (2–8
+    speakers) was accepted 19/19 and stored verbatim — symmetric, **asymmetric**
+    (2L+1R … 7L+1R), mixed full-range+single-sided, **degenerate** (all-LF), and
+    even **HT-channel tokens on plain speakers** (CC/LR/RR). The local API does
+    essentially no validation on the channel-assignment shape.
+  - **Audio ROUTING confirmed on hardware (`tool/lr_audiotest.dart`, an L/R voice
+    track):** Sonos genuinely HONORS per-speaker assignment — `LF,LF` plays only
+    left, `RF,RF` only right, `LF,RF` both. Verified: stereo pair, **2L+2R (real
+    2-per-side wide stereo)**, asymmetric 2L+1R (unused speakers silent),
+    full-range zone (all both), all-LF degenerate (right channel fully dropped).
+    **Correction to the earlier guess:** discrete rears (`LR`/`RR`) on plain
+    speakers are NOT silent — with a stereo source they play the FULL stereo mix
+    (no discrete rear content to isolate), so CC/LR/RR tokens are pointless to
+    expose. **Feature opportunity (on hold):** every working shape is just a
+    per-speaker **Left / Right / Both** choice, so one "custom stereo zone" flow
+    (assign each of 2–16 speakers to L/R/Both) subsumes stereo pair + N-per-side
+    wide stereo + asymmetric + the full-range `isZone` the app builds today.
+  - **A Sub CAN be bonded into a zone (`UUID:SW`) — contradicts Sonos' docs.**
+    Hardware-confirmed: a Sub freed from its HT and added to a zone map
+    (`A:LF,RF;B:LF,RF;SUB:SW`) is accepted, bonded as `SW`, AND audibly renders
+    (user verified by raising sub level). Sonos' "subs can't be added to a zone"
+    is an app-side restriction only. (So if a custom-zone feature is built, a Sub
+    could optionally be included — but it must be freed from any HT first.)
+  - **Large zones get flaky under playback (hardware observation):** every zone
+    drops out for the first ~30–60s after audio starts (the bond settling under
+    stream load), then stabilises — EXCEPT an 8-speaker zone on this mix of older
+    gear (Play:1s) kept dropping even after settling. Practical ceiling is well
+    below Sonos' claimed 16. A feature should settle before reporting success and
+    probably cap / warn on large mixed-gear zones.
   - `GetZoneAttributes` / `SetZoneAttributes` — read/set room name (used to restore
-    names after un-pairing).
+    names after un-pairing / un-zoning).
   - `GetLEDState` / `SetLEDState` (`CurrentLEDState`/`DesiredLEDState` = `On`/`Off`)
     — the white status light. Used by the **LED-blink identify**
     (`led_identify.dart`): an outbound-only SOAP call, so unlike the audio chime it
@@ -168,6 +238,12 @@ exactly this reason.
   natural max; Sonos has no true 7.1 (6 boxes).
 - **Stereo pair** map: `UUID_LEFT:LF,LF;UUID_RIGHT:RF,RF`. Left stays visible; right
   becomes hidden.
+- **Zone** map: `UUID:LF,RF;UUID:LF,RF;…` — every member full-range, coordinator
+  first (`buildZoneMap` in `zone_layout.dart`). The discriminator vs a stereo
+  pair: pair entries are single-sided (`LF`-only / `RF`-only), zone entries carry
+  both `LF`+`RF`. `ZoneGroupMember.isZone` / `isStereoPair` encode this; `isZone`
+  needs ≥2 full-range entries, and `isStereoPair` was narrowed to exactly two
+  single-sided entries so a zone is never mistaken for a pair.
 
 ### Topology representations (parse these, don't guess)
 - **HT satellite**: a `<Satellite>` child of the primary `<ZoneGroupMember>`, with
@@ -176,6 +252,10 @@ exactly this reason.
   attribute (`…:LF,LF;…:RF,RF`); the hidden speaker is a **separate**
   `<ZoneGroupMember Invisible="1">` (its `ZoneName` is absorbed to the pair name).
   → `SonosSystem.allMembers` excludes `Invisible` members.
+- **Zone**: same shape as a stereo pair but N members and full-range channels —
+  the coordinator stays visible carrying the `ChannelMapSet`
+  (`…:LF,RF;…:LF,RF;…`), the other members are separate `Invisible="1"`
+  `<ZoneGroupMember>`s (names absorbed). `SonosSystem.zones` surfaces them.
 
 ## CRITICAL gotchas (these caused real bugs)
 
@@ -220,8 +300,12 @@ Run on the same Wi-Fi as the Sonos system:
   no-op (zero writes), additive-in-place (drop the sub → re-add without strip),
   and a LR↔RR swap. Self-restoring; dry-run does the no-op check only, `--confirm`
   runs the writes. ⚠️ wipes Trueplay.
-- `tool/stereopair.dart` — stereo-pair round-trip (create→verify→separate→restore
-  names); dry-run by default, `--confirm`.
+- `tool/zone_probe.dart` — Sonos speaker-group probe: dump DeviceProperties
+  zone/bond SCPD actions + any existing `ChannelMapSet` members; `--members
+  a,b,c [--confirm]` round-trips a group; `--separate`, `--explore` (config
+  battery). Self-reverting; confirmed the `UUID:LF,RF;…` format on hardware.
+- `tool/lr_audiotest.dart` — plays an L/R voice track on a group to verify Sonos
+  honours per-speaker channel assignment (play/stop/snapshot/freesat/addht).
 - `tool/chirp.dart <room|uuid|ip>` — play the identify chime on one speaker.
 - `tool/led_probe.dart <room|uuid|ip>` — dump DeviceProperties SCPD LED actions +
   blink one speaker's status LED (read-only/self-reverting; the macOS-safe identify).
@@ -245,7 +329,14 @@ Run on the same Wi-Fi as the Sonos system:
   single **Sonos Amp** driving passive fronts (`AMP:LF,RF`; exclusive selection).
 - ✅ Identify a speaker by **blinking its status LED** (`led_identify.dart`, default,
   all platforms incl. macOS) with the audio chime as a mobile-only long-press extra.
-- ✅ Stereo pairs incl. mismatched models (create flow; separate with name restore).
+- ✅ **Speaker groups** (`features/group/group_flow.dart`, `zone_layout.dart`) —
+  one unified "Group speakers" page (Stereo / Zone / Custom segmented control)
+  over a single `AddBondedZones` path: stereo pair (L/R), full-range zone (2–16),
+  custom per-speaker L/R/Both, each with an optional Sub (`UUID:SW`). Separate via
+  detach → `SeparateStereoPair` on the live map; names restored. Overview shows
+  them in one "Speaker groups" section (`groupKind`-labelled); captured in
+  profiles (`EntityKind.stereoPair/zone/custom`). Not gated to Sonos' official
+  model list (Play:1 + Sub-in-group confirmed on hardware; audio routing verified).
 - ✅ **Full in-app HT setup** — the guided flow now bonds fronts **+ rear surrounds
   (LR/RR) + a sub (SW)**, each optional, applied via the **diff-based**
   `_applyHtTarget` (no-op when unchanged, else add what's missing) + a live

@@ -5,6 +5,14 @@
 /// `ZoneGroupTopology` service (`GetZoneGroupState`).
 library;
 
+import '../sonos/zone_layout.dart' show GroupChannel;
+
+export '../sonos/zone_layout.dart' show GroupChannel;
+
+/// How a speaker group bond classifies for display. A "group" is any member
+/// carrying a `ChannelMapSet` (stereo pair / zone / custom L-R layout).
+enum GroupKind { none, stereoPair, zone, custom }
+
 /// Speaker channel tokens used in a `HTSatChanMapSet`.
 enum SonosChannel {
   leftFront('LF'),
@@ -146,20 +154,95 @@ class ZoneGroupMember {
 
   bool get isHomeTheater => (htSatChanMapSet?.isNotEmpty ?? false) || satellites.isNotEmpty;
 
-  /// True when this visible member is a stereo pair (carries a ChannelMapSet
-  /// with doubled L/R channels). The hidden half is a separate Invisible member.
-  bool get isStereoPair => (channelMapSet?.contains(',') ?? false);
-
-  /// [leftUuid, rightUuid] of the stereo pair, parsed from the ChannelMapSet.
-  List<String> get stereoPairUuids {
+  /// Parsed `ChannelMapSet` entries: each `(uuid, channel-token-set)`, primary
+  /// first. Shared by stereo-pair and zone detection. A stereo pair's entries
+  /// are single-sided (`LF,LF` / `RF,RF`); a zone's are full-range (`LF,RF`).
+  List<({String uuid, Set<String> tokens})> get _channelMapEntries {
     final cms = channelMapSet;
     if (cms == null || cms.isEmpty) return const [];
-    return cms
-        .split(';')
-        .map((e) => e.split(':').first.trim())
-        .where((u) => u.isNotEmpty)
-        .toList();
+    final out = <({String uuid, Set<String> tokens})>[];
+    for (final part in cms.split(';')) {
+      final colon = part.indexOf(':');
+      if (colon < 0) continue;
+      final uuid = part.substring(0, colon).trim();
+      if (uuid.isEmpty) continue;
+      out.add((
+        uuid: uuid,
+        tokens: part
+            .substring(colon + 1)
+            .split(',')
+            .map((t) => t.trim().toUpperCase())
+            .where((t) => t.isNotEmpty)
+            .toSet(),
+      ));
+    }
+    return out;
   }
+
+  /// Every UUID in the `ChannelMapSet` (all bonded speakers, INCLUDING a Sub),
+  /// primary first. Used to mark all of them as committed/bonded.
+  List<String> get channelMapUuids =>
+      [for (final e in _channelMapEntries) e.uuid];
+
+  /// The audio (non-Sub) entries — used for stereo/zone/custom classification so
+  /// a Sub (`SW`) in the map doesn't change the shape (a pair+sub is still a pair).
+  List<({String uuid, Set<String> tokens})> get _audioEntries =>
+      [for (final e in _channelMapEntries) if (!e.tokens.contains('SW')) e];
+
+  /// The UUID of the bonded Sub (the `SW` entry), or null.
+  String? get subUuid {
+    for (final e in _channelMapEntries) {
+      if (e.tokens.contains('SW')) return e.uuid;
+    }
+    return null;
+  }
+
+  /// True when this visible member carries a `ChannelMapSet` — i.e. it's a
+  /// bonded **speaker group** (stereo pair / zone / custom L-R layout).
+  bool get isGroup => channelMapSet?.isNotEmpty ?? false;
+
+  /// True when this group is a stereo pair: exactly two single-sided audio
+  /// entries (one `LF`-only, one `RF`-only). A Sub may also be present.
+  bool get isStereoPair {
+    final e = _audioEntries;
+    if (e.length != 2) return false;
+    bool leftOnly(Set<String> t) => t.contains('LF') && !t.contains('RF');
+    bool rightOnly(Set<String> t) => t.contains('RF') && !t.contains('LF');
+    return (leftOnly(e[0].tokens) && rightOnly(e[1].tokens)) ||
+        (rightOnly(e[0].tokens) && leftOnly(e[1].tokens));
+  }
+
+  /// True when this group is a Sonos **zone**: ≥2 audio members, each full-range
+  /// (`LF`+`RF`). Confirmed format on hardware (`tool/zone_probe.dart`).
+  bool get isZone {
+    final e = _audioEntries;
+    return e.length >= 2 &&
+        e.every((m) => m.tokens.contains('LF') && m.tokens.contains('RF'));
+  }
+
+  /// Display classification for the group (a Sub doesn't change it).
+  GroupKind get groupKind => !isGroup
+      ? GroupKind.none
+      : isStereoPair
+          ? GroupKind.stereoPair
+          : isZone
+              ? GroupKind.zone
+              : GroupKind.custom;
+
+  /// Per-speaker channel assignment of the audio members (excludes the Sub),
+  /// coordinator first — for the group card + custom-edit display.
+  Map<String, GroupChannel> get groupChannels => {
+        for (final e in _audioEntries)
+          e.uuid: (e.tokens.contains('LF') && e.tokens.contains('RF'))
+              ? GroupChannel.both
+              : (e.tokens.contains('LF') ? GroupChannel.left : GroupChannel.right),
+      };
+
+  /// [leftUuid, rightUuid] of the stereo pair, parsed from the ChannelMapSet.
+  List<String> get stereoPairUuids => channelMapUuids;
+
+  /// UUIDs of all zone members (coordinator first), or empty if not a zone.
+  List<String> get zoneMemberUuids => isZone ? channelMapUuids : const [];
 
   /// UUIDs of bonded front (LF/RF) satellites, read straight from the
   /// authoritative `HTSatChanMapSet`. This is robust to the transient window
@@ -270,6 +353,16 @@ class SonosSystem {
   List<ZoneGroupMember> get stereoPairs =>
       allMembers.where((m) => m.isStereoPair).toList(growable: false);
 
+  /// Sonos zones present in the system (multi-speaker bonds).
+  List<ZoneGroupMember> get zones =>
+      allMembers.where((m) => m.isZone).toList(growable: false);
+
+  /// All bonded **speaker groups** (stereo pairs, zones, and custom L-R layouts)
+  /// — every visible member carrying a `ChannelMapSet`. The overview's unified
+  /// "Speaker groups" section.
+  List<ZoneGroupMember> get speakerGroups =>
+      allMembers.where((m) => m.isGroup).toList(growable: false);
+
   /// UUIDs already committed to a role (HT primary/satellite, or either half of
   /// a stereo pair) and therefore not free to bond elsewhere.
   ///
@@ -283,7 +376,8 @@ class SonosSystem {
           for (final m in g.members) ...[
             if (m.isHomeTheater) m.uuid,
             ...m.satellites.map((s) => s.uuid),
-            ...m.stereoPairUuids,
+            // Covers both stereo-pair halves and all zone members.
+            ...m.channelMapUuids,
           ],
       };
 
@@ -295,6 +389,14 @@ class SonosSystem {
         .where((d) => !bonded.contains(d.uuid) && !d.isSoundbar && !d.isSub)
         .toList(growable: false);
   }
+
+  /// Standalone speakers eligible to form a zone: bondable individual speakers,
+  /// excluding Amps (Amps and Subs can't be zoned; soundbars/subs are already
+  /// excluded by [bondableSpeakers]). Hardware-confirmed that Play:1 (not on
+  /// Sonos' official list) zones fine, so we don't gate on the model list —
+  /// create polls to confirm and surfaces a clear error if Sonos rejects it.
+  List<SonosDevice> get zoneableSpeakers =>
+      bondableSpeakers.where((d) => !d.isAmp).toList(growable: false);
 
   /// Standalone Sonos Subs free to bond as the `SW` channel of a home theater.
   List<SonosDevice> get bondableSubs {

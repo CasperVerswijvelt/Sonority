@@ -102,6 +102,12 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
+      // Center glyphs within their line box on every platform. The macOS system
+      // font (SF) puts most of its line leading ABOVE the glyph, so text sits a
+      // few px low in tiles/cards there; "even" splits the leading top/bottom so
+      // it looks vertically centered cross-platform (Android already does this).
+      textTheme: _evenLeading(
+          ThemeData(useMaterial3: true, colorScheme: scheme).textTheme),
       scaffoldBackgroundColor: pageBg,
       appBarTheme: AppBarTheme(
         backgroundColor: pageBg,
@@ -149,6 +155,31 @@ class AppTheme {
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(16))),
       ),
+    );
+  }
+
+  /// Returns [t] with every style set to [TextLeadingDistribution.even] so the
+  /// glyph is vertically centered within its line box (fixes macOS SF text
+  /// sitting low in tiles/cards).
+  static TextTheme _evenLeading(TextTheme t) {
+    TextStyle? e(TextStyle? s) =>
+        s?.copyWith(leadingDistribution: TextLeadingDistribution.even);
+    return t.copyWith(
+      displayLarge: e(t.displayLarge),
+      displayMedium: e(t.displayMedium),
+      displaySmall: e(t.displaySmall),
+      headlineLarge: e(t.headlineLarge),
+      headlineMedium: e(t.headlineMedium),
+      headlineSmall: e(t.headlineSmall),
+      titleLarge: e(t.titleLarge),
+      titleMedium: e(t.titleMedium),
+      titleSmall: e(t.titleSmall),
+      bodyLarge: e(t.bodyLarge),
+      bodyMedium: e(t.bodyMedium),
+      bodySmall: e(t.bodySmall),
+      labelLarge: e(t.labelLarge),
+      labelMedium: e(t.labelMedium),
+      labelSmall: e(t.labelSmall),
     );
   }
 }

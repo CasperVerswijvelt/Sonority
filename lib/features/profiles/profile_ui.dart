@@ -16,6 +16,8 @@ bool isProfileNameTaken(List<Profile> existing, String name, {String? exceptId})
 IconData entityIcon(EntityKind kind) => switch (kind) {
       EntityKind.homeTheater => Icons.surround_sound,
       EntityKind.stereoPair => Icons.speaker_group,
+      EntityKind.zone => Icons.groups_2,
+      EntityKind.custom => Icons.tune,
       EntityKind.single => Icons.speaker,
     };
 
@@ -39,6 +41,28 @@ String entitySummary(EntitySnapshot e, SonosSystem? system) {
       final uuids = e.involvedUuids.toList();
       if (uuids.length < 2) return 'Stereo pair';
       return '${typeOf(uuids[0])} + ${typeOf(uuids[1])}';
+
+    case EntityKind.zone:
+      final uuids = e.involvedUuids.toList();
+      if (uuids.length < 2) return 'Zone';
+      return '${uuids.length} speakers: ${uuids.map(typeOf).join(', ')}';
+
+    case EntityKind.custom:
+      final map = e.mapSet;
+      if (map == null) return 'Custom group';
+      final tmp =
+          ZoneGroupMember(uuid: e.primaryUuid, zoneName: '', channelMapSet: map);
+      final ch = tmp.groupChannels.values.toList();
+      final l = ch.where((c) => c == GroupChannel.left).length;
+      final r = ch.where((c) => c == GroupChannel.right).length;
+      final b = ch.where((c) => c == GroupChannel.both).length;
+      final parts = [
+        if (l > 0) 'L:$l',
+        if (r > 0) 'R:$r',
+        if (b > 0) 'Both:$b',
+      ];
+      return '${ch.length} speakers · ${parts.join(' ')}'
+          '${tmp.subUuid != null ? ' · Sub' : ''}';
 
     case EntityKind.homeTheater:
       final map = e.mapSet;

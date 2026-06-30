@@ -225,31 +225,62 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         await _repo.setRoomName(ip: dev!.ip!, name: e.names[e.primaryUuid] ?? dev.roomName);
         return sys;
 
-      case EntityKind.stereoPair:
-        final uuids = e.involvedUuids.toList();
-        if (uuids.length != 2) throw Exception('Stored pair is malformed.');
-        final left = sys.device(uuids[0]);
-        final right = sys.device(uuids[1]);
-        if (left?.ip == null || right?.ip == null) {
-          throw Exception('A paired speaker isn’t on the network.');
+      // Stereo pair / zone / custom all share one channel-map bond path.
+      case EntityKind.stereoPair || EntityKind.zone || EntityKind.custom:
+        final map = e.mapSet;
+        if (map == null) throw Exception('Stored group is malformed.');
+        final coord = sys.device(e.primaryUuid);
+        if (coord?.ip == null) {
+          throw Exception('“${e.label}” coordinator isn’t on the network.');
         }
-        for (final u in uuids) {
-          if (_ownerOf(sys, u) != null && _ownerOf(sys, u) != uuids[0]) {
+        final involved = e.involvedUuids.toList();
+        // Already exactly this group? Just re-assert the name (no disruptive write).
+        if (_isGroupFormed(sys, e.primaryUuid, involved)) {
+          await _repo.setRoomName(
+              ip: coord!.ip!, name: e.names[coord.uuid] ?? coord.roomName);
+          return sys;
+        }
+        // Free any member currently bonded outside this group.
+        for (final u in involved) {
+          final owner = _ownerOf(sys, u);
+          if (owner != null && !involved.contains(owner)) {
+            note('freeing $u');
             await _repo.freeSpeaker(sys, u);
-            sys = await _settleRead(sys, left!.ip!);
+            sys = await _settleRead(sys, coord!.ip!);
           }
         }
-        await _repo.createStereoPair(left: left!, right: right!);
+        // Resolve members (coordinator-first) + sub from the stored map.
+        final parsed =
+            ZoneGroupMember(uuid: e.primaryUuid, zoneName: '', channelMapSet: map);
+        final memberEntries = <({SonosDevice device, GroupChannel channel})>[];
+        for (final entry in parsed.groupChannels.entries) {
+          final d = sys.device(entry.key);
+          if (d?.ip == null) {
+            throw Exception('A speaker in “${e.label}” isn’t on the network.');
+          }
+          memberEntries.add((device: d!, channel: entry.value));
+        }
+        final subU = parsed.subUuid;
+        final sub = subU == null ? null : sys.device(subU);
+        if (subU != null && sub?.ip == null) {
+          throw Exception('The Sub for “${e.label}” isn’t on the network.');
+        }
+        if (memberEntries.length < 2) {
+          throw Exception('“${e.label}” is missing speakers.');
+        }
+        note('bonding ${memberEntries.length} speakers${sub != null ? ' + sub' : ''}');
+        await _repo.createGroup(members: memberEntries, sub: sub);
         sys = await _pollUntil(
           previous: sys,
-          ip: left.ip,
+          ip: coord!.ip,
           attempts: 8,
-          until: (s) => _isPaired(s, left.uuid, right.uuid),
+          until: (s) => _isGroupFormed(s, e.primaryUuid, involved),
         );
-        if (!_isPaired(sys, left.uuid, right.uuid)) {
-          throw Exception('Sonos did not pair “${e.label}”.');
+        if (!_isGroupFormed(sys, e.primaryUuid, involved)) {
+          throw Exception('Sonos did not form “${e.label}”.');
         }
-        await _repo.setRoomName(ip: left.ip!, name: e.names[left.uuid] ?? left.roomName);
+        await _repo.setRoomName(
+            ip: coord.ip!, name: e.names[coord.uuid] ?? coord.roomName);
         return sys;
 
       case EntityKind.homeTheater:
@@ -337,8 +368,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
                 m.satellites.any((s) => s.uuid == uuid))) {
           return m.uuid;
         }
-        if (m.isStereoPair && m.stereoPairUuids.contains(uuid)) {
-          return m.stereoPairUuids.first;
+        if (m.isGroup && m.channelMapUuids.contains(uuid)) {
+          return m.channelMapUuids.first;
         }
       }
     }
@@ -438,99 +469,167 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     _commit(result, previous);
   }
 
-  Future<void> createStereoPair({
-    required SonosDevice left,
-    required SonosDevice right,
+  /// Creates a bonded **speaker group** from [members] (≥2, each with a channel;
+  /// first is the coordinator) + an optional [sub], polling until it forms AND
+  /// the other members leave the room list, then optionally names it. One path
+  /// for stereo / zone / custom.
+  Future<void> createGroup({
+    required List<({SonosDevice device, GroupChannel channel})> members,
+    SonosDevice? sub,
+    String? name,
   }) async {
+    if (members.length < 2) return;
+    final coord = members.first.device;
+    final involved = [
+      for (final m in members) m.device.uuid,
+      if (sub != null) sub.uuid,
+    ];
+
     final tracker = _newTracker([
-      ApplyStep(id: 'pair', label: 'Pair ${left.roomName} + ${right.roomName}'),
+      ApplyStep(id: 'group', label: 'Create group (${members.length} speakers)'),
     ]);
     _activeOp = CancellationToken();
 
     final previous = state.value;
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
-      tracker.start('pair');
+      tracker.start('group');
       try {
-        tracker.note('pair', 'creating stereo pair');
-        await _repo.createStereoPair(left: left, right: right);
-        tracker.note('pair', 'waiting for Sonos to confirm the pair');
-        final system = await _pollUntil(
+        tracker.note('group', 'bonding speakers');
+        await _repo.createGroup(members: members, sub: sub);
+        tracker.note('group', 'waiting for Sonos to confirm');
+        var system = await _pollUntil(
           previous: previous,
-          ip: left.ip ?? _lastIp,
+          ip: coord.ip ?? _lastIp,
           attempts: 8,
-          // Paired AND the right speaker has gone Invisible (left the room list);
-          // its Invisible flag lags the pair forming by a few seconds.
           until: (s) =>
-              _isPaired(s, left.uuid, right.uuid) &&
-              !s.allMembers.any((m) => m.uuid == right.uuid),
+              _isGroupFormed(s, coord.uuid, involved) &&
+              !members
+                  .skip(1)
+                  .any((m) => s.allMembers.any((x) => x.uuid == m.device.uuid)),
         );
-        // Sonos accepts the command (200) but silently no-ops incompatible pairs.
-        if (!_isPaired(system, left.uuid, right.uuid)) {
+        // Sonos accepts the command (200) but silently no-ops if a speaker is
+        // incompatible — confirm the group actually formed.
+        if (!_isGroupFormed(system, coord.uuid, involved)) {
           throw Exception(
-              'Sonos did not pair these speakers — they may be incompatible.');
+              'Sonos did not create the group — a speaker may be incompatible.');
         }
-        tracker.done('pair');
+        final wanted = name?.trim();
+        if (wanted != null && wanted.isNotEmpty && coord.ip != null) {
+          tracker.note('group', 'naming the group');
+          await _repo.setRoomName(ip: coord.ip!, name: wanted);
+          system = await _pollUntil(
+            previous: system,
+            ip: coord.ip,
+            attempts: 6,
+            until: (s) => s.allMembers
+                .any((m) => m.uuid == coord.uuid && m.zoneName == wanted),
+          );
+        }
+        tracker.done('group');
         return system;
       } on OperationCancelled {
         rethrow;
       } catch (e) {
-        tracker.fail('pair', '$e');
+        tracker.fail('group', '$e');
         rethrow;
       }
     });
     _commit(result, previous);
   }
 
-  Future<void> separateStereoPair({
-    required SonosDevice left,
-    required SonosDevice right,
-  }) async {
+  /// Separates [group] back into standalone rooms (names restored): detach from
+  /// any playback group → dissolve via the live channel map → poll until gone.
+  Future<void> separateGroup(ZoneGroupMember group) async {
+    final sys = state.value;
+    if (sys == null) return;
+    final cms = group.channelMapSet;
+    if (cms == null || cms.isEmpty) return;
+    // Coordinator first, then the rest (incl. any Sub).
+    final ordered = [
+      group.uuid,
+      ...group.channelMapUuids.where((u) => u != group.uuid),
+    ];
+    final members =
+        ordered.map((u) => sys.device(u)).whereType<SonosDevice>().toList();
+    if (members.isEmpty) return;
+    final coord = members.first;
+    final involved = group.channelMapUuids;
+    final subU = group.subUuid;
+    // Audio members reappear as rooms after separation; a Sub stays Invisible.
+    final audioReappear =
+        members.where((m) => m.uuid != coord.uuid && m.uuid != subU);
+
     final tracker =
-        _newTracker([const ApplyStep(id: 'separate', label: 'Separate stereo pair')]);
+        _newTracker([const ApplyStep(id: 'ungroup', label: 'Separate group')]);
     _activeOp = CancellationToken();
 
-    final previous = state.value;
+    final previous = sys;
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
-      tracker.start('separate');
+      tracker.start('ungroup');
       try {
-        tracker.note('separate', 'separating + restoring room names');
-        await _repo.separateStereoPair(left: left, right: right);
-        tracker.note('separate', 'waiting for Sonos to settle');
-        final sys = await _pollUntil(
+        // 1. A bond can't be dissolved while the coordinator is a non-coordinator
+        //    member of a larger playback group — detach into its own group first.
+        if (coord.ip != null && !_isStandalone(previous, coord.uuid)) {
+          tracker.note('ungroup', 'detaching from playback group');
+          await _repo.detachFromGroup(coord.ip!);
+          await _pollUntil(
+            previous: previous,
+            ip: coord.ip,
+            attempts: 6,
+            until: (s) => _isStandalone(s, coord.uuid),
+          );
+        }
+        // 2. Dissolve (SeparateStereoPair on the live map) + restore names.
+        tracker.note('ungroup', 'separating + restoring room names');
+        await _repo.separateGroup(members: members, channelMapSet: cms);
+        tracker.note('ungroup', 'waiting for Sonos to settle');
+        final system = await _pollUntil(
           previous: previous,
-          ip: left.ip ?? _lastIp,
+          ip: coord.ip ?? _lastIp,
           attempts: 8,
-          // Wait for not-paired AND the right speaker's restored name to
-          // propagate (it briefly keeps the pair name until topology catches up).
-          until: (s) {
-            if (_isPaired(s, left.uuid, right.uuid)) return false;
-            final r = s.allMembers
-                .where((m) => m.uuid == right.uuid)
-                .cast<ZoneGroupMember?>()
-                .firstOrNull;
-            return r != null && r.zoneName != left.roomName;
-          },
+          until: (s) =>
+              !_isGroupFormed(s, coord.uuid, involved) &&
+              audioReappear.every((m) => s.allMembers.any((x) => x.uuid == m.uuid)),
         );
-        tracker.done('separate');
-        return sys;
+        if (_isGroupFormed(system, coord.uuid, involved)) {
+          throw Exception('Sonos did not separate the group — try again.');
+        }
+        tracker.done('ungroup');
+        return system;
       } on OperationCancelled {
         rethrow;
       } catch (e) {
-        tracker.fail('separate', '$e');
+        tracker.fail('ungroup', '$e');
         rethrow;
       }
     });
     _commit(result, previous);
   }
 
-  bool _isPaired(SonosSystem system, String leftUuid, String rightUuid) {
-    for (final p in system.stereoPairs) {
-      final uuids = p.stereoPairUuids.toSet();
-      if (uuids.contains(leftUuid) && uuids.contains(rightUuid)) return true;
+  /// True when [uuid] is its own playback-group coordinator (standalone group).
+  bool _isStandalone(SonosSystem system, String uuid) {
+    for (final g in system.groups) {
+      if (g.members.any((m) => m.uuid == uuid)) {
+        return g.coordinatorUuid == uuid;
+      }
     }
-    return false;
+    return true;
+  }
+
+  /// True when [coordUuid] is a live bonded group whose members (incl. any Sub)
+  /// are exactly [involved].
+  bool _isGroupFormed(
+      SonosSystem system, String coordUuid, List<String> involved) {
+    final m = system.allMembers
+        .where((x) => x.uuid == coordUuid)
+        .cast<ZoneGroupMember?>()
+        .firstOrNull;
+    if (m == null || !m.isGroup) return false;
+    final have = m.channelMapUuids.toSet();
+    final want = involved.toSet();
+    return have.length == want.length && have.containsAll(want);
   }
 
   /// Re-reads topology until [until] holds or attempts run out. Sonos takes up

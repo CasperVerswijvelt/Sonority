@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/sonos_models.dart';
+import 'av_transport.dart';
 import 'cancellation.dart';
 import 'channel_map.dart' show ChannelMap;
 import 'device_description.dart';
@@ -11,6 +12,7 @@ import 'device_properties.dart';
 import 'room_calibration.dart';
 import 'soap_client.dart';
 import 'ssdp_discovery.dart';
+import 'zone_layout.dart';
 import 'zone_topology.dart';
 
 /// Orchestrates discovery, topology reads, and the bonding actions, and keeps
@@ -21,6 +23,7 @@ class SonosRepository {
   final ZoneTopologyClient _topology;
   final DevicePropertiesClient _deviceProps;
   final RoomCalibrationClient _calibration;
+  final AvTransportClient _avTransport;
 
   SonosRepository({
     SsdpDiscovery? ssdp,
@@ -28,11 +31,13 @@ class SonosRepository {
     ZoneTopologyClient? topology,
     DevicePropertiesClient? deviceProps,
     RoomCalibrationClient? calibration,
+    AvTransportClient? avTransport,
   })  : _ssdp = ssdp ?? SsdpDiscovery(),
         _descriptions = descriptions ?? DeviceDescriptionClient(),
         _topology = topology ?? ZoneTopologyClient(SonosSoapClient()),
         _deviceProps = deviceProps ?? DevicePropertiesClient(SonosSoapClient()),
-        _calibration = calibration ?? RoomCalibrationClient(SonosSoapClient());
+        _calibration = calibration ?? RoomCalibrationClient(SonosSoapClient()),
+        _avTransport = avTransport ?? AvTransportClient(SonosSoapClient());
 
   /// Full discovery: find players, read their descriptions, then read the
   /// system topology from any one of them.
@@ -204,48 +209,67 @@ class SonosRepository {
     }
   }
 
-  /// Creates a (possibly mismatched) stereo pair. Snapshots both rooms' zone
-  /// attributes first so the original names can be restored on separation —
-  /// Sonos usually restores them, but this makes it a guarantee.
-  Future<void> createStereoPair({
-    required SonosDevice left,
-    required SonosDevice right,
+  /// Creates a bonded **speaker group** (stereo pair / zone / custom L-R layout)
+  /// from [members] (≥2, each with a channel) plus an optional [sub]. The first
+  /// member is the coordinator (stays the visible room); the rest go hidden.
+  /// Snapshots every member's + the sub's name first so they restore on
+  /// separation — Sonos absorbs them all into the coordinator's name.
+  Future<void> createGroup({
+    required List<({SonosDevice device, GroupChannel channel})> members,
+    SonosDevice? sub,
   }) async {
-    final leftIp = left.ip, rightIp = right.ip;
-    if (leftIp == null || rightIp == null) {
+    if (members.length < 2) {
+      throw Exception('A group needs at least 2 speakers.');
+    }
+    final all = [for (final m in members) m.device, if (sub != null) sub];
+    if (all.any((d) => d.ip == null)) {
       throw Exception('Speaker IP unknown; rescan and retry.');
     }
-    final leftAttrs = await _deviceProps.getZoneAttributes(leftIp);
-    final rightAttrs = await _deviceProps.getZoneAttributes(rightIp);
-    await _savePairSnapshot(left.uuid, right.uuid, leftAttrs, rightAttrs);
-    await _deviceProps.createStereoPair(
-        ip: leftIp, leftUuid: left.uuid, rightUuid: right.uuid);
+    final attrs = <String, ZoneAttributes>{};
+    for (final d in all) {
+      attrs[d.uuid] = await _deviceProps.getZoneAttributes(d.ip!);
+    }
+    await _saveZoneSnapshot(attrs);
+    await _deviceProps.addBondedZones(
+      ip: members.first.device.ip!,
+      channelMapSet: buildGroupMap(
+        [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
+        subUuid: sub?.uuid,
+      ),
+    );
   }
 
-  /// Separates a stereo pair and restores both rooms' original names (from the
-  /// snapshot taken at creation) if Sonos didn't bring them back itself.
-  Future<void> separateStereoPair({
-    required SonosDevice left,
-    required SonosDevice right,
-  }) async {
-    final leftIp = left.ip, rightIp = right.ip;
-    if (leftIp == null || rightIp == null) {
-      throw Exception('Speaker IP unknown; rescan and retry.');
-    }
-    await _deviceProps.separateStereoPair(
-        ip: leftIp, leftUuid: left.uuid, rightUuid: right.uuid);
+  /// Detaches [ip] from any larger playback group into its own standalone group.
+  /// Required before [separateGroup] — Sonos won't dissolve a bond while the
+  /// coordinator is a non-coordinator member of another playback group (the call
+  /// returns OK but no-ops). The caller should poll until standalone.
+  Future<void> detachFromGroup(String ip) =>
+      _avTransport.becomeCoordinatorOfStandaloneGroup(ip);
 
-    final snap = await _loadPairSnapshot(left.uuid, right.uuid);
+  /// Separates a bonded group and restores each member's original name. Dissolves
+  /// using the group's LIVE [channelMapSet] (a custom map won't round-trip
+  /// through a recipe). [members] are all bonded speakers (incl. any Sub),
+  /// coordinator first, resolved by the caller for name restore + IPs. The group
+  /// must already be its own coordinator — call [detachFromGroup] + settle first.
+  Future<void> separateGroup({
+    required List<SonosDevice> members,
+    required String channelMapSet,
+  }) async {
+    if (members.isEmpty) return;
+    final coordIp = members.first.ip;
+    if (coordIp == null) throw Exception('Speaker IP unknown; rescan and retry.');
+    await _deviceProps.separateBondedZones(
+        ip: coordIp, channelMapSet: channelMapSet);
+    final snap = await _loadZoneSnapshot([for (final m in members) m.uuid]);
     if (snap != null) {
       await Future<void>.delayed(const Duration(seconds: 2));
-      // Right speaker is the one whose name gets absorbed; restore both to be safe.
-      if ((await _deviceProps.getZoneAttributes(rightIp)).zoneName !=
-          snap.right.zoneName) {
-        await _deviceProps.setZoneAttributes(rightIp, snap.right);
-      }
-      if ((await _deviceProps.getZoneAttributes(leftIp)).zoneName !=
-          snap.left.zoneName) {
-        await _deviceProps.setZoneAttributes(leftIp, snap.left);
+      for (final m in members) {
+        final want = snap[m.uuid];
+        final ip = m.ip;
+        if (want == null || ip == null) continue;
+        if ((await _deviceProps.getZoneAttributes(ip)).zoneName != want.zoneName) {
+          await _deviceProps.setZoneAttributes(ip, want);
+        }
       }
     }
   }
@@ -267,13 +291,16 @@ class SonosRepository {
           }
           return;
         }
-        // A half of a stereo pair.
-        if (m.isStereoPair && m.stereoPairUuids.contains(uuid)) {
-          final uuids = m.stereoPairUuids;
-          final ip = system.device(uuids.first)?.ip ?? m.ip;
-          if (ip != null && uuids.length == 2) {
-            await _deviceProps.separateStereoPair(
-                ip: ip, leftUuid: uuids[0], rightUuid: uuids[1]);
+        // A member of a bonded group (stereo pair / zone / custom): dissolve the
+        // whole group. Detach from any playback group first, then SeparateStereoPair
+        // with the LIVE map (the working group-removal — see [separateGroup]).
+        if (m.isGroup && m.channelMapUuids.contains(uuid)) {
+          final ip = m.ip;
+          final cms = m.channelMapSet;
+          if (ip != null && cms != null) {
+            await _avTransport.becomeCoordinatorOfStandaloneGroup(ip);
+            await Future<void>.delayed(const Duration(seconds: 4));
+            await _deviceProps.separateBondedZones(ip: ip, channelMapSet: cms);
           }
           return;
         }
@@ -293,33 +320,40 @@ class SonosRepository {
     );
   }
 
-  String _pairKey(String a, String b) {
-    final s = [a, b]..sort();
-    return 'pair_snapshot_${s[0]}_${s[1]}';
+  String _zoneKey(Iterable<String> uuids) {
+    final s = uuids.toList()..sort();
+    return 'zone_snapshot_${s.join('_')}';
   }
 
-  Future<void> _savePairSnapshot(
-      String leftUuid, String rightUuid, ZoneAttributes l, ZoneAttributes r) async {
+  Future<void> _saveZoneSnapshot(Map<String, ZoneAttributes> attrs) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-      _pairKey(leftUuid, rightUuid),
+      _zoneKey(attrs.keys),
       jsonEncode({
-        'left': {'name': l.zoneName, 'icon': l.icon, 'config': l.configuration},
-        'right': {'name': r.zoneName, 'icon': r.icon, 'config': r.configuration},
+        for (final e in attrs.entries)
+          e.key: {
+            'name': e.value.zoneName,
+            'icon': e.value.icon,
+            'config': e.value.configuration,
+          },
       }),
     );
   }
 
-  Future<({ZoneAttributes left, ZoneAttributes right})?> _loadPairSnapshot(
-      String leftUuid, String rightUuid) async {
+  Future<Map<String, ZoneAttributes>?> _loadZoneSnapshot(
+      List<String> uuids) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_pairKey(leftUuid, rightUuid));
+    final raw = prefs.getString(_zoneKey(uuids));
     if (raw == null) return null;
     final m = jsonDecode(raw) as Map<String, dynamic>;
-    ZoneAttributes parse(Map<String, dynamic> j) => ZoneAttributes(
-        zoneName: j['name'] as String,
-        icon: j['config'] == null ? '' : (j['icon'] as String? ?? ''),
-        configuration: j['config'] as String? ?? '');
-    return (left: parse(m['left']), right: parse(m['right']));
+    return {
+      for (final e in m.entries)
+        e.key: ZoneAttributes(
+          zoneName: (e.value as Map)['name'] as String,
+          icon: (e.value)['icon'] as String? ?? '',
+          configuration: (e.value)['config'] as String? ?? '',
+        ),
+    };
   }
+
 }

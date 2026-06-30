@@ -12,7 +12,7 @@ import 'features/profiles/profiles_screen.dart';
 import 'features/profiles/profile_create_screen.dart';
 import 'features/profiles/profile_detail_screen.dart';
 import 'features/room/room_screen.dart';
-import 'features/stereo_pair/stereo_pair_flow.dart';
+import 'features/group/group_flow.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -24,9 +24,7 @@ final _router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(path: '/', builder: (_, __) => const DiscoveryScreen()),
-            GoRoute(
-                path: '/stereo-pair',
-                builder: (_, __) => const StereoPairFlow()),
+            GoRoute(path: '/group', builder: (_, __) => const GroupFlow()),
             GoRoute(
               path: '/room/:uuid',
               builder: (_, s) => RoomScreen(uuid: s.pathParameters['uuid']!),
