@@ -75,8 +75,8 @@ final sonosControllerProvider =
 
 /// Holds the discovered Sonos system and drives the bonding actions.
 ///
-/// `null` data == not scanned yet; `AsyncLoading` == working; `AsyncError`
-/// surfaces a message to the UI.
+/// Scans automatically on first read (app launch); `AsyncLoading` == working;
+/// `AsyncError` surfaces a message to the UI.
 class SonosController extends AsyncNotifier<SonosSystem?> {
   String? _lastIp;
 
@@ -90,19 +90,23 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   void cancelActiveOperation() => _activeOp?.cancel();
 
   @override
-  Future<SonosSystem?> build() async => null;
+  Future<SonosSystem?> build() => _discover();
 
   SonosRepository get _repo => ref.read(sonosRepositoryProvider);
 
+  /// Discover the system and cache an IP for cheap refreshes. Runs on launch
+  /// (from [build]) and on every explicit [scan].
+  Future<SonosSystem?> _discover() async {
+    final system = await _repo.discover();
+    _lastIp = system.devicesByUuid.values
+        .map((d) => d.ip)
+        .firstWhere((ip) => ip != null, orElse: () => null);
+    return system;
+  }
+
   Future<void> scan() async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      final system = await _repo.discover();
-      _lastIp = system.devicesByUuid.values
-          .map((d) => d.ip)
-          .firstWhere((ip) => ip != null, orElse: () => null);
-      return system;
-    });
+    state = await AsyncValue.guard(_discover);
   }
 
   /// Re-read topology after a change to confirm the new layout took effect.

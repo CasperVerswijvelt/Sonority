@@ -40,6 +40,7 @@ dependencies:
   go_router: ^17.2.3
   dynamic_color: ^1.8.1
   shared_preferences: ^2.5.5
+  animations: ^2.2.0
 
 dev_dependencies:
   flutter_test:

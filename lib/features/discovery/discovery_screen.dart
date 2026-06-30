@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,8 +11,8 @@ import '../widgets/bonding_progress_screen.dart';
 import '../widgets/collapsing_scaffold.dart';
 import '../widgets/diagram_labels.dart';
 
-/// Entry screen: scan the LAN and present the system, leading with anything
-/// that can host dedicated front speakers (soundbars).
+/// Entry screen: auto-scans the LAN on launch and presents the system, leading
+/// with anything that can host dedicated front speakers (soundbars).
 class DiscoveryScreen extends ConsumerWidget {
   const DiscoveryScreen({super.key});
 
@@ -20,15 +21,27 @@ class DiscoveryScreen extends ConsumerWidget {
     final state = ref.watch(sonosControllerProvider);
     final controller = ref.read(sonosControllerProvider.notifier);
 
-    Widget fill(Widget child) =>
-        SliverFillRemaining(hasScrollBody: false, child: child);
+    final branch = state.isLoading
+        ? 'scanning'
+        : state.hasError
+            ? 'error'
+            : 'system';
+    final content = state.when(
+      loading: () => const Center(child: _Scanning()),
+      error: (e, _) => _ErrorView(message: '$e', onRetry: controller.scan),
+      // discover() throws on an empty network, so data is never null here;
+      // fall back to the spinner defensively rather than crash.
+      data: (system) => system == null
+          ? const Center(child: _Scanning())
+          : _SystemView(system: system),
+    );
 
     return CollapsingScaffold(
       title: 'Sonority',
       onRefresh: state.value != null ? () => controller.scan() : null,
       actions: [
-        // Only when there's a discovered system to refresh; the intro/error
-        // states use their own CTA buttons to scan.
+        // Only when there's a discovered system to refresh; the error state
+        // uses its own CTA button to scan.
         if (state.value != null)
           IconButton(
             tooltip: 'Rescan',
@@ -36,64 +49,30 @@ class DiscoveryScreen extends ConsumerWidget {
             icon: const Icon(Icons.refresh),
           ),
       ],
-      slivers: state.when(
-        loading: () => [fill(const Center(child: _Scanning()))],
-        error: (e, _) =>
-            [fill(_ErrorView(message: '$e', onRetry: controller.scan))],
-        data: (system) => system == null
-            ? [fill(_Intro(onScan: controller.scan))]
-            : [_SystemView(system: system)],
-      ),
-    );
-  }
-}
-
-class _Intro extends StatelessWidget {
-  final VoidCallback onScan;
-  const _Intro({required this.onScan});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Spacer(),
-          Icon(Icons.speaker_group_outlined, size: 88, color: scheme.primary),
-          Gap.l,
-          Text('Unlock dedicated front speakers',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall),
-          Gap.s,
-          Text(
-            'Add discrete front left & right speakers to your Sonos home '
-            'theater — a setup the official app won’t let you create.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: scheme.onSurfaceVariant),
+      // One CustomScrollView: the collapsing app bar (in the scaffold) and this
+      // body scroll together. hasScrollBody:false sizes the body by its
+      // intrinsic height — short content fills + centers (and re-centers as the
+      // title collapses), a long list reports a tall height and scrolls via the
+      // outer view (no nested scroll). The depth (shared-axis Z) transition
+      // wraps only the body, so the app bar itself never animates.
+      slivers: [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: PageTransitionSwitcher(
+            duration: const Duration(milliseconds: 250),
+            reverse: state.isLoading,
+            transitionBuilder: (child, anim, secondaryAnim) =>
+                SharedAxisTransition(
+              animation: anim,
+              secondaryAnimation: secondaryAnim,
+              transitionType: SharedAxisTransitionType.scaled,
+              fillColor: Colors.transparent,
+              child: child,
+            ),
+            child: KeyedSubtree(key: ValueKey(branch), child: content),
           ),
-          const Spacer(),
-          FilledButton.icon(
-            onPressed: onScan,
-            icon: const Icon(Icons.wifi_find),
-            label: const Text('Find my Sonos system'),
-          ),
-          Gap.s,
-          Text(
-            'Make sure your phone is on the same Wi‑Fi as your speakers.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-          Gap.m,
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -115,9 +94,13 @@ class _SystemView extends ConsumerWidget {
     final canPair =
         system.bondableSpeakers.where((d) => d.reachable).length >= 2;
 
-    return SliverPadding(
+    // A plain (non-scrolling) box so it can ride inside the body's
+    // PageTransitionSwitcher; SliverFillRemaining sizes it by intrinsic height
+    // and the OUTER CustomScrollView does the scrolling (no nested scroll).
+    return Padding(
       padding: const EdgeInsets.all(16),
-      sliver: SliverList.list(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _SectionHeader('Home theaters', Icons.theaters_outlined),
           if (theaters.isEmpty)
