@@ -63,17 +63,17 @@ lib/
   data/sonos/      THE ENGINE (pure Dart, no Flutter):
                      ssdp_discovery · device_description · soap_client
                      zone_topology  · device_properties (bonding + stereo + zone attrs)
-                     channel_map    · front_layout (buildLayoutMap — any role; + recipes)
+                     channel_map    · front_layout (buildLayoutMap + diffHtLayout — any role)
                      apply_progress (ApplyStep/ApplyProgress — per-step status)
                      identify_service (chime)
-                     sonos_repository (orchestrates; bondAndVerify staged write+retry;
-                       freeSpeaker; setRoomName; + shared_preferences ⇒ Flutter dep)
+                     sonos_repository (orchestrates; bondAndVerify write+retry;
+                       removeHtSatellites; freeSpeaker; setRoomName; + shared_preferences ⇒ Flutter dep)
   state/           sonos_controller.dart — AsyncNotifier<SonosSystem?>; applyHomeTheaterLayout,
-                     applyProfile, renameRoom; applyProgressProvider (live steps)
+                     applyProfile, _applyHtTarget (diff-based), renameRoom; applyProgressProvider
   features/        discovery / home_theater / front_surrounds (full HT setup) /
                      stereo_pair / profiles / room / widgets
   app.dart, main.dart — go_router StatefulShellRoute (System|Profiles tabs), ProviderScope
-tool/              spike, roundtrip, full_layout, chirp, dump_chime, stereopair (see below)
+tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, stereopair
 ```
 Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
 `shared_preferences` → Flutter). The pure recipe lives in `front_layout.dart` for
@@ -107,12 +107,19 @@ exactly this reason.
     a satellite mid-reshuffle") — the write still partially applies, so treat
     either as "go verify", never as fatal. This is `SonosRepository.bondAndVerify`
     (retries=8), used by `SonosController.applyHomeTheaterLayout` / `applyProfile`.
-    **Rebuilding a saved layout must strip the coordinator to bare first**
-    (`stripHomeTheater`) — `AddHTSatellite` 800s on a map that would *drop* a
-    currently-bonded speaker, so you can't edit a live HT in place; remove then
-    re-add. **Validated end-to-end on real hardware** via the Android E2E test
-    (`integration_test/profile_e2e_test.dart`). **Sub-on-a-stereo-pair is NOT
-    supported** — `AddHTSatellite` on a pair coordinator returns UPnPError 401.
+    **Apply the DIFF, don't strip-and-rebuild.** `AddHTSatellite` 800s only on a
+    map that would *drop* a currently-bonded speaker — **adding** to a live HT is
+    fine (confirmed on hardware, `tool/diff_apply_spike.dart`). So
+    `SonosController._applyHtTarget` diffs current-vs-target
+    (`front_layout.diffHtLayout`): **no-op when unchanged** (zero writes — the
+    common re-apply case), else `RemoveHTSatellite` ONLY the satellites that
+    move/leave, then additively `bondAndVerify` the target. This is both faster
+    and *more reliable* than the old strip-to-bare path — adding only the missing
+    satellite(s) converges in ~1 attempt, whereas a full rebuild-from-bare is the
+    flaky case that needs many re-asserts. **Validated end-to-end on real
+    hardware** via the Android E2E test (`integration_test/profile_e2e_test.dart`,
+    now a no-op apply). **Sub-on-a-stereo-pair is NOT supported** —
+    `AddHTSatellite` on a pair coordinator returns UPnPError 401.
   - `CreateStereoPair` / `SeparateStereoPair` — stereo pairs.
   - `GetZoneAttributes` / `SetZoneAttributes` — read/set room name (used to restore
     names after un-pairing).
@@ -203,7 +210,11 @@ Run on the same Wi-Fi as the Sonos system:
   `--apply-only`, `--remove-only`.
 - `tool/full_layout.dart` — strip the bar to bare → rebuild a FULL HT map in one
   `AddHTSatellite` → verify each channel → restore. The Phase 0 spike that proved
-  staged bonding is required; dry-run by default, `--confirm`. ⚠️ wipes Trueplay.
+  re-assertion converges a from-bare rebuild; dry-run by default, `--confirm`. ⚠️ wipes Trueplay.
+- `tool/diff_apply_spike.dart` — validates the diff-based apply on hardware:
+  no-op (zero writes), additive-in-place (drop the sub → re-add without strip),
+  and a LR↔RR swap. Self-restoring; dry-run does the no-op check only, `--confirm`
+  runs the writes. ⚠️ wipes Trueplay.
 - `tool/stereopair.dart` — stereo-pair round-trip (create→verify→separate→restore
   names); dry-run by default, `--confirm`.
 - `tool/chirp.dart <room|uuid|ip>` — play the identify chime on one speaker.
@@ -231,15 +242,17 @@ Run on the same Wi-Fi as the Sonos system:
   all platforms incl. macOS) with the audio chime as a mobile-only long-press extra.
 - ✅ Stereo pairs incl. mismatched models (create flow; separate with name restore).
 - ✅ **Full in-app HT setup** — the guided flow now bonds fronts **+ rear surrounds
-  (LR/RR) + a sub (SW)**, each optional, applied with **staged bonding** + a live
+  (LR/RR) + a sub (SW)**, each optional, applied via the **diff-based**
+  `_applyHtTarget` (no-op when unchanged, else add what's missing) + a live
   per-step progress stepper that shows the active step and exactly where it failed
   (`front_surrounds_flow.dart`, `apply_progress_view.dart`, `applyHomeTheaterLayout`).
 - ✅ **Config profiles** (`features/profiles/`) — bottom-tab page; a profile is a
   snapshot of current state trimmed to chosen entities (one HT / pair / unbonded
   room = one entity), with stored room names. Create-from-snapshot only (no config
   builder); tiles **edit** + **apply (play)**. Apply does pre-flight resolution
-  (missing/conflicting speakers), frees conflicts, re-bonds (staged), restores names,
-  and reports per-step progress. Sub-on-stereo-pair is out (hardware-rejected).
+  (missing/conflicting speakers), frees conflicts, re-bonds via the diff-based
+  `_applyHtTarget` (no-op if unchanged, else add only what's missing), restores
+  names, and reports per-step progress. Sub-on-stereo-pair is out (hardware-rejected).
 - ✅ **Room renaming** from the room / HT detail pages (`renameRoom` + `rename_dialog`).
 - ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
   all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't

@@ -2,9 +2,11 @@
 // Sonos system. Drives the real UI: scan → create a profile from the current
 // state → apply it → verify the home theater is intact → delete the profile.
 //
-// Applying a just-captured profile re-asserts the CURRENT layout, so the system
-// ends where it started (the staged re-bond does tear down + rebuild the HT, and
-// wipes Trueplay — re-tune in the iOS Sonos app afterward).
+// Applying a just-captured profile targets the CURRENT layout, so the diff-based
+// apply (_applyHtTarget) is a NO-OP — zero bonding writes, no teardown, no
+// Trueplay wipe. The HT-intact assertions below therefore also prove the no-op
+// path left everything bonded. (If this apply suddenly takes minutes again, the
+// diff broke and it's falling back to a full rebuild.)
 //
 //   flutter test integration_test/profile_e2e_test.dart -d <emulator>
 

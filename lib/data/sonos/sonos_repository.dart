@@ -273,25 +273,6 @@ class SonosRepository {
     }
   }
 
-  /// Unbonds every satellite from [member] so the coordinator is bare. Profile
-  /// apply does this before re-bonding a saved layout: `AddHTSatellite` rejects
-  /// (UPnPError 800) a map that would *drop* currently-bonded speakers, so a
-  /// rebuild must start from bare (matches the proven Phase 0 sequence).
-  Future<void> stripHomeTheater({
-    required SonosDevice coordinator,
-    required ZoneGroupMember member,
-  }) async {
-    final ip = coordinator.ip;
-    if (ip == null) return;
-    final sats = <String>{
-      ...member.channelAssignments.values,
-      ...member.satellites.map((s) => s.uuid),
-    };
-    for (final uuid in sats) {
-      await _deviceProps.removeHtSatellite(soundbarIp: ip, satelliteUuid: uuid);
-    }
-  }
-
   /// Sets a speaker's room name (used to restore names on profile-apply), only
   /// writing if it differs — preserving the current icon/configuration.
   Future<void> setRoomName({required String ip, required String name}) async {

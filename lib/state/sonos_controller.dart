@@ -85,11 +85,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   }
 
   /// Bonds one or more roles ([additions]: channel → speaker) onto the
-  /// soundbar in a single guided pass — fronts (LF/RF or an Amp on both),
-  /// surrounds (LR/RR), and/or a sub (SW). Stages the writes per the Phase 0
-  /// finding (surrounds+sub first, then fronts) and emits per-step progress via
-  /// [applyProgressProvider] so the UI shows which step is active and exactly
-  /// where it failed. Each stage verifies + re-asserts via [bondAndVerify].
+  /// soundbar — fronts (LF/RF or an Amp on both), surrounds (LR/RR), and/or a
+  /// sub (SW). Overlays the additions on the existing layout and applies the
+  /// diff via [_applyHtTarget] (additive bond, no strip), emitting per-step
+  /// progress via [applyProgressProvider].
   Future<void> applyHomeTheaterLayout({
     required ZoneGroupMember soundbar,
     required SonosDevice soundbarDevice,
@@ -97,64 +96,40 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   }) async {
     if (additions.isEmpty) return;
 
-    bool isFront(SonosChannel c) =>
-        c == SonosChannel.leftFront || c == SonosChannel.rightFront;
-    final addsFronts = additions.keys.any(isFront);
-    final addsNonFronts = additions.keys.any((c) => !isFront(c));
-
-    // Desired = existing layout overlaid with the new assignments.
-    final desired = <SonosChannel, String>{
-      ...soundbar.channelAssignments,
-      for (final e in additions.entries) e.key: e.value.uuid,
-    };
+    // Existing layout overlaid with the new assignments → the full target map.
+    final target = front_layout.buildLayoutMap(
+      soundbar: soundbar,
+      soundbarDevice: soundbarDevice,
+      desired: {
+        ...soundbar.channelAssignments,
+        for (final e in additions.entries) e.key: e.value.uuid,
+      },
+    );
 
     final progress = ref.read(applyProgressProvider.notifier);
     final tracker = ApplyProgress(
-      [
-        if (addsNonFronts)
-          const ApplyStep(id: 'surrounds', label: 'Bond surrounds & sub'),
-        if (addsFronts)
-          const ApplyStep(id: 'fronts', label: 'Bond front speakers'),
-      ],
+      [const ApplyStep(id: 'bond', label: 'Set up home theater')],
       onChange: progress.set,
     );
 
     final previous = state.value;
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
-      SonosSystem? sys = previous;
-
-      Future<void> stage(String id, Map<SonosChannel, String> roles) async {
-        tracker.start(id);
-        try {
-          sys = await _repo.bondAndVerify(
-            coordinator: soundbarDevice,
-            target: front_layout.buildLayoutMap(
-              soundbar: soundbar,
-              soundbarDevice: soundbarDevice,
-              desired: roles,
-            ),
-            previous: sys,
-            onNote: (n) => tracker.note(id, n),
-          );
-          tracker.done(id);
-        } catch (e) {
-          tracker.fail(id, '$e');
-          rethrow;
-        }
+      tracker.start('bond');
+      try {
+        final sys = await _applyHtTarget(
+          bar: soundbarDevice,
+          current: soundbar,
+          target: target,
+          sys: previous ?? await _repo.discover(),
+          note: (n) => tracker.note('bond', n),
+        );
+        tracker.done('bond');
+        return sys;
+      } catch (e) {
+        tracker.fail('bond', '$e');
+        rethrow;
       }
-
-      // Stage 1: everything except fronts (so satellites settle before fronts
-      // are layered on — the order that proved stable on hardware).
-      if (addsNonFronts) {
-        await stage('surrounds',
-            {for (final e in desired.entries) if (!isFront(e.key)) e.key: e.value});
-      }
-      // Stage 2: the full layout (adds the fronts).
-      if (addsFronts) {
-        await stage('fronts', desired);
-      }
-      return sys ?? await _repo.discover();
     });
     state = result;
     if (result.hasError) rethrowLast(result);
@@ -265,27 +240,53 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             sys = await _settleRead(sys, bar.ip!);
           }
         }
-        // Strip the coordinator to bare first — AddHTSatellite rejects a map that
-        // would drop currently-bonded speakers, so a rebuild must start clean.
+        // Diff against the live layout and apply only what changed — no strip.
+        // A re-applied/unchanged layout is a no-op (zero writes); otherwise
+        // remove just the satellites that move or leave, then additively bond.
+        // Confirmed on hardware (tool/diff_apply_spike.dart) that additive
+        // AddHTSatellite holds without stripping, and is more reliable than a
+        // full rebuild-from-bare since it only bonds what's actually missing.
         final cur = sys.allMembers
             .where((m) => m.uuid == bar!.uuid)
             .cast<ZoneGroupMember?>()
             .firstOrNull;
-        if (cur != null && cur.channelAssignments.isNotEmpty) {
-          note('clearing current layout');
-          await _repo.stripHomeTheater(coordinator: bar!, member: cur);
-          sys = await _settleRead(sys, bar.ip!);
-        }
-        // Re-bond the full saved layout in one converging call. From a bare bar
-        // a single full map needs a few re-asserts to settle (Sonos drops then
-        // re-accepts satellites mid-reshuffle); bondAndVerify retries through the
-        // transient timeouts/UPnPErrors until every channel is present.
-        note('bonding ${satUuids.length} speakers');
-        sys = await _repo.bondAndVerify(
-            coordinator: bar!, target: fullTarget, previous: sys, onNote: note);
+        sys = await _applyHtTarget(
+          bar: bar!,
+          current: cur ?? ZoneGroupMember(uuid: bar.uuid, zoneName: e.label),
+          target: fullTarget,
+          sys: sys,
+          note: note,
+        );
         await _repo.setRoomName(ip: bar.ip!, name: e.names[bar.uuid] ?? bar.roomName);
         return sys;
     }
+  }
+
+  /// Brings the coordinator [bar]'s live layout to [target] with the minimum
+  /// writes: skip entirely when unchanged, `RemoveHTSatellite` only the
+  /// satellites that move/leave (AddHTSatellite 800s on a map that would drop
+  /// them), then additively `bondAndVerify` the target. Shared by profile-apply
+  /// and the in-app HT setup flow.
+  Future<SonosSystem> _applyHtTarget({
+    required SonosDevice bar,
+    required ZoneGroupMember current,
+    required ChannelMap target,
+    required SonosSystem sys,
+    required void Function(String) note,
+  }) async {
+    final diff = front_layout.diffHtLayout(current: current, target: target);
+    if (diff.isNoOp) {
+      note('layout unchanged — nothing to do');
+      return sys;
+    }
+    if (diff.toRemove.isNotEmpty) {
+      note('removing ${diff.toRemove.length} changed speakers');
+      await _repo.removeHtSatellites(soundbarIp: bar.ip!, uuids: diff.toRemove);
+      sys = await _settleRead(sys, bar.ip!);
+    }
+    note('bonding ${target.entries.length - 1} speakers');
+    return _repo.bondAndVerify(
+        coordinator: bar, target: target, previous: sys, onNote: note);
   }
 
   /// The coordinator/pair-primary UUID that currently owns [uuid] as a bonded
