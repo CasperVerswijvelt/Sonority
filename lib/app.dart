@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -107,11 +109,16 @@ class SonorityApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
+        // Material You only on Android. On macOS `dynamic_color` returns the
+        // system accent (not Material You), which would diverge from Android —
+        // so Apple platforms ignore it and use our fixed seed instead.
+        final useDynamic = Platform.isAndroid;
         return MaterialApp.router(
           title: 'Sonority',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(lightDynamic?.harmonized()),
-          darkTheme: AppTheme.dark(darkDynamic?.harmonized()),
+          theme: AppTheme.light(useDynamic ? lightDynamic?.harmonized() : null),
+          darkTheme:
+              AppTheme.dark(useDynamic ? darkDynamic?.harmonized() : null),
           themeMode: ThemeMode.system,
           routerConfig: _router,
         );

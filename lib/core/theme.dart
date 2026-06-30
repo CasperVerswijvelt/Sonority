@@ -1,17 +1,95 @@
 import 'package:flutter/material.dart';
 
-/// Material 3 theming for Sonority. A calm, speaker-y indigo seed with full
-/// light/dark support; callers may override with platform dynamic color.
+/// Material 3 theming for Sonority. Full light/dark support; callers may
+/// override with platform dynamic color (Material You) where available.
 class AppTheme {
-  static const Color _seed = Color(0xFF4F5BD5);
-
   static ThemeData light([ColorScheme? dynamicScheme]) =>
-      _build(dynamicScheme ?? ColorScheme.fromSeed(seedColor: _seed));
+      _build(dynamicScheme ?? _lightFallback);
 
-  static ThemeData dark([ColorScheme? dynamicScheme]) => _build(
-        dynamicScheme ??
-            ColorScheme.fromSeed(seedColor: _seed, brightness: Brightness.dark),
-      );
+  static ThemeData dark([ColorScheme? dynamicScheme]) =>
+      _build(dynamicScheme ?? _darkFallback);
+
+  // Fallback schemes for platforms without Material You (iOS/macOS). These are
+  // the EXACT schemes Android's `dynamic_color` produces from the Pixel
+  // emulator wallpaper (seed ≈ 0xFF475D92) — captured verbatim rather than
+  // re-derived via `fromSeed`, because the dynamic palette flattens every
+  // `surfaceContainer*` role to one tone and `fromSeed` does not, which is what
+  // made macOS diverge. Keep in sync if the reference look changes.
+  static const _lightFallback = ColorScheme(
+    brightness: Brightness.light,
+    primary: Color(0xFF475D92),
+    onPrimary: Color(0xFFFFFFFF),
+    primaryContainer: Color(0xFFD9E2FF),
+    onPrimaryContainer: Color(0xFF001945),
+    secondary: Color(0xFF575E71),
+    onSecondary: Color(0xFFFFFFFF),
+    secondaryContainer: Color(0xFFDCE2F9),
+    onSecondaryContainer: Color(0xFF151B2C),
+    tertiary: Color(0xFF725572),
+    onTertiary: Color(0xFFFFFFFF),
+    tertiaryContainer: Color(0xFFFDD7FA),
+    onTertiaryContainer: Color(0xFF2A122C),
+    error: Color(0xFFBB0947),
+    onError: Color(0xFFFFFFFF),
+    errorContainer: Color(0xFFFDDADE),
+    onErrorContainer: Color(0xFF400013),
+    surface: Color(0xFFFEFBFF),
+    onSurface: Color(0xFF1A1B20),
+    onSurfaceVariant: Color(0xFF44464F),
+    surfaceContainerHighest: Color(0xFFFEFBFF),
+    surfaceContainerHigh: Color(0xFFFEFBFF),
+    surfaceContainer: Color(0xFFFEFBFF),
+    surfaceContainerLow: Color(0xFFFEFBFF),
+    surfaceContainerLowest: Color(0xFFFEFBFF),
+    surfaceDim: Color(0xFFFEFBFF),
+    surfaceBright: Color(0xFFFEFBFF),
+    outline: Color(0xFF757780),
+    outlineVariant: Color(0xFFC5C6D0),
+    inverseSurface: Color(0xFF2F3036),
+    onInverseSurface: Color(0xFFF1F0F7),
+    inversePrimary: Color(0xFFB0C6FF),
+    shadow: Color(0xFF000000),
+    scrim: Color(0xFF000000),
+    surfaceTint: Color(0xFF475D92),
+  );
+
+  static const _darkFallback = ColorScheme(
+    brightness: Brightness.dark,
+    primary: Color(0xFFB0C6FF),
+    onPrimary: Color(0xFF152E60),
+    primaryContainer: Color(0xFF2F4578),
+    onPrimaryContainer: Color(0xFFD9E2FF),
+    secondary: Color(0xFFC0C6DC),
+    onSecondary: Color(0xFF2A3042),
+    secondaryContainer: Color(0xFF404659),
+    onSecondaryContainer: Color(0xFFDCE2F9),
+    tertiary: Color(0xFFE0BBDD),
+    onTertiary: Color(0xFF412742),
+    tertiaryContainer: Color(0xFF593D59),
+    onTertiaryContainer: Color(0xFFFDD7FA),
+    error: Color(0xFFFCB4BD),
+    onError: Color(0xFF670023),
+    errorContainer: Color(0xFF910034),
+    onErrorContainer: Color(0xFFFCB4BD),
+    surface: Color(0xFF1A1B20),
+    onSurface: Color(0xFFE2E2E9),
+    onSurfaceVariant: Color(0xFFC5C6D0),
+    surfaceContainerHighest: Color(0xFF1A1B20),
+    surfaceContainerHigh: Color(0xFF1A1B20),
+    surfaceContainer: Color(0xFF1A1B20),
+    surfaceContainerLow: Color(0xFF1A1B20),
+    surfaceContainerLowest: Color(0xFF1A1B20),
+    surfaceDim: Color(0xFF1A1B20),
+    surfaceBright: Color(0xFF1A1B20),
+    outline: Color(0xFF8F9099),
+    outlineVariant: Color(0xFF44464F),
+    inverseSurface: Color(0xFFE2E2E9),
+    onInverseSurface: Color(0xFF2F3036),
+    inversePrimary: Color(0xFF475D92),
+    shadow: Color(0xFF000000),
+    scrim: Color(0xFF000000),
+    surfaceTint: Color(0xFFB0C6FF),
+  );
 
   static ThemeData _build(ColorScheme scheme) {
     // The page background must sit clearly BELOW the cards / bottom nav (both
