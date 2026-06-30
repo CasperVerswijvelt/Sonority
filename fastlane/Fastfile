@@ -27,17 +27,37 @@ def asc_key
   )
 end
 
+# Run Flutter in the pre-bundler env. Under `bundle exec` the bundler GEM_HOME/PATH
+# shadows Homebrew's CocoaPods, so flutter's shell-out reports "CocoaPods installed
+# but broken" and skips pod install. with_unbundled_env restores the working pod.
+def flutter_build(args)
+  Bundler.with_unbundled_env { sh("#{FLUTTER} #{args}") }
+end
+
+# gym/build_app has no api_key option, so the App Store Connect key has to reach
+# xcodebuild directly for automatic provisioning (-allowProvisioningUpdates).
+# Without these it falls back to the Apple ID logged into Xcode and fails.
+def prov_xcargs
+  # ASC_KEY_FILEPATH is anchored at the repo root (../from this fastlane dir);
+  # expand against it so cwd at eval time can't double the path.
+  key_path = File.expand_path(ENV.fetch("ASC_KEY_FILEPATH"), File.expand_path("..", __dir__))
+  "-allowProvisioningUpdates " \
+    "-authenticationKeyPath #{key_path} " \
+    "-authenticationKeyID #{ENV.fetch("ASC_KEY_ID")} " \
+    "-authenticationKeyIssuerID #{ENV.fetch("ASC_ISSUER_ID")}"
+end
+
 platform :ios do
   desc "Build and upload an iOS build to TestFlight"
   lane :beta do
     key = asc_key
-    sh("#{FLUTTER} build ios --release --no-codesign")
+    flutter_build("build ios --release --no-codesign")
     build_app(
       workspace: "ios/Runner.xcworkspace",
       scheme: "Runner",
       export_method: "app-store",
       output_directory: "build/fastlane-ios",
-      xcargs: "-allowProvisioningUpdates",
+      xcargs: prov_xcargs,
     )
     upload_to_testflight(api_key: key, skip_waiting_for_build_processing: true)
   end
@@ -45,13 +65,13 @@ platform :ios do
   desc "Build and submit the iOS app for App Store review"
   lane :release do
     key = asc_key
-    sh("#{FLUTTER} build ios --release --no-codesign")
+    flutter_build("build ios --release --no-codesign")
     build_app(
       workspace: "ios/Runner.xcworkspace",
       scheme: "Runner",
       export_method: "app-store",
       output_directory: "build/fastlane-ios",
-      xcargs: "-allowProvisioningUpdates",
+      xcargs: prov_xcargs,
     )
     upload_to_app_store(
       api_key: key,
@@ -68,13 +88,13 @@ platform :mac do
   desc "Build and upload a macOS build to TestFlight"
   lane :beta do
     key = asc_key
-    sh("#{FLUTTER} build macos --release")
+    flutter_build("build macos --release")
     build_app(
       workspace: "macos/Runner.xcworkspace",
       scheme: "Runner",
       export_method: "app-store",
       output_directory: "build/fastlane-macos",
-      xcargs: "-allowProvisioningUpdates",
+      xcargs: prov_xcargs,
     )
     upload_to_testflight(api_key: key, skip_waiting_for_build_processing: true)
   end
@@ -82,13 +102,13 @@ platform :mac do
   desc "Build and submit the macOS app for App Store review"
   lane :release do
     key = asc_key
-    sh("#{FLUTTER} build macos --release")
+    flutter_build("build macos --release")
     build_app(
       workspace: "macos/Runner.xcworkspace",
       scheme: "Runner",
       export_method: "app-store",
       output_directory: "build/fastlane-macos",
-      xcargs: "-allowProvisioningUpdates",
+      xcargs: prov_xcargs,
     )
     upload_to_app_store(
       api_key: key,
