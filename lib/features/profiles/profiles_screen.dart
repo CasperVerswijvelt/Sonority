@@ -4,9 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/bonding_progress_screen.dart';
 import '../widgets/collapsing_scaffold.dart';
 import 'profile.dart';
-import 'profile_apply_screen.dart';
 import 'profile_controller.dart';
 
 /// The Profiles tab: saved layouts you can re-apply in one tap.
@@ -80,9 +80,16 @@ class ProfilesScreen extends ConsumerWidget {
       for (final i in issues)
         if (i.blocked) i.entity.primaryUuid
     };
-    await Navigator.of(context).push(MaterialPageRoute<bool>(
-      builder: (_) => ProfileApplyScreen(profile: p, skip: skip),
-    ));
+    final ctrl = ref.read(sonosControllerProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+    final outcome = await showBondingProgress(
+      context,
+      title: 'Applying “${p.name}”',
+      run: () => ctrl.applyProfile(p, skip: skip),
+    );
+    if (outcome == BondingOutcome.success) {
+      messenger.showSnackBar(SnackBar(content: Text('Applied “${p.name}”.')));
+    }
   }
 
   Future<void> _confirmDelete(

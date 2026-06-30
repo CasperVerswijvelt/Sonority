@@ -6,7 +6,7 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/bondable_speaker_tile.dart';
-import '../widgets/busy_view.dart';
+import '../widgets/bonding_progress_screen.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/speaker_side_card.dart';
 
@@ -24,7 +24,6 @@ class _StereoPairFlowState extends ConsumerState<StereoPairFlow>
     with IdentifyMixin {
   int _step = 0;
   final List<String> _selected = []; // [left, right]
-  bool _applying = false;
 
   @override
   Widget build(BuildContext context) {
@@ -33,19 +32,6 @@ class _StereoPairFlowState extends ConsumerState<StereoPairFlow>
 
     if (system == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    if (_applying) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Create stereo pair')),
-        body: const SafeArea(
-          child: BusyView(
-            title: 'Pairing your speakers…',
-            subtitle: 'Bonding them and waiting for Sonos to apply the change. '
-                'This can take up to ~20 seconds.',
-          ),
-        ),
-      );
     }
 
     return Scaffold(
@@ -132,23 +118,23 @@ class _StereoPairFlowState extends ConsumerState<StereoPairFlow>
     final left = system.device(_selected[0]);
     final right = system.device(_selected[1]);
     if (left == null || right == null) return;
-    setState(() => _applying = true);
+    final controller = ref.read(sonosControllerProvider.notifier);
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
-    try {
-      await ref
-          .read(sonosControllerProvider.notifier)
-          .createStereoPair(left: left, right: right);
+    final outcome = await showBondingProgress(
+      context,
+      title: 'Create stereo pair',
+      run: () => controller.createStereoPair(left: left, right: right),
+    );
+    if (outcome == BondingOutcome.success) {
       messenger.showSnackBar(SnackBar(
           content: Text('Paired ${left.roomName} + ${right.roomName}.')));
       router.pop();
-    } catch (e) {
-      if (mounted) setState(() => _applying = false);
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-            'Couldn’t create the pair — Sonos may not allow these two speakers '
-            'together. ($e)'),
-        duration: const Duration(seconds: 6),
+    } else if (outcome == BondingOutcome.failed) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Couldn’t create the pair — Sonos may not allow these '
+            'two speakers together. See the log for details.'),
+        duration: Duration(seconds: 6),
       ));
     }
   }

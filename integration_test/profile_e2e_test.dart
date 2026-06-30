@@ -77,23 +77,22 @@ void main() {
         timeout: const Duration(seconds: 10), what: 'confirm dialog');
     await tester.tap(find.widgetWithText(TextButton, 'Apply'));
 
-    // 5. Wait for the apply screen to finish. On success it auto-pops back to
-    //    the profiles list; on failure it shows Retry/Close.
-    var failed = false;
+    // 5. The shared bonding dialog runs the apply, then shows a 'Done' button
+    //    (and 'Retry' too on failure). It does NOT auto-pop. Wait for 'Done',
+    //    note whether 'Retry' is also present (= failure), tap Done to close.
     await _until(
       tester,
-      () {
-        if (_text('Retry') && _text('Close')) {
-          failed = true;
-          return true;
-        }
-        // Back on the list when the New-profile FAB is visible again.
-        return _text('New profile');
-      },
+      () => _text('Done'),
       timeout: const Duration(seconds: 240),
-      what: 'apply to complete',
+      what: 'apply to finish',
     );
+    final failed = _text('Retry');
     dumpProgress(failed ? 'FAILED' : 'done');
+    await tester.tap(find.widgetWithText(FilledButton, 'Done').evaluate().isNotEmpty
+        ? find.widgetWithText(FilledButton, 'Done')
+        : find.widgetWithText(OutlinedButton, 'Done'));
+    await _until(tester, () => _text('New profile'),
+        timeout: const Duration(seconds: 10), what: 'back on list');
     if (failed) throw TestFailure('Apply failed — see progress dump above.');
     debugPrint('E2E: apply completed, back on list');
 

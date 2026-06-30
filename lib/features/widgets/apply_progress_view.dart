@@ -51,6 +51,11 @@ class ApplyProgressView extends StatelessWidget {
               currentStep: current,
               physics: const NeverScrollableScrollPhysics(),
               controlsBuilder: (_, __) => const SizedBox.shrink(),
+              // Pulsate the active step's circle; others keep the default icon.
+              stepIconBuilder: (index, _) =>
+                  index == current && steps[index].status == ApplyStatus.active
+                      ? const _PulsingDot()
+                      : null,
               steps: [
                 for (final s in steps)
                   Step(
@@ -107,5 +112,55 @@ class _StepContent extends StatelessWidget {
     }
     // Pending/done steps stay collapsed — no body needed.
     return const SizedBox.shrink();
+  }
+}
+
+/// A softly pulsating dot used as the active step's icon in the timeline.
+class _PulsingDot extends StatefulWidget {
+  const _PulsingDot();
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primary;
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        final t = Curves.easeInOut.transform(_c.value);
+        return Center(
+          child: Container(
+            width: 14 + 8 * t,
+            height: 14 + 8 * t,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.2 + 0.5 * (1 - t)),
+            ),
+            child: Center(
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

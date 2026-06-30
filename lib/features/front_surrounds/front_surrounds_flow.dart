@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
-import '../widgets/apply_progress_view.dart';
+import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/identify_controls.dart';
@@ -30,8 +30,6 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   final List<String> _fronts = []; // uuids, order [left, right] (or [amp])
   final List<String> _surrounds = []; // uuids, order [rearLeft, rearRight]
   String? _sub; // uuid
-  bool _applying = false;
-  bool _failed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -44,47 +42,6 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
 
     if (system == null || member == null || soundbar == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    if (_applying) {
-      final steps = ref.watch(applyProgressProvider);
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Setting up home theater'),
-          automaticallyImplyLeading: _failed,
-        ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(child: ApplyProgressView(steps: steps)),
-              if (_failed)
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => setState(() {
-                            _applying = false;
-                            _failed = false;
-                          }),
-                          child: const Text('Back'),
-                        ),
-                      ),
-                      Gap.s,
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () => _apply(member, soundbar),
-                          child: const Text('Retry'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
-      );
     }
 
     // Speakers free to assign, minus ones already chosen in another role here.
@@ -300,22 +257,19 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     final controller = ref.read(sonosControllerProvider.notifier);
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
-    setState(() {
-      _applying = true;
-      _failed = false;
-    });
-    try {
-      await controller.applyHomeTheaterLayout(
+    final outcome = await showBondingProgress(
+      context,
+      title: 'Set up home theater',
+      run: () => controller.applyHomeTheaterLayout(
         soundbar: member,
         soundbarDevice: soundbar,
         additions: additions,
-      );
+      ),
+    );
+    if (outcome == BondingOutcome.success) {
       messenger.showSnackBar(
           const SnackBar(content: Text('Home theater updated!')));
       router.pop();
-    } catch (_) {
-      // Keep the progress view up so the user sees which step failed + why.
-      if (mounted) setState(() => _failed = true);
     }
   }
 }

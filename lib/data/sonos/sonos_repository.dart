@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/sonos_models.dart';
+import 'cancellation.dart';
 import 'channel_map.dart' show ChannelMap;
 import 'device_description.dart';
 import 'device_properties.dart';
@@ -127,6 +128,7 @@ class SonosRepository {
     int retries = 8,
     Duration settle = const Duration(seconds: 16),
     void Function(String note)? onNote,
+    CancellationToken? cancel,
   }) async {
     final ip = coordinator.ip;
     if (ip == null) throw Exception('Coordinator IP unknown; rescan and retry.');
@@ -144,6 +146,7 @@ class SonosRepository {
     SonosSystem? system = previous;
     List<SonosChannel> missing = wanted.keys.toList();
     for (var attempt = 1; attempt <= retries; attempt++) {
+      cancel?.throwIfCancelled();
       try {
         await _deviceProps.addHtSatellite(soundbarIp: ip, map: target);
       } on TimeoutException {
@@ -158,7 +161,7 @@ class SonosRepository {
         // and only fail if the topology never reaches the target.
         onNote?.call('attempt $attempt: write error, re-asserting');
       }
-      await Future<void>.delayed(settle);
+      await interruptibleDelay(settle, cancel);
       try {
         system = system == null ? await discover() : await refresh(system, ip);
       } catch (_) {
@@ -190,8 +193,10 @@ class SonosRepository {
   Future<void> removeHtSatellites({
     required String soundbarIp,
     required Iterable<String> uuids,
+    CancellationToken? cancel,
   }) async {
     for (final uuid in uuids) {
+      cancel?.throwIfCancelled();
       await _deviceProps.removeHtSatellite(soundbarIp: soundbarIp, satelliteUuid: uuid);
     }
   }

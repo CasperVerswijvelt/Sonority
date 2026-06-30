@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
+import '../widgets/bonding_progress_screen.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/collapsing_scaffold.dart';
 import '../widgets/diagram_labels.dart';
@@ -139,16 +140,20 @@ class HomeTheaterScreen extends ConsumerWidget {
     );
     if (ok != true || !context.mounted) return;
 
+    final controller = ref.read(sonosControllerProvider.notifier);
     final messenger = ScaffoldMessenger.of(context);
-    try {
-      await ref.read(sonosControllerProvider.notifier).removeHtRoles(
-            soundbar: member,
-            soundbarDevice: device,
-            channels: channels,
-          );
+    final outcome = await showBondingProgress(
+      context,
+      title: 'Remove $label',
+      run: () => controller.removeHtRoles(
+        soundbar: member,
+        soundbarDevice: device,
+        channels: channels,
+        label: label,
+      ),
+    );
+    if (outcome == BondingOutcome.success) {
       messenger.showSnackBar(SnackBar(content: Text('$label removed.')));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
     }
   }
 }

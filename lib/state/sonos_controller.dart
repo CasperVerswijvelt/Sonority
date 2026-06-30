@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/sonos_models.dart';
 import '../data/sonos/apply_progress.dart';
+import '../data/sonos/cancellation.dart';
 import '../data/sonos/channel_map.dart';
 import '../data/sonos/front_layout.dart' as front_layout;
 import '../data/sonos/identify_service.dart';
@@ -20,11 +21,33 @@ class ApplyProgressNotifier extends Notifier<List<ApplyStep>> {
   @override
   List<ApplyStep> build() => const [];
   void set(List<ApplyStep> steps) => state = steps;
+  void clear() => state = const [];
 }
 
 final applyProgressProvider =
     NotifierProvider<ApplyProgressNotifier, List<ApplyStep>>(
         ApplyProgressNotifier.new);
+
+/// Accumulating raw log of the in-flight bonding operation — the same step/note
+/// events as [applyProgressProvider], kept as timestamped lines for the
+/// power-user log view + copy-out. Cleared at the start of each operation.
+class OperationLogNotifier extends Notifier<List<String>> {
+  @override
+  List<String> build() => const [];
+
+  void add(String line) {
+    final now = DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final ts = '${two(now.hour)}:${two(now.minute)}:${two(now.second)}';
+    state = [...state, '$ts  $line'];
+  }
+
+  void clear() => state = const [];
+}
+
+final operationLogProvider =
+    NotifierProvider<OperationLogNotifier, List<String>>(
+        OperationLogNotifier.new);
 
 /// Plays a chime on a speaker to help identify Left vs Right. Holds a local
 /// HTTP server, so it's torn down when the provider is disposed.
@@ -56,6 +79,15 @@ final sonosControllerProvider =
 /// surfaces a message to the UI.
 class SonosController extends AsyncNotifier<SonosSystem?> {
   String? _lastIp;
+
+  /// The in-flight bonding operation's cancel token, if any. Set at the start of
+  /// each bonding op and tripped by [cancelActiveOperation] (the Abort button).
+  CancellationToken? _activeOp;
+
+  /// Aborts the in-flight bonding operation at its next checkpoint. Cooperative:
+  /// an in-flight SOAP write still completes, but the sequence stops before the
+  /// next step — which is why the UI warns it can leave an in-between state.
+  void cancelActiveOperation() => _activeOp?.cancel();
 
   @override
   Future<SonosSystem?> build() async => null;
@@ -106,11 +138,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       },
     );
 
-    final progress = ref.read(applyProgressProvider.notifier);
-    final tracker = ApplyProgress(
-      [const ApplyStep(id: 'bond', label: 'Set up home theater')],
-      onChange: progress.set,
-    );
+    final tracker = _newTracker(
+        [const ApplyStep(id: 'bond', label: 'Set up home theater')]);
+    _activeOp = CancellationToken();
 
     final previous = state.value;
     state = const AsyncValue.loading();
@@ -126,13 +156,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         );
         tracker.done('bond');
         return sys;
+      } on OperationCancelled {
+        rethrow;
       } catch (e) {
         tracker.fail('bond', '$e');
         rethrow;
       }
     });
-    state = result;
-    if (result.hasError) rethrowLast(result);
+    _commit(result, previous);
   }
 
   /// Re-applies a saved [profile] to the live system: one progress step per
@@ -147,14 +178,11 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         profile.entities.where((e) => !skip.contains(e.primaryUuid)).toList();
     if (entities.isEmpty) return;
 
-    final progress = ref.read(applyProgressProvider.notifier);
-    final tracker = ApplyProgress(
-      [
-        for (final e in entities)
-          ApplyStep(id: e.primaryUuid, label: '${e.kindLabel}: ${e.label}'),
-      ],
-      onChange: progress.set,
-    );
+    final tracker = _newTracker([
+      for (final e in entities)
+        ApplyStep(id: e.primaryUuid, label: '${e.kindLabel}: ${e.label}'),
+    ]);
+    _activeOp = CancellationToken();
 
     final previous = current;
     state = const AsyncValue.loading();
@@ -165,6 +193,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         try {
           sys = await _applyEntity(e, sys!, (n) => tracker.note(e.primaryUuid, n));
           tracker.done(e.primaryUuid);
+        } on OperationCancelled {
+          rethrow;
         } catch (err) {
           tracker.fail(e.primaryUuid, '$err');
           rethrow;
@@ -172,8 +202,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       }
       return sys ?? await _repo.discover();
     });
-    state = result;
-    if (result.hasError) rethrowLast(result);
+    _commit(result, previous);
   }
 
   Future<SonosSystem> _applyEntity(
@@ -281,12 +310,17 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     }
     if (diff.toRemove.isNotEmpty) {
       note('removing ${diff.toRemove.length} changed speakers');
-      await _repo.removeHtSatellites(soundbarIp: bar.ip!, uuids: diff.toRemove);
+      await _repo.removeHtSatellites(
+          soundbarIp: bar.ip!, uuids: diff.toRemove, cancel: _activeOp);
       sys = await _settleRead(sys, bar.ip!);
     }
     note('bonding ${target.entries.length - 1} speakers');
     return _repo.bondAndVerify(
-        coordinator: bar, target: target, previous: sys, onNote: note);
+        coordinator: bar,
+        target: target,
+        previous: sys,
+        onNote: note,
+        cancel: _activeOp);
   }
 
   /// The coordinator/pair-primary UUID that currently owns [uuid] as a bonded
@@ -308,7 +342,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   }
 
   Future<SonosSystem> _settleRead(SonosSystem sys, String ip) async {
-    await Future<void>.delayed(const Duration(seconds: 4));
+    await interruptibleDelay(const Duration(seconds: 4), _activeOp);
     try {
       return await _repo.refresh(sys, ip);
     } catch (_) {
@@ -355,6 +389,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     required ZoneGroupMember soundbar,
     required SonosDevice soundbarDevice,
     required Set<SonosChannel> channels,
+    String label = 'speakers',
   }) async {
     final ip = soundbarDevice.ip;
     if (ip == null) throw Exception('Soundbar IP unknown; rescan and retry.');
@@ -363,82 +398,127 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     };
     if (uuids.isEmpty) return;
 
+    final tracker = _newTracker([ApplyStep(id: 'remove', label: 'Remove $label')]);
+    _activeOp = CancellationToken();
+
     final previous = state.value;
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
-      await _repo.removeHtSatellites(soundbarIp: ip, uuids: uuids);
-      return _pollUntil(
-        previous: previous,
-        ip: ip,
-        until: (s) {
-          final m = s.allMembers
-              .where((x) => x.uuid == soundbar.uuid)
-              .cast<ZoneGroupMember?>()
-              .firstOrNull;
-          if (m == null) return true;
-          return channels.every((c) => !m.channelAssignments.containsKey(c));
-        },
-      );
+      tracker.start('remove');
+      try {
+        tracker.note('remove', 'unbonding ${uuids.length} speaker(s)');
+        await _repo.removeHtSatellites(
+            soundbarIp: ip, uuids: uuids, cancel: _activeOp);
+        tracker.note('remove', 'waiting for Sonos to settle');
+        final sys = await _pollUntil(
+          previous: previous,
+          ip: ip,
+          until: (s) {
+            final m = s.allMembers
+                .where((x) => x.uuid == soundbar.uuid)
+                .cast<ZoneGroupMember?>()
+                .firstOrNull;
+            if (m == null) return true;
+            return channels.every((c) => !m.channelAssignments.containsKey(c));
+          },
+        );
+        tracker.done('remove');
+        return sys;
+      } on OperationCancelled {
+        rethrow;
+      } catch (e) {
+        tracker.fail('remove', '$e');
+        rethrow;
+      }
     });
-    state = result;
-    if (result.hasError) rethrowLast(result);
+    _commit(result, previous);
   }
 
   Future<void> createStereoPair({
     required SonosDevice left,
     required SonosDevice right,
   }) async {
+    final tracker = _newTracker([
+      ApplyStep(id: 'pair', label: 'Pair ${left.roomName} + ${right.roomName}'),
+    ]);
+    _activeOp = CancellationToken();
+
     final previous = state.value;
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
-      await _repo.createStereoPair(left: left, right: right);
-      final system = await _pollUntil(
-        previous: previous,
-        ip: left.ip ?? _lastIp,
-        attempts: 8,
-        // Paired AND the right speaker has gone Invisible (left the room list);
-        // its Invisible flag lags the pair forming by a few seconds.
-        until: (s) =>
-            _isPaired(s, left.uuid, right.uuid) &&
-            !s.allMembers.any((m) => m.uuid == right.uuid),
-      );
-      // Sonos accepts the command (200) but silently no-ops incompatible pairs.
-      if (!_isPaired(system, left.uuid, right.uuid)) {
-        throw Exception(
-            'Sonos did not pair these speakers — they may be incompatible.');
+      tracker.start('pair');
+      try {
+        tracker.note('pair', 'creating stereo pair');
+        await _repo.createStereoPair(left: left, right: right);
+        tracker.note('pair', 'waiting for Sonos to confirm the pair');
+        final system = await _pollUntil(
+          previous: previous,
+          ip: left.ip ?? _lastIp,
+          attempts: 8,
+          // Paired AND the right speaker has gone Invisible (left the room list);
+          // its Invisible flag lags the pair forming by a few seconds.
+          until: (s) =>
+              _isPaired(s, left.uuid, right.uuid) &&
+              !s.allMembers.any((m) => m.uuid == right.uuid),
+        );
+        // Sonos accepts the command (200) but silently no-ops incompatible pairs.
+        if (!_isPaired(system, left.uuid, right.uuid)) {
+          throw Exception(
+              'Sonos did not pair these speakers — they may be incompatible.');
+        }
+        tracker.done('pair');
+        return system;
+      } on OperationCancelled {
+        rethrow;
+      } catch (e) {
+        tracker.fail('pair', '$e');
+        rethrow;
       }
-      return system;
     });
-    state = result;
-    if (result.hasError) rethrowLast(result);
+    _commit(result, previous);
   }
 
   Future<void> separateStereoPair({
     required SonosDevice left,
     required SonosDevice right,
   }) async {
+    final tracker =
+        _newTracker([const ApplyStep(id: 'separate', label: 'Separate stereo pair')]);
+    _activeOp = CancellationToken();
+
     final previous = state.value;
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
-      await _repo.separateStereoPair(left: left, right: right);
-      return _pollUntil(
-        previous: previous,
-        ip: left.ip ?? _lastIp,
-        attempts: 8,
-        // Wait for not-paired AND the right speaker's restored name to
-        // propagate (it briefly keeps the pair name until topology catches up).
-        until: (s) {
-          if (_isPaired(s, left.uuid, right.uuid)) return false;
-          final r = s.allMembers
-              .where((m) => m.uuid == right.uuid)
-              .cast<ZoneGroupMember?>()
-              .firstOrNull;
-          return r != null && r.zoneName != left.roomName;
-        },
-      );
+      tracker.start('separate');
+      try {
+        tracker.note('separate', 'separating + restoring room names');
+        await _repo.separateStereoPair(left: left, right: right);
+        tracker.note('separate', 'waiting for Sonos to settle');
+        final sys = await _pollUntil(
+          previous: previous,
+          ip: left.ip ?? _lastIp,
+          attempts: 8,
+          // Wait for not-paired AND the right speaker's restored name to
+          // propagate (it briefly keeps the pair name until topology catches up).
+          until: (s) {
+            if (_isPaired(s, left.uuid, right.uuid)) return false;
+            final r = s.allMembers
+                .where((m) => m.uuid == right.uuid)
+                .cast<ZoneGroupMember?>()
+                .firstOrNull;
+            return r != null && r.zoneName != left.roomName;
+          },
+        );
+        tracker.done('separate');
+        return sys;
+      } on OperationCancelled {
+        rethrow;
+      } catch (e) {
+        tracker.fail('separate', '$e');
+        rethrow;
+      }
     });
-    state = result;
-    if (result.hasError) rethrowLast(result);
+    _commit(result, previous);
   }
 
   bool _isPaired(SonosSystem system, String leftUuid, String rightUuid) {
@@ -461,7 +541,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   }) async {
     SonosSystem? system = previous;
     for (var i = 0; i < attempts; i++) {
-      await Future<void>.delayed(interval);
+      await interruptibleDelay(interval, _activeOp);
       try {
         system = system == null || ip == null
             ? await _repo.discover()
@@ -479,5 +559,30 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   void rethrowLast(AsyncValue<SonosSystem?> result) {
     final err = result.error;
     if (err != null) throw err;
+  }
+
+  /// Builds an [ApplyProgress] wired to both the live timeline
+  /// ([applyProgressProvider]) and the accumulating raw log
+  /// ([operationLogProvider]) — every bonding op uses this so the shared
+  /// progress screen shows both views from one source.
+  ApplyProgress _newTracker(List<ApplyStep> steps) => ApplyProgress(
+        steps,
+        onChange: ref.read(applyProgressProvider.notifier).set,
+        onLog: ref.read(operationLogProvider.notifier).add,
+      );
+
+  /// Finalizes a bonding op's [result] against the pre-op [previous] state.
+  /// A user **abort** is not an error: restore `state` to the last-known system
+  /// (the live layout may be mid-change — that's the warned-about case) and
+  /// rethrow [OperationCancelled] so the progress screen can close. Otherwise
+  /// behaves like the old `state = result; if (hasError) rethrowLast(result)`.
+  void _commit(AsyncValue<SonosSystem?> result, SonosSystem? previous) {
+    _activeOp = null;
+    if (result.error is OperationCancelled) {
+      state = AsyncData(previous);
+      throw const OperationCancelled();
+    }
+    state = result;
+    if (result.hasError) rethrowLast(result);
   }
 }
