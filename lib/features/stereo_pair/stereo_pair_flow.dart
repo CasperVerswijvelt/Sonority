@@ -247,12 +247,14 @@ class _Review extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('${left?.roomName ?? '?'} (L)  +  ${right?.roomName ?? '?'} (R)',
+        // Speaker TYPE, not room name — the two rooms merge into the pair, so
+        // the type is the useful label here.
+        Text('${left?.typeLabel ?? '?'} (L)  +  ${right?.typeLabel ?? '?'} (R)',
             style: theme.textTheme.titleMedium),
         Gap.s,
         if (mismatched)
           Text(
-            'Mismatched models (${left.modelName} + ${right.modelName}) — '
+            'Mismatched models (${left.typeLabel} + ${right.typeLabel}) — '
             'Sonos may reject genuinely incompatible hardware.',
             style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.tertiary),
           ),

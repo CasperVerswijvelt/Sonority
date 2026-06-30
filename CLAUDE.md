@@ -106,7 +106,7 @@ exactly this reason.
     modes are transient: the 8s `TimeoutException` AND `UPnPError 800` ("can't add
     a satellite mid-reshuffle") — the write still partially applies, so treat
     either as "go verify", never as fatal. This is `SonosRepository.bondAndVerify`
-    (retries=8), used by `SonosController.applyHomeTheaterLayout` / `applyProfile`.
+    (retries=10), used by `SonosController.applyHomeTheaterLayout` / `applyProfile`.
     **Apply the DIFF, don't strip-and-rebuild.** `AddHTSatellite` 800s only on a
     map that would *drop* a currently-bonded speaker — **adding** to a live HT is
     fine (confirmed on hardware, `tool/diff_apply_spike.dart`). So
@@ -116,7 +116,12 @@ exactly this reason.
     move/leave, then additively `bondAndVerify` the target. This is both faster
     and *more reliable* than the old strip-to-bare path — adding only the missing
     satellite(s) converges in ~1 attempt, whereas a full rebuild-from-bare is the
-    flaky case that needs many re-asserts. **Validated end-to-end on real
+    flaky case that needs many re-asserts. **A whole layout is applied in ONE
+    `bondAndVerify`, never staged.** A/B-tested on a real Beam (single vs
+    surrounds-then-fronts, 3 trials each): single-call rebuilt the full 5.1 from
+    bare in a steady **6 re-asserts** every time; **staging was worse** (each
+    phase reshuffles and the second disturbs the first → 7–24 re-asserts, often
+    past the cap). So don't reintroduce staging. **Validated end-to-end on real
     hardware** via the Android E2E test (`integration_test/profile_e2e_test.dart`,
     now a no-op apply). **Sub-on-a-stereo-pair is NOT supported** —
     `AddHTSatellite` on a pair coordinator returns UPnPError 401.

@@ -26,7 +26,9 @@ Future<BondingOutcome> showBondingProgress(
   final container = ProviderScope.containerOf(context, listen: false);
   container.read(applyProgressProvider.notifier).clear();
   container.read(operationLogProvider.notifier).clear();
-  final outcome = await Navigator.of(context).push<BondingOutcome>(
+  // Push on the ROOT navigator so the dialog covers the bottom nav bar too —
+  // bonding must fully block navigation while it runs.
+  final outcome = await Navigator.of(context, rootNavigator: true).push<BondingOutcome>(
     MaterialPageRoute(
       fullscreenDialog: true,
       builder: (_) => BondingProgressScreen(title: title, run: run),
@@ -130,42 +132,45 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: Text(widget.title),
-          actions: [
-            IconButton(
-              tooltip: 'Copy logs',
-              onPressed: _copyLogs,
-              icon: const Icon(Icons.copy_all),
+        // Large M3 title, matching the rest of the app's pages.
+        body: CustomScrollView(
+          slivers: [
+            SliverAppBar.large(
+              pinned: true,
+              automaticallyImplyLeading: false,
+              title: Text(widget.title),
+              actions: [
+                IconButton(
+                  tooltip: 'Copy logs',
+                  onPressed: _copyLogs,
+                  icon: const Icon(Icons.copy_all),
+                ),
+                IconButton(
+                  tooltip: _showLogs ? 'Show steps' : 'Show raw log',
+                  onPressed: () => setState(() => _showLogs = !_showLogs),
+                  icon: Icon(_showLogs
+                      ? Icons.view_timeline_outlined
+                      : Icons.terminal),
+                ),
+              ],
             ),
-            IconButton(
-              tooltip: _showLogs ? 'Show steps' : 'Show raw log',
-              onPressed: () => setState(() => _showLogs = !_showLogs),
-              icon: Icon(_showLogs
-                  ? Icons.view_timeline_outlined
-                  : Icons.terminal),
+            SliverFillRemaining(
+              hasScrollBody: true,
+              child: _showLogs
+                  ? const _RawLogView()
+                  : ApplyProgressView(steps: steps),
             ),
           ],
         ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: _showLogs
-                    ? const _RawLogView()
-                    : ApplyProgressView(steps: steps),
-              ),
-              _BottomBar(
-                finished: _finished,
-                failed: _failed,
-                aborting: _aborting,
-                onAbort: _confirmAbort,
-                onRetry: _retry,
-                onDone: () => Navigator.of(context).pop(
-                    _failed ? BondingOutcome.failed : BondingOutcome.success),
-              ),
-            ],
+        bottomNavigationBar: SafeArea(
+          child: _BottomBar(
+            finished: _finished,
+            failed: _failed,
+            aborting: _aborting,
+            onAbort: _confirmAbort,
+            onRetry: _retry,
+            onDone: () => Navigator.of(context).pop(
+                _failed ? BondingOutcome.failed : BondingOutcome.success),
           ),
         ),
       ),
@@ -243,11 +248,12 @@ class _BottomBar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final Widget child;
     if (!finished) {
-      child = OutlinedButton.icon(
+      // Same shape as the Done button, but red.
+      child = FilledButton(
         onPressed: aborting ? null : onAbort,
-        icon: const Icon(Icons.stop_circle_outlined),
-        label: Text(aborting ? 'Aborting…' : 'Abort'),
-        style: OutlinedButton.styleFrom(foregroundColor: scheme.error),
+        style: FilledButton.styleFrom(
+            backgroundColor: scheme.error, foregroundColor: scheme.onError),
+        child: Text(aborting ? 'Aborting…' : 'Abort'),
       );
     } else if (failed) {
       child = Row(

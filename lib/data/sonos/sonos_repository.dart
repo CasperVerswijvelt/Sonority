@@ -125,7 +125,10 @@ class SonosRepository {
     required SonosDevice coordinator,
     required ChannelMap target,
     required SonosSystem? previous,
-    int retries = 8,
+    // A full 5.1 rebuild from a bare bar measured a steady 6 re-asserts on
+    // hardware (single-call beat staged, which needed up to 24 — see CLAUDE.md);
+    // 10 leaves headroom. Incremental adds converge in 1–2.
+    int retries = 10,
     Duration settle = const Duration(seconds: 16),
     void Function(String note)? onNote,
     CancellationToken? cancel,

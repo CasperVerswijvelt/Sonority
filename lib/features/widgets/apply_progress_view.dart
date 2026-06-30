@@ -4,10 +4,14 @@ import '../../core/theme.dart';
 import '../../data/sonos/apply_progress.dart';
 
 /// Renders the live [ApplyStep] list of a multi-step bonding operation as a
-/// vertical timeline (the same `Stepper` look as the HT setup flow): each step
-/// is a bullet; the active step is expanded and shows live what it's doing
-/// (clearing, re-asserting, attempt N…). On failure the failing step shows the
-/// error. Used by the HT setup flow and profile-apply.
+/// minimal vertical timeline: a bare checkmark for done steps, a colored
+/// pulsing dot for the active step, a grey dot for to-do steps, and a thin
+/// connector between them. The active step shows live what it's doing
+/// (clearing, re-asserting, attempt N…); a failed step shows the error.
+///
+/// (This is deliberately NOT a Material [Stepper] — the bonding progress wants
+/// the lighter dot/checkmark look. The setup wizards keep their numbered
+/// `Stepper`.)
 class ApplyProgressView extends StatelessWidget {
   final List<ApplyStep> steps;
 
@@ -21,21 +25,11 @@ class ApplyProgressView extends StatelessWidget {
     }
     final failed = steps.any((s) => s.isFailed);
 
-    final activeIndex = steps.indexWhere((s) => s.status == ApplyStatus.active);
-    final failedIndex = steps.indexWhere((s) => s.isFailed);
-    final lastDone = steps.lastIndexWhere((s) => s.status == ApplyStatus.done);
-    final current = (activeIndex >= 0
-            ? activeIndex
-            : failedIndex >= 0
-                ? failedIndex
-                : (lastDone >= 0 ? lastDone : 0))
-        .clamp(0, steps.length - 1);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
           child: Text(
             failed
                 ? 'Something went wrong — see the step below.'
@@ -47,28 +41,11 @@ class ApplyProgressView extends StatelessWidget {
         ),
         Expanded(
           child: SingleChildScrollView(
-            child: Stepper(
-              currentStep: current,
-              physics: const NeverScrollableScrollPhysics(),
-              controlsBuilder: (_, __) => const SizedBox.shrink(),
-              // Pulsate the active step's circle; others keep the default icon.
-              stepIconBuilder: (index, _) =>
-                  index == current && steps[index].status == ApplyStatus.active
-                      ? const _PulsingDot()
-                      : null,
-              steps: [
-                for (final s in steps)
-                  Step(
-                    title: Text(s.label),
-                    state: switch (s.status) {
-                      ApplyStatus.done => StepState.complete,
-                      ApplyStatus.failed => StepState.error,
-                      _ => StepState.indexed,
-                    },
-                    isActive: s.status == ApplyStatus.active ||
-                        s.status == ApplyStatus.done,
-                    content: _StepContent(step: s),
-                  ),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+            child: Column(
+              children: [
+                for (var i = 0; i < steps.length; i++)
+                  _TimelineRow(step: steps[i], isLast: i == steps.length - 1),
               ],
             ),
           ),
@@ -78,44 +55,125 @@ class ApplyProgressView extends StatelessWidget {
   }
 }
 
-/// The expanded body shown under the active (or failed) step — its live detail.
-class _StepContent extends StatelessWidget {
+/// One node + its connector + label/detail.
+class _TimelineRow extends StatelessWidget {
   final ApplyStep step;
-  const _StepContent({required this.step});
+  final bool isLast;
+  const _TimelineRow({required this.step, required this.isLast});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    if (step.isFailed) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Text(step.detail ?? 'Failed.',
-            style: theme.textTheme.bodyMedium?.copyWith(color: scheme.error)),
-      );
-    }
-    if (step.status == ApplyStatus.active) {
-      return Row(
+    final active = step.status == ApplyStatus.active;
+
+    final labelColor = switch (step.status) {
+      ApplyStatus.failed => scheme.error,
+      ApplyStatus.pending => scheme.onSurfaceVariant,
+      _ => scheme.onSurface,
+    };
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2)),
+          // Node + connector line column.
+          SizedBox(
+            width: 24,
+            child: Column(
+              children: [
+                SizedBox(height: 24, child: Center(child: _Node(step: step))),
+                if (!isLast)
+                  Expanded(
+                    child: Center(
+                      child: Container(width: 2, color: scheme.outlineVariant),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           Gap.m,
           Expanded(
-            child: Text(step.detail ?? 'Working…',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: scheme.onSurfaceVariant)),
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: 24,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        step.label,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: labelColor,
+                          fontWeight:
+                              active ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (step.isFailed)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(step.detail ?? 'Failed.',
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(color: scheme.error)),
+                    )
+                  else if (active)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2)),
+                          Gap.s,
+                          Expanded(
+                            child: Text(step.detail ?? 'Working…',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: scheme.onSurfaceVariant)),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ],
-      );
-    }
-    // Pending/done steps stay collapsed — no body needed.
-    return const SizedBox.shrink();
+      ),
+    );
   }
 }
 
-/// A softly pulsating dot used as the active step's icon in the timeline.
+/// The timeline node: bare checkmark (done), pulsing dot (active), grey dot
+/// (to-do), or a red dot (failed).
+class _Node extends StatelessWidget {
+  final ApplyStep step;
+  const _Node({required this.step});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return switch (step.status) {
+      ApplyStatus.done => Icon(Icons.check, size: 18, color: scheme.primary),
+      ApplyStatus.active => const _PulsingDot(),
+      ApplyStatus.failed => Icon(Icons.close, size: 16, color: scheme.error),
+      ApplyStatus.pending => _dot(scheme.onSurfaceVariant.withValues(alpha: 0.5)),
+    };
+  }
+
+  static Widget _dot(Color color) => Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      );
+}
+
+/// A softly pulsating dot marking the active step.
 class _PulsingDot extends StatefulWidget {
   const _PulsingDot();
 
@@ -127,7 +185,7 @@ class _PulsingDotState extends State<_PulsingDot>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: const Duration(milliseconds: 850),
   )..repeat(reverse: true);
 
   @override
@@ -139,28 +197,17 @@ class _PulsingDotState extends State<_PulsingDot>
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (_, __) {
-        final t = Curves.easeInOut.transform(_c.value);
-        return Center(
-          child: Container(
-            width: 14 + 8 * t,
-            height: 14 + 8 * t,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color.withValues(alpha: 0.2 + 0.5 * (1 - t)),
-            ),
-            child: Center(
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-              ),
-            ),
-          ),
-        );
-      },
+    final curved = CurvedAnimation(parent: _c, curve: Curves.easeInOut);
+    return ScaleTransition(
+      scale: Tween(begin: 0.6, end: 1.0).animate(curved),
+      child: FadeTransition(
+        opacity: Tween(begin: 0.4, end: 1.0).animate(curved),
+        child: Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
+      ),
     );
   }
 }

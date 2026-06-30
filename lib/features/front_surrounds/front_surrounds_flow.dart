@@ -64,42 +64,49 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
               title: const Text('Front speakers'),
               subtitle: const Text('Optional'),
               isActive: _step >= 0,
-              state: _frontsValid && _fronts.isNotEmpty
+              state: _fronts.isNotEmpty && _frontsValid
                   ? StepState.complete
                   : StepState.indexed,
-              content: _ChooseSpeakers(
-                candidates: avail(_fronts),
-                selected: _fronts,
-                onToggle: _toggleFront,
-                identifyControls: identifyButtons,
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Pick two speakers (or a single Amp) for the front '
+                      'left & right, then set which is which.',
+                      style: Theme.of(context).textTheme.bodySmall),
+                  Gap.s,
+                  _ChooseSpeakers(
+                    candidates: avail(_fronts),
+                    selected: _fronts,
+                    onToggle: _toggleFront,
+                    identifyControls: identifyButtons,
+                  ),
+                  if (_ampMode) ...[
+                    Gap.m,
+                    _AmpWiringNote(
+                      amp: system.device(_fronts.first),
+                      onIdentify: identify,
+                      onChime: onChime,
+                      identifying: identifyingUuid,
+                    ),
+                  ] else if (_fronts.length == 2) ...[
+                    Gap.m,
+                    _AssignSides(
+                      system: system,
+                      selected: _fronts,
+                      leftLabel: 'LEFT',
+                      rightLabel: 'RIGHT',
+                      onSwap: () => setState(
+                          () => _fronts.setAll(0, [_fronts[1], _fronts[0]])),
+                      identifyControls: identifyButtons,
+                    ),
+                  ],
+                ],
               ),
-            ),
-            Step(
-              title: Text(_ampMode ? 'Connect your speakers' : 'Assign left & right'),
-              isActive: _step >= 1,
-              content: _fronts.isEmpty
-                  ? const Text('No front speakers selected — nothing to assign.')
-                  : _ampMode
-                      ? _AmpWiringNote(
-                          amp: system.device(_fronts.first),
-                          onIdentify: identify,
-                          onChime: onChime,
-                          identifying: identifyingUuid,
-                        )
-                      : _AssignSides(
-                          system: system,
-                          selected: _fronts,
-                          leftLabel: 'LEFT',
-                          rightLabel: 'RIGHT',
-                          onSwap: () => setState(() =>
-                              _fronts.setAll(0, [_fronts[1], _fronts[0]])),
-                          identifyControls: identifyButtons,
-                        ),
             ),
             Step(
               title: const Text('Rear surrounds'),
               subtitle: const Text('Optional'),
-              isActive: _step >= 2,
+              isActive: _step >= 1,
               state: _surrounds.length == 2 ? StepState.complete : StepState.indexed,
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,7 +139,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
             Step(
               title: const Text('Subwoofer'),
               subtitle: const Text('Optional'),
-              isActive: _step >= 3,
+              isActive: _step >= 2,
               state: _sub != null ? StepState.complete : StepState.indexed,
               content: _ChooseSub(
                 subs: freeSubs,
@@ -143,7 +150,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
             ),
             Step(
               title: const Text('Review & apply'),
-              isActive: _step >= 4,
+              isActive: _step >= 3,
               content: _Review(system: system, member: member, additions: _additions(system)),
             ),
           ],
@@ -221,10 +228,10 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       BuildContext context, ZoneGroupMember member, SonosDevice soundbar) {
     final canNext = switch (_step) {
       0 => _frontsValid,
-      2 => _surroundsValid,
+      1 => _surroundsValid,
       _ => true,
     };
-    final isLast = _step == 4;
+    final isLast = _step == 3;
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Row(
@@ -486,9 +493,11 @@ class _Review extends StatelessWidget {
     if (additions.isEmpty) {
       return const Text('Nothing selected yet — choose speakers above.');
     }
-    // Final layout = what's already bonded, overlaid with the new picks.
+    // Final layout = what's already bonded, overlaid with the new picks. Show
+    // speaker TYPE, not room name — once bonded the individual name is absorbed
+    // into the HT, so the type is the useful label here.
     String? label(SonosChannel ch) =>
-        additions[ch]?.roomName ?? labelForChannel(system, member, ch);
+        additions[ch]?.typeLabel ?? typeForChannel(system, member, ch);
     final hasSub =
         additions.containsKey(SonosChannel.sub) || hasChannel(member, SonosChannel.sub);
 
