@@ -8,7 +8,7 @@ import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/bonding_progress_screen.dart';
-import '../widgets/collapsing_scaffold.dart';
+import '../widgets/app_scaffold.dart';
 import '../widgets/diagram_labels.dart';
 
 /// Entry screen: auto-scans the LAN on launch and presents the system, leading
@@ -24,8 +24,8 @@ class DiscoveryScreen extends ConsumerWidget {
     final branch = state.isLoading
         ? 'scanning'
         : state.hasError
-            ? 'error'
-            : 'system';
+        ? 'error'
+        : 'system';
     final content = state.when(
       loading: () => const Center(child: _Scanning()),
       error: (e, _) => _ErrorView(message: '$e', onRetry: controller.scan),
@@ -36,7 +36,7 @@ class DiscoveryScreen extends ConsumerWidget {
           : _SystemView(system: system),
     );
 
-    return CollapsingScaffold(
+    return AppScaffold(
       title: 'Sonority',
       titleWidget: Image.asset(
         'assets/brand/sonority_wordmark.png',
@@ -56,30 +56,22 @@ class DiscoveryScreen extends ConsumerWidget {
             icon: const Icon(Icons.refresh),
           ),
       ],
-      // One CustomScrollView: the collapsing app bar (in the scaffold) and this
-      // body scroll together. hasScrollBody:false sizes the body by its
-      // intrinsic height — short content fills + centers (and re-centers as the
-      // title collapses), a long list reports a tall height and scrolls via the
-      // outer view (no nested scroll). The depth (shared-axis Z) transition
-      // wraps only the body, so the app bar itself never animates.
-      slivers: [
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: PageTransitionSwitcher(
-            duration: const Duration(milliseconds: 250),
-            reverse: state.isLoading,
-            transitionBuilder: (child, anim, secondaryAnim) =>
-                SharedAxisTransition(
-              animation: anim,
-              secondaryAnimation: secondaryAnim,
-              transitionType: SharedAxisTransitionType.scaled,
-              fillColor: Colors.transparent,
-              child: child,
-            ),
-            child: KeyedSubtree(key: ValueKey(branch), child: content),
-          ),
+      // The Scaffold body is a tight viewport-height box, so each child fills
+      // the screen: the scanning/error placeholders center, _SystemView scrolls
+      // internally. The switcher never inflates to the tall outgoing list
+      // mid-transition, so the spinner stays screen-centered (no jump).
+      body: PageTransitionSwitcher(
+        duration: const Duration(milliseconds: 250),
+        reverse: state.isLoading,
+        transitionBuilder: (child, anim, secondaryAnim) => SharedAxisTransition(
+          animation: anim,
+          secondaryAnimation: secondaryAnim,
+          transitionType: SharedAxisTransitionType.scaled,
+          fillColor: Colors.transparent,
+          child: child,
         ),
-      ],
+        child: KeyedSubtree(key: ValueKey(branch), child: content),
+      ),
     );
   }
 }
@@ -93,15 +85,16 @@ class _SystemView extends ConsumerWidget {
     final groups = system.speakerGroups;
     // Soundbars (whether or not they already have surrounds) are the HT targets.
     final theaters = system.allMembers
-        .where((m) => m.isHomeTheater || (system.device(m.uuid)?.isSoundbar ?? false))
+        .where(
+          (m) =>
+              m.isHomeTheater || (system.device(m.uuid)?.isSoundbar ?? false),
+        )
         .toList();
     final singleRooms = system.allMembers
         .where((m) => !theaters.contains(m) && !m.isGroup)
         .toList();
-    // Scrolls internally: the body's PageTransitionSwitcher can't pass intrinsic
-    // height through to the outer CustomScrollView (SliverFillRemaining would
-    // then clip a tall list), so the list owns its own scroll. The app bar is
-    // fixed, so there's no collapse to lose; Rescan covers refresh.
+    // Owns its own scroll, filling the screen-sized body. The app bar is fixed,
+    // so there's no collapse to lose; Rescan / pull-to-refresh cover refresh.
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -117,9 +110,12 @@ class _SystemView extends ConsumerWidget {
           Gap.l,
           // The "+" lives in the header; the flow itself explains if there
           // aren't two free speakers to bond.
-          _SectionHeader('Speaker groups', Icons.speaker_group_outlined,
-              onAdd: () => context.push('/group'),
-              addTooltip: 'Group speakers'),
+          _SectionHeader(
+            'Speaker groups',
+            Icons.speaker_group_outlined,
+            onAdd: () => context.push('/group'),
+            addTooltip: 'Group speakers',
+          ),
           if (groups.isEmpty)
             const _EmptySectionCard('No speaker groups yet')
           else
@@ -136,8 +132,9 @@ class _SystemView extends ConsumerWidget {
                 margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
                   titleAlignment: ListTileTitleAlignment.center,
-                  onTap:
-                      unreachable ? null : () => context.push('/room/${m.uuid}'),
+                  onTap: unreachable
+                      ? null
+                      : () => context.push('/room/${m.uuid}'),
                   leading: Icon(
                     unreachable
                         ? Icons.warning_amber_rounded
@@ -151,7 +148,9 @@ class _SystemView extends ConsumerWidget {
                         : (device?.typeLabel ?? ''),
                     style: unreachable ? TextStyle(color: scheme.error) : null,
                   ),
-                  trailing: unreachable ? null : const Icon(Icons.chevron_right),
+                  trailing: unreachable
+                      ? null
+                      : const Icon(Icons.chevron_right),
                 ),
               );
             }),
@@ -164,14 +163,16 @@ class _SystemView extends ConsumerWidget {
             Gap.l,
             _SectionHeader('Other devices', Icons.devices_other_outlined),
           ],
-          ...system.bondableSubs.map((sub) => Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: const Icon(Icons.graphic_eq),
-                  title: const Text('Subwoofer'),
-                  subtitle: Text(sub.typeLabel),
-                ),
-              )),
+          ...system.bondableSubs.map(
+            (sub) => Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                leading: const Icon(Icons.graphic_eq),
+                title: const Text('Subwoofer'),
+                subtitle: Text(sub.typeLabel),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -185,11 +186,11 @@ class _GroupCard extends ConsumerWidget {
   const _GroupCard({required this.system, required this.group});
 
   static String _kindLabel(GroupKind k) => switch (k) {
-        GroupKind.stereoPair => 'Stereo pair',
-        GroupKind.zone => 'Zone',
-        GroupKind.custom => 'Custom',
-        GroupKind.none => 'Group',
-      };
+    GroupKind.stereoPair => 'Stereo pair',
+    GroupKind.zone => 'Zone',
+    GroupKind.custom => 'Custom',
+    GroupKind.none => 'Group',
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -231,16 +232,19 @@ class _GroupCard extends ConsumerWidget {
         icon: const Icon(Icons.link_off),
         title: const Text('Separate group?'),
         content: const Text(
-            'The speakers become standalone rooms again. Their original room '
-            'names will be restored.'),
+          'The speakers become standalone rooms again. Their original room '
+          'names will be restored.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(
-                foregroundColor: Theme.of(ctx).colorScheme.error),
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
             child: const Text('Separate'),
           ),
         ],
@@ -278,19 +282,26 @@ class _TheaterCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 26,
                   backgroundColor: scheme.primaryContainer,
-                  child: Icon(Icons.surround_sound,
-                      color: scheme.onPrimaryContainer),
+                  child: Icon(
+                    Icons.surround_sound,
+                    color: scheme.onPrimaryContainer,
+                  ),
                 ),
                 Gap.m,
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(member.zoneName,
-                          style: Theme.of(context).textTheme.titleMedium),
-                      Text(device?.modelName ?? 'Soundbar',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant)),
+                      Text(
+                        member.zoneName,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Text(
+                        device?.modelName ?? 'Soundbar',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
                       Gap.s,
                       _GroupChips(system: system, member: member),
                     ],
@@ -314,8 +325,16 @@ class _GroupChips extends StatelessWidget {
   const _GroupChips({required this.system, required this.member});
 
   static const _groups = [
-    ('Fronts', Icons.speaker, [SonosChannel.leftFront, SonosChannel.rightFront]),
-    ('Surrounds', Icons.surround_sound, [SonosChannel.leftRear, SonosChannel.rightRear]),
+    (
+      'Fronts',
+      Icons.speaker,
+      [SonosChannel.leftFront, SonosChannel.rightFront],
+    ),
+    (
+      'Surrounds',
+      Icons.surround_sound,
+      [SonosChannel.leftRear, SonosChannel.rightRear],
+    ),
     ('Subwoofer', Icons.graphic_eq, [SonosChannel.sub]),
   ];
 
@@ -329,8 +348,14 @@ class _GroupChips extends StatelessWidget {
       }
     }
     if (chips.isEmpty) {
-      chips.add(_chip(scheme, Icons.info_outline, 'No extra speakers',
-          scheme.onSurfaceVariant));
+      chips.add(
+        _chip(
+          scheme,
+          Icons.info_outline,
+          'No extra speakers',
+          scheme.onSurfaceVariant,
+        ),
+      );
     }
     return Wrap(spacing: 6, runSpacing: 6, children: chips);
   }
@@ -347,9 +372,14 @@ class _GroupChips extends StatelessWidget {
           children: [
             Icon(icon, size: 14, color: color),
             const SizedBox(width: 5),
-            Text(text,
-                style: TextStyle(
-                    color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+            Text(
+              text,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       );
@@ -375,11 +405,12 @@ class _SectionHeader extends StatelessWidget {
           Icon(icon, size: 20, color: scheme.onSurfaceVariant),
           Gap.s,
           Expanded(
-            child: Text(title,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(color: scheme.onSurfaceVariant)),
+            child: Text(
+              title,
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
           ),
           if (onAdd != null)
             IconButton.outlined(
@@ -418,12 +449,13 @@ class _EmptySectionCard extends StatelessWidget {
         width: double.infinity,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-          child: Text(text,
-              textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant)),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
         ),
       ),
     );
@@ -435,25 +467,30 @@ class _EmptyHint extends StatelessWidget {
   const _EmptyHint(this.text);
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Text(text,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant)),
-      );
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Text(
+      text,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    ),
+  );
 }
 
 class _Scanning extends StatelessWidget {
   const _Scanning();
   @override
   Widget build(BuildContext context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          Gap.l,
-          Text('Scanning your network…',
-              style: Theme.of(context).textTheme.titleMedium),
-        ],
-      );
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      const CircularProgressIndicator(),
+      Gap.l,
+      Text(
+        'Scanning your network…',
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+    ],
+  );
 }
 
 class _ErrorView extends StatelessWidget {
@@ -471,15 +508,18 @@ class _ErrorView extends StatelessWidget {
         children: [
           Icon(Icons.wifi_off_rounded, size: 64, color: scheme.error),
           Gap.m,
-          Text('Couldn’t find your system',
-              style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Couldn’t find your system',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           Gap.s,
-          Text(message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: scheme.onSurfaceVariant)),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+          ),
           Gap.l,
           FilledButton.icon(
             onPressed: onRetry,

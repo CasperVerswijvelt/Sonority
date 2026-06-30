@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../state/sonos_controller.dart';
-import '../widgets/collapsing_scaffold.dart';
+import '../widgets/app_scaffold.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_ui.dart';
@@ -41,9 +41,7 @@ class _State extends ConsumerState<ProfileDetailScreen> {
     final system = ref.watch(sonosControllerProvider).value;
 
     if (profile == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (!_seeded) {
       _name.text = profile.name;
@@ -54,7 +52,7 @@ class _State extends ConsumerState<ProfileDetailScreen> {
     final taken = isProfileNameTaken(profiles, name, exceptId: profile.id);
     final changed = name != profile.name && name.isNotEmpty && !taken;
 
-    return CollapsingScaffold(
+    return AppScaffold(
       title: 'Profile',
       // Save only appears once the name actually differs from what's stored.
       floatingActionButton: changed
@@ -64,46 +62,43 @@ class _State extends ConsumerState<ProfileDetailScreen> {
               label: const Text('Save'),
             )
           : null,
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-          sliver: SliverList.list(
-            children: [
-              TextField(
-                controller: _name,
-                onChanged: (_) => setState(() {}),
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  labelText: 'Profile name',
-                  border: const OutlineInputBorder(),
-                  errorText: taken ? 'A profile with this name exists' : null,
-                ),
-              ),
-              Gap.l,
-              Text('Included', style: theme.textTheme.titleSmall),
-              Text(
-                'Captured when the profile was created. To change what’s '
-                'included, create a new profile from your current setup.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-              Gap.s,
-              for (final e in profile.entities) ...[
-                Card(
-                  margin: EdgeInsets.zero,
-                  child: ListTile(
-                    leading: Icon(entityIcon(e.kind)),
-                    titleAlignment: ListTileTitleAlignment.center,
-                    title: Text(e.label),
-                    subtitle: Text(entitySummary(e, system)),
-                  ),
-                ),
-                Gap.s,
-              ],
-            ],
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+        children: [
+          TextField(
+            controller: _name,
+            onChanged: (_) => setState(() {}),
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              labelText: 'Profile name',
+              border: const OutlineInputBorder(),
+              errorText: taken ? 'A profile with this name exists' : null,
+            ),
           ),
-        ),
-      ],
+          Gap.l,
+          Text('Included', style: theme.textTheme.titleSmall),
+          Text(
+            'Captured when the profile was created. To change what’s '
+            'included, create a new profile from your current setup.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Gap.s,
+          for (final e in profile.entities) ...[
+            Card(
+              margin: EdgeInsets.zero,
+              child: ListTile(
+                leading: Icon(entityIcon(e.kind)),
+                titleAlignment: ListTileTitleAlignment.center,
+                title: Text(e.label),
+                subtitle: Text(entitySummary(e, system)),
+              ),
+            ),
+            Gap.s,
+          ],
+        ],
+      ),
     );
   }
 

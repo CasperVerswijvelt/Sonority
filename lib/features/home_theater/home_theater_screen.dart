@@ -8,7 +8,7 @@ import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/busy_view.dart';
-import '../widgets/collapsing_scaffold.dart';
+import '../widgets/app_scaffold.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
@@ -35,10 +35,10 @@ class HomeTheaterScreen extends ConsumerWidget {
     // Bonded native members (bar + fronts + rears + sub); Amp fronts excluded.
     final bonded = (system != null && member != null)
         ? <String>{member.uuid, ...member.channelAssignments.values}
-            .map((u) => system.device(u))
-            .whereType<SonosDevice>()
-            .where((d) => !d.isAmp)
-            .toList()
+              .map((u) => system.device(u))
+              .whereType<SonosDevice>()
+              .where((d) => !d.isAmp)
+              .toList()
         : <SonosDevice>[];
 
     Future<void> refreshAll() async {
@@ -48,7 +48,7 @@ class HomeTheaterScreen extends ConsumerWidget {
       }
     }
 
-    return CollapsingScaffold(
+    return AppScaffold(
       title: member?.zoneName ?? 'Home theater',
       onRefresh: refreshAll,
       actions: [
@@ -60,40 +60,39 @@ class HomeTheaterScreen extends ConsumerWidget {
           ),
         RefreshIconButton(onRefresh: refreshAll),
       ],
-      slivers: state.isLoading
-          ? [
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: BusyView(
-                  title: 'Updating your home theater…',
-                  subtitle:
-                      'This can take up to ~20 seconds while Sonos reconfigures '
-                      'and re-reads the layout.',
-                ),
-              )
-            ]
+      body: state.isLoading
+          ? const BusyView(
+              title: 'Updating your home theater…',
+              subtitle:
+                  'This can take up to ~20 seconds while Sonos reconfigures '
+                  'and re-reads the layout.',
+            )
           : (member == null || device == null)
-              ? [
-                  const SliverFillRemaining(
-                      hasScrollBody: false, child: MissingRoomView())
-                ]
-              : [
-                  _Content(
-                    system: system!,
-                    member: member,
-                    device: device,
-                    bonded: bonded,
-                    onRemoveGroup: (channels, label) => _confirmRemoveGroup(
-                        context, ref, member, device, channels, label),
-                    onConfigure: () =>
-                        context.push('/theater/$soundbarUuid/fronts'),
-                  ),
-                ],
+          ? const MissingRoomView()
+          : _Content(
+              system: system!,
+              member: member,
+              device: device,
+              bonded: bonded,
+              onRemoveGroup: (channels, label) => _confirmRemoveGroup(
+                context,
+                ref,
+                member,
+                device,
+                channels,
+                label,
+              ),
+              onConfigure: () => context.push('/theater/$soundbarUuid/fronts'),
+            ),
     );
   }
 
-  Future<void> _rename(BuildContext context, WidgetRef ref, SonosDevice device,
-      String current) async {
+  Future<void> _rename(
+    BuildContext context,
+    WidgetRef ref,
+    SonosDevice device,
+    String current,
+  ) async {
     final name = await showRenameDialog(context, current);
     if (name == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -164,8 +163,14 @@ class _Group {
 }
 
 const _htGroups = [
-  _Group('Fronts', Icons.speaker, {SonosChannel.leftFront, SonosChannel.rightFront}),
-  _Group('Surrounds', Icons.surround_sound, {SonosChannel.leftRear, SonosChannel.rightRear}),
+  _Group('Fronts', Icons.speaker, {
+    SonosChannel.leftFront,
+    SonosChannel.rightFront,
+  }),
+  _Group('Surrounds', Icons.surround_sound, {
+    SonosChannel.leftRear,
+    SonosChannel.rightRear,
+  }),
   _Group('Subwoofer', Icons.graphic_eq, {SonosChannel.sub}),
 ];
 
@@ -208,61 +213,71 @@ class _Content extends StatelessWidget {
       for (final g in _htGroups)
         if (g.channels.any((c) => hasChannel(member, c))) g,
     ];
-    return SliverPadding(
+    return ListView(
       padding: const EdgeInsets.all(20),
-      sliver: SliverList.list(
-        children: [
-          SpeakerDiagram(
-            soundbarLabel: device.typeLabel,
-            frontLeftLabel: typeForChannel(system, member, SonosChannel.leftFront),
-            frontRightLabel:
-                typeForChannel(system, member, SonosChannel.rightFront),
-            rearLeftLabel: typeForChannel(system, member, SonosChannel.leftRear),
-            rearRightLabel:
-                typeForChannel(system, member, SonosChannel.rightRear),
-            hasSub: hasChannel(member, SonosChannel.sub),
+      children: [
+        SpeakerDiagram(
+          soundbarLabel: device.typeLabel,
+          frontLeftLabel: typeForChannel(
+            system,
+            member,
+            SonosChannel.leftFront,
           ),
-          Gap.l,
-          FilledButton.icon(
-            onPressed: onConfigure,
-            icon: const Icon(Icons.tune),
-            label: const Text('Configure home theater'),
+          frontRightLabel: typeForChannel(
+            system,
+            member,
+            SonosChannel.rightFront,
           ),
-          Gap.l,
-          Text('Bonded speakers', style: theme.textTheme.titleSmall),
-          Gap.s,
-          if (present.isEmpty)
-            Text(
-              'Just the soundbar — no fronts, surrounds or sub bonded yet. '
-              'Tap “Configure home theater” to add some.',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            )
-          else
-            for (final g in present) ...[
-              _GroupCard(
-                group: g,
-                models: _models(g.channels),
-                onRemove: () => onRemoveGroup(g.channels, g.label),
-              ),
-              Gap.s,
-            ],
-          Gap.m,
-          TrueplayControl(devices: bonded),
-          if (member.hasDedicatedFronts) ...[
-            Gap.s,
-            Text(
-              'Trueplay can’t be measured from Android — tune in the Sonos app '
-              '(iOS): the home theater, and the fronts separately as a stereo '
-              'pair. Heads-up: Sonos often clears a tuning when speakers are '
-              'bonded/unbonded, so you may see “Not tuned” after changing the '
-              'layout and have to redo it. Sonority only toggles a stored tuning.',
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          rearLeftLabel: typeForChannel(system, member, SonosChannel.leftRear),
+          rearRightLabel: typeForChannel(
+            system,
+            member,
+            SonosChannel.rightRear,
+          ),
+          hasSub: hasChannel(member, SonosChannel.sub),
+        ),
+        Gap.l,
+        FilledButton.icon(
+          onPressed: onConfigure,
+          icon: const Icon(Icons.tune),
+          label: const Text('Configure home theater'),
+        ),
+        Gap.l,
+        Text('Bonded speakers', style: theme.textTheme.titleSmall),
+        Gap.s,
+        if (present.isEmpty)
+          Text(
+            'Just the soundbar — no fronts, surrounds or sub bonded yet. '
+            'Tap “Configure home theater” to add some.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
+          )
+        else
+          for (final g in present) ...[
+            _GroupCard(
+              group: g,
+              models: _models(g.channels),
+              onRemove: () => onRemoveGroup(g.channels, g.label),
+            ),
+            Gap.s,
           ],
+        Gap.m,
+        TrueplayControl(devices: bonded),
+        if (member.hasDedicatedFronts) ...[
+          Gap.s,
+          Text(
+            'Trueplay can’t be measured from Android — tune in the Sonos app '
+            '(iOS): the home theater, and the fronts separately as a stereo '
+            'pair. Heads-up: Sonos often clears a tuning when speakers are '
+            'bonded/unbonded, so you may see “Not tuned” after changing the '
+            'layout and have to redo it. Sonority only toggles a stored tuning.',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -271,8 +286,11 @@ class _GroupCard extends StatelessWidget {
   final _Group group;
   final List<String> models;
   final VoidCallback onRemove;
-  const _GroupCard(
-      {required this.group, required this.models, required this.onRemove});
+  const _GroupCard({
+    required this.group,
+    required this.models,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -6,7 +6,7 @@ import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
 import '../widgets/busy_view.dart';
-import '../widgets/collapsing_scaffold.dart';
+import '../widgets/app_scaffold.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
 import '../widgets/trueplay_control.dart';
@@ -29,15 +29,13 @@ class RoomScreen extends ConsumerWidget {
     final devices = <SonosDevice>[
       if (system != null && member != null)
         if (member.isStereoPair)
-          ...member.stereoPairUuids
-              .map(system.device)
-              .whereType<SonosDevice>()
+          ...member.stereoPairUuids.map(system.device).whereType<SonosDevice>()
         else if (system.device(uuid) != null)
           system.device(uuid)!,
     ];
     final models = devices.map((d) => d.typeLabel).toSet().join(' + ');
 
-    return CollapsingScaffold(
+    return AppScaffold(
       title: member?.zoneName ?? 'Room',
       actions: [
         if (member != null)
@@ -46,33 +44,37 @@ class RoomScreen extends ConsumerWidget {
             tooltip: 'Rename room',
             onPressed: () => _rename(context, ref, system, member),
           ),
-        RefreshIconButton(onRefresh: () async {
-          await ref.read(sonosControllerProvider.notifier).refresh();
-          if (devices.isNotEmpty) {
-            await ref.read(trueplayControllerProvider.notifier).load(devices);
-          }
-        }),
+        RefreshIconButton(
+          onRefresh: () async {
+            await ref.read(sonosControllerProvider.notifier).refresh();
+            if (devices.isNotEmpty) {
+              await ref.read(trueplayControllerProvider.notifier).load(devices);
+            }
+          },
+        ),
       ],
-      slivers: member == null
-          ? [const SliverFillRemaining(hasScrollBody: false, child: MissingRoomView())]
-          : [
-              SliverPadding(
-                padding: const EdgeInsets.all(20),
-                sliver: SliverList.list(
-                  children: [
-                    Text(models.isEmpty ? 'Speaker' : models,
-                        style: Theme.of(context).textTheme.titleMedium),
-                    Gap.l,
-                    TrueplayControl(devices: devices),
-                  ],
+      body: member == null
+          ? const MissingRoomView()
+          : ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                Text(
+                  models.isEmpty ? 'Speaker' : models,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-              ),
-            ],
+                Gap.l,
+                TrueplayControl(devices: devices),
+              ],
+            ),
     );
   }
 
-  Future<void> _rename(BuildContext context, WidgetRef ref,
-      SonosSystem? system, ZoneGroupMember member) async {
+  Future<void> _rename(
+    BuildContext context,
+    WidgetRef ref,
+    SonosSystem? system,
+    ZoneGroupMember member,
+  ) async {
     final device = system?.device(member.uuid);
     if (device == null) return;
     final name = await showRenameDialog(context, member.zoneName);

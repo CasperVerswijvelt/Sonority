@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
-import '../widgets/collapsing_scaffold.dart';
+import '../widgets/app_scaffold.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_ui.dart';
@@ -53,8 +53,11 @@ class _State extends ConsumerState<ProfileCreateScreen> {
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(32),
-            child: Text('Scan your system first (System tab), then create a '
-                'profile from it.', textAlign: TextAlign.center),
+            child: Text(
+              'Scan your system first (System tab), then create a '
+              'profile from it.',
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
       );
@@ -67,50 +70,46 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     final anyIncluded = _included.values.any((v) => v);
     final canSave = name.isNotEmpty && !taken && anyIncluded;
 
-    return CollapsingScaffold(
+    return AppScaffold(
       title: 'New profile',
       bottomOverlay: _BottomButtonBar(
         label: 'Create profile',
         onPressed: canSave ? () => _save(name) : null,
       ),
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-          sliver: SliverList.list(
-            children: [
-              TextField(
-                controller: _name,
-                onChanged: (_) => setState(() {}),
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  labelText: 'Profile name',
-                  border: const OutlineInputBorder(),
-                  errorText: taken ? 'A profile with this name exists' : null,
-                ),
-              ),
-              Gap.l,
-              Text('Include', style: theme.textTheme.titleSmall),
-              Text(
-                'Pick which of your current home theaters, pairs and '
-                'rooms to capture in this profile.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-              Gap.s,
-              for (final e in _entities) ...[
-                _SelectableEntityCard(
-                  entity: e,
-                  system: system,
-                  included: _included[e.primaryUuid] ?? true,
-                  onChanged: (v) =>
-                      setState(() => _included[e.primaryUuid] = v),
-                ),
-                Gap.s,
-              ],
-            ],
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+        children: [
+          TextField(
+            controller: _name,
+            onChanged: (_) => setState(() {}),
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              labelText: 'Profile name',
+              border: const OutlineInputBorder(),
+              errorText: taken ? 'A profile with this name exists' : null,
+            ),
           ),
-        ),
-      ],
+          Gap.l,
+          Text('Include', style: theme.textTheme.titleSmall),
+          Text(
+            'Pick which of your current home theaters, pairs and '
+            'rooms to capture in this profile.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Gap.s,
+          for (final e in _entities) ...[
+            _SelectableEntityCard(
+              entity: e,
+              system: system,
+              included: _included[e.primaryUuid] ?? true,
+              onChanged: (v) => setState(() => _included[e.primaryUuid] = v),
+            ),
+            Gap.s,
+          ],
+        ],
+      ),
     );
   }
 
