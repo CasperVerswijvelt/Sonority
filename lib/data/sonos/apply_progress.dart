@@ -59,6 +59,22 @@ class ApplyProgress {
     _log(id, '▸');
   }
 
+  /// Appends a new, already-active step and marks any previously-active step
+  /// done. Used by single-entity ops to grow their sub-actions into their own
+  /// persistent bullets as they run (vs [note], which annotates the current
+  /// step's detail line in place). Later [note] calls target [id].
+  void begin(String id, String label) {
+    for (var i = 0; i < _steps.length; i++) {
+      if (_steps[i].status == ApplyStatus.active) {
+        _steps[i] = _steps[i].copyWith(status: ApplyStatus.done);
+        onLog?.call('✓ ${_steps[i].label}');
+      }
+    }
+    _steps.add(ApplyStep(id: id, label: label, status: ApplyStatus.active));
+    _emit();
+    onLog?.call('▸ $label');
+  }
+
   void done(String id, {String? detail}) {
     _set(id, ApplyStatus.done, detail);
     _log(id, '✓');
