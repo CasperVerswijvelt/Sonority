@@ -41,6 +41,7 @@ dependencies:
   dynamic_color: ^1.8.1
   shared_preferences: ^2.5.5
   animations: ^2.2.0
+  package_info_plus: ^8.0.0
 
 dev_dependencies:
   flutter_test:

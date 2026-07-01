@@ -10,6 +10,7 @@ import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/pill_chip.dart';
+import '../widgets/version_badge.dart';
 
 /// Entry screen: auto-scans the LAN on launch and presents the system, leading
 /// with anything that can host dedicated front speakers (soundbars).
@@ -47,6 +48,7 @@ class DiscoveryScreen extends ConsumerWidget {
       ),
       onRefresh: state.value != null ? () => controller.scan() : null,
       actions: [
+        const VersionBadge(),
         // Only when there's a discovered system to refresh; the error state
         // uses its own CTA button to scan.
         if (state.value != null)
