@@ -8,9 +8,11 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 `[X.Y.Z] - YYYY-MM-DD`. CI copies that section into the GitHub Release notes
 (see `.github/workflows/release.yml`).
 
-## [0.5.0] - 2026-06-30
+## [0.5.0] - 2026-07-01
 
 ### Added
+- **Dual Subs** — a home theater can now bond **two Subs**, with both shown in the
+  layout diagram and re-applied from a profile.
 - **Speaker groups** — one "Group speakers" page (Stereo / Zone / Custom) to bond
   2–16 speakers as a **stereo pair**, a full-range **zone**, or a **custom**
   per-speaker Left/Right/Both layout, each with an **optional Sub**. Mismatched
@@ -38,6 +40,9 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   in diagrams, bonded-speaker cards, and profile summaries.
 - System overview re-sectioned: home theaters → speaker groups → single speaker
   rooms → other devices, with a compact "+" in the Speaker groups header.
+- Speaker groups now have a **tappable detail view**, and the configure-bond flow
+  **pre-selects the current layout** so it opens on what's actually bonded.
+- The **app version** is shown as a chip in the discovery app bar.
 - Discovery **auto-scans on launch** — the separate landing page is gone.
 - Applying a home theater or profile now diffs against the live layout and only
   changes what moved — faster, and an unchanged layout re-applies with no writes.
