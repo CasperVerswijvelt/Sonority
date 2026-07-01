@@ -26,6 +26,10 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   per-step progress timeline showing the active step and exactly where it
   failed. Applied with staged bonding (re-asserted until Sonos converges).
 - **Room renaming** from the room and home-theater detail pages.
+- **Identify a speaker by blinking its status LED** — works on every platform,
+  including macOS (the audio chime stays as a mobile-only extra).
+- Standalone **Subs are now shown in the overview** so a free Sub is easy to spot
+  and add to a home theater or group.
 
 ### Changed
 - UI overhaul: collapsing large-title app bars, a stepped stereo-pair creation
@@ -34,8 +38,18 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   in diagrams, bonded-speaker cards, and profile summaries.
 - System overview re-sectioned: home theaters → speaker groups → single speaker
   rooms → other devices, with a compact "+" in the Speaker groups header.
+- Discovery **auto-scans on launch** — the separate landing page is gone.
+- Applying a home theater or profile now diffs against the live layout and only
+  changes what moved — faster, and an unchanged layout re-applies with no writes.
 - Trueplay: the "x/y active" counter is hidden for single speakers (shown only
   for home theaters and stereo pairs).
+
+### Packaging
+- iOS and macOS are now available via **TestFlight**; the macOS direct download
+  is a **Developer ID-signed, notarized `.dmg`** (no Gatekeeper workaround) and
+  the Android APK is **release-signed**.
+- Release CI restructured into clear, per-platform jobs (Android, iOS sideload,
+  iOS TestFlight, macOS `.dmg`, macOS TestFlight, GitHub Release).
 
 ## [0.4.0] - 2026-06-28
 

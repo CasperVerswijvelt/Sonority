@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <sub><i>iOS &amp; macOS — App Store coming soon; already available via manual installation — check out the <a href="https://github.com/CasperVerswijvelt/Sonority/releases">Releases</a> page for more info.</i></sub>
+  <sub><i>iOS &amp; macOS — public App Store coming later; available now via <a href="TESTFLIGHT_URL">TestFlight</a> (beta) or manual installation — see <a href="https://github.com/CasperVerswijvelt/Sonority/releases">Releases</a>.</i></sub>
 </p>
 
 # Sonority
@@ -36,25 +36,24 @@ undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr
 
 ## Install (prebuilt)
 
-Grab the latest artifacts from [**Releases**](https://github.com/CasperVerswijvelt/Sonority/releases).
+**iOS & macOS — TestFlight (recommended)**
+- Join the beta: **[TestFlight](TESTFLIGHT_URL)**. Installs the signed app and keeps it
+  auto-updated. (Public App Store release coming later.)
 
-**Android — `Sonority-*.apk`** (release build, debug-signed)
+Or grab a direct download from [**Releases**](https://github.com/CasperVerswijvelt/Sonority/releases):
+
+**Android — `Sonority-*.apk`** (release-signed)
 - On your phone: download the APK, allow “install unknown apps” for your browser/files app, then open it.
 - Or via adb: `adb install -r Sonority-*.apk`
 
-**macOS — `Sonority-*-macos.zip`** (unsigned, not notarized)
-- Unzip it, then strip the Gatekeeper quarantine flag — otherwise macOS reports the app is “damaged” / won’t open:
-  ```sh
-  xattr -r -d com.apple.quarantine Sonority.app
-  ```
-  If it’s in a protected location and that’s denied, use sudo:
-  ```sh
-  sudo xattr -r -d com.apple.quarantine Sonority.app
-  ```
-- Then open it (first launch: right-click → Open). Move it to `/Applications` if you like.
+**macOS — `Sonority-*-macos.dmg`** (Developer ID-signed & notarized)
+- Open the `.dmg`, drag **Sonority** to Applications, and launch it. No Gatekeeper
+  workaround needed — it’s notarized by Apple.
 
-**iOS — `Sonority-*-ios-unsigned.ipa`** (unsigned; must be re-signed to install)
-- Sideload with [AltStore](https://altstore.io) or [Sideloadly](https://sideloadly.io) using your Apple ID, or re-sign with your own provisioning profile.
+**iOS — `Sonority-*-ios-unsigned.ipa`** (unsigned; sideload only)
+- Prefer TestFlight above. To sideload the raw `.ipa`, re-sign it with
+  [AltStore](https://altstore.io) or [Sideloadly](https://sideloadly.io) using your Apple ID —
+  a plain install isn’t possible without signing.
 
 > On every platform, keep the device on the **same Wi‑Fi** as your Sonos. iOS and macOS prompt for **local network** access on the first scan — allow it, or discovery finds nothing.
 
@@ -144,7 +143,7 @@ there if a different model/firmware ever needs it.
 - ✅ Identify a speaker by blinking its status LED (default; macOS-safe) or a chime (mobile)
 - ✅ Trueplay read + toggle on speakers / pairs / home theaters
 - ✅ Recipe confirmed on real hardware (Beam stays `CC`; fronts = `LF`/`RF`)
-- ✅ CI release pipeline (APK + unsigned iOS/macOS) on `v*` tags
+- ✅ CI release pipeline on `v*` tags: release-signed APK, unsigned iOS `.ipa`, notarized macOS `.dmg`, plus iOS/macOS → TestFlight
 
 ## Contributing / architecture
 

@@ -113,7 +113,26 @@ bundle exec fastlane ios beta       # → TestFlight
 bundle exec fastlane ios release    # → submit for App Store review
 bundle exec fastlane mac beta       # → TestFlight (macOS)
 bundle exec fastlane mac release    # → submit (macOS)
+bundle exec fastlane mac github     # → Developer ID-signed + notarized .dmg (dist/)
 ```
+
+### Notarized macOS `.dmg` (direct download / GitHub Release)
+
+`mac github` produces the signed + notarized `.dmg` attached to the GitHub Release.
+It signs with a **Developer ID Application** certificate (distinct from the App
+Store cert) and notarizes via the App Store Connect API key.
+
+**One-time setup:** create/store the Developer ID cert in the match repo. Apple
+caps Developer ID Application certs at **2 per account**, so run this once:
+
+```sh
+bundle exec fastlane mac certificates   # creates App Store + Developer ID certs
+```
+
+Notarization requires the **Hardened Runtime** (the lane passes
+`ENABLE_HARDENED_RUNTIME=YES`). In CI the `macos-dmg` job runs `mac github`
+automatically on a `v*` tag; with no signing secrets it falls back to an unsigned
+`.dmg`.
 
 The first `release` still needs the screenshots/description filled in App Store
 Connect (or run `deliver` with a metadata folder later).

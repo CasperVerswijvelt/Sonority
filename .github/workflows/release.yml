@@ -4,10 +4,19 @@ name: Release
 # tag is pushed, e.g.:
 #   git tag v0.1.0 && git push origin v0.1.0
 #
-# Artifacts:
-#   - Android  : release APK (debug-signed, installable)
-#   - iOS      : unsigned .ipa (sideload / re-sign with AltStore, Sideloadly, …)
-#   - macOS    : unsigned .app .zip (best-effort; skipped if CI signing blocks it)
+# One job per platform × destination, all running in parallel:
+#   android           release-signed APK + AAB → GitHub Release + Google Play
+#   ios-unsigned      unsigned .ipa (sideload / re-sign with AltStore, Sideloadly) → GitHub Release
+#   ios-testflight    signed iOS build → TestFlight
+#   macos-dmg         Developer ID-signed + notarized .dmg → GitHub Release
+#   macos-testflight  signed macOS build → TestFlight (best-effort)
+#   publish-github    gathers android + ios-unsigned + macos-dmg artifacts → GitHub Release
+#
+# The three artifact producers fan into publish-github; the two *-testflight jobs
+# are independent, so a TestFlight failure never blocks the GitHub Release.
+# Signing/publishing steps are gated on secrets, so secret-less forks stay green
+# (with unsigned fallbacks). All Apple jobs run on macos-26 — App Store Connect
+# rejects uploads built with an older SDK (needs Xcode 26 / iOS 26 SDK).
 
 on:
   push:
@@ -21,7 +30,9 @@ env:
   FLUTTER_VERSION: '3.35.2'
 
 jobs:
+  # ── Android · build + Google Play ───────────────────────────────────────────
   android:
+    name: Android — build & Google Play
     runs-on: ubuntu-latest
     # Repo secrets that enable signing + Play publishing (all optional — without
     # them the job still builds a debug-signed APK and skips the Play upload):
@@ -50,7 +61,7 @@ jobs:
         if: env.HAS_KEYSTORE == 'true'
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "${{ github.workspace }}/upload-keystore.jks"
 
-      - name: Build release APK + AAB
+      - name: Build signed release APK + AAB
         env:
           # If the keystore wasn't decoded this path won't exist and the build
           # falls back to debug signing (see android/app/build.gradle.kts).
@@ -67,13 +78,14 @@ jobs:
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk \
              "dist/Sonority-${{ github.ref_name }}.apk"
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
         with:
           name: android
           path: dist/*.apk
           if-no-files-found: error
 
-      - name: Publish to Google Play (internal testing)
+      - name: Publish AAB → Google Play (internal testing)
         if: env.HAS_PLAY_SA == 'true'
         uses: r0adkll/upload-google-play@v1
         with:
@@ -83,8 +95,12 @@ jobs:
           track: internal
           status: completed
 
-  apple:
-    runs-on: macos-14
+  # ── iOS · unsigned .ipa (sideload) ──────────────────────────────────────────
+  ios-unsigned:
+    name: iOS — unsigned .ipa (sideload)
+    # macos-26 = Xcode 26 / iOS 26 SDK, matching the TestFlight jobs so every
+    # Apple build uses one toolchain.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -93,10 +109,10 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: mkdir -p dist
 
-      - name: Build iOS (unsigned)
+      - name: Build unsigned iOS .ipa
         run: |
+          mkdir -p dist
           flutter build ios --release --no-codesign
           cd build/ios/iphoneos
           mkdir -p Payload
@@ -104,32 +120,20 @@ jobs:
           # -y preserves the symlinks inside the .app bundle
           zip -qry "$GITHUB_WORKSPACE/dist/Sonority-${{ github.ref_name }}-ios-unsigned.ipa" Payload
 
-      - name: Build macOS (unsigned, best-effort)
-        continue-on-error: true
-        run: |
-          flutter build macos --release
-          cd build/macos/Build/Products/Release
-          zip -qry "$GITHUB_WORKSPACE/dist/Sonority-${{ github.ref_name }}-macos.zip" Sonority.app
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: apple
-          path: dist/*
+          name: ios-unsigned
+          path: dist/*.ipa
           if-no-files-found: error
 
-  app-store:
-    # Tag builds → TestFlight (iOS + macOS) via fastlane match. Entirely gated on
-    # signing secrets; the steps no-op if they're unset, so forks/secret-less
-    # repos still get a green run. Set in repo Settings → Secrets → Actions:
-    #   ASC_KEY_ID, ASC_ISSUER_ID    App Store Connect API key id + issuer (Admin role)
-    #   ASC_KEY_BASE64               base64 of the AuthKey_XXXX.p8
-    #   MATCH_PASSWORD               match repo encryption passphrase
-    #   MATCH_GIT_URL                https URL of the private certs repo
-    #   MATCH_GIT_BASIC_AUTHORIZATION  base64 of "user:PAT" with read access to it
-    # macos-26 ships Xcode 26 / the iOS 26 SDK. App Store Connect now REJECTS
-    # uploads built with an older SDK (macos-14's Xcode → iOS 17.5 SDK) with a
-    # 409 "SDK version issue". The sideload `apple` job stays on macos-14 — its
-    # unsigned artifacts don't go through App Store SDK validation.
+  # ── iOS · TestFlight ────────────────────────────────────────────────────────
+  ios-testflight:
+    name: iOS — TestFlight
+    # Apple signing secrets (see docs/PUBLISHING-APPLE.md). Steps no-op without
+    # them so forks stay green:
+    #   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_BASE64  App Store Connect API key
+    #   MATCH_PASSWORD, MATCH_GIT_URL, MATCH_GIT_BASIC_AUTHORIZATION  match repo
     runs-on: macos-26
     env:
       HAS_SIGNING: ${{ secrets.MATCH_PASSWORD != '' }}
@@ -150,7 +154,7 @@ jobs:
         if: env.HAS_SIGNING == 'true'
         run: echo "${{ secrets.ASC_KEY_BASE64 }}" | base64 --decode > "${{ github.workspace }}/fastlane/AuthKey.p8"
 
-      - name: iOS → TestFlight
+      - name: Build & upload iOS → TestFlight
         if: env.HAS_SIGNING == 'true'
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -162,8 +166,85 @@ jobs:
           FLUTTER_BIN: flutter
         run: bundle exec fastlane ios beta
 
-      - name: macOS → TestFlight (best-effort)
+  # ── macOS · notarized .dmg (direct download) ────────────────────────────────
+  macos-dmg:
+    name: macOS — notarized .dmg
+    runs-on: macos-26
+    env:
+      HAS_SIGNING: ${{ secrets.MATCH_PASSWORD != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - run: flutter pub get
+
+      - name: Decode App Store Connect API key
         if: env.HAS_SIGNING == 'true'
+        run: echo "${{ secrets.ASC_KEY_BASE64 }}" | base64 --decode > "${{ github.workspace }}/fastlane/AuthKey.p8"
+
+      - name: Build, sign (Developer ID) & notarize .dmg
+        if: env.HAS_SIGNING == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_FILEPATH: ./fastlane/AuthKey.p8
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          FLUTTER_BIN: flutter
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: bundle exec fastlane mac github
+
+      - name: Build unsigned .dmg (fallback, no signing secrets)
+        if: env.HAS_SIGNING != 'true'
+        run: |
+          mkdir -p dist
+          flutter build macos --release
+          hdiutil create -volname Sonority -ov -format UDZO \
+            -srcfolder build/macos/Build/Products/Release/Sonority.app \
+            "dist/Sonority-${{ github.ref_name }}-macos.dmg"
+
+      - name: Upload .dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  # ── macOS · TestFlight (best-effort) ────────────────────────────────────────
+  macos-testflight:
+    name: macOS — TestFlight
+    runs-on: macos-26
+    env:
+      HAS_SIGNING: ${{ secrets.MATCH_PASSWORD != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - run: flutter pub get
+
+      - name: Decode App Store Connect API key
+        if: env.HAS_SIGNING == 'true'
+        run: echo "${{ secrets.ASC_KEY_BASE64 }}" | base64 --decode > "${{ github.workspace }}/fastlane/AuthKey.p8"
+
+      - name: Build & upload macOS → TestFlight
+        if: env.HAS_SIGNING == 'true'
+        # Best-effort: macOS TestFlight processing is finicky and this job blocks
+        # nothing, so a failure here shouldn't fail the run.
         continue-on-error: true
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -175,9 +256,11 @@ jobs:
           FLUTTER_BIN: flutter
         run: bundle exec fastlane mac beta
 
-  release:
-    needs: [android, apple]
-    # Publish as long as the APK built; iOS/macOS are included if present.
+  # ── GitHub Release · publish artifacts + notes ──────────────────────────────
+  publish-github:
+    name: Publish release + notes
+    needs: [android, ios-unsigned, macos-dmg]
+    # Publish as long as the APK built; iOS/macOS assets are attached if present.
     if: ${{ always() && needs.android.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
@@ -219,7 +302,7 @@ jobs:
           } > release-body.md
           echo "----- release-body.md -----"
           cat release-body.md
-      - name: Publish release
+      - name: Publish release (APK + .ipa + .dmg)
         uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/*

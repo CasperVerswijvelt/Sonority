@@ -146,8 +146,12 @@ end
 platform :mac do
   desc "Create/refresh the shared macOS signing assets in the match repo"
   lane :certificates do
+    # App Store distribution cert (+ installer) for TestFlight / Mac App Store.
     match(type: "appstore", platform: "macos", readonly: false, api_key: asc_key,
           additional_cert_types: ["mac_installer_distribution"])
+    # Developer ID Application cert for the notarized direct-download .dmg. NB:
+    # Apple caps Developer ID Application certs at 2 per account — run once.
+    match(type: "developer_id", platform: "macos", readonly: false, api_key: asc_key)
   end
 
   desc "Build and upload a macOS build to TestFlight"
@@ -157,6 +161,53 @@ platform :mac do
     flutter_build("build macos --release")
     archive_apple("macos")
     upload_to_testflight(api_key: key, skip_waiting_for_build_processing: true)
+  end
+
+  desc "Build a Developer ID-signed + notarized .dmg for direct download (GitHub Release)"
+  lane :github do
+    key = asc_key
+    # Developer ID Application cert from the match repo (readonly on CI). Unlike
+    # App Store signing there's no provisioning profile — clear the profile name
+    # and sign directly with the Developer ID identity.
+    if is_ci
+      setup_ci
+      match(type: "developer_id", platform: "macos", readonly: true, api_key: key)
+      update_code_signing_settings(
+        use_automatic_signing: false,
+        path: "macos/Runner.xcodeproj",
+        team_id: TEAM_ID,
+        code_sign_identity: "Developer ID Application",
+        profile_name: "",
+        targets: ["Runner"],
+        build_configurations: ["Release"],
+      )
+    end
+
+    flutter_build("build macos --release")
+
+    # Archive + export a Developer-ID app with the Hardened Runtime enabled
+    # (notarization rejects apps without it).
+    app = build_app(
+      workspace: "macos/Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "developer-id",
+      output_directory: "build/fastlane-macos-devid",
+      export_team_id: TEAM_ID,
+      xcargs: "#{prov_xcargs} ENABLE_HARDENED_RUNTIME=YES",
+    )
+
+    # Package the exported .app into a .dmg, notarize it with the ASC API key,
+    # then staple the ticket so it opens offline without a Gatekeeper prompt.
+    # Uses xcrun notarytool directly (robust across fastlane versions).
+    tag = ENV["RELEASE_TAG"] || "dev"
+    dmg = File.expand_path("../dist/Sonority-#{tag}-macos.dmg", __dir__)
+    key_path = File.expand_path(ENV.fetch("ASC_KEY_FILEPATH"), File.expand_path("..", __dir__))
+    sh("mkdir -p #{File.dirname(dmg)}")
+    sh("hdiutil create -volname Sonority -ov -format UDZO -srcfolder '#{app}' '#{dmg}'")
+    sh("xcrun notarytool submit '#{dmg}' " \
+       "--key '#{key_path}' --key-id '#{ENV.fetch("ASC_KEY_ID")}' " \
+       "--issuer '#{ENV.fetch("ASC_ISSUER_ID")}' --wait")
+    sh("xcrun stapler staple '#{dmg}'")
   end
 
   desc "Build and submit the macOS app for App Store review"
