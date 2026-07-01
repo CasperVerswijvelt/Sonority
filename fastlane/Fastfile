@@ -168,15 +168,21 @@ platform :mac do
 
   desc "Build a Developer ID-signed + notarized .dmg for direct download (GitHub Release)"
   lane :github do
-    key = asc_key
-    # Developer ID Application cert from the match repo (readonly on CI). Unlike
-    # App Store signing there's no provisioning profile — skip profile syncing
-    # (readonly match otherwise fails looking for a Direct_* profile) and sign
-    # directly with the Developer ID identity.
+    # Developer ID signing. NOT via match: match requires an empty-passphrase p12
+    # and authenticates to the portal on import, both awkward for CI. Instead the
+    # identity is a single secret (MACOS_DEVID_P12_BASE64 / _PASSWORD) imported
+    # straight into the CI keychain. Locally the identity is in your login keychain.
     if is_ci
       setup_ci
-      match(type: "developer_id", platform: "macos", readonly: true, api_key: key,
-            skip_provisioning_profiles: true)
+      p12 = File.join(Dir.tmpdir, "devid_ci.p12")
+      sh("printf '%s' \"$MACOS_DEVID_P12_BASE64\" | base64 --decode > #{p12.shellescape}")
+      import_certificate(
+        certificate_path: p12,
+        certificate_password: ENV.fetch("MACOS_DEVID_P12_PASSWORD"),
+        keychain_name: ENV.fetch("MATCH_KEYCHAIN_NAME", "fastlane_tmp_keychain"),
+        keychain_password: ENV.fetch("MATCH_KEYCHAIN_PASSWORD", ""),
+      )
+      File.delete(p12)
       update_code_signing_settings(
         use_automatic_signing: false,
         path: "macos/Runner.xcodeproj",

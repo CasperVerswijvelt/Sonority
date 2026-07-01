@@ -170,8 +170,10 @@ jobs:
   macos-dmg:
     name: macOS — notarized .dmg
     runs-on: macos-26
+    # Developer ID identity comes from a single p12 secret (not match — see the
+    # `mac github` lane); notarization uses the ASC API key.
     env:
-      HAS_SIGNING: ${{ secrets.MATCH_PASSWORD != '' }}
+      HAS_DEVID: ${{ secrets.MACOS_DEVID_P12_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -186,24 +188,23 @@ jobs:
       - run: flutter pub get
 
       - name: Decode App Store Connect API key
-        if: env.HAS_SIGNING == 'true'
+        if: env.HAS_DEVID == 'true'
         run: echo "${{ secrets.ASC_KEY_BASE64 }}" | base64 --decode > "${{ github.workspace }}/fastlane/AuthKey.p8"
 
       - name: Build, sign (Developer ID) & notarize .dmg
-        if: env.HAS_SIGNING == 'true'
+        if: env.HAS_DEVID == 'true'
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_FILEPATH: ./fastlane/AuthKey.p8
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
-          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          MACOS_DEVID_P12_BASE64: ${{ secrets.MACOS_DEVID_P12_BASE64 }}
+          MACOS_DEVID_P12_PASSWORD: ${{ secrets.MACOS_DEVID_P12_PASSWORD }}
           FLUTTER_BIN: flutter
           RELEASE_TAG: ${{ github.ref_name }}
         run: bundle exec fastlane mac github
 
       - name: Build unsigned .dmg (fallback, no signing secrets)
-        if: env.HAS_SIGNING != 'true'
+        if: env.HAS_DEVID != 'true'
         run: |
           mkdir -p dist
           flutter build macos --release
