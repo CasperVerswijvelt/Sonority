@@ -5,6 +5,10 @@ it to the **internal testing** track whenever a `vX.Y.Z` tag is pushed — *once
 the one-time setup below is done. Without the secrets it just builds a
 debug-signed APK and skips Play (so the workflow never breaks for forks).
 
+> Listing copy is in `app-store/listing.md` (it serves both stores); the store
+> graphics + screenshots and how to regenerate them are in
+> [`MARKETING-ASSETS.md`](MARKETING-ASSETS.md).
+
 ## One-time setup
 
 ### 1. Create an upload keystore

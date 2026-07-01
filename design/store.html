@@ -29,20 +29,25 @@ function diagramSvg(scale=1){
     <g transform="translate(500 510) scale(${scale}) translate(-500 -510)">${s}</g></svg>`;
 }
 
-// Marketing copy per screenshot
+// Marketing copy per screenshot. Sources are captured app screens (1080x2400)
+// in shots/; the CANVAS is what hits each store's required size, so the inner
+// shot can be any size. See docs/MARKETING-ASSETS.md.
 const SHOTS = [
-  { src:'shots/01.png', head:'See your whole<br>Sonos system',
-    sub:'Home theaters, stereo pairs and every room — at a glance.' },
-  { src:'shots/02.png', head:'Add dedicated<br>front speakers',
-    sub:'Discrete front L / R on your home theater — a setup the Sonos app won’t create.' },
-  { src:'shots/03.png', head:'Pair mismatched<br>speakers',
-    sub:'Stereo-pair a One with a Play:1 — app-blocked, unlocked here.' },
+  { src:'shots/01-overview.png', head:'Your whole<br>Sonos system',
+    sub:'Home theaters, speaker groups and every room — at a glance.' },
+  { src:'shots/02-home-theater.png', head:'Dedicated<br>front speakers',
+    sub:'Add discrete front L / R to your soundbar — a home theater the Sonos app won’t build.' },
+  { src:'shots/03-group.png', head:'Stereo pairs,<br>zones &amp; more',
+    sub:'Bond any speakers into one room — even mismatched models the app blocks.' },
+  { src:'shots/04-profiles.png', head:'Save &amp; restore<br>your layouts',
+    sub:'Snapshot your setup and rebuild fronts, surrounds and groups in one tap.' },
 ];
 
 const params = new URLSearchParams(location.search);
 const mode = params.get('mode') || 'feature';
 const stage = document.getElementById('stage');
 function size(w,h){ stage.style.width=w+'px'; stage.style.height=h+'px'; }
+const idx = () => parseInt(params.get('i')||'0',10);
 
 function featureGraphic(){
   size(1024,500);
@@ -51,7 +56,7 @@ function featureGraphic(){
     <div style="position:absolute;left:80px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;width:560px">
       <div class="word" style="font-size:104px;line-height:1">Sonority</div>
       <div class="grey" style="font-size:31px;margin-top:22px;line-height:1.35;max-width:520px">
-        Dedicated front surrounds &amp; mismatched stereo pairs for Sonos —
+        Home-theater layouts, speaker groups and one-tap profiles for Sonos —
         the setups the official app won’t let you create.</div>
     </div>
     <div style="position:absolute;right:70px;top:50%;transform:translateY(-50%);width:300px;height:300px">
@@ -59,32 +64,42 @@ function featureGraphic(){
     </div>`;
 }
 
-function phoneCard(i){
-  size(1080,1920);
+// Portrait framed marketing shot (caption on top, phone below). Height-driven so
+// the same layout fills any portrait canvas: Play phone (1080x1920) & iPhone
+// 6.9" (1290x2796).
+function framedPortrait(w,h,i){
+  size(w,h);
   const sh = SHOTS[i];
+  const phoneH = h*0.62;
+  const phoneW = phoneH*(1080/2400);
   stage.innerHTML = `
     <div class="bg"></div>
-    <div style="position:absolute;left:0;right:0;top:150px;text-align:center;padding:0 90px">
-      <div class="word" style="font-size:84px;line-height:1.08">${sh.head}</div>
-      <div class="grey" style="font-size:34px;line-height:1.4;margin-top:30px">${sh.sub}</div>
+    <div style="position:absolute;left:0;right:0;top:${h*0.06}px;text-align:center;padding:0 ${w*0.08}px">
+      <div class="word" style="font-size:${w*0.078}px;line-height:1.08">${sh.head}</div>
+      <div class="grey" style="font-size:${w*0.032}px;line-height:1.4;margin-top:${h*0.015}px">${sh.sub}</div>
     </div>
     <div class="phone" style="position:absolute;left:50%;transform:translateX(-50%);
-        bottom:120px;width:560px;height:1244px">
+        bottom:${h*0.05}px;width:${phoneW}px;height:${phoneH}px;border-width:${w*0.013}px;border-radius:${w*0.05}px">
       <img src="${sh.src}">
     </div>`;
 }
 
-function heroCard(){
-  size(1080,1920);
+// macOS marketing shot: caption on the left, the portrait app window on the
+// right (the mac app is a fixed portrait window), on the branded background.
+function macCard(i){
+  const w=2560,h=1600; size(w,h);
+  const sh = SHOTS[i];
+  const phoneH = h*0.82;
+  const phoneW = phoneH*(1080/2400);
   stage.innerHTML = `
     <div class="bg"></div>
-    <div style="position:absolute;inset:0;display:flex;flex-direction:column;
-        align-items:center;justify-content:center;gap:90px">
-      <div style="width:600px;height:600px">${diagramSvg(1.45)}</div>
-      <div style="text-align:center">
-        <div class="word" style="font-size:128px;line-height:1">Sonority</div>
-        <div class="grey" style="font-size:40px;margin-top:28px">Unlock your Sonos home theater</div>
-      </div>
+    <div style="position:absolute;left:${w*0.08}px;top:50%;transform:translateY(-50%);width:${w*0.44}px">
+      <div class="word" style="font-size:${w*0.058}px;line-height:1.05">${sh.head}</div>
+      <div class="grey" style="font-size:${w*0.024}px;margin-top:${h*0.03}px;line-height:1.4">${sh.sub}</div>
+    </div>
+    <div class="phone" style="position:absolute;right:${w*0.08}px;top:50%;transform:translateY(-50%);
+        width:${phoneW}px;height:${phoneH}px;border-width:${w*0.006}px;border-radius:${w*0.02}px">
+      <img src="${sh.src}">
     </div>`;
 }
 
@@ -97,7 +112,7 @@ function tablet(w,h){
     <div style="position:absolute;left:${px(110)};top:50%;transform:translateY(-50%);width:${px(720)}px">
       <div class="word" style="font-size:${px(96)};line-height:1.05">Sonority</div>
       <div class="grey" style="font-size:${px(36)};margin-top:${px(26)};line-height:1.4;max-width:${px(640)}">
-        Dedicated front surrounds and mismatched stereo pairs for Sonos —
+        Home-theater layouts, speaker groups and one-tap profiles for Sonos —
         configurations the official app blocks.</div>
     </div>
     <div style="position:absolute;right:${px(140)};top:50%;transform:translateY(-50%);
@@ -110,8 +125,10 @@ function tablet(w,h){
 }
 
 if (mode==='feature') featureGraphic();
-else if (mode==='hero') heroCard();
 else if (mode==='tablet7') tablet(1920,1080);
 else if (mode==='tablet10') tablet(2560,1440);
-else phoneCard(parseInt(params.get('i')||'0',10));
+else if (mode==='ios69') framedPortrait(1290,2796, idx());
+else if (mode==='mac') macCard(idx());
+else phoneCard(idx());
+function phoneCard(i){ framedPortrait(1080,1920,i); }
 </script>
