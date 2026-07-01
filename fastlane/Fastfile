@@ -111,6 +111,20 @@ def archive_apple(platform)
   build_app(opts)
 end
 
+# Upload to TestFlight and push to the external "External" group (its public link
+# is the one in the README). distribute_external submits the build for Beta App
+# Review and, once processing finishes, assigns it to the group — so we can't
+# skip waiting for processing here (unlike an internal-only upload).
+def distribute_testflight(key)
+  upload_to_testflight(
+    api_key: key,
+    distribute_external: true,
+    groups: ["External"],
+    notify_external_testers: true,
+    changelog: "Automated CI build — see the GitHub release notes for what's new.",
+  )
+end
+
 platform :ios do
   desc "Create/refresh the shared iOS signing assets in the match repo"
   lane :certificates do
@@ -123,7 +137,7 @@ platform :ios do
     ci_signing("ios")
     flutter_build("build ios --release --no-codesign")
     archive_apple("ios")
-    upload_to_testflight(api_key: key, skip_waiting_for_build_processing: true)
+    distribute_testflight(key)
   end
 
   desc "Build and submit the iOS app for App Store review"
@@ -163,7 +177,7 @@ platform :mac do
     ci_signing("macos")
     flutter_build("build macos --release")
     archive_apple("macos")
-    upload_to_testflight(api_key: key, skip_waiting_for_build_processing: true)
+    distribute_testflight(key)
   end
 
   desc "Build a Developer ID-signed + notarized .dmg for direct download (GitHub Release)"
