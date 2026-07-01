@@ -135,13 +135,22 @@ then import it into the match repo:
    keychain. (Apple caps these at **2 per account**.)
 2. **Keychain Access** → find `Developer ID Application: …`: export the
    **certificate** as `devid.cer`, and (expand it) export its **private key** as
-   `devid.p12` (set a password).
+   a `.p12`. **The `.p12` must have an EMPTY passphrase** — `match import` copies
+   it verbatim and `match` later imports it with `security import -P ""`, so a
+   passphrase-protected `.p12` fails on CI with *"MAC verification failed (wrong
+   password?)"* → *"no Developer ID Application signing certificate … with a
+   private key"*. If Keychain forces a password on export, re-wrap it:
+   ```sh
+   openssl pkcs12 -in devid-withpass.p12 -passin pass:THEPASS -nodes -legacy -out devid.pem
+   openssl pkcs12 -export -in devid.pem -passout pass: -legacy \
+     -name "Developer ID Application: …" -out devid.p12 && rm devid.pem
+   ```
 3. **Import into the match repo** (encrypts + stores the files — creates nothing
    on Apple's side, so no Account-Holder API access is needed):
    ```sh
    bundle exec fastlane match import --type developer_id --platform macos
    #  Certificate  → devid.cer
-   #  Private key  → devid.p12
+   #  Private key  → devid.p12   (EMPTY passphrase — see above)
    #  Profile      → (press enter; Developer ID has none)
    ```
 `mac certificates` still (re)creates the App Store cert; only the Developer ID
