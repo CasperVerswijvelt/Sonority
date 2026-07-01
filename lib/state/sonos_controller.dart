@@ -129,10 +129,12 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     required ZoneGroupMember soundbar,
     required SonosDevice soundbarDevice,
     required Map<SonosChannel, SonosDevice> additions,
+    List<SonosDevice> subs = const [],
   }) async {
-    if (additions.isEmpty) return;
+    if (additions.isEmpty && subs.isEmpty) return;
 
     // Existing layout overlaid with the new assignments → the full target map.
+    // Subs go via [subUuids] (the one channel that can repeat — up to two).
     final target = front_layout.buildLayoutMap(
       soundbar: soundbar,
       soundbarDevice: soundbarDevice,
@@ -140,6 +142,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         ...soundbar.channelAssignments,
         for (final e in additions.entries) e.key: e.value.uuid,
       },
+      subUuids: [for (final d in subs) d.uuid],
     );
 
     final tracker = _newTracker(

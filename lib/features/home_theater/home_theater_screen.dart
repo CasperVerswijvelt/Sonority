@@ -234,7 +234,7 @@ class _Content extends StatelessWidget {
             member,
             SonosChannel.rightRear,
           ),
-          hasSub: hasChannel(member, SonosChannel.sub),
+          subCount: member.subUuids.length,
         ),
         Gap.l,
         FilledButton.icon(

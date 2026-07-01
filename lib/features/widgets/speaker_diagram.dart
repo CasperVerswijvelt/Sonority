@@ -8,7 +8,10 @@ class SpeakerDiagram extends StatelessWidget {
   final String? frontRightLabel;
   final String? rearLeftLabel;
   final String? rearRightLabel;
-  final bool hasSub;
+
+  /// Number of bonded Subs (0, 1, or 2 for a dual-sub HT). Renders "SUB" or
+  /// "SUB ×N".
+  final int subCount;
 
   /// The soundbar's type (e.g. "Beam", "Arc") shown under the screen bar.
   /// Falls back to a generic label when unknown.
@@ -20,7 +23,7 @@ class SpeakerDiagram extends StatelessWidget {
     this.frontRightLabel,
     this.rearLeftLabel,
     this.rearRightLabel,
-    this.hasSub = false,
+    this.subCount = 0,
     this.soundbarLabel,
   });
 
@@ -62,10 +65,11 @@ class SpeakerDiagram extends StatelessWidget {
                 ],
               ),
             ),
-            if (hasSub)
+            if (subCount > 0)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                child: _chip(context, 'SUB', scheme.tertiary),
+                child: _chip(context, subCount > 1 ? 'SUB ×$subCount' : 'SUB',
+                    scheme.tertiary),
               ),
             Expanded(
               child: Row(

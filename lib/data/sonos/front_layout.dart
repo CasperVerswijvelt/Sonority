@@ -18,10 +18,15 @@ import 'channel_map.dart';
 /// - Output channel order is canonical (LF, RF, LR, RR, SW) so encodings are
 ///   deterministic; Sonos ignores order. Removing a role is a separate
 ///   `RemoveHTSatellite` — this only adds/overrides.
+///
+/// The Sub (`SW`) is the one channel that can repeat — an HT supports up to two
+/// Subs. A single Sub may still be passed as `desired[SonosChannel.sub]`;
+/// [subUuids] adds any further Subs. Both are unioned with the existing Subs.
 ChannelMap buildLayoutMap({
   required ZoneGroupMember soundbar,
   required SonosDevice soundbarDevice,
   required Map<SonosChannel, String> desired,
+  List<String> subUuids = const [],
   bool preserveExisting = true,
 }) {
   // Final channel → UUID: existing satellites (if preserving) overlaid by the
@@ -29,6 +34,14 @@ ChannelMap buildLayoutMap({
   final assign = <SonosChannel, String>{
     if (preserveExisting) ...soundbar.channelAssignments,
     ...desired,
+  }..remove(SonosChannel.sub); // subs handled below (the channel can repeat)
+
+  // Existing Subs (via uuidsForChannel — `channelAssignments` collapses dual-sub
+  // to one) unioned with the requested Sub(s), order-preserving + de-duped.
+  final subs = <String>{
+    if (preserveExisting) ...soundbar.uuidsForChannel(SonosChannel.sub),
+    if (desired[SonosChannel.sub] != null) desired[SonosChannel.sub]!,
+    ...subUuids,
   };
 
   final entries = <ChannelMapEntry>[
@@ -41,7 +54,6 @@ ChannelMap buildLayoutMap({
     SonosChannel.rightFront,
     SonosChannel.leftRear,
     SonosChannel.rightRear,
-    SonosChannel.sub,
   ];
   final byUuid = <String, List<SonosChannel>>{};
   for (final ch in order) {
@@ -51,6 +63,9 @@ ChannelMap buildLayoutMap({
   }
   for (final e in byUuid.entries) {
     entries.add(ChannelMapEntry.fromChannels(e.key, e.value));
+  }
+  for (final u in subs) {
+    entries.add(ChannelMapEntry.fromChannels(u, [SonosChannel.sub]));
   }
   return ChannelMap(entries);
 }

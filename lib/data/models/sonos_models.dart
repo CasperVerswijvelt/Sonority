@@ -197,6 +197,11 @@ class ZoneGroupMember {
     return null;
   }
 
+  /// All bonded HT Sub UUIDs (`SW` entries in the `HTSatChanMapSet`) — up to two
+  /// for a dual-sub home theater. Reads the authoritative HT map (not the group
+  /// `ChannelMapSet` that [subUuid] scans), so it's HT-only by design.
+  List<String> get subUuids => uuidsForChannel(SonosChannel.sub);
+
   /// True when this visible member carries a `ChannelMapSet` — i.e. it's a
   /// bonded **speaker group** (stereo pair / zone / custom L-R layout).
   bool get isGroup => channelMapSet?.isNotEmpty ?? false;

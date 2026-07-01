@@ -29,7 +29,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   int _step = 0;
   final List<String> _fronts = []; // uuids, order [left, right] (or [amp])
   final List<String> _surrounds = []; // uuids, order [rearLeft, rearRight]
-  String? _sub; // uuid
+  final List<String> _subs = []; // uuids, up to two (HT dual-sub)
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +45,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     }
 
     // Speakers free to assign, minus ones already chosen in another role here.
-    final chosenElsewhere = <String>{..._fronts, ..._surrounds, if (_sub != null) _sub!};
+    final chosenElsewhere = <String>{..._fronts, ..._surrounds, ..._subs};
     List<SonosDevice> avail(List<String> keepFor) => system.bondableSpeakers
         .where((d) => keepFor.contains(d.uuid) || !chosenElsewhere.contains(d.uuid))
         .toList();
@@ -140,18 +140,22 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
               title: const Text('Subwoofer'),
               subtitle: const Text('Optional'),
               isActive: _step >= 2,
-              state: _sub != null ? StepState.complete : StepState.indexed,
+              state: _subs.isNotEmpty ? StepState.complete : StepState.indexed,
               content: _ChooseSub(
                 subs: freeSubs,
-                selected: _sub,
-                onToggle: (d) => setState(() => _sub = _sub == d.uuid ? null : d.uuid),
+                selected: _subs,
+                onToggle: _toggleSub,
                 identifyControls: identifyButtons,
               ),
             ),
             Step(
               title: const Text('Review & apply'),
               isActive: _step >= 3,
-              content: _Review(system: system, member: member, additions: _additions(system)),
+              content: _Review(
+                  system: system,
+                  member: member,
+                  additions: _additions(system),
+                  subCount: {...member.subUuids, ..._subs}.length),
             ),
           ],
         ),
@@ -166,7 +170,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   bool get _frontsValid => _fronts.isEmpty || _fronts.length == 2 || _ampMode;
   bool get _surroundsValid => _surrounds.isEmpty || _surrounds.length == 2;
   bool get _anyChosen =>
-      (_fronts.length == 2 || _ampMode) || _surrounds.length == 2 || _sub != null;
+      (_fronts.length == 2 || _ampMode) || _surrounds.length == 2 || _subs.isNotEmpty;
   bool get _canApply => _anyChosen && _frontsValid && _surroundsValid;
 
   void _toggleFront(SonosDevice d) => setState(() {
@@ -189,6 +193,14 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           _surrounds.remove(d.uuid);
         } else if (_surrounds.length < 2) {
           _surrounds.add(d.uuid);
+        }
+      });
+
+  void _toggleSub(SonosDevice d) => setState(() {
+        if (_subs.contains(d.uuid)) {
+          _subs.remove(d.uuid);
+        } else if (_subs.length < 2) {
+          _subs.add(d.uuid); // HT supports up to two Subs
         }
       });
 
@@ -216,13 +228,14 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         out[SonosChannel.rightRear] = r;
       }
     }
-    final sub = _sub;
-    if (sub != null) {
-      final s = dev(sub);
-      if (s != null) out[SonosChannel.sub] = s;
-    }
+    // Subs are threaded separately (see [_subDevices]) — the channel can repeat,
+    // so it can't live in this one-per-channel map.
     return out;
   }
+
+  /// The chosen Sub device(s) — up to two for a dual-sub HT.
+  List<SonosDevice> _subDevices(SonosSystem system) =>
+      [for (final u in _subs) system.device(u)].whereType<SonosDevice>().toList();
 
   Widget _controls(
       BuildContext context, ZoneGroupMember member, SonosDevice soundbar) {
@@ -259,7 +272,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     final system = ref.read(sonosControllerProvider).value;
     if (system == null) return;
     final additions = _additions(system);
-    if (additions.isEmpty) return;
+    final subs = _subDevices(system);
+    if (additions.isEmpty && subs.isEmpty) return;
 
     final controller = ref.read(sonosControllerProvider.notifier);
     final router = GoRouter.of(context);
@@ -270,6 +284,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         soundbar: member,
         soundbarDevice: soundbar,
         additions: additions,
+        subs: subs,
       ),
     );
     // No success toast — the progress screen already showed the outcome.
@@ -332,7 +347,7 @@ class _ChooseSpeakers extends StatelessWidget {
 
 class _ChooseSub extends StatelessWidget {
   final List<SonosDevice> subs;
-  final String? selected;
+  final List<String> selected; // uuids, up to two
   final void Function(SonosDevice device) onToggle;
   final Widget Function(SonosDevice device) identifyControls;
 
@@ -353,16 +368,19 @@ class _ChooseSub extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Pick a subwoofer to add as the low-frequency channel.',
+        Text('Pick one or two subwoofers to add as low-frequency channels.',
             style: Theme.of(context).textTheme.bodySmall),
         Gap.s,
-        ...subs.map((d) => BondableSpeakerTile(
-              device: d,
-              selected: selected == d.uuid,
-              onChanged: (_) => onToggle(d),
-              subtitle: d.typeLabel,
-              secondary: identifyControls(d),
-            )),
+        ...subs.map((d) {
+          final isSel = selected.contains(d.uuid);
+          return BondableSpeakerTile(
+            device: d,
+            selected: isSel,
+            onChanged: (!isSel && selected.length >= 2) ? null : (_) => onToggle(d),
+            subtitle: d.typeLabel,
+            secondary: identifyControls(d),
+          );
+        }),
       ],
     );
   }
@@ -481,12 +499,18 @@ class _Review extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember member;
   final Map<SonosChannel, SonosDevice> additions;
+
+  /// Resulting Sub count (existing ∪ newly picked) — for the diagram chip.
+  final int subCount;
   const _Review(
-      {required this.system, required this.member, required this.additions});
+      {required this.system,
+      required this.member,
+      required this.additions,
+      required this.subCount});
 
   @override
   Widget build(BuildContext context) {
-    if (additions.isEmpty) {
+    if (additions.isEmpty && subCount == 0) {
       return const Text('Nothing selected yet — choose speakers above.');
     }
     // Final layout = what's already bonded, overlaid with the new picks. Show
@@ -494,8 +518,6 @@ class _Review extends StatelessWidget {
     // into the HT, so the type is the useful label here.
     String? label(SonosChannel ch) =>
         additions[ch]?.typeLabel ?? typeForChannel(system, member, ch);
-    final hasSub =
-        additions.containsKey(SonosChannel.sub) || hasChannel(member, SonosChannel.sub);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -506,7 +528,7 @@ class _Review extends StatelessWidget {
           frontRightLabel: label(SonosChannel.rightFront),
           rearLeftLabel: label(SonosChannel.leftRear),
           rearRightLabel: label(SonosChannel.rightRear),
-          hasSub: hasSub,
+          subCount: subCount,
         ),
         Gap.m,
         Card(

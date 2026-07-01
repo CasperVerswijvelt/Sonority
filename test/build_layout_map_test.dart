@@ -9,6 +9,7 @@ void main() {
   const lr = 'RINCON_LR01400';
   const rr = 'RINCON_RR01400';
   const sub = 'RINCON_SUB01400';
+  const sub2 = 'RINCON_SUB201400';
   const amp = 'RINCON_AMP01400';
 
   SonosDevice dev(String uuid) =>
@@ -78,6 +79,41 @@ void main() {
       preserveExisting: false,
     );
     expect(map.encode(), '$beam:CC;$lr:LR;$rr:RR');
+  });
+
+  test('adds two Subs (dual-sub) via subUuids', () {
+    final map = buildLayoutMap(
+      soundbar: bar(map: '$beam:CC;$fl:LF;$fr:RF'),
+      soundbarDevice: dev(beam),
+      desired: const {},
+      subUuids: [sub, sub2],
+    );
+    expect(map.encode(), '$beam:CC;$fl:LF;$fr:RF;$sub:SW;$sub2:SW');
+  });
+
+  test('adds a second Sub while preserving the existing one', () {
+    final map = buildLayoutMap(
+      soundbar: bar(map: '$beam:CC;$fl:LF;$fr:RF;$sub:SW'),
+      soundbarDevice: dev(beam),
+      desired: const {},
+      subUuids: [sub2],
+    );
+    expect(map.encode(), '$beam:CC;$fl:LF;$fr:RF;$sub:SW;$sub2:SW');
+  });
+
+  test('dual-sub is idempotent (re-adding an existing Sub does not duplicate)', () {
+    final map = buildLayoutMap(
+      soundbar: bar(map: '$beam:CC;$fl:LF;$fr:RF;$sub:SW;$sub2:SW'),
+      soundbarDevice: dev(beam),
+      desired: const {},
+      subUuids: [sub, sub2],
+    );
+    expect(map.encode(), '$beam:CC;$fl:LF;$fr:RF;$sub:SW;$sub2:SW');
+  });
+
+  test('subUuids parses both Subs off an HTSatChanMapSet', () {
+    final m = bar(map: '$beam:CC;$fl:LF;$fr:RF;$sub:SW;$sub2:SW');
+    expect(m.subUuids, [sub, sub2]);
   });
 
   test('isAmp matches Amp / Connect:Amp but not speakers, subs, or soundbars', () {
