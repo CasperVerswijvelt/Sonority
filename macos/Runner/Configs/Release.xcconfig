@@ -1,2 +1,7 @@
 #include "../../Flutter/Flutter-Release.xcconfig"
 #include "Warnings.xcconfig"
+
+// Notarization requires the Hardened Runtime. Set it here so every Release build
+// path has it (the Developer ID-signed + notarized .dmg AND the App Store/TestFlight
+// build) — not just the fastlane `mac github` xcargs.
+ENABLE_HARDENED_RUNTIME = YES
