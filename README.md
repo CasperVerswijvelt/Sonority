@@ -35,11 +35,13 @@ undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/01-discovery.png" width="30%" alt="System overview: home theaters, stereo pairs, rooms" />
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/02-home-theater.png" width="30%" alt="Home theater with dedicated front L/R speakers" />
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/03-stereo-pair.png" width="30%" alt="Creating a mismatched stereo pair" />
+  <img src="docs/screenshots/01-overview.png" width="23%" alt="System overview: home theaters, speaker groups, rooms" />
+  &nbsp;
+  <img src="docs/screenshots/02-home-theater.png" width="23%" alt="Home theater with dedicated front L/R speakers, surrounds and sub" />
+  &nbsp;
+  <img src="docs/screenshots/03-group.png" width="23%" alt="Grouping speakers: stereo pair, zone or custom" />
+  &nbsp;
+  <img src="docs/screenshots/04-profiles.png" width="23%" alt="Config profiles: save and reapply a layout in one tap" />
 </p>
 
 ## Install (prebuilt)

@@ -21,19 +21,19 @@ Sonority
 ## Subtitle (≤30)
 
 ```
-Advanced home-theater setups
+Home theater, pairs & profiles
 ```
 
 ## Promotional text (≤170, editable anytime without review)
 
 ```
-Create the speaker layouts the standard app won’t: dedicated front speakers on your soundbar, mismatched stereo pairs, and more. Your speakers, your rules.
+Create the speaker setups the standard app won’t: dedicated front speakers, stereo pairs and zones, full surround sound — then save your layout as a one-tap profile.
 ```
 
 ## Keywords (≤100, comma-separated, not shown publicly)
 
 ```
-sonos,home theater,surround,stereo pair,speakers,soundbar,satellite,front,5.1,trueplay,amp,wifi
+sonos,home theater,surround,stereo pair,zone,profile,speakers,soundbar,5.1,trueplay,front
 ```
 
 (Trim to fit 100 chars. "sonos" as a keyword for an app that controls Sonos is
@@ -46,11 +46,12 @@ Sonority configures your speakers in ways the standard controller app doesn’t 
 
 WHAT YOU CAN DO
 
-• Dedicated front speakers on a soundbar — add a discrete left/right pair so your bar acts as the center channel, for a true three-speaker front stage.
+• Dedicated front speakers on a soundbar — add a discrete left/right pair so your bar becomes the center channel, for a true three-speaker front stage.
+• Build a complete home theater in one guided flow — fronts, rear surrounds and a sub, each optional.
 • Use a single amplifier to drive both passive front speakers.
-• Stereo pairs the standard app won’t create — including mismatched models.
-• Identify which physical speaker is which by blinking its status light (or playing a short chime on iPhone/iPad).
-• Toggle a speaker’s room-calibration tuning on or off.
+• Speaker groups the standard app won’t make — full-range zones of 2–16 speakers, stereo pairs (including mismatched models), or a custom per-speaker left/right/both layout, each with an optional sub.
+• Config profiles — snapshot your whole layout and rebuild it in one tap after moving speakers around.
+• Rename rooms, identify which physical speaker is which by blinking its status light (or a short chime on iPhone/iPad), and toggle a speaker’s room-calibration tuning.
 
 Every change is made over your local network, is shown to you before it’s applied, and is fully reversible from within the app.
 
@@ -67,14 +68,14 @@ Compatible speakers on the same Wi-Fi network as your device. Room-calibration t
 Sonority is an independent app and is not affiliated with, authorized, maintained, sponsored, or endorsed by Sonos, Inc. “Sonos” is a trademark of Sonos, Inc., used here only to describe compatibility.
 ```
 
-## What's New (first release)
+## What's New
 
 ```
-First release of Sonority:
-• Dedicated front speakers on a soundbar
-• Stereo pairs, including mismatched models
-• Identify speakers by blinking their light
-• Toggle room-calibration tuning
+• Speaker groups: full-range zones (2–16), stereo pairs and custom per-speaker layouts
+• Complete in-app home-theater setup — fronts, rear surrounds and a sub
+• Config profiles: save a layout and reapply it in one tap
+• Rename rooms; toggle room-calibration tuning
+• Dedicated front speakers on a soundbar (a single Amp works too)
 ```
 
 ## Support / marketing URLs
@@ -116,8 +117,9 @@ affiliated with the speaker manufacturer; this is stated in the description.
 Contact for any questions: casperverswijveltdev@gmail.com
 ```
 
-Record a ~60s screen capture of discovery → adding fronts → identify → undo, and
-host it (unlisted YouTube/Vimeo or a direct link); put the URL in `DEMO_VIDEO_URL`.
+Record a ~60s screen capture of discovery → building a home theater → saving a
+profile → identify → undo, and host it (unlisted YouTube/Vimeo or a direct link);
+put the URL in `DEMO_VIDEO_URL`.
 
 ```
 

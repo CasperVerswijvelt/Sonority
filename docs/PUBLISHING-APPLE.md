@@ -3,6 +3,7 @@
 Companion to `PUBLISHING.md` (Google Play). Covers the one-time Apple setup and
 the per-release flow. Listing copy lives in `app-store/listing.md`; the required
 legal pages are `privacy-policy.html` + `support.html` (host them, see below).
+Screenshots + how to regenerate them: [`MARKETING-ASSETS.md`](MARKETING-ASSETS.md).
 
 Decisions baked in: **paid app, $1.49 / €1.49**, **individual** enrollment,
 iOS **and** Mac App Store.
@@ -64,12 +65,14 @@ link). Host the two pages and set the URLs:
 
 ### 5. Screenshots
 
-Required sizes (Apple rejects missing ones):
+Ready-to-upload, correctly-sized frames live in **`design/appstore/`** — regenerate
+them any time with the pipeline in **`docs/MARKETING-ASSETS.md`**.
 
-- iPhone 6.9" and 6.5".
-- iPad 13" only if you keep iPad support enabled.
-- macOS (1280×800 or 2560×1600).
-  Starting frames are in `docs/screenshots/`; regenerate at the exact sizes.
+- **iPhone 6.9"** — `design/appstore/iphone69-*.png` (1290×2796). This is the only
+  required iPhone size; Apple auto-scales it to smaller iPhones, so a 6.5" set is
+  no longer needed.
+- **macOS** — `design/appstore/mac-*.png` (2560×1600).
+- **iPad** — not applicable; the iOS app is iPhone-only (`TARGETED_DEVICE_FAMILY = 1`).
 
 ## Build, test, submit
 

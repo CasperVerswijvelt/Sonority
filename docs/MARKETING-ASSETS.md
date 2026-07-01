@@ -1,0 +1,132 @@
+# Marketing assets — how to refresh listings & screenshots
+
+Everything a store listing needs: the copy, the screenshots, and the framed
+graphics for Google Play + the Apple App/Mac App Store. This is the repeatable
+recipe — follow it whenever features change or the UI theme moves. It was used to
+produce the current set; redo the same steps to regenerate.
+
+## What lives where
+
+| Asset | Path |
+|---|---|
+| Listing copy (App Store **and** Play) | `docs/app-store/listing.md` |
+| One-line app description | `pubspec.yaml` `description:` |
+| README screenshot gallery | `README.md` → `docs/screenshots/*` |
+| Source app screenshots (raw captures) | `design/shots/0N-*.png` (1080×2400) |
+| Parametric graphics generator | `design/store.html` |
+| Google Play graphics | `design/play/*` |
+| Apple screenshots (iPhone + macOS) | `design/appstore/*` |
+| CHANGELOG (drives GitHub release notes) | `CHANGELOG.md` |
+
+## 1. Copy — keep it in sync with the feature set
+
+When features ship, update all four in one pass, cross-checking `CHANGELOG.md`:
+
+1. `docs/app-store/listing.md` — subtitle, promotional text, keywords,
+   description (**WHAT YOU CAN DO**), and **What's New**. Mind the limits: name
+   ≤30, subtitle ≤30, promo ≤170, keywords ≤100, description ≤4000. Keep
+   "Sonos" **out** of the name/subtitle/icon (App Store Guideline 5.2.1) — it may
+   appear descriptively in the body/keywords only, with the disclaimer.
+2. `pubspec.yaml` `description:`.
+3. `design/store.html` — the `SHOTS` captions + the feature/tablet blurbs.
+4. `README.md` screenshot alt text.
+
+## 2. Screenshots — the four canonical screens
+
+Sonority markets four screens: **overview**, **home-theater detail**,
+**group creation**, **profiles**. Capturing them needs the app running against a
+real Sonos system, in a photogenic state.
+
+### Capture (Android emulator + adb)
+
+The macOS Flutter window can't be scripted (single canvas, no a11y tree); the
+Android emulator can, via `adb`.
+
+```sh
+# build + install a release APK (no debug banner)
+~/fvm/versions/3.35.2/bin/flutter build apk --release
+adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-release.apk
+adb -s emulator-5554 shell am start -n be.casperverswijvelt.sonority/.MainActivity
+
+# clean status bar for pro screenshots (9:41, full battery/signal, no clutter)
+adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command enter
+adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0941
+adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false
+adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false
+# ...drive the UI with `adb shell input tap X Y` / `input text`, capturing:
+adb -s emulator-5554 exec-out screencap -p > design/shots/01-overview.png
+# exit demo mode when done:
+adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command exit
+```
+
+Save the four as `design/shots/01-overview.png`, `02-home-theater.png`,
+`03-group.png`, `04-profiles.png` (any size with a ~1080×2400 phone aspect; the
+generator frames them, so exact dimensions don't matter).
+
+### ⚠️ Staging on the LIVE system — snapshot & restore
+
+To make the screens look good you'll bond a home theater, create a group, and
+rename rooms on the **real** Sonos system. This is destructive to the user's
+living-room setup, so:
+
+1. **Snapshot first** (read-only): `~/fvm/versions/3.35.2/bin/dart run tool/spike.dart`
+   — save every room's `RINCON_…` → name and any bonding.
+2. Stage: rename rooms to clean English names; build one HT (fronts + surrounds +
+   sub); create one group; save 1–2 profiles (profiles are app-local, no Sonos
+   impact).
+3. Capture the four screens.
+4. **Revert, non-negotiable:** separate every group/HT you created, then rename
+   every room back to its snapshot name. Re-run `tool/spike.dart` and confirm
+   names **and** topology match the snapshot exactly. (Group/pair separate
+   restores names automatically; HT-satellite removal does **not** rename the
+   soundbar or a room you renamed — restore those by hand.)
+
+## 3. Generate the framed graphics
+
+`design/store.html` renders every store size from the four source shots. Export
+with headless Chrome at device-scale-factor 1 so the PNG is exactly the window
+size:
+
+```sh
+CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+BASE="file://$PWD/design/store.html"
+shot(){ "$CHROME" --headless=new --disable-gpu --force-device-scale-factor=1 \
+  --hide-scrollbars --window-size=$2,$3 --virtual-time-budget=3500 \
+  --screenshot="$4" "$BASE?mode=$1&i=${5:-0}" >/dev/null 2>&1; }
+
+# Google Play → design/play/
+shot feature 1024 500  design/play/feature-graphic.png
+shot tablet7 1920 1080 design/play/tablet-7in.png
+shot tablet10 2560 1440 design/play/tablet-10in.png
+shot phone 1080 1920 design/play/phone-1-overview.png 0   # i=1 home-theater, 2 group, 3 profiles
+
+# Apple → design/appstore/
+shot ios69 1290 2796 design/appstore/iphone69-1-overview.png 0   # iPhone 6.9"
+shot mac   2560 1600 design/appstore/mac-1-overview.png 0        # macOS
+```
+
+`i` (0–3) selects the source shot; `design/play/play-icon-512.png` is the app icon
+(regenerate from `design/export.html` only if the icon changes). For the README
+gallery, copy the raw `design/shots/*` into `docs/screenshots/*`.
+
+Verify every output's exact pixels:
+
+```sh
+sips -g pixelWidth -g pixelHeight design/appstore/*.png design/play/*.png
+```
+
+## Required dimensions
+
+| Store | Asset | Size (px) | `mode` |
+|---|---|---|---|
+| App Store | iPhone 6.9" | 1290 × 2796 | `ios69` |
+| App Store | macOS | 2560 × 1600 | `mac` |
+| App Store | iPad | — (iPhone-only app) | — |
+| Google Play | Feature graphic | 1024 × 500 | `feature` |
+| Google Play | Phone | 1080 × 1920 | `phone` |
+| Google Play | 7" tablet | 1920 × 1080 | `tablet7` |
+| Google Play | 10" tablet | 2560 × 1440 | `tablet10` |
+| Google Play | Icon | 512 × 512 | (from `design/export.html`) |
+
+Apple needs only the 6.9" iPhone set (auto-scaled to smaller iPhones); 6.5" is no
+longer required.
