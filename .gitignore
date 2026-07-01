@@ -1,3 +1,8 @@
+# Android signing secrets — never commit these
+android/key.properties
+**/*.jks
+**/*.keystore
+
 # Fastlane / App Store Connect secrets — never commit these
 fastlane/.env
 fastlane/*.p8

@@ -49,10 +49,14 @@ Flutter is **not on PATH**; this machine uses **fvm, Flutter 3.35.2**:
   (intentional — renaming it breaks git/cwd paths). Git author: gmail identity,
   no `@basalte.be` (history was scrubbed — keep it that way).
 - Repo: github.com/CasperVerswijvelt/Sonority. CI in
-  `.github/workflows/release.yml` builds APK + unsigned iOS .ipa + macOS .zip and
-  publishes a GitHub Release on `v*` tags (release notes from
-  `.github/release-install-notes.md`; do NOT add `generate_release_notes` — it
-  overrides the body).
+  `.github/workflows/release.yml` — six per-platform jobs on `v*` tags (android;
+  ios-unsigned; ios-testflight; macos-dmg = Developer-ID notarized; macos-testflight;
+  publish-github) → release-signed APK + unsigned iOS .ipa + notarized macOS .dmg on the
+  GitHub Release, plus iOS/macOS → TestFlight. Release notes from
+  `.github/release-install-notes.md` (do NOT add `generate_release_notes` — it overrides the body).
+- **Signing secrets/keys: `docs/SIGNING.md`** is the map of where every value/file lives
+  (Bitwarden masters, GitHub Actions secrets, gitignored local files, the match certs repo).
+  No secret values are committed. Apple setup details: `docs/PUBLISHING-APPLE.md`.
 
 ## Architecture
 
