@@ -170,11 +170,13 @@ platform :mac do
   lane :github do
     key = asc_key
     # Developer ID Application cert from the match repo (readonly on CI). Unlike
-    # App Store signing there's no provisioning profile — clear the profile name
-    # and sign directly with the Developer ID identity.
+    # App Store signing there's no provisioning profile — skip profile syncing
+    # (readonly match otherwise fails looking for a Direct_* profile) and sign
+    # directly with the Developer ID identity.
     if is_ci
       setup_ci
-      match(type: "developer_id", platform: "macos", readonly: true, api_key: key)
+      match(type: "developer_id", platform: "macos", readonly: true, api_key: key,
+            skip_provisioning_profiles: true)
       update_code_signing_settings(
         use_automatic_signing: false,
         path: "macos/Runner.xcodeproj",
