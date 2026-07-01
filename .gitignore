@@ -1,6 +1,8 @@
 # Fastlane / App Store Connect secrets — never commit these
 fastlane/.env
 fastlane/*.p8
+fastlane/*.p12
+fastlane/*.cer
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/test_output/
