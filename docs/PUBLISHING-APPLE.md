@@ -125,37 +125,28 @@ bundle exec fastlane mac github     # → Developer ID-signed + notarized .dmg (
 It signs with a **Developer ID Application** certificate (distinct from the App
 Store cert) and notarizes via the App Store Connect API key.
 
+The Developer ID cert is **not** stored in match (match needs an empty-passphrase
+p12 and logs in to the portal on import — both painful in CI). Instead the whole
+identity is two GitHub secrets the `macos-dmg` job imports straight into its
+keychain.
+
 **One-time setup (Account Holder only):** a **Developer ID Application** cert
 **cannot be created via the App Store Connect API** — Apple restricts creation to
-the Account Holder, through Xcode or the Developer portal. So create it manually,
-then import it into the match repo:
+the Account Holder, through Xcode or the Developer portal:
 
 1. **Xcode → Settings → Accounts → (your team) → Manage Certificates → ＋ →
    Developer ID Application.** Installs the cert + private key in your login
    keychain. (Apple caps these at **2 per account**.)
-2. **Keychain Access** → find `Developer ID Application: …`: export the
-   **certificate** as `devid.cer`, and (expand it) export its **private key** as
-   a `.p12`. **The `.p12` must have an EMPTY passphrase** — `match import` copies
-   it verbatim and `match` later imports it with `security import -P ""`, so a
-   passphrase-protected `.p12` fails on CI with *"MAC verification failed (wrong
-   password?)"* → *"no Developer ID Application signing certificate … with a
-   private key"*. If Keychain forces a password on export, re-wrap it:
+2. **Keychain Access** → export the identity `Developer ID Application: …` as a
+   `.p12` (any password — keep it, it goes in a secret).
+3. **Set the two repo secrets** (Settings → Secrets → Actions):
    ```sh
-   openssl pkcs12 -in devid-withpass.p12 -passin pass:THEPASS -nodes -legacy -out devid.pem
-   openssl pkcs12 -export -in devid.pem -passout pass: -legacy \
-     -name "Developer ID Application: …" -out devid.p12 && rm devid.pem
+   base64 -i devid.p12 | gh secret set MACOS_DEVID_P12_BASE64
+   gh secret set MACOS_DEVID_P12_PASSWORD --body 'THE_P12_PASSWORD'
    ```
-3. **Import into the match repo** (encrypts + stores the files — creates nothing
-   on Apple's side, so no Account-Holder API access is needed):
-   ```sh
-   bundle exec fastlane match import --type developer_id --platform macos
-   #  Certificate  → devid.cer
-   #  Private key  → devid.p12   (EMPTY passphrase — see above)
-   #  Profile      → (press enter; Developer ID has none)
-   ```
-`mac certificates` still (re)creates the App Store cert; only the Developer ID
-one needs the manual create + import above. Afterwards `mac github` (and the CI
-`macos-dmg` job) fetch it **readonly**.
+The CI `macos-dmg` job decodes the p12 and `import_certificate`s it with that
+password, then `mac github` signs + notarizes. (Locally, `mac github` just uses
+the identity already in your login keychain.)
 
 Notarization requires the **Hardened Runtime** (the lane passes
 `ENABLE_HARDENED_RUNTIME=YES`; also enable it on the macOS Runner target in Xcode

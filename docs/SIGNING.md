@@ -33,21 +33,23 @@ secrets (`ASC_KEY_ID`, `ASC_KEY_BASE64` = `base64 -i AuthKey_*.p8`).
 | `MATCH_PASSWORD` — encrypts the certs repo; **cannot be regenerated** | ✓ | `MATCH_PASSWORD` | `fastlane/.env` |
 | `MATCH_GIT_URL` — private certs repo | ✓ | `MATCH_GIT_URL` | `fastlane/.env` |
 | `MATCH_GIT_BASIC_AUTHORIZATION` — base64 `user:PAT`, read access to certs repo | ✓ | `MATCH_GIT_BASIC_AUTHORIZATION` | — (regenerate a PAT if lost) |
-| App Store distribution cert + profile | — | — | the **match repo** (encrypted) |
-| Developer ID Application cert | — | — | the **match repo** (encrypted), after `match import` |
+| App Store distribution cert + profile (iOS + macOS TestFlight) | — | — | the **match repo** (encrypted) |
 
 ⚠️ **Lose `MATCH_PASSWORD` and the certs repo is unrecoverable** — you'd `fastlane match nuke`
 and regenerate everything. Back it up first.
 
-## Apple — Developer ID `.p12` (source for `match import`; the notarized `.dmg`)
-| Item | Bitwarden | Local file |
-|---|---|---|
-| `devid.p12` (Developer ID cert + private key) | ✓ (attach) | `fastlane/devid.p12` |
-| its export password | ✓ | — |
+## Apple — Developer ID `.p12` (the notarized `.dmg`)
+Developer ID is **not** in the match repo (match needs an empty-passphrase p12 and logs in to
+the portal on import — both awkward in CI). The identity is a single p12 secret the CI
+`macos-dmg` job imports straight into its keychain; the `mac github` lane signs with it.
+
+| Item | Bitwarden | GitHub secret | Local file |
+|---|---|---|---|
+| `devid.p12` (Developer ID cert + private key) | ✓ (attach) | `MACOS_DEVID_P12_BASE64` (base64) | `fastlane/devid.p12` |
+| its export password (`yeet`) | ✓ | `MACOS_DEVID_P12_PASSWORD` | — |
 
 Created manually in **Xcode** (Account Holder only — the ASC API can't mint Developer ID
-certs), exported from Keychain, then `fastlane match import --type developer_id` stores it
-in the match repo. Full steps: `docs/PUBLISHING-APPLE.md`.
+certs) and exported from Keychain. Full steps: `docs/PUBLISHING-APPLE.md`.
 
 ## Android — upload keystore + Play
 | Item | Bitwarden | GitHub secret | Local file |
