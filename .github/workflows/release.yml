@@ -126,7 +126,11 @@ jobs:
     #   MATCH_PASSWORD               match repo encryption passphrase
     #   MATCH_GIT_URL                https URL of the private certs repo
     #   MATCH_GIT_BASIC_AUTHORIZATION  base64 of "user:PAT" with read access to it
-    runs-on: macos-14
+    # macos-26 ships Xcode 26 / the iOS 26 SDK. App Store Connect now REJECTS
+    # uploads built with an older SDK (macos-14's Xcode → iOS 17.5 SDK) with a
+    # 409 "SDK version issue". The sideload `apple` job stays on macos-14 — its
+    # unsigned artifacts don't go through App Store SDK validation.
+    runs-on: macos-26
     env:
       HAS_SIGNING: ${{ secrets.MATCH_PASSWORD != '' }}
     steps:
