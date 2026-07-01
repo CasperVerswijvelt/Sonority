@@ -1,7 +1,7 @@
 ## Install
 
 **iOS & macOS — TestFlight (recommended)**
-- Join the beta: [TestFlight](TESTFLIGHT_URL). Installs the signed app and keeps it auto-updated.
+- Join the beta: [TestFlight](https://testflight.apple.com/join/FJ2zGC9w). Installs the signed app and keeps it auto-updated.
 
 Or install a direct download from the assets below:
 

@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <sub><i>iOS &amp; macOS — public App Store coming later; available now via <a href="TESTFLIGHT_URL">TestFlight</a> (beta) or manual installation — see <a href="https://github.com/CasperVerswijvelt/Sonority/releases">Releases</a>.</i></sub>
+  <sub><i>iOS &amp; macOS — public App Store coming later; available now via <a href="https://testflight.apple.com/join/FJ2zGC9w">TestFlight</a> (beta) or manual installation — see <a href="https://github.com/CasperVerswijvelt/Sonority/releases">Releases</a>.</i></sub>
 </p>
 
 # Sonority
@@ -37,7 +37,7 @@ undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr
 ## Install (prebuilt)
 
 **iOS & macOS — TestFlight (recommended)**
-- Join the beta: **[TestFlight](TESTFLIGHT_URL)**. Installs the signed app and keeps it
+- Join the beta: **[TestFlight](https://testflight.apple.com/join/FJ2zGC9w)**. Installs the signed app and keeps it
   auto-updated. (Public App Store release coming later.)
 
 Or grab a direct download from [**Releases**](https://github.com/CasperVerswijvelt/Sonority/releases):
@@ -115,7 +115,7 @@ dart run tool/spike.dart
 
 This discovers your system and prints every home theater's raw `HTSatChanMapSet`. The dedicated-front
 recipe (soundbar stays `CC`, added speakers map to `LF`/`RF`, rears/sub preserved) is **confirmed on a
-real Beam** and isolated in `buildDedicatedFrontsMap` (`lib/data/sonos/front_layout.dart`) — adjust
+real Beam** and built by `buildLayoutMap` (`lib/data/sonos/front_layout.dart`) — adjust
 there if a different model/firmware ever needs it.
 
 ## Tools

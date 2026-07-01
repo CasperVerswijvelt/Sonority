@@ -149,9 +149,12 @@ platform :mac do
     # App Store distribution cert (+ installer) for TestFlight / Mac App Store.
     match(type: "appstore", platform: "macos", readonly: false, api_key: asc_key,
           additional_cert_types: ["mac_installer_distribution"])
-    # Developer ID Application cert for the notarized direct-download .dmg. NB:
-    # Apple caps Developer ID Application certs at 2 per account — run once.
-    match(type: "developer_id", platform: "macos", readonly: false, api_key: asc_key)
+    # NB: the Developer ID Application cert (for the notarized .dmg) canNOT be
+    # created via the App Store Connect API — Apple restricts creation to the
+    # Account Holder, via the Developer portal or Xcode. Create it once there,
+    # export a .p12, then import it into the match repo (see docs/PUBLISHING-APPLE.md):
+    #   fastlane match import --type developer_id --platform macos --api_key_path <key.json>
+    # After that, `mac github` fetches it readonly.
   end
 
   desc "Build and upload a macOS build to TestFlight"

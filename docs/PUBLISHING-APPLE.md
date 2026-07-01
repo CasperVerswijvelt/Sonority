@@ -122,15 +122,32 @@ bundle exec fastlane mac github     # → Developer ID-signed + notarized .dmg (
 It signs with a **Developer ID Application** certificate (distinct from the App
 Store cert) and notarizes via the App Store Connect API key.
 
-**One-time setup:** create/store the Developer ID cert in the match repo. Apple
-caps Developer ID Application certs at **2 per account**, so run this once:
+**One-time setup (Account Holder only):** a **Developer ID Application** cert
+**cannot be created via the App Store Connect API** — Apple restricts creation to
+the Account Holder, through Xcode or the Developer portal. So create it manually,
+then import it into the match repo:
 
-```sh
-bundle exec fastlane mac certificates   # creates App Store + Developer ID certs
-```
+1. **Xcode → Settings → Accounts → (your team) → Manage Certificates → ＋ →
+   Developer ID Application.** Installs the cert + private key in your login
+   keychain. (Apple caps these at **2 per account**.)
+2. **Keychain Access** → find `Developer ID Application: …`: export the
+   **certificate** as `devid.cer`, and (expand it) export its **private key** as
+   `devid.p12` (set a password).
+3. **Import into the match repo** (encrypts + stores the files — creates nothing
+   on Apple's side, so no Account-Holder API access is needed):
+   ```sh
+   bundle exec fastlane match import --type developer_id --platform macos
+   #  Certificate  → devid.cer
+   #  Private key  → devid.p12
+   #  Profile      → (press enter; Developer ID has none)
+   ```
+`mac certificates` still (re)creates the App Store cert; only the Developer ID
+one needs the manual create + import above. Afterwards `mac github` (and the CI
+`macos-dmg` job) fetch it **readonly**.
 
 Notarization requires the **Hardened Runtime** (the lane passes
-`ENABLE_HARDENED_RUNTIME=YES`). In CI the `macos-dmg` job runs `mac github`
+`ENABLE_HARDENED_RUNTIME=YES`; also enable it on the macOS Runner target in Xcode
+so it's baked into the archive). In CI the `macos-dmg` job runs `mac github`
 automatically on a `v*` tag; with no signing secrets it falls back to an unsigned
 `.dmg`.
 

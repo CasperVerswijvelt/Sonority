@@ -60,6 +60,14 @@ Create/refresh the shared macOS signing assets in the match repo
 
 Build and upload a macOS build to TestFlight
 
+### mac github
+
+```sh
+[bundle exec] fastlane mac github
+```
+
+Build a Developer ID-signed + notarized .dmg for direct download (GitHub Release)
+
 ### mac release
 
 ```sh
