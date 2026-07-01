@@ -24,6 +24,14 @@ custom per‑speaker L/R/Both layout (mismatched models + an optional Sub, no mo
 restriction) — and **config profiles** that snapshot a layout and re-apply it in one tap — via Sonos'
 undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr*.
 
+> [!NOTE]
+> **Built with AI-assisted programming.** I'm a software engineer, but every line
+> of code here was written by an AI coding agent under close direction — I specified
+> exactly what each change had to do rather than typing it myself. I worked to keep
+> it from becoming "AI slop": exhaustive testing against my own Sonos hardware,
+> deliberate attention to code quality and architecture, unit tests, and thorough
+> documentation throughout. Sharing this openly for transparency.
+
 ## Screenshots
 
 <p align="center">
