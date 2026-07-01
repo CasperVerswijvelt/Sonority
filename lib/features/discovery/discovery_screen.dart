@@ -7,9 +7,9 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/bondable_speaker_tile.dart';
-import '../widgets/bonding_progress_screen.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/diagram_labels.dart';
+import '../widgets/pill_chip.dart';
 
 /// Entry screen: auto-scans the LAN on launch and presents the system, leading
 /// with anything that can host dedicated front speakers (soundbars).
@@ -179,28 +179,22 @@ class _SystemView extends ConsumerWidget {
   }
 }
 
-/// A bonded speaker group (stereo pair / zone / custom) in the overview.
-class _GroupCard extends ConsumerWidget {
+/// A bonded speaker group (stereo pair / zone / custom) in the overview. Taps
+/// through to the group detail screen (per-speaker channels + separate).
+class _GroupCard extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember group;
   const _GroupCard({required this.system, required this.group});
 
-  static String _kindLabel(GroupKind k) => switch (k) {
-    GroupKind.stereoPair => 'Stereo pair',
-    GroupKind.zone => 'Zone',
-    GroupKind.custom => 'Custom',
-    GroupKind.none => 'Group',
-  };
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final memberUuids = group.groupChannels.keys.toList();
     final types = memberUuids
         .map((u) => system.device(u)?.typeLabel)
         .whereType<String>()
         .toList();
     final subtitle = [
-      _kindLabel(group.groupKind),
+      groupKindLabel(group.groupKind),
       '${memberUuids.length} speakers',
       if (types.isNotEmpty) types.join(', '),
       if (group.subUuid != null) 'Sub',
@@ -214,48 +208,12 @@ class _GroupCard extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         titleAlignment: ListTileTitleAlignment.center,
+        onTap: () => context.push('/group/${group.uuid}'),
         leading: Icon(icon),
         title: Text(group.zoneName),
         subtitle: Text(subtitle),
-        trailing: TextButton(
-          onPressed: () => _confirmSeparate(context, ref),
-          child: const Text('Separate'),
-        ),
+        trailing: const Icon(Icons.chevron_right),
       ),
-    );
-  }
-
-  Future<void> _confirmSeparate(BuildContext context, WidgetRef ref) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.link_off),
-        title: const Text('Separate group?'),
-        content: const Text(
-          'The speakers become standalone rooms again. Their original room '
-          'names will be restored.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: const Text('Separate'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !context.mounted) return;
-    final controller = ref.read(sonosControllerProvider.notifier);
-    await showBondingProgress(
-      context,
-      title: 'Separate group',
-      run: () => controller.separateGroup(group),
     );
   }
 }
@@ -344,45 +302,18 @@ class _GroupChips extends StatelessWidget {
     final chips = <Widget>[];
     for (final (label, icon, channels) in _groups) {
       if (channels.any((c) => hasChannel(member, c))) {
-        chips.add(_chip(scheme, icon, label, scheme.primary));
+        chips.add(PillChip(icon: icon, text: label, color: scheme.primary));
       }
     }
     if (chips.isEmpty) {
-      chips.add(
-        _chip(
-          scheme,
-          Icons.info_outline,
-          'No extra speakers',
-          scheme.onSurfaceVariant,
-        ),
-      );
+      chips.add(PillChip(
+        icon: Icons.info_outline,
+        text: 'No extra speakers',
+        color: scheme.onSurfaceVariant,
+      ));
     }
     return Wrap(spacing: 6, runSpacing: 6, children: chips);
   }
-
-  Widget _chip(ColorScheme scheme, IconData icon, String text, Color color) =>
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 5),
-            Text(
-              text,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      );
 }
 
 class _SectionHeader extends StatelessWidget {

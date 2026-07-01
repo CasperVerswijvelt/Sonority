@@ -9,6 +9,7 @@ import '../../state/trueplay_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/destructive_button.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
@@ -274,6 +275,17 @@ class _Content extends StatelessWidget {
             'layout and have to redo it. Sonority only toggles a stored tuning.',
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+        if (present.isNotEmpty) ...[
+          Gap.l,
+          DestructiveButton(
+            icon: Icons.link_off,
+            label: 'Remove all extra speakers',
+            onPressed: () => onRemoveGroup(
+              {for (final g in present) ...g.channels},
+              'all extra speakers',
             ),
           ),
         ],

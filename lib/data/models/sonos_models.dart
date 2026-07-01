@@ -7,11 +7,19 @@ library;
 
 import '../sonos/zone_layout.dart' show GroupChannel;
 
-export '../sonos/zone_layout.dart' show GroupChannel;
+export '../sonos/zone_layout.dart' show GroupChannel, groupChannelShort;
 
 /// How a speaker group bond classifies for display. A "group" is any member
 /// carrying a `ChannelMapSet` (stereo pair / zone / custom L-R layout).
 enum GroupKind { none, stereoPair, zone, custom }
+
+/// Display label for a group's [GroupKind].
+String groupKindLabel(GroupKind k) => switch (k) {
+      GroupKind.stereoPair => 'Stereo pair',
+      GroupKind.zone => 'Zone',
+      GroupKind.custom => 'Custom group',
+      GroupKind.none => 'Group',
+    };
 
 /// Speaker channel tokens used in a `HTSatChanMapSet`.
 enum SonosChannel {

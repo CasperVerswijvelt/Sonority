@@ -76,6 +76,20 @@ void main() {
     });
   });
 
+  group('display labels', () {
+    test('groupChannelShort', () {
+      expect(groupChannelShort(GroupChannel.left), 'L');
+      expect(groupChannelShort(GroupChannel.right), 'R');
+      expect(groupChannelShort(GroupChannel.both), 'L+R');
+    });
+
+    test('groupKindLabel', () {
+      expect(groupKindLabel(GroupKind.stereoPair), 'Stereo pair');
+      expect(groupKindLabel(GroupKind.zone), 'Zone');
+      expect(groupKindLabel(GroupKind.custom), 'Custom group');
+    });
+  });
+
   group('EntitySnapshot for groups', () {
     test('custom group: kind + involved uuids + JSON round-trip', () {
       final snap = EntitySnapshot.fromMember(_m('A:LF,LF;B:LF,LF;C:RF,RF'));

@@ -13,6 +13,7 @@ import 'features/profiles/profile_create_screen.dart';
 import 'features/profiles/profile_detail_screen.dart';
 import 'features/room/room_screen.dart';
 import 'features/group/group_flow.dart';
+import 'features/group/group_detail_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -25,6 +26,11 @@ final _router = GoRouter(
           routes: [
             GoRoute(path: '/', builder: (_, __) => const DiscoveryScreen()),
             GoRoute(path: '/group', builder: (_, __) => const GroupFlow()),
+            GoRoute(
+              path: '/group/:uuid',
+              builder: (_, s) =>
+                  GroupDetailScreen(uuid: s.pathParameters['uuid']!),
+            ),
             GoRoute(
               path: '/room/:uuid',
               builder: (_, s) => RoomScreen(uuid: s.pathParameters['uuid']!),

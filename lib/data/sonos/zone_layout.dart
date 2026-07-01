@@ -18,6 +18,13 @@ enum GroupChannel {
   final String tokens;
 }
 
+/// Short channel label for the group detail UI: `L` / `R` / `L+R`.
+String groupChannelShort(GroupChannel c) => switch (c) {
+      GroupChannel.left => 'L',
+      GroupChannel.right => 'R',
+      GroupChannel.both => 'L+R',
+    };
+
 /// Builds the `ChannelMapSet` for `AddBondedZones`. The first member is the
 /// coordinator (the room that stays visible); an optional [subUuid] is appended
 /// as `SW`. e.g. `A:LF,LF;B:RF,RF;SUB:SW` (stereo pair + sub).
