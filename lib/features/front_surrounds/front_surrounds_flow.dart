@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,10 +8,39 @@ import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
-import '../widgets/diagram_labels.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/speaker_diagram.dart';
 import '../widgets/speaker_side_card.dart';
+
+/// Seeds the configure-HT selectors from [member]'s current bond: front uuids
+/// ordered [left, right] (a single device on both fronts — an Amp — collapses to
+/// one), rear surrounds [rearLeft, rearRight], sub uuids (up to two), and the
+/// first step that still needs attention (fronts → surrounds → sub, else 0).
+({List<String> fronts, List<String> surrounds, List<String> subs, int step})
+    seedHtRoles(ZoneGroupMember member) {
+  final ca = member.channelAssignments;
+  final fronts = <String>[];
+  final lf = ca[SonosChannel.leftFront], rf = ca[SonosChannel.rightFront];
+  if (lf != null && lf == rf) {
+    fronts.add(lf); // one device on both fronts ⇒ an Amp
+  } else {
+    if (lf != null) fronts.add(lf);
+    if (rf != null) fronts.add(rf);
+  }
+  final surrounds = <String>[
+    if (ca[SonosChannel.leftRear] case final u?) u,
+    if (ca[SonosChannel.rightRear] case final u?) u,
+  ];
+  final subs = member.subUuids;
+  final step = fronts.isEmpty
+      ? 0
+      : surrounds.isEmpty
+          ? 1
+          : subs.isEmpty
+              ? 2
+              : 0;
+  return (fronts: fronts, surrounds: surrounds, subs: subs, step: step);
+}
 
 /// Guided flow to complete a home-theater layout in-app: dedicated front L/R
 /// (two speakers or a single Amp), rear surrounds (L/R), and a sub — each step
@@ -32,6 +62,27 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   final List<String> _subs = []; // uuids, up to two (HT dual-sub)
 
   @override
+  void initState() {
+    super.initState();
+    // Seed the selection from the HT's current layout so already-bonded speakers
+    // show pre-selected (WYSIWYG) — deselecting one then unbonds it on apply. Read
+    // once from the authoritative channel map; build() keeps it live thereafter.
+    final member = ref
+        .read(sonosControllerProvider)
+        .value
+        ?.allMembers
+        .where((m) => m.uuid == widget.soundbarUuid)
+        .cast<ZoneGroupMember?>()
+        .firstOrNull;
+    if (member == null) return;
+    final seed = seedHtRoles(member);
+    _fronts.addAll(seed.fronts);
+    _surrounds.addAll(seed.surrounds);
+    _subs.addAll(seed.subs);
+    _step = seed.step;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final system = ref.watch(sonosControllerProvider).value;
     final member = system?.allMembers
@@ -45,11 +96,28 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     }
 
     // Speakers free to assign, minus ones already chosen in another role here.
+    // Already-bonded speakers of *this* HT aren't in `bondableSpeakers`, so add
+    // the current-role picks explicitly — they must show selected & deselectable.
     final chosenElsewhere = <String>{..._fronts, ..._surrounds, ..._subs};
-    List<SonosDevice> avail(List<String> keepFor) => system.bondableSpeakers
-        .where((d) => keepFor.contains(d.uuid) || !chosenElsewhere.contains(d.uuid))
-        .toList();
-    final freeSubs = system.bondableSubs;
+    List<SonosDevice> avail(List<String> keepFor) {
+      final out = <SonosDevice>[
+        for (final d in system.bondableSpeakers)
+          if (keepFor.contains(d.uuid) || !chosenElsewhere.contains(d.uuid)) d,
+      ];
+      for (final id in keepFor) {
+        if (out.any((d) => d.uuid == id)) continue;
+        final d = system.device(id);
+        if (d != null) out.add(d);
+      }
+      return out;
+    }
+
+    final freeSubs = <SonosDevice>[
+      ...system.bondableSubs,
+      for (final id in _subs)
+        if (!system.bondableSubs.any((d) => d.uuid == id))
+          if (system.device(id) case final d?) d,
+    ];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Set up home theater')),
@@ -58,7 +126,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           currentStep: _step,
           type: StepperType.vertical,
           onStepTapped: (i) => setState(() => _step = i),
-          controlsBuilder: (context, _) => _controls(context, member, soundbar),
+          controlsBuilder: (context, _) =>
+              _controls(context, system, member, soundbar),
           steps: [
             Step(
               title: const Text('Front speakers'),
@@ -155,7 +224,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   system: system,
                   member: member,
                   additions: _additions(system),
-                  subCount: {...member.subUuids, ..._subs}.length),
+                  subCount: _subs.length),
             ),
           ],
         ),
@@ -169,9 +238,26 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   bool get _ampMode => _fronts.length == 1 && _deviceIsAmp(_fronts.first);
   bool get _frontsValid => _fronts.isEmpty || _fronts.length == 2 || _ampMode;
   bool get _surroundsValid => _surrounds.isEmpty || _surrounds.length == 2;
-  bool get _anyChosen =>
-      (_fronts.length == 2 || _ampMode) || _surrounds.length == 2 || _subs.isNotEmpty;
-  bool get _canApply => _anyChosen && _frontsValid && _surroundsValid;
+
+  /// The selection differs from what's currently bonded — the only case worth
+  /// applying (an unchanged layout is a zero-write no-op, so we disable Apply for
+  /// it). Compares fronts/surrounds channel→uuid and the sub set to the live map.
+  bool _differs(SonosSystem system, ZoneGroupMember member) {
+    final desired = {
+      for (final e in _additions(system).entries) e.key: e.value.uuid,
+    };
+    final current = {
+      for (final c in const [
+        SonosChannel.leftFront,
+        SonosChannel.rightFront,
+        SonosChannel.leftRear,
+        SonosChannel.rightRear,
+      ])
+        if (member.channelAssignments[c] case final u?) c: u,
+    };
+    if (!mapEquals(desired, current)) return true;
+    return !setEquals(_subs.toSet(), member.subUuids.toSet());
+  }
 
   void _toggleFront(SonosDevice d) => setState(() {
         if (_fronts.contains(d.uuid)) {
@@ -237,14 +323,16 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   List<SonosDevice> _subDevices(SonosSystem system) =>
       [for (final u in _subs) system.device(u)].whereType<SonosDevice>().toList();
 
-  Widget _controls(
-      BuildContext context, ZoneGroupMember member, SonosDevice soundbar) {
+  Widget _controls(BuildContext context, SonosSystem system,
+      ZoneGroupMember member, SonosDevice soundbar) {
     final canNext = switch (_step) {
       0 => _frontsValid,
       1 => _surroundsValid,
       _ => true,
     };
     final isLast = _step == 3;
+    final canApply =
+        _frontsValid && _surroundsValid && _differs(system, member);
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Row(
@@ -258,7 +346,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           Expanded(
             child: FilledButton(
               onPressed: isLast
-                  ? (_canApply ? () => _apply(member, soundbar) : null)
+                  ? (canApply ? () => _apply(member, soundbar) : null)
                   : (canNext ? () => setState(() => _step++) : null),
               child: Text(isLast ? 'Apply' : 'Continue'),
             ),
@@ -273,7 +361,22 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     if (system == null) return;
     final additions = _additions(system);
     final subs = _subDevices(system);
-    if (additions.isEmpty && subs.isEmpty) return;
+
+    // Speakers bonded now but not in the new selection → they'll be unbonded.
+    // Live writes are destructive, so confirm before removing any (gotcha #3).
+    final desiredUuids = <String>{..._fronts, ..._surrounds, ..._subs};
+    final removed = <String>{
+      for (final c in const [
+        SonosChannel.leftFront,
+        SonosChannel.rightFront,
+        SonosChannel.leftRear,
+        SonosChannel.rightRear,
+      ])
+        ...member.uuidsForChannel(c),
+      ...member.subUuids,
+    }.difference(desiredUuids);
+    if (removed.isNotEmpty && !await _confirmRemoval(system, removed)) return;
+    if (!mounted) return;
 
     final controller = ref.read(sonosControllerProvider.notifier);
     final router = GoRouter.of(context);
@@ -283,12 +386,44 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       run: () => controller.applyHomeTheaterLayout(
         soundbar: member,
         soundbarDevice: soundbar,
-        additions: additions,
+        layout: additions,
         subs: subs,
       ),
     );
     // No success toast — the progress screen already showed the outcome.
     if (outcome == BondingOutcome.success) router.pop();
+  }
+
+  /// Confirms unbonding the speakers the user deselected (they become standalone
+  /// rooms again). Shows their type since a bonded speaker's name is absorbed.
+  Future<bool> _confirmRemoval(SonosSystem system, Set<String> removed) async {
+    final scheme = Theme.of(context).colorScheme;
+    final types = [
+      for (final u in removed) system.device(u)?.typeLabel ?? 'Speaker',
+    ].join(', ');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.link_off),
+        title: Text('Unbond ${removed.length} speaker'
+            '${removed.length == 1 ? '' : 's'}?'),
+        content: Text(
+          '$types will be removed from this home theater and become standalone '
+          'rooms again. The rest of your layout stays as it is.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: scheme.error),
+            child: const Text('Unbond'),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
   }
 }
 
@@ -513,11 +648,10 @@ class _Review extends StatelessWidget {
     if (additions.isEmpty && subCount == 0) {
       return const Text('Nothing selected yet — choose speakers above.');
     }
-    // Final layout = what's already bonded, overlaid with the new picks. Show
-    // speaker TYPE, not room name — once bonded the individual name is absorbed
-    // into the HT, so the type is the useful label here.
-    String? label(SonosChannel ch) =>
-        additions[ch]?.typeLabel ?? typeForChannel(system, member, ch);
+    // The diagram shows the DESIRED end state (the current selection), which is
+    // pre-seeded from the live layout — so a deselected role correctly shows
+    // empty. Speaker TYPE, not room name: a bonded name is absorbed into the HT.
+    String? label(SonosChannel ch) => additions[ch]?.typeLabel;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

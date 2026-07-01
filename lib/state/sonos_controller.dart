@@ -120,29 +120,27 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     state = await AsyncValue.guard(() => _repo.refresh(current, ip));
   }
 
-  /// Bonds one or more roles ([additions]: channel → speaker) onto the
-  /// soundbar — fronts (LF/RF or an Amp on both), surrounds (LR/RR), and/or a
-  /// sub (SW). Overlays the additions on the existing layout and applies the
-  /// diff via [_applyHtTarget] (additive bond, no strip), emitting per-step
-  /// progress via [applyProgressProvider].
+  /// Applies the [layout] (channel → speaker: fronts LF/RF or an Amp on both,
+  /// surrounds LR/RR) plus [subs] (SW, up to two) to the soundbar as the COMPLETE
+  /// desired satellite set. The setup flow pre-seeds [layout] from the current
+  /// bond and edits it, so an omitted role means "unbond it" — [_applyHtTarget]
+  /// diffs current-vs-target and `RemoveHTSatellite`s whatever's no longer wanted
+  /// before additively bonding the rest. Emits per-step progress via
+  /// [applyProgressProvider]. A no-op layout (equals current) writes nothing.
   Future<void> applyHomeTheaterLayout({
     required ZoneGroupMember soundbar,
     required SonosDevice soundbarDevice,
-    required Map<SonosChannel, SonosDevice> additions,
+    required Map<SonosChannel, SonosDevice> layout,
     List<SonosDevice> subs = const [],
   }) async {
-    if (additions.isEmpty && subs.isEmpty) return;
-
-    // Existing layout overlaid with the new assignments → the full target map.
-    // Subs go via [subUuids] (the one channel that can repeat — up to two).
+    // The layout IS the target — no `preserveExisting` overlay, so deselected
+    // roles drop out and get unbonded. Subs go via [subUuids] (repeatable channel).
     final target = front_layout.buildLayoutMap(
       soundbar: soundbar,
       soundbarDevice: soundbarDevice,
-      desired: {
-        ...soundbar.channelAssignments,
-        for (final e in additions.entries) e.key: e.value.uuid,
-      },
+      desired: {for (final e in layout.entries) e.key: e.value.uuid},
       subUuids: [for (final d in subs) d.uuid],
+      preserveExisting: false,
     );
 
     final tracker = _newTracker(
