@@ -14,6 +14,9 @@ class AppScaffold extends StatelessWidget {
   /// `Text(title)`.
   final Widget? titleWidget;
 
+  /// Optional small line shown under [title] (e.g. the entity type).
+  final String? subtitle;
+
   final List<Widget> actions;
   final Widget body;
   final Future<void> Function()? onRefresh;
@@ -29,6 +32,7 @@ class AppScaffold extends StatelessWidget {
     required this.title,
     required this.body,
     this.titleWidget,
+    this.subtitle,
     this.actions = const [],
     this.onRefresh,
     this.floatingActionButton,
@@ -42,7 +46,26 @@ class AppScaffold extends StatelessWidget {
       content = RefreshIndicator(onRefresh: onRefresh!, child: content);
     }
     return Scaffold(
-      appBar: AppBar(title: titleWidget ?? Text(title), actions: actions),
+      appBar: AppBar(
+        title: titleWidget ??
+            (subtitle == null
+                ? Text(title)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(title),
+                      Text(
+                        subtitle!,
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              color:
+                                  Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
+                  )),
+        actions: actions,
+      ),
       floatingActionButton: floatingActionButton,
       // AppBar owns the top inset, so the body only needs the bottom safe area.
       body: SafeArea(

@@ -51,6 +51,7 @@ class HomeTheaterScreen extends ConsumerWidget {
 
     return AppScaffold(
       title: member?.zoneName ?? 'Home theater',
+      subtitle: member == null ? null : 'Home theater',
       onRefresh: refreshAll,
       actions: [
         if (member != null && device != null)

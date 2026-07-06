@@ -22,7 +22,6 @@ class GroupDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final system = ref.watch(sonosControllerProvider).value;
     final group = system?.allMembers
         .where((m) => m.uuid == uuid)
@@ -33,6 +32,9 @@ class GroupDetailScreen extends ConsumerWidget {
 
     return AppScaffold(
       title: group?.zoneName ?? 'Speaker group',
+      subtitle: (group != null && group.isGroup)
+          ? groupKindLabel(group.groupKind)
+          : null,
       onRefresh: refresh,
       actions: [
         if (system != null &&
@@ -51,9 +53,6 @@ class GroupDetailScreen extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                Text(groupKindLabel(group.groupKind),
-                    style: theme.textTheme.titleMedium),
-                Gap.l,
                 for (final e in group.groupChannels.entries) ...[
                   _MemberCard(
                     icon: Icons.speaker,

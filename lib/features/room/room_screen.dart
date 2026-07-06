@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
@@ -37,6 +36,7 @@ class RoomScreen extends ConsumerWidget {
 
     return AppScaffold(
       title: member?.zoneName ?? 'Room',
+      subtitle: member == null ? null : (models.isEmpty ? 'Speaker' : models),
       actions: [
         if (member != null)
           IconButton(
@@ -58,11 +58,6 @@ class RoomScreen extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                Text(
-                  models.isEmpty ? 'Speaker' : models,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Gap.l,
                 TrueplayControl(devices: devices),
               ],
             ),
