@@ -32,6 +32,16 @@ inside Sonority (otherwise you snapshot a half-config and still bounce to the
 Sonos app). Justified by "finish a setup in one app, then save it." Keep this the
 *only* exception; don't widen it to EQ/volume/grouping/etc.
 
+**Same reasoning extends to profiles capturing EQ/volume (deliberate, narrow):**
+a profile can *snapshot each speaker's current EQ (bass/treble/loudness/night/
+speech/sub/surround level) and optionally volume* and re-apply them — a
+save/restore capability the Sonos app has no equivalent for. This does NOT
+duplicate the app because we only **read the live values at snapshot and write
+them back on apply** — there are **no EQ/volume editing sliders** in Sonority
+(that WOULD duplicate the app). Keep it that way: capture+restore only, never
+standalone editing. (`speaker_settings.dart`, two per-profile toggles — EQ, and
+volume separately since restoring volume is surprising.)
+
 The app does **no audio processing** — it only issues the bonding/config SOAP
 calls the official app blocks. Audio quality comes from the real speakers.
 
@@ -74,6 +84,7 @@ lib/
                      channel_map    · front_layout (buildLayoutMap + diffHtLayout — any role)
                      apply_progress (ApplyStep/ApplyProgress — per-step status)
                      identify_service (chime)
+                     speaker_settings (RenderingControl EQ/volume read+apply for profiles)
                      sonos_repository (orchestrates; bondAndVerify write+retry;
                        removeHtSatellites; freeSpeaker; setRoomName; + shared_preferences ⇒ Flutter dep)
   state/           sonos_controller.dart — AsyncNotifier<SonosSystem?>; applyHomeTheaterLayout,
@@ -81,7 +92,7 @@ lib/
   features/        discovery / home_theater / front_surrounds (full HT setup) /
                      group (unified Stereo/Zone/Custom) / profiles / room / widgets
   app.dart, main.dart — go_router StatefulShellRoute (System|Profiles tabs), ProviderScope
-tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, zone_probe, lr_audiotest
+tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, zone_probe, lr_audiotest, eq_probe
 ```
 Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
 `shared_preferences` → Flutter). The pure recipes live in `front_layout.dart` /
@@ -316,6 +327,10 @@ Run on the same Wi-Fi as the Sonos system:
 - `tool/dump_chime.dart <path>` — write the generated WAV to disk.
 - `tool/trueplay_probe.dart` — read-only Trueplay/room-calibration status per
   speaker (+ SCPD dump); `--enable/--disable <room|uuid>` to toggle (reversible).
+- `tool/eq_probe.dart` — read-only per-speaker EQ/audio settings dump
+  (Bass/Treble/Loudness/GetEQ EQTypes + SCPD ranges); `--test <room|uuid>`
+  round-trips Bass (bump + restore). Run FIRST to confirm action names / EQType
+  tokens / ranges before trusting `speaker_settings.dart`.
 
 ## Platform notes
 - iOS: `Info.plist` has `NSLocalNetworkUsageDescription` + `NSBonjourServices`
@@ -353,6 +368,12 @@ Run on the same Wi-Fi as the Sonos system:
   (missing/conflicting speakers), frees conflicts, re-bonds via the diff-based
   `_applyHtTarget` (no-op if unchanged, else add only what's missing), restores
   names, and reports per-step progress. Sub-on-stereo-pair is out (hardware-rejected).
+  Optionally **captures per-speaker EQ (+ volume, separate toggle)** at create and
+  restores it last on apply (after the bond settles, since bonding resets EQ) —
+  `speaker_settings.dart`, `SonosController.captureSettings` + `_restoreSettings`,
+  `EntitySnapshot.settings` (empty for pre-feature profiles ⇒ zero extra writes).
+  ⚠️ action names/EQType tokens assumed standard-UPnP — **verify with
+  `tool/eq_probe.dart` on hardware** before shipping.
 - ✅ **Room renaming** from the room / HT detail pages (`renameRoom` + `rename_dialog`).
 - ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
   all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't

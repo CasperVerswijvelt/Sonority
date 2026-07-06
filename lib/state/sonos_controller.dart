@@ -9,6 +9,7 @@ import '../data/sonos/front_layout.dart' as front_layout;
 import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
 import '../data/sonos/sonos_repository.dart';
+import '../data/sonos/speaker_settings.dart';
 import '../features/profiles/profile.dart';
 
 final sonosRepositoryProvider =
@@ -93,6 +94,46 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   Future<SonosSystem?> build() => _discover();
 
   SonosRepository get _repo => ref.read(sonosRepositoryProvider);
+
+  final _settings = SpeakerSettingsClient();
+
+  /// Reads each entity's per-speaker audio settings ([eq] bundle and/or [volume])
+  /// and returns copies enriched with a `settings` map. Called by
+  /// the create flow when the user opts into saving speaker settings; keeps the
+  /// SOAP reads off the widget. Speakers not currently on the network are simply
+  /// skipped (nothing to read).
+  Future<List<EntitySnapshot>> captureSettings(
+      List<EntitySnapshot> entities,
+      {required bool eq, required bool volume}) async {
+    final sys = state.value;
+    if (sys == null || (!eq && !volume)) return entities;
+    final out = <EntitySnapshot>[];
+    for (final e in entities) {
+      final map = <String, SpeakerSettings>{};
+      for (final uuid in e.involvedUuids) {
+        final ip = sys.device(uuid)?.ip;
+        if (ip == null) continue;
+        final s = await _settings.read(ip, eq: eq, volume: volume);
+        if (!s.isEmpty) map[uuid] = s;
+      }
+      out.add(map.isEmpty ? e : e.copyWith(settings: map));
+    }
+    return out;
+  }
+
+  /// Restores each captured per-speaker setting after a bond has settled (bonding
+  /// can reset EQ, so this must run last). Best-effort + a no-op when [e] carries
+  /// no settings (old profiles / toggles off) → zero extra writes.
+  Future<void> _restoreSettings(
+      EntitySnapshot e, SonosSystem sys, void Function(String) note) async {
+    if (e.settings.isEmpty) return;
+    for (final entry in e.settings.entries) {
+      final ip = sys.device(entry.key)?.ip;
+      if (ip == null) continue;
+      note('restoring settings');
+      await _settings.apply(ip, entry.value);
+    }
+  }
 
   /// Discover the system and cache an IP for cheap refreshes. Runs on launch
   /// (from [build]) and on every explicit [scan].
@@ -197,6 +238,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         tracker.start(e.primaryUuid);
         try {
           sys = await _applyEntity(e, sys!, (n) => tracker.note(e.primaryUuid, n));
+          // Restore captured EQ/volume last — bonding can reset EQ.
+          await _restoreSettings(e, sys, (n) => tracker.note(e.primaryUuid, n));
           tracker.done(e.primaryUuid);
         } on OperationCancelled {
           rethrow;

@@ -1,4 +1,5 @@
 import '../../data/models/sonos_models.dart';
+import '../../data/sonos/speaker_settings.dart';
 
 /// What kind of bonded entity a snapshot captures. One visible
 /// [ZoneGroupMember] == one selectable entity.
@@ -19,11 +20,18 @@ class EntitySnapshot {
   /// UUID → desired room name (restored on apply). Always includes [primaryUuid].
   final Map<String, String> names;
 
+  /// UUID → captured audio settings (EQ, optionally volume), restored on apply.
+  /// Empty when the profile was created without the "save speaker settings"
+  /// toggle (or from an older app version) — an empty map means zero extra
+  /// writes on apply.
+  final Map<String, SpeakerSettings> settings;
+
   const EntitySnapshot({
     required this.kind,
     required this.primaryUuid,
     required this.mapSet,
     required this.names,
+    this.settings = const {},
   });
 
   /// Captures the visible [member]'s current layout.
@@ -81,18 +89,38 @@ class EntitySnapshot {
     ].where((u) => u.isNotEmpty).toList();
   }
 
-  EntitySnapshot copyWith({Map<String, String>? names}) => EntitySnapshot(
+  EntitySnapshot copyWith({
+    Map<String, String>? names,
+    Map<String, SpeakerSettings>? settings,
+  }) =>
+      EntitySnapshot(
         kind: kind,
         primaryUuid: primaryUuid,
         mapSet: mapSet,
         names: names ?? this.names,
+        settings: settings ?? this.settings,
       );
+
+  /// A short label for the UI describing what audio settings are captured, or
+  /// `''` when none — appended to [entitySummary] on the tiles.
+  String get settingsSummary {
+    final vals = settings.values;
+    final eq = vals.any((s) => s.hasEq);
+    final vol = vals.any((s) => s.hasVolume);
+    if (eq && vol) return 'EQ + volume saved';
+    if (eq) return 'EQ saved';
+    if (vol) return 'Volume saved';
+    return '';
+  }
 
   Map<String, dynamic> toJson() => {
         'kind': kind.name,
         'primaryUuid': primaryUuid,
         'mapSet': mapSet,
         'names': names,
+        // Omit when empty so profiles without settings stay compact.
+        if (settings.isNotEmpty)
+          'settings': {for (final e in settings.entries) e.key: e.value.toJson()},
       };
 
   factory EntitySnapshot.fromJson(Map<String, dynamic> j) => EntitySnapshot(
@@ -100,6 +128,12 @@ class EntitySnapshot {
         primaryUuid: j['primaryUuid'] as String,
         mapSet: j['mapSet'] as String?,
         names: Map<String, String>.from(j['names'] as Map),
+        // Absent in older profiles → empty (no settings restored).
+        settings: {
+          for (final e in ((j['settings'] as Map?) ?? const {}).entries)
+            e.key as String:
+                SpeakerSettings.fromJson(Map<String, dynamic>.from(e.value as Map)),
+        },
       );
 }
 
@@ -110,6 +144,18 @@ class Profile {
   final List<EntitySnapshot> entities;
 
   const Profile({required this.id, required this.name, required this.entities});
+
+  /// Aggregated across entities: what audio settings this profile carries, or
+  /// `''` when none.
+  String get settingsSummary {
+    final all = entities.expand((e) => e.settings.values);
+    final eq = all.any((s) => s.hasEq);
+    final vol = all.any((s) => s.hasVolume);
+    if (eq && vol) return 'EQ + volume saved';
+    if (eq) return 'EQ saved';
+    if (vol) return 'Volume saved';
+    return '';
+  }
 
   Profile copyWith({String? name, List<EntitySnapshot>? entities}) => Profile(
         id: id,

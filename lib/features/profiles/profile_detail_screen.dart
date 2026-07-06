@@ -92,7 +92,11 @@ class _State extends ConsumerState<ProfileDetailScreen> {
                 leading: Icon(entityIcon(e.kind)),
                 titleAlignment: ListTileTitleAlignment.center,
                 title: Text(e.label),
-                subtitle: Text(entitySummary(e, system)),
+                subtitle: Text(
+                  e.settingsSummary.isEmpty
+                      ? entitySummary(e, system)
+                      : '${entitySummary(e, system)}\n${e.settingsSummary}',
+                ),
               ),
             ),
             Gap.s,
