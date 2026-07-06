@@ -15,6 +15,17 @@ import '../features/profiles/profile.dart';
 final sonosRepositoryProvider =
     Provider<SonosRepository>((ref) => SonosRepository());
 
+/// Phase emitters for one parent (entity) step — built by
+/// `SonosController._phases`, consumed by the apply helpers so each phase
+/// becomes a persistent sub-step in the progress timeline instead of an
+/// overwriting note.
+typedef Phases = ({
+  void Function(List<(String, String)>) seed,
+  void Function(String id, String label) phase,
+  void Function(String) note,
+  void Function({String? detail}) endPhase,
+});
+
 /// Live per-step progress of the in-flight bonding operation (full HT setup /
 /// profile-apply). The flow/profile UI watches this to show a stepper with the
 /// active step and exactly where a failure happened. Empty when idle.
@@ -125,13 +136,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// can reset EQ, so this must run last). Best-effort + a no-op when [e] carries
   /// no settings (old profiles / toggles off) → zero extra writes.
   Future<void> _restoreSettings(
-      EntitySnapshot e, SonosSystem sys, void Function(String) note) async {
+      EntitySnapshot e, SonosSystem sys, Phases ph) async {
     if (e.settings.isEmpty) return;
+    ph.phase('settings', 'Restore settings');
     for (final entry in e.settings.entries) {
       final dev = sys.device(entry.key);
       final ip = dev?.ip;
       if (ip == null) {
-        note('skipping settings for ${entry.key} — not on the network');
+        ph.note('skipping settings for ${entry.key} — not on the network');
         continue;
       }
       final s = entry.value;
@@ -139,7 +151,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (s.hasEq) 'EQ',
         if (s.hasVolume) 'volume',
       ].join(' + ');
-      note('restoring $what — ${dev!.typeLabel}');
+      ph.note('restoring $what — ${dev!.typeLabel}');
       await _settings.apply(ip, s);
     }
   }
@@ -202,13 +214,15 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
       tracker.start('bond');
+      final ph = _phases(tracker, 'bond');
+      ph.seed([('bond', 'Bond ${target.entries.length - 1} speakers')]);
       try {
         final sys = await _applyHtTarget(
           bar: soundbarDevice,
           current: soundbar,
           target: target,
           sys: previous ?? await _repo.discover(),
-          note: (n) => tracker.note('bond', n),
+          ph: ph,
         );
         tracker.done('bond');
         return sys;
@@ -247,10 +261,21 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       SonosSystem? sys = previous;
       for (final e in entities) {
         tracker.start(e.primaryUuid);
+        final ph = _phases(tracker, e.primaryUuid);
+        // Pre-list the phases knowable from the snapshot; conditional ones
+        // (freeing conflicts, removing changed satellites) pop in when needed.
+        ph.seed([
+          if (e.kind == EntityKind.homeTheater)
+            ('bond', 'Bond ${e.involvedUuids.length - 1} speakers')
+          else if (e.kind != EntityKind.single)
+            ('bond', 'Bond ${e.involvedUuids.length} speakers'),
+          ('names', 'Restore room name'),
+          if (e.settings.isNotEmpty) ('settings', 'Restore settings'),
+        ]);
         try {
-          sys = await _applyEntity(e, sys!, (n) => tracker.note(e.primaryUuid, n));
+          sys = await _applyEntity(e, sys!, ph);
           // Restore captured EQ/volume last — bonding can reset EQ.
-          await _restoreSettings(e, sys, (n) => tracker.note(e.primaryUuid, n));
+          await _restoreSettings(e, sys, ph);
           tracker.done(e.primaryUuid);
         } on OperationCancelled {
           rethrow;
@@ -265,7 +290,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   }
 
   Future<SonosSystem> _applyEntity(
-      EntitySnapshot e, SonosSystem sys, void Function(String) note) async {
+      EntitySnapshot e, SonosSystem sys, Phases ph) async {
     switch (e.kind) {
       case EntityKind.single:
         final dev = sys.device(e.primaryUuid);
@@ -273,10 +298,12 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           throw Exception('“${e.label}” isn’t on the network.');
         }
         if (sys.ownerOf(e.primaryUuid) != null) {
-          note('freeing from its current bond');
+          ph.phase('free', 'Free from its current bond');
           await _repo.freeSpeaker(sys, e.primaryUuid);
+          ph.note('waiting for Sonos to settle');
           sys = await _settleRead(sys, dev!.ip!);
         }
+        ph.phase('names', 'Restore room name');
         await _repo.setRoomName(ip: dev!.ip!, name: e.names[e.primaryUuid] ?? dev.roomName);
         return sys;
 
@@ -291,6 +318,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         final involved = e.involvedUuids.toList();
         // Already exactly this group? Just re-assert the name (no disruptive write).
         if (_isGroupFormed(sys, e.primaryUuid, involved)) {
+          ph.phase('bond', 'Bond ${involved.length} speakers');
+          ph.endPhase(detail: 'already formed — nothing to do');
+          ph.phase('names', 'Restore room name');
           await _repo.setRoomName(
               ip: coord!.ip!, name: e.names[coord.uuid] ?? coord.roomName);
           return sys;
@@ -299,7 +329,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         for (final u in involved) {
           final owner = sys.ownerOf(u);
           if (owner != null && !involved.contains(owner)) {
-            note('freeing $u');
+            ph.phase('free', 'Free conflicting speakers');
+            ph.note('freeing ${sys.device(u)?.roomName ?? u}');
             await _repo.freeSpeaker(sys, u);
             sys = await _settleRead(sys, coord!.ip!);
           }
@@ -323,8 +354,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (memberEntries.length < 2) {
           throw Exception('“${e.label}” is missing speakers.');
         }
-        note('bonding ${memberEntries.length} speakers${sub != null ? ' + sub' : ''}');
+        ph.phase('bond',
+            'Bond ${memberEntries.length} speakers${sub != null ? ' + sub' : ''}');
         await _repo.createGroup(members: memberEntries, sub: sub);
+        ph.note('waiting for Sonos to confirm');
         sys = await _pollUntil(
           previous: sys,
           ip: coord!.ip,
@@ -334,6 +367,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (!_isGroupFormed(sys, e.primaryUuid, involved)) {
           throw Exception('Sonos did not form “${e.label}”.');
         }
+        ph.phase('names', 'Restore room name');
         await _repo.setRoomName(
             ip: coord.ip!, name: e.names[coord.uuid] ?? coord.roomName);
         return sys;
@@ -354,7 +388,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         for (final u in satUuids) {
           final owner = sys.ownerOf(u);
           if (owner != null && owner != bar!.uuid) {
-            note('freeing $u');
+            ph.phase('free', 'Free conflicting speakers');
+            ph.note('freeing ${sys.device(u)?.roomName ?? u}');
             await _repo.freeSpeaker(sys, u);
             sys = await _settleRead(sys, bar.ip!);
           }
@@ -374,8 +409,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           current: cur ?? ZoneGroupMember(uuid: bar.uuid, zoneName: e.label),
           target: fullTarget,
           sys: sys,
-          note: note,
+          ph: ph,
         );
+        ph.phase('names', 'Restore room name');
         await _repo.setRoomName(ip: bar.ip!, name: e.names[bar.uuid] ?? bar.roomName);
         return sys;
     }
@@ -391,25 +427,28 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     required ZoneGroupMember current,
     required ChannelMap target,
     required SonosSystem sys,
-    required void Function(String) note,
+    required Phases ph,
   }) async {
     final diff = front_layout.diffHtLayout(current: current, target: target);
+    final bondLabel = 'Bond ${target.entries.length - 1} speakers';
     if (diff.isNoOp) {
-      note('layout unchanged — nothing to do');
+      ph.phase('bond', bondLabel);
+      ph.endPhase(detail: 'layout unchanged — nothing to do');
       return sys;
     }
     if (diff.toRemove.isNotEmpty) {
-      note('removing ${diff.toRemove.length} changed speakers');
+      ph.phase('remove', 'Remove ${diff.toRemove.length} changed speakers');
       await _repo.removeHtSatellites(
           soundbarIp: bar.ip!, uuids: diff.toRemove, cancel: _activeOp);
+      ph.note('waiting for Sonos to settle');
       sys = await _settleRead(sys, bar.ip!);
     }
-    note('bonding ${target.entries.length - 1} speakers');
+    ph.phase('bond', bondLabel);
     return _repo.bondAndVerify(
         coordinator: bar,
         target: target,
         previous: sys,
-        onNote: note,
+        onNote: ph.note,
         cancel: _activeOp);
   }
 
@@ -477,11 +516,16 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
       tracker.start('remove');
+      final ph = _phases(tracker, 'remove');
+      ph.seed([
+        ('unbond', 'Unbond ${uuids.length} speaker(s)'),
+        ('settle', 'Wait for Sonos to settle'),
+      ]);
       try {
-        tracker.note('remove', 'unbonding ${uuids.length} speaker(s)');
+        ph.phase('unbond', 'Unbond ${uuids.length} speaker(s)');
         await _repo.removeHtSatellites(
             soundbarIp: ip, uuids: uuids, cancel: _activeOp);
-        tracker.note('remove', 'waiting for Sonos to settle');
+        ph.phase('settle', 'Wait for Sonos to settle');
         final sys = await _pollUntil(
           previous: previous,
           ip: ip,
@@ -534,10 +578,18 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
       tracker.start('group');
+      final ph = _phases(tracker, 'group');
+      final wanted = name?.trim();
+      ph.seed([
+        ('bond', 'Bond speakers'),
+        ('confirm', 'Wait for Sonos to confirm'),
+        if (wanted != null && wanted.isNotEmpty && coord.ip != null)
+          ('name', 'Name the group'),
+      ]);
       try {
-        tracker.note('group', 'bonding speakers');
+        ph.phase('bond', 'Bond speakers');
         await _repo.createGroup(members: members, sub: sub);
-        tracker.note('group', 'waiting for Sonos to confirm');
+        ph.phase('confirm', 'Wait for Sonos to confirm');
         var system = await _pollUntil(
           previous: previous,
           ip: coord.ip ?? _lastIp,
@@ -554,9 +606,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           throw Exception(
               'Sonos did not create the group — a speaker may be incompatible.');
         }
-        final wanted = name?.trim();
         if (wanted != null && wanted.isNotEmpty && coord.ip != null) {
-          tracker.note('group', 'naming the group');
+          ph.phase('name', 'Name the group');
           await _repo.setRoomName(ip: coord.ip!, name: wanted);
           system = await _pollUntil(
             previous: system,
@@ -608,11 +659,16 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
       tracker.start('ungroup');
+      final ph = _phases(tracker, 'ungroup');
+      ph.seed([
+        ('separate', 'Separate + restore room names'),
+        ('settle', 'Wait for Sonos to settle'),
+      ]);
       try {
         // 1. A bond can't be dissolved while the coordinator is a non-coordinator
         //    member of a larger playback group — detach into its own group first.
         if (coord.ip != null && !_isStandalone(previous, coord.uuid)) {
-          tracker.note('ungroup', 'detaching from playback group');
+          ph.phase('detach', 'Detach from playback group');
           await _repo.detachFromGroup(coord.ip!);
           await _pollUntil(
             previous: previous,
@@ -622,9 +678,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           );
         }
         // 2. Dissolve (SeparateStereoPair on the live map) + restore names.
-        tracker.note('ungroup', 'separating + restoring room names');
+        ph.phase('separate', 'Separate + restore room names');
         await _repo.separateGroup(members: members, channelMapSet: cms);
-        tracker.note('ungroup', 'waiting for Sonos to settle');
+        ph.phase('settle', 'Wait for Sonos to settle');
         final system = await _pollUntil(
           previous: previous,
           ip: coord.ip ?? _lastIp,
@@ -712,6 +768,21 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         steps,
         onChange: ref.read(applyProgressProvider.notifier).set,
         onLog: ref.read(operationLogProvider.notifier).add,
+      );
+
+  /// Phase emitters bound to one parent (entity) step, so call sites don't
+  /// thread the parent id: [seed] pre-lists the phases knowable upfront as
+  /// pending sub-steps, [phase] begins one (seeded or conditional), [note]
+  /// streams verbose progress to the active phase's subtitle, and [endPhase]
+  /// completes the active phase early (short-circuits like "layout
+  /// unchanged"). Child ids are prefixed with the parent id to stay unique in
+  /// the flat step list.
+  Phases _phases(ApplyProgress t, String parentId) => (
+        seed: (subs) => t.seedSubs(parentId,
+            [for (final (id, label) in subs) ('$parentId/$id', label)]),
+        phase: (id, label) => t.startSub(parentId, '$parentId/$id', label),
+        note: t.noteActive,
+        endPhase: t.doneSub,
       );
 
   /// Finalizes a bonding op's [result] against the pre-op [previous] state.

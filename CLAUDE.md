@@ -93,7 +93,8 @@ lib/
                      ssdp_discovery · device_description · soap_client
                      zone_topology  · device_properties (bonding + stereo + zone attrs)
                      channel_map    · front_layout (buildLayoutMap + diffHtLayout — any role)
-                     apply_progress (ApplyStep/ApplyProgress — per-step status)
+                     apply_progress (ApplyStep/ApplyProgress — per-step status;
+                       flat list, `parentId` nests phase sub-steps under entities)
                      identify_service (chime)
                      speaker_settings (RenderingControl EQ/volume read+apply for profiles)
                      sonos_repository (orchestrates; bondAndVerify write+retry;
