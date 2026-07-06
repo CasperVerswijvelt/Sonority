@@ -1,5 +1,3 @@
-import 'package:xml/xml.dart';
-
 import 'channel_map.dart';
 import 'soap_client.dart';
 
@@ -103,15 +101,10 @@ class DevicePropertiesClient {
       serviceType: _service,
       action: 'GetZoneAttributes',
     );
-    String val(String tag) {
-      final els = body.findAllElements(tag);
-      return els.isEmpty ? '' : els.first.innerText;
-    }
-
     return ZoneAttributes(
-      zoneName: val('CurrentZoneName'),
-      icon: val('CurrentIcon'),
-      configuration: val('CurrentConfiguration'),
+      zoneName: body.childText('CurrentZoneName') ?? '',
+      icon: body.childText('CurrentIcon') ?? '',
+      configuration: body.childText('CurrentConfiguration') ?? '',
     );
   }
 

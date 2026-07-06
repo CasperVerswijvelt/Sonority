@@ -17,6 +17,11 @@ name: Release
 # Signing/publishing steps are gated on secrets, so secret-less forks stay green
 # (with unsigned fallbacks). All Apple jobs run on macos-26 — App Store Connect
 # rejects uploads built with an older SDK (needs Xcode 26 / iOS 26 SDK).
+#
+# The common "install Flutter + pub get (+ CocoaPods cache)" block lives in the
+# local composite action .github/actions/setup-flutter (checkout must precede it).
+# Third-party actions are pinned to a commit SHA (the trailing # vX.Y.Z is the
+# human-readable version) so a maintainer's tag move can't change our build.
 
 on:
   push:
@@ -45,17 +50,15 @@ jobs:
       HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
       HAS_PLAY_SA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
         with:
           distribution: temurin
           java-version: '17'
-      - uses: subosito/flutter-action@v2
+          cache: gradle
+      - uses: ./.github/actions/setup-flutter
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - run: flutter pub get
 
       - name: Decode upload keystore
         if: env.HAS_KEYSTORE == 'true'
@@ -79,7 +82,7 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk \
              "dist/Sonority-${{ github.ref_name }}.apk"
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: android
           path: dist/*.apk
@@ -87,7 +90,7 @@ jobs:
 
       - name: Publish AAB → Google Play (open testing)
         if: env.HAS_PLAY_SA == 'true'
-        uses: r0adkll/upload-google-play@v1
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: be.casperverswijvelt.sonority
@@ -104,13 +107,11 @@ jobs:
     # Apple build uses one toolchain.
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: ./.github/actions/setup-flutter
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - run: flutter pub get
+          cache-pods: 'true'
 
       - name: Build unsigned iOS .ipa
         run: |
@@ -123,7 +124,7 @@ jobs:
           zip -qry "$GITHUB_WORKSPACE/dist/Sonority-${{ github.ref_name }}-ios-unsigned.ipa" Payload
 
       - name: Upload .ipa artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ios-unsigned
           path: dist/*.ipa
@@ -140,17 +141,15 @@ jobs:
     env:
       HAS_SIGNING: ${{ secrets.MATCH_PASSWORD != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: ./.github/actions/setup-flutter
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - uses: ruby/setup-ruby@v1
+          cache-pods: 'true'
+      - uses: ruby/setup-ruby@d45b1a4e94b71acab930e56e79c6aa188764e7f9 # v1.316.0
         with:
           ruby-version: '3.3'
           bundler-cache: true
-      - run: flutter pub get
 
       - name: Decode App Store Connect API key
         if: env.HAS_SIGNING == 'true'
@@ -177,17 +176,15 @@ jobs:
     env:
       HAS_DEVID: ${{ secrets.MACOS_DEVID_P12_BASE64 != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: ./.github/actions/setup-flutter
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - uses: ruby/setup-ruby@v1
+          cache-pods: 'true'
+      - uses: ruby/setup-ruby@d45b1a4e94b71acab930e56e79c6aa188764e7f9 # v1.316.0
         with:
           ruby-version: '3.3'
           bundler-cache: true
-      - run: flutter pub get
 
       - name: Decode App Store Connect API key
         if: env.HAS_DEVID == 'true'
@@ -215,7 +212,7 @@ jobs:
             "dist/Sonority-${{ github.ref_name }}-macos.dmg"
 
       - name: Upload .dmg artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: macos-dmg
           path: dist/*.dmg
@@ -228,17 +225,15 @@ jobs:
     env:
       HAS_SIGNING: ${{ secrets.MATCH_PASSWORD != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: ./.github/actions/setup-flutter
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - uses: ruby/setup-ruby@v1
+          cache-pods: 'true'
+      - uses: ruby/setup-ruby@d45b1a4e94b71acab930e56e79c6aa188764e7f9 # v1.316.0
         with:
           ruby-version: '3.3'
           bundler-cache: true
-      - run: flutter pub get
 
       - name: Decode App Store Connect API key
         if: env.HAS_SIGNING == 'true'
@@ -267,24 +262,14 @@ jobs:
     if: ${{ always() && needs.android.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # needed so body_path (release notes) resolves
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1 — needed so body_path (release notes) resolves
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: artifacts
       - name: Delete existing release for this tag (clean re-runs)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          id=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}" \
-            | grep -m1 '"id":' | sed 's/[^0-9]//g')
-          if [ -n "$id" ]; then
-            curl -s -X DELETE -H "Authorization: token $GH_TOKEN" \
-              "https://api.github.com/repos/${{ github.repository }}/releases/$id"
-            echo "Deleted existing release $id"
-          else
-            echo "No existing release to delete"
-          fi
+        run: gh release delete "${{ github.ref_name }}" --yes --cleanup-tag=false || true
       - name: Compose release notes (changelog section + install notes)
         run: |
           version="${GITHUB_REF_NAME#v}"
@@ -306,7 +291,7 @@ jobs:
           echo "----- release-body.md -----"
           cat release-body.md
       - name: Publish release (APK + .ipa + .dmg)
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: artifacts/**/*
           # NOTE: do not enable generate_release_notes — it overrides body_path.

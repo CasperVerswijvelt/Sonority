@@ -66,7 +66,7 @@ the engine headlessly against real hardware via `tool/*.dart`.
 
 ```
 lib/
-  core/            result.dart, theme.dart (M3), tone_generator.dart (chime WAV)
+  core/            theme.dart (M3), tone_generator.dart (chime WAV)
   data/models/     sonos_models.dart — SonosDevice, ZoneGroupMember, SonosSystem, SonosChannel
   data/sonos/      THE ENGINE (pure Dart, no Flutter):
                      ssdp_discovery · device_description · soap_client
@@ -227,6 +227,15 @@ Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
     catch-22 (the official app refuses to tune the very fronts config you want).
     Reddit reports of it working are firmware/model-specific. Sonority reads and
     reports this honestly but cannot restore a tuning Sonos has cleared.
+
+### Terminology (the same thing has three names — don't get lost)
+- **zone group** = Sonos' API/topology term (`ZoneGroupTopology`, `ZoneGroupMember`)
+  — a playback group, NOT our feature. **bond** = any hardware pairing at the
+  `AddHTSatellite`/`AddBondedZones` level (HT, stereo pair, zone). **group** =
+  *our* model/UI name for the `AddBondedZones` speaker bond (`createGroup`,
+  `EntityKind.zone/stereoPair/custom`); the UI label is "speaker groups". So
+  `ZoneGroupMember` (API) ≠ our "group"; `isZone`/`isStereoPair` classify what a
+  bond is, `bondAndVerify` writes any bond.
 
 ### Channel maps (`channel_map.dart`)
 `HTSatChanMapSet` format: `UUID:CH[,CH];UUID:CH;…`. Tokens: `LF RF CC LR RR SW`.

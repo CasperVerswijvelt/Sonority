@@ -46,7 +46,7 @@ the portal on import — both awkward in CI). The identity is a single p12 secre
 | Item | Bitwarden | GitHub secret | Local file |
 |---|---|---|---|
 | `devid.p12` (Developer ID cert + private key) | ✓ (attach) | `MACOS_DEVID_P12_BASE64` (base64) | `fastlane/devid.p12` |
-| its export password (`yeet`) | ✓ | `MACOS_DEVID_P12_PASSWORD` | — |
+| its export password (`<export-password>`) | ✓ | `MACOS_DEVID_P12_PASSWORD` | — |
 
 Created manually in **Xcode** (Account Holder only — the ASC API can't mint Developer ID
 certs) and exported from Keychain. Full steps: `docs/PUBLISHING-APPLE.md`.

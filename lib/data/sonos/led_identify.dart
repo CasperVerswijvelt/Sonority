@@ -3,7 +3,7 @@ import 'package:xml/xml.dart';
 import 'soap_client.dart';
 
 /// Identifies a speaker by **blinking its white status LED** — an alternative to
-/// the audio chime ([IdentifyService]) that needs no in-app HTTP server and so
+/// the audio chime ([IdentifyServiceClient]) that needs no in-app HTTP server and so
 /// works everywhere, including the sandboxed macOS app (it's a plain outbound
 /// SOAP call to the speaker, not an inbound LAN connection).
 ///

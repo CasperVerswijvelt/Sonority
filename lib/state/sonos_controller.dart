@@ -51,8 +51,8 @@ final operationLogProvider =
 
 /// Plays a chime on a speaker to help identify Left vs Right. Holds a local
 /// HTTP server, so it's torn down when the provider is disposed.
-final identifyServiceProvider = Provider<IdentifyService>((ref) {
-  final service = IdentifyService(
+final identifyServiceProvider = Provider<IdentifyServiceClient>((ref) {
+  final service = IdentifyServiceClient(
     null,
     kDebugMode ? (m) => debugPrint('[identify] $m') : null,
   );
@@ -461,7 +461,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     SonosDevice? sub,
     String? name,
   }) async {
-    if (members.length < 2) return;
+    assert(members.length >= 2, 'createGroup needs ≥2 members (UI must gate this)');
+    if (members.length < 2) {
+      throw Exception('A group needs at least 2 speakers.');
+    }
     final coord = members.first.device;
     final involved = [
       for (final m in members) m.device.uuid,
