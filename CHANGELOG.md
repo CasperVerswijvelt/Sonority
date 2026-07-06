@@ -8,11 +8,18 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 `[X.Y.Z] - YYYY-MM-DD`. CI copies that section into the GitHub Release notes
 (see `.github/workflows/release.yml`).
 
-## [0.5.0] - 2026-07-01
+## [0.5.0] - 2026-07-06
 
 ### Added
 - **Dual Subs** — a home theater can now bond **two Subs**, with both shown in the
   layout diagram and re-applied from a profile.
+- **Profiles capture & restore per-speaker EQ** — a profile can snapshot each
+  speaker's EQ (bass/treble/loudness, night sound, speech enhancement, sub,
+  surround levels, lip-sync delay) and, as a separate opt-in, its **volume**,
+  then re-apply them after the layout settles. Save/restore only — there are no
+  EQ/volume sliders (that would duplicate the Sonos app).
+- **Re-snapshot a profile** — update an existing profile in place from the
+  current setup, without recreating it.
 - **Speaker groups** — one "Group speakers" page (Stereo / Zone / Custom) to bond
   2–16 speakers as a **stereo pair**, a full-range **zone**, or a **custom**
   per-speaker Left/Right/Both layout, each with an **optional Sub**. Mismatched
@@ -48,6 +55,19 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   changes what moved — faster, and an unchanged layout re-applies with no writes.
 - Trueplay: the "x/y active" counter is hidden for single speakers (shown only
   for home theaters and stereo pairs).
+- The apply/profile progress timeline is now **two-level** — each phase's
+  sub-steps are nested under the entity they act on, so it's clear what's
+  happening and exactly where it failed.
+- Detail pages show the **entity type as an app-bar subtitle** (speaker model
+  for a room, "Home theater", or the speaker-group kind).
+- Profile creation warns before overwriting, and applying a profile is guarded
+  against re-entrant taps.
+
+### Fixed
+- macOS: the window is kept within the visible frame so the Dock can no longer
+  clip it.
+- Tap highlights on list rows now follow the card's rounded corners instead of
+  rendering as a rectangle.
 
 ### Packaging
 - iOS and macOS are now available via **TestFlight**; the macOS direct download
