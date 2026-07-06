@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
+import 'package:sonority/data/sonos/speaker_settings.dart';
 import 'package:sonority/features/profiles/profile.dart';
 
 void main() {
@@ -65,5 +66,54 @@ void main() {
     expect(back.entities.first.mapSet, '$beam:CC;$fl:LF;$fr:RF;$sub:SW');
     expect(back.entities[1].kind, EntityKind.single);
     expect(back.entities.first.names[beam], 'Woonkamer');
+  });
+
+  test('captured speaker settings round-trip through JSON', () {
+    final snap = EntitySnapshot.fromMember(ZoneGroupMember(
+      uuid: fl,
+      zoneName: 'Bureau',
+    )).copyWith(settings: {
+      fl: const SpeakerSettings(bass: 3, treble: -2, loudness: true, volume: 25),
+    });
+    final profile = Profile(id: 'p2', name: 'Tuned', entities: [snap]);
+    final back = Profile.fromJson(
+        jsonDecode(jsonEncode(profile.toJson())) as Map<String, dynamic>);
+    final s = back.entities.first.settings[fl]!;
+    expect(s.bass, 3);
+    expect(s.treble, -2);
+    expect(s.loudness, isTrue);
+    expect(s.volume, 25);
+    expect(s.nightMode, isNull); // not captured → stays null
+    expect(back.entities.first.settingsSummary, 'EQ + volume saved');
+    expect(back.settingsSummary, 'EQ + volume saved');
+  });
+
+  test('legacy profile without a settings key deserializes to empty', () {
+    final legacy = {
+      'id': 'p3',
+      'name': 'Old',
+      'entities': [
+        {
+          'kind': 'single',
+          'primaryUuid': fl,
+          'mapSet': null,
+          'names': {fl: 'Bureau'},
+        }
+      ],
+    };
+    final back = Profile.fromJson(legacy);
+    expect(back.entities.first.settings, isEmpty);
+    expect(back.entities.first.settingsSummary, '');
+    // Omitted from JSON when empty.
+    expect(back.entities.first.toJson().containsKey('settings'), isFalse);
+  });
+
+  test('settingsSummary reflects EQ-only vs volume-only', () {
+    final base = EntitySnapshot.fromMember(ZoneGroupMember(uuid: fl, zoneName: 'x'));
+    expect(base.copyWith(settings: {fl: const SpeakerSettings(bass: 1)}).settingsSummary,
+        'EQ saved');
+    expect(
+        base.copyWith(settings: {fl: const SpeakerSettings(volume: 10)}).settingsSummary,
+        'Volume saved');
   });
 }

@@ -31,6 +31,9 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   final List<EntitySnapshot> _entities = [];
   final Map<String, bool> _included = {};
   bool _seeded = false;
+  bool _saveEq = false;
+  bool _saveVolume = false;
+  bool _saving = false;
 
   void _seed(SonosSystem system, Profile? existing) {
     if (_seeded) return;
@@ -93,12 +96,16 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     final name = _name.text.trim();
     final taken = isProfileNameTaken(profiles, name, exceptId: widget.profileId);
     final anyIncluded = _included.values.any((v) => v);
-    final canSave = name.isNotEmpty && !taken && anyIncluded;
+    final canSave = name.isNotEmpty && !taken && anyIncluded && !_saving;
 
     return AppScaffold(
       title: isResnapshot ? 'Update profile' : 'New profile',
       bottomOverlay: _BottomButtonBar(
-        label: isResnapshot ? 'Update profile' : 'Create profile',
+        label: _saving
+            ? 'Reading settings…'
+            : isResnapshot
+                ? 'Update profile'
+                : 'Create profile',
         onPressed: canSave ? () => _save(name, existing) : null,
       ),
       body: ListView(
@@ -188,13 +195,56 @@ class _State extends ConsumerState<ProfileCreateScreen> {
             ),
             Gap.s,
           ],
+          Gap.l,
+          Text('Speaker settings', style: theme.textTheme.titleSmall),
+          Text(
+            'Optionally snapshot each speaker’s current settings and restore '
+            'them when this profile is applied.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Gap.s,
+          Card(
+            margin: EdgeInsets.zero,
+            child: Column(
+              children: [
+                // Split card: each tile rounds only the corners it shares with
+                // the card, so the ink highlight matches (top tile → top corners,
+                // bottom tile → bottom corners; the divider edge stays square).
+                SwitchListTile(
+                  value: _saveEq,
+                  onChanged: (v) => setState(() => _saveEq = v),
+                  shape: const RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(12))),
+                  secondary: const Icon(Icons.equalizer),
+                  title: const Text('Save EQ settings'),
+                  subtitle: const Text(
+                      'Bass, treble, loudness, night sound, speech, sub & surround level'),
+                ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  value: _saveVolume,
+                  onChanged: (v) => setState(() => _saveVolume = v),
+                  shape: const RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.vertical(bottom: Radius.circular(12))),
+                  secondary: const Icon(Icons.volume_up),
+                  title: const Text('Save volume'),
+                  subtitle: const Text(
+                      'Applying the profile will change how loud each speaker plays'),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
   Future<void> _save(String name, Profile? existing) async {
-    final chosen = [
+    var chosen = [
       for (final e in _entities)
         if (_included[e.primaryUuid] ?? false) e,
     ];
@@ -202,7 +252,8 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     final notifier = ref.read(profilesProvider.notifier);
 
     if (existing != null) {
-      // Re-snapshot: gate the overwrite behind an explicit confirm.
+      // Re-snapshot: gate the overwrite behind an explicit confirm before we
+      // do the (potentially slow) settings read.
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -224,6 +275,22 @@ class _State extends ConsumerState<ProfileCreateScreen> {
         ),
       );
       if (ok != true) return;
+    }
+
+    // Reading EQ/volume is several SOAP calls per speaker — show progress and
+    // enrich the snapshots before saving.
+    if (_saveEq || _saveVolume) {
+      setState(() => _saving = true);
+      try {
+        chosen = await ref
+            .read(sonosControllerProvider.notifier)
+            .captureSettings(chosen, eq: _saveEq, volume: _saveVolume);
+      } finally {
+        if (mounted) setState(() => _saving = false);
+      }
+    }
+
+    if (existing != null) {
       await notifier.replace(existing.copyWith(name: name, entities: chosen));
     } else {
       final id = DateTime.now().microsecondsSinceEpoch.toString();
@@ -250,6 +317,7 @@ class _SelectableEntityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
       child: CheckboxListTile(
         value: included,
         onChanged: (v) => onChanged(v ?? false),

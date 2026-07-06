@@ -133,6 +133,7 @@ class _ProfileTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final summary = profile.entities.map((e) => e.label).join(' · ');
+    final settings = profile.settingsSummary;
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
@@ -156,6 +157,19 @@ class _ProfileTile extends StatelessWidget {
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    if (settings.isNotEmpty) ...[
+                      Gap.xs,
+                      Row(
+                        children: [
+                          Icon(Icons.equalizer,
+                              size: 14, color: theme.colorScheme.primary),
+                          Gap.xs,
+                          Text(settings,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.primary)),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

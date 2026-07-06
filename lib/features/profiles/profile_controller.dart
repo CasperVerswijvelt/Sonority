@@ -71,14 +71,19 @@ List<EntityIssue> preflightProfile(Profile profile, SonosSystem system) {
             if (system.device(u) == null || system.device(u)!.reachable == false)
               label(u),
         ],
-        // A speaker is conflicting if it's currently bonded into ANY other
-        // entity — HT satellite, stereo-pair half, OR zone/custom group member.
-        // Uses the shared [SonosSystem.ownerOf] so pre-flight and apply agree.
+        // A speaker is conflicting only if it's currently bonded into a
+        // DIFFERENT entity — i.e. its owner is outside this entity. A speaker
+        // already bonded to this entity's own coordinator is NOT a conflict
+        // (apply is a no-op for it). Mirrors the exact owner checks in
+        // [SonosController._applyEntity] so pre-flight and apply agree.
         conflicts: [
           for (final u in e.involvedUuids)
             if (u != e.primaryUuid &&
                 system.device(u) != null &&
-                system.ownerOf(u) != null)
+                switch (system.ownerOf(u)) {
+                  null => false,
+                  final owner => !e.involvedUuids.contains(owner),
+                })
               label(u),
         ],
       ),
