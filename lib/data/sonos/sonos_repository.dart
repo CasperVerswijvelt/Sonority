@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/sonos_models.dart';
@@ -51,7 +52,10 @@ class SonosRepository {
       locations.map((loc) async {
         try {
           return await _descriptions.fetch(loc);
-        } catch (_) {
+        } catch (e) {
+          // Non-fatal: a device that fails its description fetch is dropped here
+          // and recovered topology-only later. Log so it's diagnosable.
+          debugPrint('Sonority: device_description fetch failed for $loc: $e');
           return null;
         }
       }),
@@ -116,9 +120,15 @@ class SonosRepository {
   Future<void> setRoomCalibration(String ip, bool on) =>
       _calibration.setEnabled(ip, on);
 
+  // A full 5.1 rebuild from a bare bar measured a steady 6 re-asserts on
+  // hardware (single-call beat staged, which needed up to 24 — see CLAUDE.md);
+  // 10 leaves headroom. Incremental adds converge in 1–2.
+  static const _bondRetries = 10;
+  static const _bondSettle = Duration(seconds: 16);
+
   /// Writes [target] to the coordinator and VERIFIES every requested channel
-  /// actually landed, RE-ASSERTING up to [retries] times if Sonos silently drops
-  /// satellites that don't finish joining (the Phase 0 finding — see
+  /// actually landed, RE-ASSERTING up to [_bondRetries] times if Sonos silently
+  /// drops satellites that don't finish joining (the Phase 0 finding — see
   /// [[phase0-ht-bonding-finding]]). The 8s SOAP timeout fires on big bonding
   /// calls but the write still takes effect, so a timeout is treated as "go
   /// verify", not "failed". Returns the verified [SonosSystem]; throws naming the
@@ -130,11 +140,6 @@ class SonosRepository {
     required SonosDevice coordinator,
     required ChannelMap target,
     required SonosSystem? previous,
-    // A full 5.1 rebuild from a bare bar measured a steady 6 re-asserts on
-    // hardware (single-call beat staged, which needed up to 24 — see CLAUDE.md);
-    // 10 leaves headroom. Incremental adds converge in 1–2.
-    int retries = 10,
-    Duration settle = const Duration(seconds: 16),
     void Function(String note)? onNote,
     CancellationToken? cancel,
   }) async {
@@ -153,7 +158,7 @@ class SonosRepository {
 
     SonosSystem? system = previous;
     List<SonosChannel> missing = wanted.keys.toList();
-    for (var attempt = 1; attempt <= retries; attempt++) {
+    for (var attempt = 1; attempt <= _bondRetries; attempt++) {
       cancel?.throwIfCancelled();
       try {
         await _deviceProps.addHtSatellite(soundbarIp: ip, map: target);
@@ -169,7 +174,7 @@ class SonosRepository {
         // and only fail if the topology never reaches the target.
         onNote?.call('attempt $attempt: write error, re-asserting');
       }
-      await interruptibleDelay(settle, cancel);
+      await interruptibleDelay(_bondSettle, cancel);
       try {
         system = system == null ? await discover() : await refresh(system, ip);
       } catch (_) {
