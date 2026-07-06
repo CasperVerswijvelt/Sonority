@@ -61,6 +61,11 @@ final _router = GoRouter(
                   builder: (_, s) =>
                       ProfileDetailScreen(profileId: s.pathParameters['id']!),
                 ),
+                GoRoute(
+                  path: 'resnapshot/:id',
+                  builder: (_, s) =>
+                      ProfileCreateScreen(profileId: s.pathParameters['id']),
+                ),
               ],
             ),
           ],
