@@ -133,6 +133,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     required Map<SonosChannel, SonosDevice> layout,
     List<SonosDevice> subs = const [],
   }) async {
+    if (state.isLoading) return; // ponytail: single in-flight op; queue only if users hit it
     // The layout IS the target — no `preserveExisting` overlay, so deselected
     // roles drop out and get unbonded. Subs go via [subUuids] (repeatable channel).
     final target = front_layout.buildLayoutMap(
@@ -177,6 +178,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// conflicting speakers, re-bonds (staged for HT), and restores its room
   /// names. Emits per-step progress via [applyProgressProvider].
   Future<void> applyProfile(Profile profile, {Set<String> skip = const {}}) async {
+    if (state.isLoading) return; // ponytail: single in-flight op; queue only if users hit it
     final current = state.value;
     if (current == null) return;
     final entities =
