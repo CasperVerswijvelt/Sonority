@@ -90,6 +90,33 @@ class _State extends ConsumerState<ProfileCreateScreen> {
             ),
           ),
           Gap.l,
+          Card(
+            margin: EdgeInsets.zero,
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline,
+                      size: 20, color: theme.colorScheme.onSurfaceVariant),
+                  Gap.s,
+                  Expanded(
+                    child: Text(
+                      'Applying a profile later rebuilds these speakers into this '
+                      'layout. Any speaker that’s part of a different setup at that '
+                      'time is removed from it first — which can dissolve another '
+                      'stereo pair or zone and free its other speakers.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Gap.l,
           Text('Include', style: theme.textTheme.titleSmall),
           Text(
             'Pick which of your current home theaters, pairs and '
