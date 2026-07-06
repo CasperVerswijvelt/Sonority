@@ -52,8 +52,8 @@ final operationLogProvider =
 
 /// Plays a chime on a speaker to help identify Left vs Right. Holds a local
 /// HTTP server, so it's torn down when the provider is disposed.
-final identifyServiceProvider = Provider<IdentifyService>((ref) {
-  final service = IdentifyService(
+final identifyServiceProvider = Provider<IdentifyServiceClient>((ref) {
+  final service = IdentifyServiceClient(
     null,
     kDebugMode ? (m) => debugPrint('[identify] $m') : null,
   );
@@ -174,6 +174,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     required Map<SonosChannel, SonosDevice> layout,
     List<SonosDevice> subs = const [],
   }) async {
+    if (state.isLoading) return; // ponytail: single in-flight op; queue only if users hit it
     // The layout IS the target — no `preserveExisting` overlay, so deselected
     // roles drop out and get unbonded. Subs go via [subUuids] (repeatable channel).
     final target = front_layout.buildLayoutMap(
@@ -218,6 +219,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// conflicting speakers, re-bonds (staged for HT), and restores its room
   /// names. Emits per-step progress via [applyProgressProvider].
   Future<void> applyProfile(Profile profile, {Set<String> skip = const {}}) async {
+    if (state.isLoading) return; // ponytail: single in-flight op; queue only if users hit it
     final current = state.value;
     if (current == null) return;
     final entities =
@@ -504,7 +506,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     SonosDevice? sub,
     String? name,
   }) async {
-    if (members.length < 2) return;
+    assert(members.length >= 2, 'createGroup needs ≥2 members (UI must gate this)');
+    if (members.length < 2) {
+      throw Exception('A group needs at least 2 speakers.');
+    }
     final coord = members.first.device;
     final involved = [
       for (final m in members) m.device.uuid,

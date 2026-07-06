@@ -1,5 +1,3 @@
-import 'package:xml/xml.dart';
-
 import 'soap_client.dart';
 
 /// Trueplay / room-calibration state for one speaker, read from the
@@ -40,14 +38,9 @@ class RoomCalibrationClient {
       action: 'GetRoomCalibrationStatus',
       args: const {'InstanceID': '0'},
     );
-    bool flag(String name) {
-      final els = body.findAllElements(name);
-      return els.isNotEmpty && els.first.innerText.trim() == '1';
-    }
-
     return RoomCalibration(
-      available: flag('RoomCalibrationAvailable'),
-      enabled: flag('RoomCalibrationEnabled'),
+      available: body.childText('RoomCalibrationAvailable') == '1',
+      enabled: body.childText('RoomCalibrationEnabled') == '1',
     );
   }
 

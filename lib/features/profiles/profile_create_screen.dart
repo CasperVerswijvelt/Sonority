@@ -10,18 +10,24 @@ import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_ui.dart';
 
-/// Creates a profile from a live snapshot: pick which of the current entities
-/// (home theaters / stereo pairs / rooms) to include, name it, save. Content is
-/// only ever captured here — editing later changes the name only.
+/// Captures a profile from a live snapshot: pick which of the current entities
+/// (home theaters / stereo pairs / rooms) to include, name it, save.
+///
+/// Two modes: when [profileId] is null this creates a new profile; when set it
+/// **re-snapshots** an existing one — overwriting its captured layout with the
+/// current setup, keeping the same profile (id). Re-snapshot pre-fills the name,
+/// pre-selects the entities that were originally in the profile, and gates the
+/// save behind a confirm dialog since the old layout is lost.
 class ProfileCreateScreen extends ConsumerStatefulWidget {
-  const ProfileCreateScreen({super.key});
+  final String? profileId;
+  const ProfileCreateScreen({super.key, this.profileId});
 
   @override
   ConsumerState<ProfileCreateScreen> createState() => _State();
 }
 
 class _State extends ConsumerState<ProfileCreateScreen> {
-  final _name = TextEditingController(text: 'My setup');
+  final _name = TextEditingController();
   final List<EntitySnapshot> _entities = [];
   final Map<String, bool> _included = {};
   bool _seeded = false;
@@ -29,12 +35,20 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   bool _saveVolume = false;
   bool _saving = false;
 
-  void _seed(SonosSystem system) {
+  void _seed(SonosSystem system, Profile? existing) {
     if (_seeded) return;
+    _name.text = existing?.name ?? 'My setup';
+    // Re-snapshot pre-selects the entities that were originally in the profile.
+    // Match by involved UUIDs, not primaryUuid — current live bonding may differ
+    // from what the profile stored, which is the whole point of re-snapshotting.
+    final originalUuids =
+        existing?.entities.expand((e) => e.involvedUuids).toSet();
     for (final m in system.allMembers) {
       final e = EntitySnapshot.fromMember(m);
       _entities.add(e);
-      _included[e.primaryUuid] = true;
+      _included[e.primaryUuid] = originalUuids == null
+          ? true
+          : e.involvedUuids.any(originalUuids.contains);
     }
     _seeded = true;
   }
@@ -49,10 +63,18 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final system = ref.watch(sonosControllerProvider).value;
+    final profiles = ref.watch(profilesProvider).value ?? const [];
+    final isResnapshot = widget.profileId != null;
+    final existing = isResnapshot
+        ? profiles
+            .where((p) => p.id == widget.profileId)
+            .cast<Profile?>()
+            .firstOrNull
+        : null;
 
     if (system == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('New profile')),
+        appBar: AppBar(title: Text(isResnapshot ? 'Update profile' : 'New profile')),
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(32),
@@ -65,23 +87,58 @@ class _State extends ConsumerState<ProfileCreateScreen> {
         ),
       );
     }
-    _seed(system);
+    // Re-snapshot needs its profile loaded before seeding name/selection.
+    if (isResnapshot && existing == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    _seed(system, existing);
 
-    final profiles = ref.watch(profilesProvider).value ?? const [];
     final name = _name.text.trim();
-    final taken = isProfileNameTaken(profiles, name);
+    final taken = isProfileNameTaken(profiles, name, exceptId: widget.profileId);
     final anyIncluded = _included.values.any((v) => v);
     final canSave = name.isNotEmpty && !taken && anyIncluded && !_saving;
 
     return AppScaffold(
-      title: 'New profile',
+      title: isResnapshot ? 'Update profile' : 'New profile',
       bottomOverlay: _BottomButtonBar(
-        label: _saving ? 'Reading settings…' : 'Create profile',
-        onPressed: canSave ? () => _save(name) : null,
+        label: _saving
+            ? 'Reading settings…'
+            : isResnapshot
+                ? 'Update profile'
+                : 'Create profile',
+        onPressed: canSave ? () => _save(name, existing) : null,
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
+          if (existing != null) ...[
+            Card(
+              margin: EdgeInsets.zero,
+              color: theme.colorScheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        color: theme.colorScheme.onErrorContainer),
+                    Gap.s,
+                    Expanded(
+                      child: Text(
+                        'This replaces everything captured in '
+                        '“${existing.name}”. The previously saved layout '
+                        'will be lost.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onErrorContainer,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Gap.l,
+          ],
           TextField(
             controller: _name,
             onChanged: (_) => setState(() {}),
@@ -90,6 +147,33 @@ class _State extends ConsumerState<ProfileCreateScreen> {
               labelText: 'Profile name',
               border: const OutlineInputBorder(),
               errorText: taken ? 'A profile with this name exists' : null,
+            ),
+          ),
+          Gap.l,
+          Card(
+            margin: EdgeInsets.zero,
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline,
+                      size: 20, color: theme.colorScheme.onSurfaceVariant),
+                  Gap.s,
+                  Expanded(
+                    child: Text(
+                      'Applying a profile later rebuilds these speakers into this '
+                      'layout. Any speaker that’s part of a different setup at that '
+                      'time is removed from it first — which can dissolve another '
+                      'stereo pair or zone and free its other speakers.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           Gap.l,
@@ -159,13 +243,40 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     );
   }
 
-  Future<void> _save(String name) async {
+  Future<void> _save(String name, Profile? existing) async {
     var chosen = [
       for (final e in _entities)
         if (_included[e.primaryUuid] ?? false) e,
     ];
     final router = GoRouter.of(context);
-    final id = DateTime.now().microsecondsSinceEpoch.toString();
+    final notifier = ref.read(profilesProvider.notifier);
+
+    if (existing != null) {
+      // Re-snapshot: gate the overwrite behind an explicit confirm before we
+      // do the (potentially slow) settings read.
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Replace “${existing.name}”?'),
+          content: const Text(
+            'The previously captured layout will be permanently replaced '
+            'with your current setup.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Replace'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+
     // Reading EQ/volume is several SOAP calls per speaker — show progress and
     // enrich the snapshots before saving.
     if (_saveEq || _saveVolume) {
@@ -178,9 +289,13 @@ class _State extends ConsumerState<ProfileCreateScreen> {
         if (mounted) setState(() => _saving = false);
       }
     }
-    await ref
-        .read(profilesProvider.notifier)
-        .add(Profile(id: id, name: name, entities: chosen));
+
+    if (existing != null) {
+      await notifier.replace(existing.copyWith(name: name, entities: chosen));
+    } else {
+      final id = DateTime.now().microsecondsSinceEpoch.toString();
+      await notifier.add(Profile(id: id, name: name, entities: chosen));
+    }
     router.go('/profiles');
   }
 }

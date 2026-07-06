@@ -2,8 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:xml/xml.dart';
-
 import '../../core/tone_generator.dart';
 import 'soap_client.dart';
 
@@ -14,10 +12,10 @@ import 'soap_client.dart';
 /// speaker's `AVTransport` service to set that URL and play it. The speaker must
 /// be standalone (our front candidates are), and the phone must be on the same
 /// LAN as the speaker (it always is — that's how discovery worked).
-class IdentifyService {
+class IdentifyServiceClient {
   final SonosSoapClient _soap;
   final void Function(String message)? onLog;
-  IdentifyService([SonosSoapClient? client, this.onLog])
+  IdentifyServiceClient([SonosSoapClient? client, this.onLog])
       : _soap = client ?? SonosSoapClient();
 
   static const _service = 'urn:schemas-upnp-org:service:AVTransport:1';
@@ -114,8 +112,7 @@ class IdentifyService {
       action: 'GetVolume',
       args: {'InstanceID': '0', 'Channel': 'Master'},
     );
-    final els = body.findAllElements('CurrentVolume');
-    return els.isEmpty ? null : int.tryParse(els.first.innerText.trim());
+    return int.tryParse(body.childText('CurrentVolume') ?? '');
   }
 
   Future<bool?> _getMute(String ip) async {
@@ -126,8 +123,8 @@ class IdentifyService {
       action: 'GetMute',
       args: {'InstanceID': '0', 'Channel': 'Master'},
     );
-    final els = body.findAllElements('CurrentMute');
-    return els.isEmpty ? null : els.first.innerText.trim() == '1';
+    final t = body.childText('CurrentMute');
+    return t == null ? null : t == '1';
   }
 
   Future<void> _setVolume(String ip, int volume) => _soap.call(

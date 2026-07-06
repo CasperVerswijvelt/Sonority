@@ -1,7 +1,30 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/sonos/soap_client.dart';
+import 'package:xml/xml.dart';
 
 void main() {
+  group('SoapBodyText.childText', () {
+    final body = XmlDocument.parse(
+      '<Body><CurrentVolume> 30 </CurrentVolume>'
+      '<CurrentMute>1</CurrentMute><Empty></Empty></Body>',
+    ).rootElement;
+
+    test('returns first match, trimmed', () {
+      expect(body.childText('CurrentVolume'), '30');
+      expect(body.childText('CurrentMute'), '1');
+    });
+    test('empty element trims to empty string, missing tag is null', () {
+      expect(body.childText('Empty'), '');
+      expect(body.childText('Nope'), isNull);
+    });
+    test('composes for int/bool parsing like the call sites', () {
+      expect(int.tryParse(body.childText('CurrentVolume') ?? ''), 30);
+      expect(int.tryParse(body.childText('Nope') ?? ''), isNull);
+      expect(body.childText('CurrentMute') == '1', isTrue);
+    });
+  });
+
+
   test('builds a valid AddHTSatellite envelope with escaped args', () {
     final xml = SonosSoapClient.buildEnvelope(
       serviceType: 'urn:schemas-upnp-org:service:DeviceProperties:1',

@@ -89,6 +89,18 @@ class SonosSoapClient {
       .replaceAll("'", '&apos;');
 }
 
+/// Reading values out of a SOAP response body (the [XmlElement] returned by
+/// [SonosSoapClient.call]). Response fields are flat children, so descendant
+/// search is fine — unlike `device_description.xml`, which nests sub-devices and
+/// must use scoped direct-child lookup instead.
+extension SoapBodyText on XmlElement {
+  /// First matching element's trimmed text, or null if absent.
+  String? childText(String tag) {
+    final els = findAllElements(tag);
+    return els.isEmpty ? null : els.first.innerText.trim();
+  }
+}
+
 /// Raised when a Sonos device returns a SOAP fault.
 class SonosSoapException implements Exception {
   final String action;

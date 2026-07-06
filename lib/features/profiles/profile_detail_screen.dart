@@ -78,11 +78,18 @@ class _State extends ConsumerState<ProfileDetailScreen> {
           Gap.l,
           Text('Included', style: theme.textTheme.titleSmall),
           Text(
-            'Captured when the profile was created. To change what’s '
-            'included, create a new profile from your current setup.',
+            'Captured when the profile was created.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
+          ),
+          Gap.s,
+          OutlinedButton.icon(
+            onPressed: system == null
+                ? null
+                : () => context.go('/profiles/resnapshot/${profile.id}'),
+            icon: const Icon(Icons.cameraswitch),
+            label: const Text('Re-snapshot from current setup'),
           ),
           Gap.s,
           for (final e in profile.entities) ...[

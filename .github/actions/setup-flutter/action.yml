@@ -1,0 +1,32 @@
+name: Setup Flutter
+description: Install Flutter (SDK cached), optionally cache CocoaPods, and run pub get.
+# NOTE: the caller must `actions/checkout` FIRST — a local composite action can't
+# be resolved until the repo is on disk, so checkout can't live in here.
+
+inputs:
+  flutter-version:
+    description: Flutter SDK version
+    required: true
+  cache-pods:
+    description: Cache CocoaPods (set 'true' for iOS/macOS jobs)
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+      with:
+        flutter-version: ${{ inputs.flutter-version }}
+        channel: stable
+        cache: true
+    - if: inputs.cache-pods == 'true'
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: |
+          ~/Library/Caches/CocoaPods
+          ios/Pods
+          macos/Pods
+        key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock', 'macos/Podfile.lock') }}
+        restore-keys: pods-${{ runner.os }}-
+    - run: flutter pub get
+      shell: bash

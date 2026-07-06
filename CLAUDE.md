@@ -67,6 +67,9 @@ Flutter is **not on PATH**; this machine uses **fvm, Flutter 3.35.2**:
 - **Signing secrets/keys: `docs/SIGNING.md`** is the map of where every value/file lives
   (Bitwarden masters, GitHub Actions secrets, gitignored local files, the match certs repo).
   No secret values are committed. Apple setup details: `docs/PUBLISHING-APPLE.md`.
+- **Version bumps happen ONLY on `main`, after a feature branch is merged** — never
+  bump `version:` in `pubspec.yaml` on a feature branch (avoids merge churn/conflicts
+  on the build number). Bump + tag as a dedicated step on `main` when cutting a release.
 
 ## Architecture
 
@@ -76,7 +79,7 @@ the engine headlessly against real hardware via `tool/*.dart`.
 
 ```
 lib/
-  core/            result.dart, theme.dart (M3), tone_generator.dart (chime WAV)
+  core/            theme.dart (M3), tone_generator.dart (chime WAV)
   data/models/     sonos_models.dart — SonosDevice, ZoneGroupMember, SonosSystem, SonosChannel
   data/sonos/      THE ENGINE (pure Dart, no Flutter):
                      ssdp_discovery · device_description · soap_client
@@ -239,6 +242,15 @@ Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
     Reddit reports of it working are firmware/model-specific. Sonority reads and
     reports this honestly but cannot restore a tuning Sonos has cleared.
 
+### Terminology (the same thing has three names — don't get lost)
+- **zone group** = Sonos' API/topology term (`ZoneGroupTopology`, `ZoneGroupMember`)
+  — a playback group, NOT our feature. **bond** = any hardware pairing at the
+  `AddHTSatellite`/`AddBondedZones` level (HT, stereo pair, zone). **group** =
+  *our* model/UI name for the `AddBondedZones` speaker bond (`createGroup`,
+  `EntityKind.zone/stereoPair/custom`); the UI label is "speaker groups". So
+  `ZoneGroupMember` (API) ≠ our "group"; `isZone`/`isStereoPair` classify what a
+  bond is, `bondAndVerify` writes any bond.
+
 ### Channel maps (`channel_map.dart`)
 `HTSatChanMapSet` format: `UUID:CH[,CH];UUID:CH;…`. Tokens: `LF RF CC LR RR SW`.
 - **Confirmed on a real Sonos Beam**: stock 5.1 = `BEAM:CC;…:LR;…:RR;…:SW` — the
@@ -341,6 +353,29 @@ Run on the same Wi-Fi as the Sonos system:
 - All platforms: portrait-only (`SystemChrome` + iOS plist + Android manifest).
 - Emulators/simulators usually can't reach the LAN's SSDP multicast (this Android
   AVD happens to). Use a **physical device** for real discovery.
+
+### Autonomous macOS UI testing (agents: verify UI work yourself)
+The macOS app IS the mobile layout (fixed 420-wide portrait window), so it's the
+proxy for iOS UI work — and unlike simulators it reaches the real LAN Sonos system.
+`tool/macos_ui.swift` screenshots and drives the window:
+```
+~/fvm/versions/3.35.2/bin/flutter build macos --debug
+open build/macos/Build/Products/Debug/Sonority.app   # wait ~5s for discovery
+swift tool/macos_ui.swift shot [out.png]   # capture window → /tmp/sonority.png
+swift tool/macos_ui.swift click <x> <y>    # window-relative POINTS (top-left origin,
+                                           #   incl. title bar); PNG is 2x Retina →
+                                           #   divide image px by 2
+swift tool/macos_ui.swift type <text> | key <return|tab|esc|...> | list
+pkill -x Sonority                          # quit (AppleScript quit gets cancelled)
+```
+- Read the PNG to see the UI; iterate build → launch → shot → click → shot.
+- Needs **Screen Recording + Accessibility** TCC for the host app — already granted
+  to Terminal (if claude runs under another host app, grant it there too).
+  `click`/`type` auto-activate the app first (NSRunningApplication.activate() is
+  ignored on macOS 14+; the script shells to AppleScript `activate`, which works).
+- **Safety:** navigation + screenshots are fine autonomously; anything that fires a
+  live Sonos write (apply/bond/separate/rename) still needs explicit user confirm —
+  it's the user's real living-room system.
 
 ## Feature status
 - ✅ Discovery + topology + Material 3 UI (discovery → home-theater diagram).

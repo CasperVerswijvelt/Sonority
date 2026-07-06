@@ -1,4 +1,4 @@
-// Plays the identify chime on one speaker — validates the IdentifyService path
+// Plays the identify chime on one speaker — validates the IdentifyServiceClient path
 // (in-app HTTP server + AVTransport) against real hardware.
 //
 //   dart run tool/chirp.dart <room name | RINCON_uuid | ip>
@@ -25,7 +25,7 @@ Future<void> main(List<String> argv) async {
   final (:ip, :label) = resolved;
 
   print('🔊 Chiming on $label ($ip)…');
-  final svc = IdentifyService(null, (m) => print('   · $m'));
+  final svc = IdentifyServiceClient(null, (m) => print('   · $m'));
   try {
     await svc.chirp(ip);
     print('   Sent. You should hear a ding-dong now.');
