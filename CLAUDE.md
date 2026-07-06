@@ -40,7 +40,15 @@ duplicate the app because we only **read the live values at snapshot and write
 them back on apply** — there are **no EQ/volume editing sliders** in Sonority
 (that WOULD duplicate the app). Keep it that way: capture+restore only, never
 standalone editing. (`speaker_settings.dart`, two per-profile toggles — EQ, and
-volume separately since restoring volume is surprising.)
+volume separately since restoring volume is surprising.) The EQ bundle =
+bass/treble/loudness + every `GetEQ`/`SetEQ` token (the shared `eqTypes` list;
+all Beam-confirmed): NightMode, DialogLevel, SubGain/SubEnable/SubPolarity/
+SubCrossover, SurroundLevel/SurroundEnable/SurroundMode/MusicSurroundLevel,
+AudioDelay (lip sync), AudioDelayLeftRear/RightRear (surround distance),
+HeightChannelLevel. **Gotcha:** the enable tokens are `SubEnable`/
+`SurroundEnable` — WITHOUT the trailing "d" of the SCPD state vars
+(`SubEnabled` faults 402). NOT exposed locally (so not capturable): volume
+limit, spatial music, TV autoplay/disband-on-autoplay, group audio delay, IR.
 
 The app does **no audio processing** — it only issues the bonding/config SOAP
 calls the official app blocks. Audio quality comes from the real speakers.

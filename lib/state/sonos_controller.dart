@@ -128,10 +128,19 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       EntitySnapshot e, SonosSystem sys, void Function(String) note) async {
     if (e.settings.isEmpty) return;
     for (final entry in e.settings.entries) {
-      final ip = sys.device(entry.key)?.ip;
-      if (ip == null) continue;
-      note('restoring settings');
-      await _settings.apply(ip, entry.value);
+      final dev = sys.device(entry.key);
+      final ip = dev?.ip;
+      if (ip == null) {
+        note('skipping settings for ${entry.key} — not on the network');
+        continue;
+      }
+      final s = entry.value;
+      final what = [
+        if (s.hasEq) 'EQ',
+        if (s.hasVolume) 'volume',
+      ].join(' + ');
+      note('restoring $what — ${dev!.typeLabel}');
+      await _settings.apply(ip, s);
     }
   }
 
