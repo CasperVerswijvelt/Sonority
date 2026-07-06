@@ -152,8 +152,10 @@ class AppTheme {
         ),
       ),
       listTileTheme: const ListTileThemeData(
+        // Match the card radius (20) so a tile's hover/tap ink follows the card
+        // outline instead of a tighter, more-rounded corner inside it.
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(16))),
+            borderRadius: BorderRadius.all(Radius.circular(20))),
       ),
     );
   }
