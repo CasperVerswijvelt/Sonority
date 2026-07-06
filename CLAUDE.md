@@ -327,6 +327,29 @@ Run on the same Wi-Fi as the Sonos system:
 - Emulators/simulators usually can't reach the LAN's SSDP multicast (this Android
   AVD happens to). Use a **physical device** for real discovery.
 
+### Autonomous macOS UI testing (agents: verify UI work yourself)
+The macOS app IS the mobile layout (fixed 420-wide portrait window), so it's the
+proxy for iOS UI work — and unlike simulators it reaches the real LAN Sonos system.
+`tool/macos_ui.swift` screenshots and drives the window:
+```
+~/fvm/versions/3.35.2/bin/flutter build macos --debug
+open build/macos/Build/Products/Debug/Sonority.app   # wait ~5s for discovery
+swift tool/macos_ui.swift shot [out.png]   # capture window → /tmp/sonority.png
+swift tool/macos_ui.swift click <x> <y>    # window-relative POINTS (top-left origin,
+                                           #   incl. title bar); PNG is 2x Retina →
+                                           #   divide image px by 2
+swift tool/macos_ui.swift type <text> | key <return|tab|esc|...> | list
+pkill -x Sonority                          # quit (AppleScript quit gets cancelled)
+```
+- Read the PNG to see the UI; iterate build → launch → shot → click → shot.
+- Needs **Screen Recording + Accessibility** TCC for the host app — already granted
+  to Terminal (if claude runs under another host app, grant it there too).
+  `click`/`type` auto-activate the app first (NSRunningApplication.activate() is
+  ignored on macOS 14+; the script shells to AppleScript `activate`, which works).
+- **Safety:** navigation + screenshots are fine autonomously; anything that fires a
+  live Sonos write (apply/bond/separate/rename) still needs explicit user confirm —
+  it's the user's real living-room system.
+
 ## Feature status
 - ✅ Discovery + topology + Material 3 UI (discovery → home-theater diagram).
 - ✅ Dedicated front surrounds (add with guided flow + Identify; remove), incl. a
