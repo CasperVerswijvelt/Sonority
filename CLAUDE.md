@@ -57,6 +57,9 @@ Flutter is **not on PATH**; this machine uses **fvm, Flutter 3.35.2**:
 - **Signing secrets/keys: `docs/SIGNING.md`** is the map of where every value/file lives
   (Bitwarden masters, GitHub Actions secrets, gitignored local files, the match certs repo).
   No secret values are committed. Apple setup details: `docs/PUBLISHING-APPLE.md`.
+- **Version bumps happen ONLY on `main`, after a feature branch is merged** — never
+  bump `version:` in `pubspec.yaml` on a feature branch (avoids merge churn/conflicts
+  on the build number). Bump + tag as a dedicated step on `main` when cutting a release.
 
 ## Architecture
 
