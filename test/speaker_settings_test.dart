@@ -5,7 +5,8 @@ import 'package:xml/xml.dart';
 
 /// Records write calls and answers reads from a per-action table. A read whose
 /// action/EQType isn't in the table throws — simulating a speaker that doesn't
-/// support that setting, which the client must turn into `null` (not a failure).
+/// support that setting, which the client must turn into an absent field (not
+/// a failure).
 class _FakeSoap extends SonosSoapClient {
   final Map<String, String> reads; // key: action or "GetEQ:EQType" → out element text
   final List<String> writes = [];
@@ -38,13 +39,15 @@ class _FakeSoap extends SonosSoapClient {
 }
 
 void main() {
-  test('read parses supported fields and nulls unsupported ones', () async {
+  test('read parses supported fields and skips unsupported EQ types', () async {
     final fake = _FakeSoap({
       'GetBass': '5',
       'GetTreble': '-3',
       'GetLoudness': '1',
       'GetEQ:NightMode': '1',
-      // No DialogLevel/SubGain/SurroundLevel → those throw → null.
+      'GetEQ:SurroundMode': '1',
+      'GetEQ:AudioDelayLeftRear': '2',
+      // No DialogLevel/SubGain/… → those throw → absent from the map.
       'GetVolume': '22',
       'GetMute': '0',
     });
@@ -52,9 +55,8 @@ void main() {
     expect(s.bass, 5);
     expect(s.treble, -3);
     expect(s.loudness, isTrue);
-    expect(s.nightMode, isTrue);
-    expect(s.dialogLevel, isNull);
-    expect(s.subGain, isNull);
+    expect(s.eq,
+        {'NightMode': 1, 'SurroundMode': 1, 'AudioDelayLeftRear': 2});
     expect(s.volume, 22);
     expect(s.mute, isFalse);
   });
@@ -64,6 +66,7 @@ void main() {
     final volOnly = await SpeakerSettingsClient(fake).read('1.2.3.4',
         eq: false, volume: true);
     expect(volOnly.bass, isNull);
+    expect(volOnly.eq, isEmpty);
     expect(volOnly.volume, 22);
     expect(volOnly.hasEq, isFalse);
 
@@ -73,21 +76,32 @@ void main() {
     expect(eqOnly.hasVolume, isFalse);
   });
 
-  test('apply writes only non-null fields', () async {
+  test('apply writes only captured fields', () async {
     final fake = _FakeSoap(const {});
     await SpeakerSettingsClient(fake).apply(
       '1.2.3.4',
-      const SpeakerSettings(bass: 4, nightMode: true, volume: 30),
+      const SpeakerSettings(
+          bass: 4, eq: {'NightMode': 1, 'SubPolarity': 2}, volume: 30),
     );
-    expect(fake.writes, containsAll(['SetBass=4', 'SetEQ:NightMode=1', 'SetVolume=30']));
+    expect(
+        fake.writes,
+        containsAll(
+            ['SetBass=4', 'SetEQ:NightMode=1', 'SetEQ:SubPolarity=2', 'SetVolume=30']));
     expect(fake.writes.any((w) => w.startsWith('SetTreble')), isFalse);
     expect(fake.writes.any((w) => w.startsWith('SetLoudness')), isFalse);
-    expect(fake.writes.length, 3);
+    expect(fake.writes.length, 4);
   });
 
   test('empty settings write nothing', () async {
     final fake = _FakeSoap(const {});
     await SpeakerSettingsClient(fake).apply('1.2.3.4', SpeakerSettings.empty);
     expect(fake.writes, isEmpty);
+  });
+
+  test('JSON round-trip keeps the eq map; empty eq omitted', () {
+    const s = SpeakerSettings(bass: 1, eq: {'AudioDelay': 3, 'SubEnable': 1});
+    final back = SpeakerSettings.fromJson(s.toJson());
+    expect(back.eq, {'AudioDelay': 3, 'SubEnable': 1});
+    expect(const SpeakerSettings(bass: 1).toJson().containsKey('eq'), isFalse);
   });
 }

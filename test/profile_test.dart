@@ -73,7 +73,12 @@ void main() {
       uuid: fl,
       zoneName: 'Bureau',
     )).copyWith(settings: {
-      fl: const SpeakerSettings(bass: 3, treble: -2, loudness: true, volume: 25),
+      fl: const SpeakerSettings(
+          bass: 3,
+          treble: -2,
+          loudness: true,
+          eq: {'NightMode': 1, 'AudioDelay': 2},
+          volume: 25),
     });
     final profile = Profile(id: 'p2', name: 'Tuned', entities: [snap]);
     final back = Profile.fromJson(
@@ -83,7 +88,7 @@ void main() {
     expect(s.treble, -2);
     expect(s.loudness, isTrue);
     expect(s.volume, 25);
-    expect(s.nightMode, isNull); // not captured → stays null
+    expect(s.eq, {'NightMode': 1, 'AudioDelay': 2});
     expect(back.entities.first.settingsSummary, 'EQ + volume saved');
     expect(back.settingsSummary, 'EQ + volume saved');
   });

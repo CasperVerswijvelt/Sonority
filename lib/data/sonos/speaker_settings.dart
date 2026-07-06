@@ -2,27 +2,56 @@ import 'package:xml/xml.dart';
 
 import 'soap_client.dart';
 
+/// The `GetEQ`/`SetEQ` types captured in the EQ bundle — every stable sound
+/// setting the local API exposes (all hardware-confirmed on a Beam Gen 2 via
+/// `tool/eq_probe.dart`). Values are ints; booleans are 0/1. Note the enable
+/// tokens are `SubEnable`/`SurroundEnable` — WITHOUT the trailing "d" the SCPD
+/// state variables carry (`SubEnabled` faults with 402).
+///
+/// Covers, in Sonos-app terms: night sound (NightMode), speech enhancement
+/// (DialogLevel), sub level/on-off/phase/crossover (SubGain/SubEnable/
+/// SubPolarity/SubCrossover), surround on-off + TV & music levels + full-vs-
+/// ambient music mode (SurroundEnable/SurroundLevel/MusicSurroundLevel/
+/// SurroundMode), lip sync (AudioDelay), surround distance (AudioDelayLeftRear/
+/// RightRear), height channel level. NOT exposed by the local API (so not
+/// captured): volume limit, spatial music, TV autoplay/disband, group audio
+/// delay, IR.
+const eqTypes = [
+  'NightMode',
+  'DialogLevel',
+  'SubGain',
+  'SubEnable',
+  'SubPolarity',
+  'SubCrossover',
+  'SurroundLevel',
+  'SurroundEnable',
+  'SurroundMode',
+  'MusicSurroundLevel',
+  'AudioDelay',
+  'AudioDelayLeftRear',
+  'AudioDelayRightRear',
+  'HeightChannelLevel',
+];
+
 /// A snapshot of one speaker's audio settings, read from the `RenderingControl`
-/// service. Every field is nullable: `null` means "not captured" (the profile
-/// toggle was off) OR "this speaker doesn't support it" (e.g. a plain Play:1 has
-/// no `SubGain`). Reading and applying are both best-effort per field — one
-/// setting faulting never sinks the rest.
+/// service. Every field is nullable / possibly absent: it means "not captured"
+/// (the profile toggle was off) OR "this speaker doesn't support it" (e.g. a
+/// plain Play:1 answers no surround/sub tokens; HT satellites reject EQ reads
+/// entirely with UPnPError 803). Reading and applying are both best-effort per
+/// field — one setting faulting never sinks the rest.
 ///
-/// EQ fields (`bass`…`surroundLevel`) are stable configuration and pair well
-/// with a saved layout. `volume`/`mute` are transient playback state, captured
-/// only when the user opts in via the separate volume toggle.
-///
-/// Action/arg shapes follow the RenderingControl SCPD (confirm with
-/// `tool/eq_probe.dart`): Get/SetBass, Get/SetTreble, Get/SetLoudness(Channel),
-/// Get/SetEQ(EQType), Get/SetVolume(Channel), Get/SetMute(Channel).
+/// [bass]/[treble]/[loudness] have dedicated SOAP actions; every other sound
+/// setting rides the generic `GetEQ`/`SetEQ` pair and lives in [eq] keyed by
+/// EQType (see [eqTypes]). [volume]/[mute] are transient playback state,
+/// captured only when the user opts in via the separate volume toggle.
 class SpeakerSettings {
   final int? bass;
   final int? treble;
   final bool? loudness;
-  final bool? nightMode; // EQType NightMode
-  final int? dialogLevel; // EQType DialogLevel (speech enhancement)
-  final int? subGain; // EQType SubGain
-  final int? surroundLevel; // EQType SurroundLevel
+
+  /// EQType → value for every token the speaker answered (see [eqTypes]).
+  final Map<String, int> eq;
+
   final int? volume;
   final bool? mute;
 
@@ -30,10 +59,7 @@ class SpeakerSettings {
     this.bass,
     this.treble,
     this.loudness,
-    this.nightMode,
-    this.dialogLevel,
-    this.subGain,
-    this.surroundLevel,
+    this.eq = const {},
     this.volume,
     this.mute,
   });
@@ -41,28 +67,19 @@ class SpeakerSettings {
   static const empty = SpeakerSettings();
 
   bool get hasEq =>
-      bass != null ||
-      treble != null ||
-      loudness != null ||
-      nightMode != null ||
-      dialogLevel != null ||
-      subGain != null ||
-      surroundLevel != null;
+      bass != null || treble != null || loudness != null || eq.isNotEmpty;
 
   bool get hasVolume => volume != null || mute != null;
 
   bool get isEmpty => !hasEq && !hasVolume;
 
-  /// Serializes only the non-null fields, so an EQ-only capture doesn't store
-  /// bogus volume keys and old profiles round-trip cleanly.
+  /// Serializes only the non-null/non-empty fields, so an EQ-only capture
+  /// doesn't store bogus volume keys and old profiles round-trip cleanly.
   Map<String, dynamic> toJson() => {
         if (bass != null) 'bass': bass,
         if (treble != null) 'treble': treble,
         if (loudness != null) 'loudness': loudness,
-        if (nightMode != null) 'nightMode': nightMode,
-        if (dialogLevel != null) 'dialogLevel': dialogLevel,
-        if (subGain != null) 'subGain': subGain,
-        if (surroundLevel != null) 'surroundLevel': surroundLevel,
+        if (eq.isNotEmpty) 'eq': eq,
         if (volume != null) 'volume': volume,
         if (mute != null) 'mute': mute,
       };
@@ -71,10 +88,7 @@ class SpeakerSettings {
         bass: j['bass'] as int?,
         treble: j['treble'] as int?,
         loudness: j['loudness'] as bool?,
-        nightMode: j['nightMode'] as bool?,
-        dialogLevel: j['dialogLevel'] as int?,
-        subGain: j['subGain'] as int?,
-        surroundLevel: j['surroundLevel'] as int?,
+        eq: Map<String, int>.from((j['eq'] as Map?) ?? const {}),
         volume: j['volume'] as int?,
         mute: j['mute'] as bool?,
       );
@@ -93,10 +107,18 @@ class SpeakerSettingsClient {
   static const _control = '/MediaRenderer/RenderingControl/Control';
 
   /// Reads a settings snapshot for the speaker at [ip]. [eq] captures the EQ
-  /// bundle (bass/treble/loudness/night/speech/sub/surround); [volume] captures
-  /// volume/mute. The two are independent toggles.
+  /// bundle (bass/treble/loudness + every [eqTypes] token the speaker answers);
+  /// [volume] captures volume/mute. The two are independent toggles.
   Future<SpeakerSettings> read(String ip,
       {bool eq = true, bool volume = false}) async {
+    final eqValues = <String, int>{};
+    if (eq) {
+      for (final t in eqTypes) {
+        final v = await _readInt(ip, 'GetEQ', 'CurrentValue',
+            extra: {'EQType': t});
+        if (v != null) eqValues[t] = v;
+      }
+    }
     return SpeakerSettings(
       bass: eq ? await _readInt(ip, 'GetBass', 'CurrentBass') : null,
       treble: eq ? await _readInt(ip, 'GetTreble', 'CurrentTreble') : null,
@@ -104,10 +126,7 @@ class SpeakerSettingsClient {
           ? await _readBool(ip, 'GetLoudness', 'CurrentLoudness',
               extra: const {'Channel': 'Master'})
           : null,
-      nightMode: eq ? await _readEqBool(ip, 'NightMode') : null,
-      dialogLevel: eq ? await _readEqInt(ip, 'DialogLevel') : null,
-      subGain: eq ? await _readEqInt(ip, 'SubGain') : null,
-      surroundLevel: eq ? await _readEqInt(ip, 'SurroundLevel') : null,
+      eq: eqValues,
       volume: volume
           ? await _readInt(ip, 'GetVolume', 'CurrentVolume',
               extra: const {'Channel': 'Master'})
@@ -132,13 +151,8 @@ class SpeakerSettingsClient {
       await _set(ip, 'SetLoudness',
           {'Channel': 'Master', 'DesiredLoudness': s.loudness! ? '1' : '0'});
     }
-    if (s.nightMode != null) {
-      await _setEq(ip, 'NightMode', s.nightMode! ? '1' : '0');
-    }
-    if (s.dialogLevel != null) await _setEq(ip, 'DialogLevel', '${s.dialogLevel}');
-    if (s.subGain != null) await _setEq(ip, 'SubGain', '${s.subGain}');
-    if (s.surroundLevel != null) {
-      await _setEq(ip, 'SurroundLevel', '${s.surroundLevel}');
+    for (final e in s.eq.entries) {
+      await _set(ip, 'SetEQ', {'EQType': e.key, 'DesiredValue': '${e.value}'});
     }
     if (s.volume != null) {
       await _set(ip, 'SetVolume',
@@ -179,13 +193,7 @@ class SpeakerSettingsClient {
     return v == null ? null : v == '1';
   }
 
-  Future<int?> _readEqInt(String ip, String type) =>
-      _readInt(ip, 'GetEQ', 'CurrentValue', extra: {'EQType': type});
-
-  Future<bool?> _readEqBool(String ip, String type) =>
-      _readBool(ip, 'GetEQ', 'CurrentValue', extra: {'EQType': type});
-
-  // ---- write helpers (swallow faults; one setting must not block the rest) ----
+  // ---- write helper (swallows faults; one setting must not block the rest) ----
 
   Future<void> _set(String ip, String action, Map<String, String> extra) async {
     try {
@@ -198,7 +206,4 @@ class SpeakerSettingsClient {
       );
     } catch (_) {/* best-effort */}
   }
-
-  Future<void> _setEq(String ip, String type, String value) =>
-      _set(ip, 'SetEQ', {'EQType': type, 'DesiredValue': value});
 }
