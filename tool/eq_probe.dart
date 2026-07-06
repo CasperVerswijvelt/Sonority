@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
 import 'package:sonority/data/sonos/soap_client.dart';
+import 'package:sonority/data/sonos/speaker_settings.dart' show eqTypes;
 import 'package:sonority/data/sonos/zone_topology.dart';
 
 import 'discover_util.dart';
@@ -26,18 +27,10 @@ const _rcService = 'urn:schemas-upnp-org:service:RenderingControl:1';
 const _rcControl = '/MediaRenderer/RenderingControl/Control';
 final _soap = SonosSoapClient();
 
-// The EQType tokens we expect Sonos to expose via GetEQ/SetEQ. The probe reads
-// each; ones the speaker doesn't support just fault (shown as ✗) — that tells us
-// which apply to which model.
-const _eqTypes = [
-  'NightMode',
-  'DialogLevel',
-  'SubGain',
-  'SurroundLevel',
-  'MusicSurroundLevel',
-  'HeightChannelLevel',
-  'SubEnabled',
-];
+// The EQType tokens the app captures — shared list so probe and client can't
+// drift. The probe reads each; ones the speaker doesn't support just fault,
+// which tells us which apply to which model.
+const _eqTypes = eqTypes;
 
 String _short(Object e) {
   final s = e.toString();
