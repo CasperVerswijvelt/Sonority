@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/identify_controls.dart';
@@ -120,7 +121,13 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Set up home theater')),
+      appBar: AppBar(
+        title: const Text('Set up home theater'),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: ScrolledUnderDivider(),
+        ),
+      ),
       body: SafeArea(
         child: Stepper(
           currentStep: _step,

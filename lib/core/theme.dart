@@ -113,10 +113,11 @@ class AppTheme {
         backgroundColor: pageBg,
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
-        // Flat at rest; a subtle shadow appears once content scrolls under it
-        // (surfaceTint stays off, so the affordance is the shadow, not a tint).
+        // Fully flat, top and bottom. The scroll-under affordance is a hairline
+        // (AppScaffold's ScrolledUnderDivider), matching the flat nav-bar line —
+        // no shadow, no tint.
         elevation: 0,
-        scrolledUnderElevation: 3,
+        scrolledUnderElevation: 0,
         shadowColor: scheme.shadow,
         titleTextStyle: TextStyle(
           color: scheme.onSurface,
