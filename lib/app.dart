@@ -12,6 +12,7 @@ import 'features/front_surrounds/front_surrounds_flow.dart';
 import 'features/home_theater/home_theater_screen.dart';
 import 'features/profiles/profile_controller.dart';
 import 'features/profiles/profile_shortcuts.dart';
+import 'features/profiles/profile_widget.dart';
 import 'features/profiles/profiles_screen.dart';
 import 'features/profiles/profile_create_screen.dart';
 import 'features/profiles/profile_detail_screen.dart';
@@ -241,6 +242,8 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
     // for the shortcut that cold-started the app).
     initProfileShortcuts(
         (id) => ref.read(pendingApplyProvider.notifier).set(id));
+    // Home-screen widget tap → same apply seam.
+    initProfileWidget((id) => ref.read(pendingApplyProvider.notifier).set(id));
   }
 
   /// Runs the scan→preflight→apply flow for a launch-requested profile. Deferred

@@ -18,6 +18,9 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 - **Per-profile icon & colour** — pick an icon and colour for each profile,
   shown on its tile, in the editor, and on its app shortcut (a full-colour glyph
   on Android, a matching SF Symbol on iOS).
+- **Home-screen widget** — place a widget for a chosen profile and apply it in
+  one tap. Android is built in; iOS needs a one-time Xcode setup (see
+  `docs/WIDGETS-SETUP.md`).
 
 ### Changed
 - Re-snapshot moved to an app-bar action on the profile detail page.
