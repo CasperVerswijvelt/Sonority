@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../data/sonos/cancellation.dart';
 import '../../state/sonos_controller.dart';
+import 'app_scaffold.dart';
 import 'apply_progress_view.dart';
 
 /// How a bonding operation ended, returned by [showBondingProgress].
@@ -135,6 +136,10 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
         // Fixed app bar, matching the rest of the app's pages.
         appBar: AppBar(
           automaticallyImplyLeading: false,
+          bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(1),
+            child: ScrolledUnderDivider(),
+          ),
           title: Text(widget.title),
           actions: [
             IconButton(

@@ -8,6 +8,27 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 `[X.Y.Z] - YYYY-MM-DD`. CI copies that section into the GitHub Release notes
 (see `.github/workflows/release.yml`).
 
+## [Unreleased]
+
+### Added
+- **Apply a profile from an app shortcut** — long-press the app icon to apply a
+  saved profile in one tap. The shortcut opens the app and runs the apply,
+  scanning your system first and asking for confirmation only when some speakers
+  are missing or in use by another setup.
+- **Per-profile icon & colour** — pick an icon and colour for each profile,
+  shown on its tile, in the editor, and on its app shortcut (a full-colour glyph
+  on Android, a matching SF Symbol on iOS).
+
+### Changed
+- Re-snapshot moved to an app-bar action on the profile detail page.
+- Switching bottom-nav tabs (System ↔ Profiles) now animates with a Material 3
+  shared-axis transition (fade + slide), sliding the way the tab bar moves.
+- Consistent, flat separation for the top app bar and bottom navigation bar. The
+  nav bar now shows a hairline dividing it from the page and cards (it was
+  meant to but never rendered), and the app bar matches with a hairline that
+  appears only while content scrolls under it — replacing its drop shadow, so
+  every screen's chrome reads as flat and line-based.
+
 ## [0.5.0] - 2026-07-06
 
 ### Added

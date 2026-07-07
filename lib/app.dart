@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:animations/animations.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,8 +27,13 @@ final _router = GoRouter(
   navigatorKey: rootNavigatorKey,
   initialLocation: '/',
   routes: [
-    StatefulShellRoute.indexedStack(
+    StatefulShellRoute(
       builder: (context, state, shell) => _HomeShell(shell: shell),
+      navigatorContainerBuilder: (context, shell, children) =>
+          _AnimatedBranchContainer(
+        currentIndex: shell.currentIndex,
+        children: children,
+      ),
       branches: [
         // System: discovery + the per-device detail/flow screens.
         StatefulShellBranch(
@@ -100,6 +106,9 @@ class _HomeShell extends StatelessWidget {
       bottomNavigationBar: DecoratedBox(
         // Hairline divider so the nav bar reads as a separate surface from the
         // page behind it (dynamic-colour tones alone don't separate them).
+        // Foreground: the nav bar's opaque background would paint over a
+        // background-position border, so draw the line on top of its top edge.
+        position: DecorationPosition.foreground,
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: scheme.outlineVariant)),
         ),
@@ -119,6 +128,100 @@ class _HomeShell extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Renders the shell's branch navigators, cross-animating the active branch
+/// with an M3 shared-axis transition on tab switch. All branches stay mounted
+/// (Offstage) so each tab keeps its state, exactly like the old IndexedStack.
+class _AnimatedBranchContainer extends StatefulWidget {
+  final int currentIndex;
+  final List<Widget> children;
+  const _AnimatedBranchContainer({
+    required this.currentIndex,
+    required this.children,
+  });
+
+  @override
+  State<_AnimatedBranchContainer> createState() =>
+      _AnimatedBranchContainerState();
+}
+
+class _AnimatedBranchContainerState extends State<_AnimatedBranchContainer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 300),
+    value: 1, // start settled; only tab changes drive it
+  );
+  int _previousIndex = 0;
+  bool _reverse = false;
+
+  @override
+  void didUpdateWidget(_AnimatedBranchContainer old) {
+    super.didUpdateWidget(old);
+    if (old.currentIndex != widget.currentIndex) {
+      _previousIndex = old.currentIndex;
+      // Slide the way the tab bar moves: forward to a higher index, back to a lower.
+      _reverse = widget.currentIndex < old.currentIndex;
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final animating = _controller.isAnimating;
+        // Draw non-active branches first, active branch last so it paints on top.
+        final ordered = <Widget>[];
+        for (var i = 0; i < widget.children.length; i++) {
+          if (i == widget.currentIndex) continue;
+          ordered.add(_branch(
+            widget.children[i],
+            visible: animating && i == _previousIndex,
+            outgoing: true,
+          ));
+        }
+        ordered.add(_branch(
+          widget.children[widget.currentIndex],
+          visible: true,
+          outgoing: false,
+        ));
+        return Stack(children: ordered);
+      },
+    );
+  }
+
+  Widget _branch(Widget child, {required bool visible, required bool outgoing}) {
+    if (!visible) {
+      return Offstage(
+        offstage: true,
+        child: TickerMode(enabled: false, child: child),
+      );
+    }
+    // Forward: new slides in from the right, old exits left. Reverse mirrors it
+    // by driving the transitions backwards (ReverseAnimation), so back-navigation
+    // slides the opposite way.
+    final rev = ReverseAnimation(_controller);
+    return SharedAxisTransition(
+      animation: outgoing
+          ? (_reverse ? rev : kAlwaysCompleteAnimation)
+          : (_reverse ? kAlwaysCompleteAnimation : _controller),
+      secondaryAnimation: outgoing
+          ? (_reverse ? kAlwaysDismissedAnimation : _controller)
+          : (_reverse ? rev : kAlwaysDismissedAnimation),
+      transitionType: SharedAxisTransitionType.horizontal,
+      fillColor: Colors.transparent,
+      child: child,
     );
   }
 }
