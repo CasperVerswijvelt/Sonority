@@ -8,6 +8,12 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 `[X.Y.Z] - YYYY-MM-DD`. CI copies that section into the GitHub Release notes
 (see `.github/workflows/release.yml`).
 
+## [Unreleased]
+
+### Changed
+- Switching bottom-nav tabs (System ↔ Profiles) now animates with a Material 3
+  shared-axis transition (fade + slide), sliding the way the tab bar moves.
+
 ## [0.5.0] - 2026-07-06
 
 ### Added
