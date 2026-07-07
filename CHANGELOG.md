@@ -13,6 +13,11 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 ### Changed
 - Switching bottom-nav tabs (System ↔ Profiles) now animates with a Material 3
   shared-axis transition (fade + slide), sliding the way the tab bar moves.
+- Consistent, flat separation for the top app bar and bottom navigation bar. The
+  nav bar now shows a hairline dividing it from the page and cards (it was
+  meant to but never rendered), and the app bar matches with a hairline that
+  appears only while content scrolls under it — replacing its drop shadow, so
+  every screen's chrome reads as flat and line-based.
 
 ## [0.5.0] - 2026-07-06
 

@@ -94,6 +94,9 @@ class _HomeShell extends StatelessWidget {
       bottomNavigationBar: DecoratedBox(
         // Hairline divider so the nav bar reads as a separate surface from the
         // page behind it (dynamic-colour tones alone don't separate them).
+        // Foreground: the nav bar's opaque background would paint over a
+        // background-position border, so draw the line on top of its top edge.
+        position: DecorationPosition.foreground,
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: scheme.outlineVariant)),
         ),

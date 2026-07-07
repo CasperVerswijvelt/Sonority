@@ -47,6 +47,11 @@ class AppScaffold extends StatelessWidget {
     }
     return Scaffold(
       appBar: AppBar(
+        scrolledUnderElevation: 0,
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: ScrolledUnderDivider(),
+        ),
         title: titleWidget ??
             (subtitle == null
                 ? Text(title)
@@ -84,6 +89,61 @@ class AppScaffold extends StatelessWidget {
                 ],
               ),
       ),
+    );
+  }
+}
+
+/// A 1px hairline for an [AppBar.bottom] that fades in only while content is
+/// scrolled under the app bar — the flat, line-based equivalent of the M3
+/// scroll-under shadow. Mirrors [AppBar]'s own detection
+/// ([ScrollNotificationObserver] + `metrics.extentBefore`), so its timing
+/// matches the shadow it replaces. Constant height ⇒ no layout jump; only the
+/// colour animates.
+class ScrolledUnderDivider extends StatefulWidget {
+  const ScrolledUnderDivider({super.key});
+
+  @override
+  State<ScrolledUnderDivider> createState() => _ScrolledUnderDividerState();
+}
+
+class _ScrolledUnderDividerState extends State<ScrolledUnderDivider> {
+  ScrollNotificationObserverState? _observer;
+  bool _under = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _observer?.removeListener(_onScroll);
+    _observer = ScrollNotificationObserver.maybeOf(context);
+    _observer?.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _observer?.removeListener(_onScroll);
+    _observer = null;
+    super.dispose();
+  }
+
+  void _onScroll(ScrollNotification notification) {
+    if (!defaultScrollNotificationPredicate(notification)) return;
+    if (notification is! ScrollUpdateNotification &&
+        notification is! ScrollMetricsNotification) {
+      return;
+    }
+    if (notification.metrics.axis != Axis.vertical) return;
+    final under = notification.metrics.extentBefore > 0;
+    if (under != _under) setState(() => _under = under);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      height: 1,
+      color: _under
+          ? Theme.of(context).colorScheme.outlineVariant
+          : Colors.transparent,
     );
   }
 }
