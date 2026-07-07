@@ -11,6 +11,9 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 ## [Unreleased]
 
 ### Changed
+- The macOS `.dmg` download now opens a styled drag-to-Applications install
+  window — the app icon, an arrow, and an Applications shortcut over a branded
+  background — instead of a bare disk image.
 - Switching bottom-nav tabs (System ↔ Profiles) now animates with a Material 3
   shared-axis transition (fade + slide), sliding the way the tab bar moves.
 - Consistent, flat separation for the top app bar and bottom navigation bar. The

@@ -186,6 +186,9 @@ jobs:
           ruby-version: '3.3'
           bundler-cache: true
 
+      - name: Install create-dmg
+        run: brew install create-dmg
+
       - name: Decode App Store Connect API key
         if: env.HAS_DEVID == 'true'
         run: echo "${{ secrets.ASC_KEY_BASE64 }}" | base64 --decode > "${{ github.workspace }}/fastlane/AuthKey.p8"
@@ -207,9 +210,18 @@ jobs:
         run: |
           mkdir -p dist
           flutter build macos --release
-          hdiutil create -volname Sonority -ov -format UDZO \
-            -srcfolder build/macos/Build/Products/Release/Sonority.app \
-            "dist/Sonority-${{ github.ref_name }}-macos.dmg"
+          # Same styled layout as the signed lane (see fastlane/Fastfile mac github).
+          stage="$RUNNER_TEMP/sonority-dmg-src"
+          rm -rf "$stage" && mkdir -p "$stage"
+          cp -R build/macos/Build/Products/Release/Sonority.app "$stage/"
+          create-dmg \
+            --volname Sonority \
+            --background macos/dmg/background.png \
+            --window-pos 200 120 --window-size 600 430 --icon-size 128 \
+            --icon 'Sonority.app' 150 165 \
+            --app-drop-link 450 165 \
+            --hdiutil-quiet \
+            "dist/Sonority-${{ github.ref_name }}-macos.dmg" "$stage"
 
       - name: Upload .dmg artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
