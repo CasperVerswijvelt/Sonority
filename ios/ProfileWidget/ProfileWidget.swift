@@ -41,7 +41,6 @@ struct ProfileQuery: EntityQuery {
     loadProfiles().filter { ids.contains($0.id) }
   }
   func suggestedEntities() async throws -> [ProfileOption] { loadProfiles() }
-  func defaultResult() async -> ProfileOption? { loadProfiles().first }
 }
 
 struct SelectProfileIntent: WidgetConfigurationIntent {
@@ -96,7 +95,9 @@ struct ProfileWidgetView: View {
         .lineLimit(1)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .widgetURL(p.flatMap { URL(string: "sonority://apply?id=\($0.id)") })
+    // home_widget's iOS side only recognises URLs carrying a `homeWidget` query
+    // item (see HomeWidgetPlugin.isWidgetUrl); without it the tap is ignored.
+    .widgetURL(p.flatMap { URL(string: "sonority://apply?homeWidget=1&id=\($0.id)") })
     // Full-bleed profile colour as the widget background.
     .containerBackground(p.map { Color(hex: $0.colorHex) } ?? Color.gray, for: .widget)
   }
