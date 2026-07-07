@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 
@@ -36,6 +38,26 @@ void initProfileWidget(void Function(String id) onApply) {
   HomeWidget.widgetClicked.listen(dispatch);
   HomeWidget.initiallyLaunchedFromHomeWidget().then(dispatch);
 }
+
+/// Publishes the profile list to the shared store for the iOS widget's picker
+/// (its AppIntent reads `widget_profiles`). Call whenever profiles change.
+/// Harmless on Android (the widget there is configured per-instance instead).
+Future<void> publishWidgetProfiles(List<Profile> profiles) async {
+  final data = [
+    for (final p in profiles)
+      {
+        'id': p.id,
+        'name': p.name,
+        'sf': sfSymbolName(p.iconId),
+        'color': _hex(profileColor(p.color)),
+      },
+  ];
+  await HomeWidget.saveWidgetData<String>('widget_profiles', jsonEncode(data));
+  await HomeWidget.updateWidget(iOSName: _iosWidgetName);
+}
+
+String _hex(Color c) =>
+    '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
 
 /// Persists one widget instance's chosen profile (id + name + rendered avatar)
 /// to the shared store and refreshes the widget. Keyed by [widgetId] so each

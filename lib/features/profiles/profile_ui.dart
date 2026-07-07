@@ -47,6 +47,22 @@ const _profileSfIcons = <String, IconData>{
   'night': SFIcons.sf_moon,
 };
 
+/// SF Symbol *name* for a profile icon — the string form for `systemImageName`
+/// (iOS app-shortcut icon + home-screen widget). Same non-filled glyphs as
+/// [_profileSfIcons]. Single source so shortcut + widget stay in sync.
+const _sfSymbolNames = <String, String>{
+  'speaker': 'hifispeaker',
+  'home_theater': 'tv',
+  'movie': 'film',
+  'music': 'music.note',
+  'living': 'sofa',
+  'tv': 'play.tv',
+  'party': 'party.popper',
+  'night': 'moon',
+};
+
+String sfSymbolName(String iconId) => _sfSymbolNames[iconId] ?? 'star.fill';
+
 /// The profile glyph as a widget: an SF Symbol on iOS (matches the quick-action
 /// icon), a Material icon everywhere else (matches the Android launcher bitmap
 /// and the rest of that platform's iconography).

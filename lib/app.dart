@@ -267,10 +267,13 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
     ref.listen(pendingApplyProvider, (_, next) {
       if (next != null) _consumePending(next);
     });
-    // Keep the OS shortcut list in sync with the saved profiles.
+    // Keep the OS shortcut list + the iOS widget's profile list in sync.
     ref.listen(profilesProvider, (_, next) {
       final list = next.value;
-      if (list != null) syncProfileShortcuts(list);
+      if (list != null) {
+        syncProfileShortcuts(list);
+        publishWidgetProfiles(list);
+      }
     });
 
     return DynamicColorBuilder(

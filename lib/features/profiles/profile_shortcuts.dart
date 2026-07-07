@@ -29,20 +29,6 @@ const maxProfileShortcuts = 4;
 List<Profile> shortcutProfiles(List<Profile> profiles) =>
     profiles.take(maxProfileShortcuts).toList();
 
-/// Curated icon → SF Symbol (iOS). Unknown/absent symbols just render no glyph,
-/// so this is safe to tweak; all are long-standing symbols. Keys match
-/// [profileIconChoices].
-const _sfSymbols = <String, String>{
-  'speaker': 'hifispeaker',
-  'home_theater': 'tv',
-  'movie': 'film',
-  'music': 'music.note',
-  'living': 'sofa',
-  'tv': 'play.tv',
-  'party': 'party.popper',
-  'night': 'moon',
-};
-
 bool get _supported => Platform.isIOS || Platform.isAndroid;
 
 /// Wires up tap delivery once: warm taps arrive as `applyShortcut` calls from
@@ -71,7 +57,7 @@ Future<void> syncProfileShortcuts(List<Profile> profiles) async {
       'title': p.name,
       // iOS uses the SF Symbol; Android uses the rendered PNG. Each side reads
       // only what it needs, so sending both is harmless.
-      'sfSymbol': _sfSymbols[p.iconId] ?? 'star.fill',
+      'sfSymbol': sfSymbolName(p.iconId),
       if (Platform.isAndroid) 'png': await _renderAvatarPng(p.iconId, p.color),
     });
   }
