@@ -65,9 +65,11 @@ String _hex(Color c) =>
 Future<void> _saveWidgetProfile(int widgetId, Profile p) async {
   await HomeWidget.saveWidgetData<String>('profileId_$widgetId', p.id);
   await HomeWidget.saveWidgetData<String>('profileName_$widgetId', p.name);
-  // Render the colour circle + glyph to a PNG the native widget loads.
+  // The full widget background is the profile colour; the glyph is white on top.
+  await HomeWidget.saveWidgetData<String>(
+      'color_$widgetId', _hex(profileColor(p.color)));
   await HomeWidget.renderFlutterWidget(
-    _WidgetAvatar(iconId: p.iconId, color: p.color),
+    _WidgetGlyph(iconId: p.iconId),
     key: 'avatar_$widgetId',
     logicalSize: const Size(96, 96),
   );
@@ -75,19 +77,13 @@ Future<void> _saveWidgetProfile(int widgetId, Profile p) async {
       qualifiedAndroidName: _androidProvider, iOSName: _iosWidgetName);
 }
 
-class _WidgetAvatar extends StatelessWidget {
+class _WidgetGlyph extends StatelessWidget {
   final String iconId;
-  final int color;
-  const _WidgetAvatar({required this.iconId, required this.color});
+  const _WidgetGlyph({required this.iconId});
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: 96,
-        height: 96,
-        decoration:
-            BoxDecoration(color: profileColor(color), shape: BoxShape.circle),
-        child: Icon(profileIcon(iconId), color: Colors.white, size: 52),
-      );
+  Widget build(BuildContext context) =>
+      Icon(profileIcon(iconId), color: Colors.white, size: 64);
 }
 
 /// The Android widget-configuration UI. Runs as its own Flutter entrypoint

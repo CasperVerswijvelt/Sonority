@@ -85,22 +85,20 @@ struct ProfileWidgetView: View {
 
   var body: some View {
     let p = entry.profile
-    VStack(spacing: 6) {
-      ZStack {
-        Circle().fill(p.map { Color(hex: $0.colorHex) } ?? Color.gray)
-        Image(systemName: p?.sf ?? "square.stack.3d.up")
-          .font(.system(size: 22))
-          .foregroundStyle(.white)
-      }
-      .frame(width: 48, height: 48)
+    VStack(spacing: 8) {
+      Image(systemName: p?.sf ?? "square.stack.3d.up")
+        .font(.system(size: 30, weight: .semibold))
+        .foregroundStyle(.white)
       Text(p?.name ?? "Choose profile")
         .font(.caption)
+        .fontWeight(.medium)
+        .foregroundStyle(.white)
         .lineLimit(1)
-        .foregroundStyle(.primary)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .widgetURL(p.flatMap { URL(string: "sonority://apply?id=\($0.id)") })
-    .containerBackground(.fill.tertiary, for: .widget)
+    // Full-bleed profile colour as the widget background.
+    .containerBackground(p.map { Color(hex: $0.colorHex) } ?? Color.gray, for: .widget)
   }
 }
 
