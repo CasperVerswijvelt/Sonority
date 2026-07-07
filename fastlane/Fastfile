@@ -221,14 +221,30 @@ platform :mac do
       xcargs: "#{prov_xcargs} ENABLE_HARDENED_RUNTIME=YES",
     )
 
-    # Package the exported .app into a .dmg, notarize it with the ASC API key,
-    # then staple the ticket so it opens offline without a Gatekeeper prompt.
-    # Uses xcrun notarytool directly (robust across fastlane versions).
+    # Package the exported .app into a styled drag-to-Applications .dmg (black
+    # background + grey arrow + SONORITY wordmark, see tool/dmg_background.swift),
+    # notarize it with the ASC API key, then staple the ticket so it opens offline
+    # without a Gatekeeper prompt. notarytool/stapler are xcrun'd directly (robust
+    # across fastlane versions).
     tag = ENV["RELEASE_TAG"] || "dev"
     dmg = File.expand_path("../dist/Sonority-#{tag}-macos.dmg", __dir__)
     key_path = File.expand_path(ENV.fetch("ASC_KEY_FILEPATH"), File.expand_path("..", __dir__))
-    sh("mkdir -p #{File.dirname(dmg)}")
-    sh("hdiutil create -volname Sonority -ov -format UDZO -srcfolder '#{app}' '#{dmg}'")
+    bg = File.expand_path("../macos/dmg/background.png", __dir__)
+    stage = File.join(Dir.tmpdir, "sonority-dmg-src")
+    sh("mkdir -p #{File.dirname(dmg).shellescape}")
+    # create-dmg copies the source *folder's* contents, so stage a dir holding
+    # only Sonority.app (else stray export files land in the window).
+    sh("rm -rf #{stage.shellescape} && mkdir -p #{stage.shellescape}")
+    sh("cp -R '#{app}' #{stage.shellescape}/")
+    sh("rm -f '#{dmg}'") # create-dmg refuses to overwrite an existing output
+    sh("create-dmg " \
+       "--volname Sonority " \
+       "--background '#{bg}' " \
+       "--window-pos 200 120 --window-size 600 430 --icon-size 128 " \
+       "--icon 'Sonority.app' 150 165 " \
+       "--app-drop-link 450 165 " \
+       "--hdiutil-quiet " \
+       "'#{dmg}' #{stage.shellescape}")
     sh("xcrun notarytool submit '#{dmg}' " \
        "--key '#{key_path}' --key-id '#{ENV.fetch("ASC_KEY_ID")}' " \
        "--issuer '#{ENV.fetch("ASC_ISSUER_ID")}' --wait")
