@@ -6,6 +6,20 @@ import 'profile_store.dart';
 
 final profileStoreProvider = Provider<ProfileStore>((ref) => ProfileStore());
 
+/// The profile id an out-of-app entry point (app shortcut / home-screen widget)
+/// asked to apply, or null. It's a single funnel: every launch producer just
+/// sets this, and one top-level listener (in `app.dart`) reacts — running the
+/// scan→preflight→apply flow — then clears it. Kept out of any screen so apply
+/// works regardless of which tab is showing.
+final pendingApplyProvider =
+    NotifierProvider<PendingApplyController, String?>(PendingApplyController.new);
+
+class PendingApplyController extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void set(String? id) => state = id;
+}
+
 /// Loads, persists, and edits the user's saved profiles.
 final profilesProvider =
     AsyncNotifierProvider<ProfilesController, List<Profile>>(

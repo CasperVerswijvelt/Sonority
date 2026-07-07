@@ -11,6 +11,8 @@ import '../data/sonos/led_identify.dart';
 import '../data/sonos/sonos_repository.dart';
 import '../data/sonos/speaker_settings.dart';
 import '../features/profiles/profile.dart';
+import '../features/profiles/profile_controller.dart'
+    show EntityIssue, preflightProfile;
 
 final sonosRepositoryProvider =
     Provider<SonosRepository>((ref) => SonosRepository());
@@ -257,36 +259,115 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
 
     final previous = current;
     state = const AsyncValue.loading();
-    final result = await AsyncValue.guard(() async {
-      SonosSystem? sys = previous;
-      for (final e in entities) {
-        tracker.start(e.primaryUuid);
-        final ph = _phases(tracker, e.primaryUuid);
-        // Pre-list the phases knowable from the snapshot; conditional ones
-        // (freeing conflicts, removing changed satellites) pop in when needed.
-        ph.seed([
-          if (e.kind == EntityKind.homeTheater)
-            ('bond', 'Bond ${e.involvedUuids.length - 1} speakers')
-          else if (e.kind != EntityKind.single)
-            ('bond', 'Bond ${e.involvedUuids.length} speakers'),
-          ('names', 'Restore room name'),
-          if (e.settings.isNotEmpty) ('settings', 'Restore settings'),
-        ]);
-        try {
-          sys = await _applyEntity(e, sys!, ph);
-          // Restore captured EQ/volume last — bonding can reset EQ.
-          await _restoreSettings(e, sys, ph);
-          tracker.done(e.primaryUuid);
-        } on OperationCancelled {
-          rethrow;
-        } catch (err) {
-          tracker.fail(e.primaryUuid, '$err');
-          rethrow;
-        }
-      }
-      return sys ?? await _repo.discover();
-    });
+    final result =
+        await AsyncValue.guard(() => _runEntitySteps(entities, previous, tracker));
     _commit(result, previous);
+  }
+
+  /// Like [applyProfile] but for an out-of-app launch (app shortcut / home-screen
+  /// widget): there's no reliable prior scan (or it's stale), so the FIRST
+  /// progress step scans the network, then a fresh pre-flight runs. When it finds
+  /// missing/conflicting speakers, [confirmIssues] is asked (the UI shows the
+  /// same confirm dialog as an in-app apply, over the progress screen); returning
+  /// false aborts. Otherwise it applies straight through, auto-skipping missing
+  /// entities. Runs behind the same progress screen as [applyProfile].
+  Future<void> scanAndApplyProfile(
+    Profile profile, {
+    Future<bool> Function(List<EntityIssue> issues)? confirmIssues,
+  }) async {
+    if (_activeOp != null) return; // don't stack bonding ops (scan/discovery is fine)
+    final tracker = _newTracker([
+      const ApplyStep(id: _scanStepId, label: 'Scan network for Sonos system'),
+      for (final e in profile.entities)
+        ApplyStep(id: e.primaryUuid, label: '${e.kindLabel}: ${e.label}'),
+    ]);
+
+    // Step 1 — scan. Reuse an in-flight app-launch discovery (also lets it commit
+    // so its late completion can't clobber the applied state below); otherwise
+    // run a fresh scan since a launch's earlier scan may be stale.
+    tracker.start(_scanStepId);
+    SonosSystem? scanned;
+    try {
+      if (state.isLoading) {
+        scanned = await future;
+      } else {
+        await scan();
+        scanned = state.value;
+      }
+    } catch (_) {/* handled below */}
+    if (scanned == null) {
+      tracker.fail(_scanStepId, 'Couldn’t find your Sonos system on the network.');
+      throw state.error ??
+          Exception('Couldn’t find your Sonos system on the network.');
+    }
+    tracker.done(_scanStepId);
+
+    // Step 2 — pre-flight. If anything's missing/conflicting, confirm before any
+    // write (declining aborts cleanly — nothing bonded yet).
+    final issues = preflightProfile(profile, scanned);
+    final hasIssues =
+        issues.any((i) => i.missing.isNotEmpty || i.conflicts.isNotEmpty);
+    if (hasIssues && confirmIssues != null) {
+      final proceed = await confirmIssues(issues);
+      if (!proceed) throw const OperationCancelled();
+    }
+    // Auto-skip entities whose speakers aren't present.
+    final blocked = <String, String>{
+      for (final i in issues)
+        if (i.blocked) i.entity.primaryUuid: i.missing.toSet().join(', '),
+    };
+    final applicable = <EntitySnapshot>[];
+    for (final e in profile.entities) {
+      final miss = blocked[e.primaryUuid];
+      if (miss != null) {
+        tracker.done(e.primaryUuid, detail: 'skipped — $miss not on the network');
+      } else {
+        applicable.add(e);
+      }
+    }
+
+    // Step 3 — bond the resolvable entities under the same progress timeline.
+    _activeOp = CancellationToken();
+    final previous = scanned;
+    state = const AsyncValue.loading();
+    final result = await AsyncValue.guard(
+        () => _runEntitySteps(applicable, previous, tracker));
+    _commit(result, previous);
+  }
+
+  static const _scanStepId = '__scan';
+
+  /// One progress step per entity (bond → restore name → restore settings),
+  /// failing the step and rethrowing on the first error. Shared by
+  /// [applyProfile] and [scanAndApplyProfile]; [sys] is the current live system.
+  Future<SonosSystem> _runEntitySteps(
+      List<EntitySnapshot> entities, SonosSystem sys, ApplyProgress tracker) async {
+    for (final e in entities) {
+      tracker.start(e.primaryUuid);
+      final ph = _phases(tracker, e.primaryUuid);
+      // Pre-list the phases knowable from the snapshot; conditional ones
+      // (freeing conflicts, removing changed satellites) pop in when needed.
+      ph.seed([
+        if (e.kind == EntityKind.homeTheater)
+          ('bond', 'Bond ${e.involvedUuids.length - 1} speakers')
+        else if (e.kind != EntityKind.single)
+          ('bond', 'Bond ${e.involvedUuids.length} speakers'),
+        ('names', 'Restore room name'),
+        if (e.settings.isNotEmpty) ('settings', 'Restore settings'),
+      ]);
+      try {
+        sys = await _applyEntity(e, sys, ph);
+        // Restore captured EQ/volume last — bonding can reset EQ.
+        await _restoreSettings(e, sys, ph);
+        tracker.done(e.primaryUuid);
+      } on OperationCancelled {
+        rethrow;
+      } catch (err) {
+        tracker.fail(e.primaryUuid, '$err');
+        rethrow;
+      }
+    }
+    return sys;
   }
 
   Future<SonosSystem> _applyEntity(

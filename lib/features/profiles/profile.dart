@@ -1,6 +1,9 @@
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/speaker_settings.dart';
 
+/// Default icon key for a profile (see `profileIconChoices` in `profile_ui.dart`).
+const kDefaultProfileIcon = 'speaker';
+
 /// What kind of bonded entity a snapshot captures. One visible
 /// [ZoneGroupMember] == one selectable entity.
 enum EntityKind { homeTheater, stereoPair, zone, custom, single }
@@ -143,7 +146,19 @@ class Profile {
   final String name;
   final List<EntitySnapshot> entities;
 
-  const Profile({required this.id, required this.name, required this.entities});
+  /// Appearance for the tile / widget / shortcut: a key into the curated icon
+  /// set and an index into the fixed palette (see `profile_ui.dart`). Defaults
+  /// keep pre-feature stored profiles rendering fine.
+  final String iconId;
+  final int color;
+
+  const Profile({
+    required this.id,
+    required this.name,
+    required this.entities,
+    this.iconId = kDefaultProfileIcon,
+    this.color = 0,
+  });
 
   /// Aggregated across entities: what audio settings this profile carries, or
   /// `''` when none.
@@ -157,21 +172,34 @@ class Profile {
     return '';
   }
 
-  Profile copyWith({String? name, List<EntitySnapshot>? entities}) => Profile(
+  Profile copyWith({
+    String? name,
+    List<EntitySnapshot>? entities,
+    String? iconId,
+    int? color,
+  }) =>
+      Profile(
         id: id,
         name: name ?? this.name,
         entities: entities ?? this.entities,
+        iconId: iconId ?? this.iconId,
+        color: color ?? this.color,
       );
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
+        'iconId': iconId,
+        'color': color,
         'entities': entities.map((e) => e.toJson()).toList(),
       };
 
   factory Profile.fromJson(Map<String, dynamic> j) => Profile(
         id: j['id'] as String,
         name: j['name'] as String,
+        // Absent in pre-feature profiles → curated defaults.
+        iconId: j['iconId'] as String? ?? kDefaultProfileIcon,
+        color: j['color'] as int? ?? 0,
         entities: [
           for (final e in (j['entities'] as List))
             EntitySnapshot.fromJson(e as Map<String, dynamic>)
