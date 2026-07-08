@@ -31,13 +31,17 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   final List<EntitySnapshot> _entities = [];
   final Map<String, bool> _included = {};
   bool _seeded = false;
-  bool _saveEq = false;
+  bool _saveAudio = false;
   bool _saveVolume = false;
   bool _saving = false;
+  String _iconId = kDefaultProfileIcon;
+  int _color = 0;
 
   void _seed(SonosSystem system, Profile? existing) {
     if (_seeded) return;
     _name.text = existing?.name ?? 'My setup';
+    _iconId = existing?.iconId ?? kDefaultProfileIcon;
+    _color = existing?.color ?? 0;
     // Re-snapshot pre-selects the entities that were originally in the profile.
     // Match by involved UUIDs, not primaryUuid — current live bonding may differ
     // from what the profile stored, which is the whole point of re-snapshotting.
@@ -57,6 +61,18 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   void dispose() {
     _name.dispose();
     super.dispose();
+  }
+
+  /// Icon + colour picker in a dialog (keeps the create page uncluttered).
+  Future<void> _editAppearance() async {
+    final result =
+        await showAppearanceDialog(context, iconId: _iconId, color: _color);
+    if (result != null) {
+      setState(() {
+        _iconId = result.$1;
+        _color = result.$2;
+      });
+    }
   }
 
   @override
@@ -139,15 +155,27 @@ class _State extends ConsumerState<ProfileCreateScreen> {
             ),
             Gap.l,
           ],
-          TextField(
-            controller: _name,
-            onChanged: (_) => setState(() {}),
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              labelText: 'Profile name',
-              border: const OutlineInputBorder(),
-              errorText: taken ? 'A profile with this name exists' : null,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Tap the swatch to pick the icon + colour (kept off the main flow
+              // so the include list stays the focus of the page).
+              AppearanceButton(
+                  iconId: _iconId, color: _color, onTap: _editAppearance),
+              Gap.s,
+              Expanded(
+                child: TextField(
+                  controller: _name,
+                  onChanged: (_) => setState(() {}),
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: 'Profile name',
+                    border: const OutlineInputBorder(),
+                    errorText: taken ? 'A profile with this name exists' : null,
+                  ),
+                ),
+              ),
+            ],
           ),
           Gap.l,
           Card(
@@ -213,15 +241,16 @@ class _State extends ConsumerState<ProfileCreateScreen> {
                 // the card, so the ink highlight matches (top tile → top corners,
                 // bottom tile → bottom corners; the divider edge stays square).
                 SwitchListTile(
-                  value: _saveEq,
-                  onChanged: (v) => setState(() => _saveEq = v),
+                  value: _saveAudio,
+                  onChanged: (v) => setState(() => _saveAudio = v),
                   shape: const RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.vertical(top: Radius.circular(12))),
-                  secondary: const Icon(Icons.equalizer),
-                  title: const Text('Save EQ settings'),
+                  secondary: const Icon(Icons.tune),
+                  title: const Text('Save audio settings'),
                   subtitle: const Text(
-                      'Bass, treble, loudness, night sound, speech, sub & surround level'),
+                      'EQ, night sound, speech enhancement, sub & surround '
+                      'levels, lip sync & more'),
                 ),
                 const Divider(height: 1),
                 SwitchListTile(
@@ -267,7 +296,9 @@ class _State extends ConsumerState<ProfileCreateScreen> {
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            // TextButton (not FilledButton) so the actions stay horizontal — the
+            // theme stretches FilledButton to full width, which forces a stack.
+            TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Replace'),
             ),
@@ -277,24 +308,26 @@ class _State extends ConsumerState<ProfileCreateScreen> {
       if (ok != true) return;
     }
 
-    // Reading EQ/volume is several SOAP calls per speaker — show progress and
+    // Reading settings is several SOAP calls per speaker — show progress and
     // enrich the snapshots before saving.
-    if (_saveEq || _saveVolume) {
+    if (_saveAudio || _saveVolume) {
       setState(() => _saving = true);
       try {
         chosen = await ref
             .read(sonosControllerProvider.notifier)
-            .captureSettings(chosen, eq: _saveEq, volume: _saveVolume);
+            .captureSettings(chosen, audio: _saveAudio, volume: _saveVolume);
       } finally {
         if (mounted) setState(() => _saving = false);
       }
     }
 
     if (existing != null) {
-      await notifier.replace(existing.copyWith(name: name, entities: chosen));
+      await notifier.replace(existing.copyWith(
+          name: name, entities: chosen, iconId: _iconId, color: _color));
     } else {
       final id = DateTime.now().microsecondsSinceEpoch.toString();
-      await notifier.add(Profile(id: id, name: name, entities: chosen));
+      await notifier.add(Profile(
+          id: id, name: name, entities: chosen, iconId: _iconId, color: _color));
     }
     router.go('/profiles');
   }

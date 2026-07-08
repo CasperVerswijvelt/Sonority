@@ -10,15 +10,30 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 
 ## [Unreleased]
 
+### Added
+- **Apply a profile from an app shortcut** — long-press the app icon to apply a
+  saved profile in one tap. The shortcut opens the app and runs the apply,
+  scanning your system first and asking for confirmation only when some speakers
+  are missing or in use by another setup.
+- **Per-profile icon & colour** — pick an icon and colour for each profile,
+  shown on its tile, in the editor, and on its app shortcut (a full-colour glyph
+  on Android, a matching SF Symbol on iOS).
+
 ### Changed
 - The apply progress timeline now marks no-op steps as **skipped** (grey dot +
   reason, e.g. "layout unchanged — nothing to do", "name unchanged — nothing to
   do") instead of showing them as completed work, so a re-apply that changed
   nothing is honest about it. The entity itself keeps its green checkmark — it's
   still in the desired state.
+- Profiles: the EQ capture toggle is now **"Save audio settings"** — the label
+  undersold a bundle that also covers night sound, speech enhancement, sub &
+  surround levels and lip sync. Profile cards now show separate **Audio
+  settings** / **Volume** badges (instead of one combined "EQ" line) and use an
+  icon-only play button with a bit more breathing room.
 - The macOS `.dmg` download now opens a styled drag-to-Applications install
   window — the app icon, an arrow, and an Applications shortcut over a branded
   background — instead of a bare disk image.
+- Re-snapshot moved to an app-bar action on the profile detail page.
 - Switching bottom-nav tabs (System ↔ Profiles) now animates with a Material 3
   shared-axis transition (fade + slide), sliding the way the tab bar moves.
 - Consistent, flat separation for the top app bar and bottom navigation bar. The

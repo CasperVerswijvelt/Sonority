@@ -89,8 +89,9 @@ void main() {
     expect(s.loudness, isTrue);
     expect(s.volume, 25);
     expect(s.eq, {'NightMode': 1, 'AudioDelay': 2});
-    expect(back.entities.first.settingsSummary, 'EQ + volume saved');
-    expect(back.settingsSummary, 'EQ + volume saved');
+    expect(back.entities.first.settingsSummary, 'Audio settings + volume saved');
+    expect(back.hasAudioSettings, isTrue);
+    expect(back.hasVolume, isTrue);
   });
 
   test('legacy profile without a settings key deserializes to empty', () {
@@ -113,10 +114,10 @@ void main() {
     expect(back.entities.first.toJson().containsKey('settings'), isFalse);
   });
 
-  test('settingsSummary reflects EQ-only vs volume-only', () {
+  test('settingsSummary reflects audio-only vs volume-only', () {
     final base = EntitySnapshot.fromMember(ZoneGroupMember(uuid: fl, zoneName: 'x'));
     expect(base.copyWith(settings: {fl: const SpeakerSettings(bass: 1)}).settingsSummary,
-        'EQ saved');
+        'Audio settings saved');
     expect(
         base.copyWith(settings: {fl: const SpeakerSettings(volume: 10)}).settingsSummary,
         'Volume saved');

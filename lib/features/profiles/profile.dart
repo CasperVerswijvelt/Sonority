@@ -1,6 +1,9 @@
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/speaker_settings.dart';
 
+/// Default icon key for a profile (see `profileIconChoices` in `profile_ui.dart`).
+const kDefaultProfileIcon = 'speaker';
+
 /// What kind of bonded entity a snapshot captures. One visible
 /// [ZoneGroupMember] == one selectable entity.
 enum EntityKind { homeTheater, stereoPair, zone, custom, single }
@@ -101,14 +104,14 @@ class EntitySnapshot {
         settings: settings ?? this.settings,
       );
 
-  /// A short label for the UI describing what audio settings are captured, or
-  /// `''` when none — appended to [entitySummary] on the tiles.
+  /// A short label for the UI describing what settings are captured, or `''`
+  /// when none — appended to [entitySummary] on the tiles.
   String get settingsSummary {
     final vals = settings.values;
-    final eq = vals.any((s) => s.hasEq);
+    final audio = vals.any((s) => s.hasAudioSettings);
     final vol = vals.any((s) => s.hasVolume);
-    if (eq && vol) return 'EQ + volume saved';
-    if (eq) return 'EQ saved';
+    if (audio && vol) return 'Audio settings + volume saved';
+    if (audio) return 'Audio settings saved';
     if (vol) return 'Volume saved';
     return '';
   }
@@ -143,35 +146,55 @@ class Profile {
   final String name;
   final List<EntitySnapshot> entities;
 
-  const Profile({required this.id, required this.name, required this.entities});
+  /// Appearance for the tile / widget / shortcut: a key into the curated icon
+  /// set and an index into the fixed palette (see `profile_ui.dart`). Defaults
+  /// keep pre-feature stored profiles rendering fine.
+  final String iconId;
+  final int color;
 
-  /// Aggregated across entities: what audio settings this profile carries, or
-  /// `''` when none.
-  String get settingsSummary {
-    final all = entities.expand((e) => e.settings.values);
-    final eq = all.any((s) => s.hasEq);
-    final vol = all.any((s) => s.hasVolume);
-    if (eq && vol) return 'EQ + volume saved';
-    if (eq) return 'EQ saved';
-    if (vol) return 'Volume saved';
-    return '';
-  }
+  const Profile({
+    required this.id,
+    required this.name,
+    required this.entities,
+    this.iconId = kDefaultProfileIcon,
+    this.color = 0,
+  });
 
-  Profile copyWith({String? name, List<EntitySnapshot>? entities}) => Profile(
+  /// Aggregated across entities — drive the badges on the profile tile.
+  bool get hasAudioSettings =>
+      entities.any((e) => e.settings.values.any((s) => s.hasAudioSettings));
+
+  bool get hasVolume =>
+      entities.any((e) => e.settings.values.any((s) => s.hasVolume));
+
+  Profile copyWith({
+    String? name,
+    List<EntitySnapshot>? entities,
+    String? iconId,
+    int? color,
+  }) =>
+      Profile(
         id: id,
         name: name ?? this.name,
         entities: entities ?? this.entities,
+        iconId: iconId ?? this.iconId,
+        color: color ?? this.color,
       );
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
+        'iconId': iconId,
+        'color': color,
         'entities': entities.map((e) => e.toJson()).toList(),
       };
 
   factory Profile.fromJson(Map<String, dynamic> j) => Profile(
         id: j['id'] as String,
         name: j['name'] as String,
+        // Absent in pre-feature profiles → curated defaults.
+        iconId: j['iconId'] as String? ?? kDefaultProfileIcon,
+        color: j['color'] as int? ?? 0,
         entities: [
           for (final e in (j['entities'] as List))
             EntitySnapshot.fromJson(e as Map<String, dynamic>)

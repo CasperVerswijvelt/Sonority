@@ -8,6 +8,7 @@ import '../widgets/bonding_progress_screen.dart';
 import '../widgets/app_scaffold.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
+import 'profile_ui.dart';
 
 /// The Profiles tab: saved layouts you can re-apply in one tap.
 class ProfilesScreen extends ConsumerWidget {
@@ -31,7 +32,7 @@ class ProfilesScreen extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _ProfileTile(
                       profile: p,
-                      onApply: () => _apply(context, ref, p),
+                      onApply: () => applyProfileInteractive(context, ref, p),
                       onEdit: () => context.go('/profiles/edit/${p.id}'),
                       onDelete: () => _confirmDelete(context, ref, p),
                     ),
@@ -54,33 +55,6 @@ class ProfilesScreen extends ConsumerWidget {
         label: const Text('New profile'),
       ),
       body: body,
-    );
-  }
-
-  Future<void> _apply(BuildContext context, WidgetRef ref, Profile p) async {
-    final system = ref.read(sonosControllerProvider).value;
-    if (system == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Scan your system first (System tab).')),
-      );
-      return;
-    }
-    final issues = preflightProfile(p, system);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => _ApplyConfirmDialog(profile: p, issues: issues),
-    );
-    if (ok != true || !context.mounted) return;
-    final skip = {
-      for (final i in issues)
-        if (i.blocked) i.entity.primaryUuid,
-    };
-    final ctrl = ref.read(sonosControllerProvider.notifier);
-    // No success toast — the progress screen already shows the outcome.
-    await showBondingProgress(
-      context,
-      title: 'Applying “${p.name}”',
-      run: () => ctrl.applyProfile(p, skip: skip),
     );
   }
 
@@ -116,6 +90,67 @@ class ProfilesScreen extends ConsumerWidget {
   }
 }
 
+/// In-app apply (the tile's Apply button): the system is already discovered, so
+/// pre-flight runs immediately and the confirm dialog shows ONLY when there are
+/// issues (missing / conflicting speakers) — a clean apply goes straight to the
+/// progress screen.
+Future<void> applyProfileInteractive(
+    BuildContext context, WidgetRef ref, Profile profile) async {
+  final system = ref.read(sonosControllerProvider).value;
+  if (system == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Scan your system first (System tab).')),
+    );
+    return;
+  }
+  final issues = preflightProfile(profile, system);
+  final hasIssues =
+      issues.any((i) => i.missing.isNotEmpty || i.conflicts.isNotEmpty);
+  if (hasIssues) {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => _ApplyConfirmDialog(profile: profile, issues: issues),
+    );
+    if (ok != true || !context.mounted) return;
+  }
+  final skip = {
+    for (final i in issues)
+      if (i.blocked) i.entity.primaryUuid,
+  };
+  final ctrl = ref.read(sonosControllerProvider.notifier);
+  // No success toast — the progress screen already shows the outcome.
+  await showBondingProgress(
+    context,
+    title: 'Applying “${profile.name}”',
+    run: () => ctrl.applyProfile(profile, skip: skip),
+  );
+}
+
+/// Launch apply (app shortcut / home-screen widget): there's no reliable prior
+/// scan, so go straight to the progress screen — its FIRST step scans the
+/// network. If that scan finds missing/conflicting speakers, the SAME confirm
+/// dialog as an in-app apply pops over the progress screen; otherwise it applies
+/// straight through.
+Future<void> applyProfileFromLaunch(
+    BuildContext context, WidgetRef ref, Profile profile) async {
+  final ctrl = ref.read(sonosControllerProvider.notifier);
+  await showBondingProgress(
+    context,
+    title: 'Applying “${profile.name}”',
+    run: () => ctrl.scanAndApplyProfile(
+      profile,
+      confirmIssues: (issues) async {
+        if (!context.mounted) return false;
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => _ApplyConfirmDialog(profile: profile, issues: issues),
+        );
+        return ok == true;
+      },
+    ),
+  );
+}
+
 class _ProfileTile extends StatelessWidget {
   final Profile profile;
   final VoidCallback onApply;
@@ -133,16 +168,28 @@ class _ProfileTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final summary = profile.entities.map((e) => e.label).join(' · ');
-    final settings = profile.settingsSummary;
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onEdit,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
           child: Row(
             children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: profileColor(profile.color),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: profileGlyph(profile.iconId,
+                      size: 22, color: Colors.white),
+                ),
+              ),
+              Gap.m,
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,16 +204,18 @@ class _ProfileTile extends StatelessWidget {
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    if (settings.isNotEmpty) ...[
-                      Gap.xs,
-                      Row(
+                    if (profile.hasAudioSettings || profile.hasVolume) ...[
+                      Gap.s,
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
                         children: [
-                          Icon(Icons.equalizer,
-                              size: 14, color: theme.colorScheme.primary),
-                          Gap.xs,
-                          Text(settings,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.primary)),
+                          if (profile.hasAudioSettings)
+                            const _Badge(
+                                icon: Icons.tune, label: 'Audio settings'),
+                          if (profile.hasVolume)
+                            const _Badge(
+                                icon: Icons.volume_up, label: 'Volume'),
                         ],
                       ),
                     ],
@@ -174,14 +223,10 @@ class _ProfileTile extends StatelessWidget {
                 ),
               ),
               Gap.s,
-              FilledButton.icon(
+              IconButton.filled(
                 onPressed: onApply,
-                icon: const Icon(Icons.play_arrow, size: 20),
-                label: const Text('Apply'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 40),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                ),
+                tooltip: 'Apply',
+                icon: const Icon(Icons.play_arrow),
               ),
               PopupMenuButton<String>(
                 onSelected: (v) => v == 'edit' ? onEdit() : onDelete(),
@@ -193,6 +238,38 @@ class _ProfileTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Small pill on the profile tile marking what captured settings it carries.
+class _Badge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _Badge({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: theme.colorScheme.onSecondaryContainer),
+          Gap.xs,
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+        ],
       ),
     );
   }

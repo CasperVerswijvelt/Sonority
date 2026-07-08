@@ -61,14 +61,14 @@ void main() {
     expect(s.mute, isFalse);
   });
 
-  test('read skips EQ when eq:false, volume when volume:false', () async {
+  test('read skips audio when audio:false, volume when volume:false', () async {
     final fake = _FakeSoap({'GetBass': '5', 'GetVolume': '22'});
     final volOnly = await SpeakerSettingsClient(fake).read('1.2.3.4',
-        eq: false, volume: true);
+        audio: false, volume: true);
     expect(volOnly.bass, isNull);
     expect(volOnly.eq, isEmpty);
     expect(volOnly.volume, 22);
-    expect(volOnly.hasEq, isFalse);
+    expect(volOnly.hasAudioSettings, isFalse);
 
     final eqOnly = await SpeakerSettingsClient(fake).read('1.2.3.4');
     expect(eqOnly.bass, 5);

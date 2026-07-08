@@ -11,6 +11,8 @@ import '../data/sonos/led_identify.dart';
 import '../data/sonos/sonos_repository.dart';
 import '../data/sonos/speaker_settings.dart';
 import '../features/profiles/profile.dart';
+import '../features/profiles/profile_controller.dart'
+    show EntityIssue, preflightProfile;
 
 final sonosRepositoryProvider =
     Provider<SonosRepository>((ref) => SonosRepository());
@@ -108,23 +110,23 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
 
   final _settings = SpeakerSettingsClient();
 
-  /// Reads each entity's per-speaker audio settings ([eq] bundle and/or [volume])
+  /// Reads each entity's per-speaker settings ([audio] bundle and/or [volume])
   /// and returns copies enriched with a `settings` map. Called by
   /// the create flow when the user opts into saving speaker settings; keeps the
   /// SOAP reads off the widget. Speakers not currently on the network are simply
   /// skipped (nothing to read).
   Future<List<EntitySnapshot>> captureSettings(
       List<EntitySnapshot> entities,
-      {required bool eq, required bool volume}) async {
+      {required bool audio, required bool volume}) async {
     final sys = state.value;
-    if (sys == null || (!eq && !volume)) return entities;
+    if (sys == null || (!audio && !volume)) return entities;
     final out = <EntitySnapshot>[];
     for (final e in entities) {
       final map = <String, SpeakerSettings>{};
       for (final uuid in e.involvedUuids) {
         final ip = sys.device(uuid)?.ip;
         if (ip == null) continue;
-        final s = await _settings.read(ip, eq: eq, volume: volume);
+        final s = await _settings.read(ip, audio: audio, volume: volume);
         if (!s.isEmpty) map[uuid] = s;
       }
       out.add(map.isEmpty ? e : e.copyWith(settings: map));
@@ -140,6 +142,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     if (e.settings.isEmpty) return;
     ph.phase('settings', 'Restore settings');
     for (final entry in e.settings.entries) {
+      _activeOp?.throwIfCancelled();
       final dev = sys.device(entry.key);
       final ip = dev?.ip;
       if (ip == null) {
@@ -148,7 +151,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       }
       final s = entry.value;
       final what = [
-        if (s.hasEq) 'EQ',
+        if (s.hasAudioSettings) 'audio settings',
         if (s.hasVolume) 'volume',
       ].join(' + ');
       ph.note('restoring $what — ${dev!.typeLabel}');
@@ -257,36 +260,137 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
 
     final previous = current;
     state = const AsyncValue.loading();
-    final result = await AsyncValue.guard(() async {
-      SonosSystem? sys = previous;
-      for (final e in entities) {
-        tracker.start(e.primaryUuid);
-        final ph = _phases(tracker, e.primaryUuid);
-        // Pre-list the phases knowable from the snapshot; conditional ones
-        // (freeing conflicts, removing changed satellites) pop in when needed.
-        ph.seed([
-          if (e.kind == EntityKind.homeTheater)
-            ('bond', 'Bond ${e.involvedUuids.length - 1} speakers')
-          else if (e.kind != EntityKind.single)
-            ('bond', 'Bond ${e.involvedUuids.length} speakers'),
-          ('names', 'Restore room name'),
-          if (e.settings.isNotEmpty) ('settings', 'Restore settings'),
-        ]);
-        try {
-          sys = await _applyEntity(e, sys!, ph);
-          // Restore captured EQ/volume last — bonding can reset EQ.
-          await _restoreSettings(e, sys, ph);
-          tracker.done(e.primaryUuid);
-        } on OperationCancelled {
-          rethrow;
-        } catch (err) {
-          tracker.fail(e.primaryUuid, '$err');
-          rethrow;
+    final result =
+        await AsyncValue.guard(() => _runEntitySteps(entities, previous, tracker));
+    _commit(result, previous);
+  }
+
+  /// Like [applyProfile] but for an out-of-app launch (app shortcut / home-screen
+  /// widget): there's no reliable prior scan (or it's stale), so the FIRST
+  /// progress step scans the network, then a fresh pre-flight runs. When it finds
+  /// missing/conflicting speakers, [confirmIssues] is asked (the UI shows the
+  /// same confirm dialog as an in-app apply, over the progress screen); returning
+  /// false aborts. Otherwise it applies straight through, auto-skipping missing
+  /// entities. Runs behind the same progress screen as [applyProfile].
+  Future<void> scanAndApplyProfile(
+    Profile profile, {
+    Future<bool> Function(List<EntityIssue> issues)? confirmIssues,
+  }) async {
+    if (_activeOp != null) return; // don't stack bonding ops
+    // Set the cancel token BEFORE the scan so Abort works during the scan step
+    // too (not just once bonding starts).
+    final cancel = CancellationToken();
+    _activeOp = cancel;
+    final tracker = _newTracker([
+      const ApplyStep(id: _scanStepId, label: 'Scan network for Sonos system'),
+      for (final e in profile.entities)
+        ApplyStep(id: e.primaryUuid, label: '${e.kindLabel}: ${e.label}'),
+    ]);
+
+    // ponytail: cooperative cancel — steps 1–2 (scan/preflight/confirm) run
+    // outside AsyncValue.guard, so ANY throw here (incl. preflight/confirm) must
+    // null _activeOp exactly once or the entry guard above dead-locks every future
+    // apply. This catch owns that; only step 3's _commit nulls the happy path.
+    final List<EntitySnapshot> applicable;
+    final SonosSystem previous;
+    try {
+      // Step 1 — scan. Reuse an in-flight app-launch discovery (also lets it
+      // commit so its late completion can't clobber the applied state below);
+      // otherwise run a fresh scan since a launch's earlier scan may be stale.
+      // (discover()/SSDP isn't interruptible, so scan-abort lands the instant
+      // discovery returns — the throwIfCancelled right after.)
+      tracker.start(_scanStepId);
+      SonosSystem? scanned;
+      try {
+        if (state.isLoading) {
+          scanned = await future;
+        } else {
+          await scan();
+          scanned = state.value;
+        }
+      } catch (_) {/* handled below */}
+      cancel.throwIfCancelled(); // aborted during the scan? stop before any write
+      if (scanned == null) {
+        tracker.fail(
+            _scanStepId, 'Couldn’t find your Sonos system on the network.');
+        throw state.error ??
+            Exception('Couldn’t find your Sonos system on the network.');
+      }
+      tracker.done(_scanStepId);
+
+      // Step 2 — pre-flight. If anything's missing/conflicting, confirm before
+      // any write (declining aborts cleanly — nothing bonded yet).
+      final issues = preflightProfile(profile, scanned);
+      final hasIssues =
+          issues.any((i) => i.missing.isNotEmpty || i.conflicts.isNotEmpty);
+      if (hasIssues && confirmIssues != null) {
+        final proceed = await confirmIssues(issues);
+        if (!proceed) throw const OperationCancelled();
+      }
+      cancel.throwIfCancelled();
+      // Auto-skip entities whose speakers aren't present.
+      final blocked = <String, String>{
+        for (final i in issues)
+          if (i.blocked) i.entity.primaryUuid: i.missing.toSet().join(', '),
+      };
+      applicable = <EntitySnapshot>[];
+      for (final e in profile.entities) {
+        final miss = blocked[e.primaryUuid];
+        if (miss != null) {
+          tracker.done(e.primaryUuid,
+              detail: 'skipped — $miss not on the network');
+        } else {
+          applicable.add(e);
         }
       }
-      return sys ?? await _repo.discover();
-    });
+      previous = scanned;
+    } catch (_) {
+      _activeOp = null;
+      rethrow;
+    }
+
+    // Step 3 — bond the resolvable entities under the same progress timeline
+    // (reusing the cancel token set up top so Abort stays wired throughout).
+    state = const AsyncValue.loading();
+    final result = await AsyncValue.guard(
+        () => _runEntitySteps(applicable, previous, tracker));
     _commit(result, previous);
+  }
+
+  static const _scanStepId = '__scan';
+
+  /// One progress step per entity (bond → restore name → restore settings),
+  /// failing the step and rethrowing on the first error. Shared by
+  /// [applyProfile] and [scanAndApplyProfile]; [sys] is the current live system.
+  Future<SonosSystem> _runEntitySteps(
+      List<EntitySnapshot> entities, SonosSystem sys, ApplyProgress tracker) async {
+    for (final e in entities) {
+      _activeOp?.throwIfCancelled(); // abort before starting the next entity
+      tracker.start(e.primaryUuid);
+      final ph = _phases(tracker, e.primaryUuid);
+      // Pre-list the phases knowable from the snapshot; conditional ones
+      // (freeing conflicts, removing changed satellites) pop in when needed.
+      ph.seed([
+        if (e.kind == EntityKind.homeTheater)
+          ('bond', 'Bond ${e.involvedUuids.length - 1} speakers')
+        else if (e.kind != EntityKind.single)
+          ('bond', 'Bond ${e.involvedUuids.length} speakers'),
+        ('names', 'Restore room name'),
+        if (e.settings.isNotEmpty) ('settings', 'Restore settings'),
+      ]);
+      try {
+        sys = await _applyEntity(e, sys, ph);
+        // Restore captured EQ/volume last — bonding can reset EQ.
+        await _restoreSettings(e, sys, ph);
+        tracker.done(e.primaryUuid);
+      } on OperationCancelled {
+        rethrow;
+      } catch (err) {
+        tracker.fail(e.primaryUuid, '$err');
+        rethrow;
+      }
+    }
+    return sys;
   }
 
   Future<SonosSystem> _applyEntity(
@@ -298,11 +402,13 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           throw Exception('“${e.label}” isn’t on the network.');
         }
         if (sys.ownerOf(e.primaryUuid) != null) {
+          _activeOp?.throwIfCancelled();
           ph.phase('free', 'Free from its current bond');
           await _repo.freeSpeaker(sys, e.primaryUuid);
           ph.note('waiting for Sonos to settle');
           sys = await _settleRead(sys, dev!.ip!);
         }
+        _activeOp?.throwIfCancelled();
         ph.phase('names', 'Restore room name');
         if (!await _repo.setRoomName(
             ip: dev!.ip!, name: e.names[e.primaryUuid] ?? dev.roomName)) {
@@ -323,6 +429,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (_isGroupFormed(sys, e.primaryUuid, involved)) {
           ph.phase('bond', 'Bond ${involved.length} speakers');
           ph.skipPhase(detail: 'already formed — nothing to do');
+          _activeOp?.throwIfCancelled();
           ph.phase('names', 'Restore room name');
           if (!await _repo.setRoomName(
               ip: coord!.ip!, name: e.names[coord.uuid] ?? coord.roomName)) {
@@ -334,6 +441,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         for (final u in involved) {
           final owner = sys.ownerOf(u);
           if (owner != null && !involved.contains(owner)) {
+            _activeOp?.throwIfCancelled();
             ph.phase('free', 'Free conflicting speakers');
             ph.note('freeing ${sys.device(u)?.roomName ?? u}');
             await _repo.freeSpeaker(sys, u);
@@ -359,6 +467,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (memberEntries.length < 2) {
           throw Exception('“${e.label}” is missing speakers.');
         }
+        _activeOp?.throwIfCancelled();
         ph.phase('bond',
             'Bond ${memberEntries.length} speakers${sub != null ? ' + sub' : ''}');
         await _repo.createGroup(members: memberEntries, sub: sub);
@@ -372,6 +481,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (!_isGroupFormed(sys, e.primaryUuid, involved)) {
           throw Exception('Sonos did not form “${e.label}”.');
         }
+        _activeOp?.throwIfCancelled();
         ph.phase('names', 'Restore room name');
         if (!await _repo.setRoomName(
             ip: coord.ip!, name: e.names[coord.uuid] ?? coord.roomName)) {
@@ -395,6 +505,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         for (final u in satUuids) {
           final owner = sys.ownerOf(u);
           if (owner != null && owner != bar!.uuid) {
+            _activeOp?.throwIfCancelled();
             ph.phase('free', 'Free conflicting speakers');
             ph.note('freeing ${sys.device(u)?.roomName ?? u}');
             await _repo.freeSpeaker(sys, u);
@@ -418,6 +529,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           sys: sys,
           ph: ph,
         );
+        _activeOp?.throwIfCancelled();
         ph.phase('names', 'Restore room name');
         if (!await _repo.setRoomName(
             ip: bar.ip!, name: e.names[bar.uuid] ?? bar.roomName)) {
