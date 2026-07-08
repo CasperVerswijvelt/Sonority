@@ -25,7 +25,7 @@ typedef Phases = ({
   void Function(List<(String, String)>) seed,
   void Function(String id, String label) phase,
   void Function(String) note,
-  void Function({String? detail}) endPhase,
+  void Function({String? detail}) skipPhase,
 });
 
 /// Live per-step progress of the in-flight bonding operation (full HT setup /
@@ -410,7 +410,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         _activeOp?.throwIfCancelled();
         ph.phase('names', 'Restore room name');
-        await _repo.setRoomName(ip: dev!.ip!, name: e.names[e.primaryUuid] ?? dev.roomName);
+        if (!await _repo.setRoomName(
+            ip: dev!.ip!, name: e.names[e.primaryUuid] ?? dev.roomName)) {
+          ph.skipPhase(detail: 'name unchanged — nothing to do');
+        }
         return sys;
 
       // Stereo pair / zone / custom all share one channel-map bond path.
@@ -425,11 +428,13 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // Already exactly this group? Just re-assert the name (no disruptive write).
         if (_isGroupFormed(sys, e.primaryUuid, involved)) {
           ph.phase('bond', 'Bond ${involved.length} speakers');
-          ph.endPhase(detail: 'already formed — nothing to do');
+          ph.skipPhase(detail: 'already formed — nothing to do');
           _activeOp?.throwIfCancelled();
           ph.phase('names', 'Restore room name');
-          await _repo.setRoomName(
-              ip: coord!.ip!, name: e.names[coord.uuid] ?? coord.roomName);
+          if (!await _repo.setRoomName(
+              ip: coord!.ip!, name: e.names[coord.uuid] ?? coord.roomName)) {
+            ph.skipPhase(detail: 'name unchanged — nothing to do');
+          }
           return sys;
         }
         // Free any member currently bonded outside this group.
@@ -478,8 +483,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         _activeOp?.throwIfCancelled();
         ph.phase('names', 'Restore room name');
-        await _repo.setRoomName(
-            ip: coord.ip!, name: e.names[coord.uuid] ?? coord.roomName);
+        if (!await _repo.setRoomName(
+            ip: coord.ip!, name: e.names[coord.uuid] ?? coord.roomName)) {
+          ph.skipPhase(detail: 'name unchanged — nothing to do');
+        }
         return sys;
 
       case EntityKind.homeTheater:
@@ -524,7 +531,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         );
         _activeOp?.throwIfCancelled();
         ph.phase('names', 'Restore room name');
-        await _repo.setRoomName(ip: bar.ip!, name: e.names[bar.uuid] ?? bar.roomName);
+        if (!await _repo.setRoomName(
+            ip: bar.ip!, name: e.names[bar.uuid] ?? bar.roomName)) {
+          ph.skipPhase(detail: 'name unchanged — nothing to do');
+        }
         return sys;
     }
   }
@@ -545,7 +555,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final bondLabel = 'Bond ${target.entries.length - 1} speakers';
     if (diff.isNoOp) {
       ph.phase('bond', bondLabel);
-      ph.endPhase(detail: 'layout unchanged — nothing to do');
+      ph.skipPhase(detail: 'layout unchanged — nothing to do');
       return sys;
     }
     if (diff.toRemove.isNotEmpty) {
@@ -885,8 +895,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// Phase emitters bound to one parent (entity) step, so call sites don't
   /// thread the parent id: [seed] pre-lists the phases knowable upfront as
   /// pending sub-steps, [phase] begins one (seeded or conditional), [note]
-  /// streams verbose progress to the active phase's subtitle, and [endPhase]
-  /// completes the active phase early (short-circuits like "layout
+  /// streams verbose progress to the active phase's subtitle, and [skipPhase]
+  /// marks the active phase as a no-op (short-circuits like "layout
   /// unchanged"). Child ids are prefixed with the parent id to stay unique in
   /// the flat step list.
   Phases _phases(ApplyProgress t, String parentId) => (
@@ -894,7 +904,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             [for (final (id, label) in subs) ('$parentId/$id', label)]),
         phase: (id, label) => t.startSub(parentId, '$parentId/$id', label),
         note: t.noteActive,
-        endPhase: t.doneSub,
+        skipPhase: t.skipSub,
       );
 
   /// Finalizes a bonding op's [result] against the pre-op [previous] state.

@@ -20,6 +20,11 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   on Android, a matching SF Symbol on iOS).
 
 ### Changed
+- The apply progress timeline now marks no-op steps as **skipped** (grey dot +
+  reason, e.g. "layout unchanged — nothing to do", "name unchanged — nothing to
+  do") instead of showing them as completed work, so a re-apply that changed
+  nothing is honest about it. The entity itself keeps its green checkmark — it's
+  still in the desired state.
 - Profiles: the EQ capture toggle is now **"Save audio settings"** — the label
   undersold a bundle that also covers night sound, speech enhancement, sub &
   surround levels and lip sync. Profile cards now show separate **Audio

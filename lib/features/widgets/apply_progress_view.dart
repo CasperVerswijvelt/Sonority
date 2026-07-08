@@ -88,7 +88,7 @@ class _TimelineRow extends StatelessWidget {
 
     final labelColor = switch (step.status) {
       ApplyStatus.failed => scheme.error,
-      ApplyStatus.pending => scheme.onSurfaceVariant,
+      ApplyStatus.pending || ApplyStatus.skipped => scheme.onSurfaceVariant,
       _ => scheme.onSurface,
     };
 
@@ -170,14 +170,16 @@ class _TimelineRow extends StatelessWidget {
                         ],
                       ),
                     )
-                  else if (step.status == ApplyStatus.done &&
-                      child &&
+                  else if (child &&
+                      (step.status == ApplyStatus.done ||
+                          step.status == ApplyStatus.skipped) &&
                       step.detail != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(step.detail!,
                           style: theme.textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant)),
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w200)),
                     ),
                 ],
               ),
@@ -213,7 +215,7 @@ class _Node extends StatelessWidget {
         ApplyStatus.done => _dot(green, 6),
         ApplyStatus.active => const _PulsingDot(size: 6),
         ApplyStatus.failed => _dot(scheme.error, 6),
-        ApplyStatus.pending => _dot(pendingColor, 6),
+        ApplyStatus.pending || ApplyStatus.skipped => _dot(pendingColor, 6),
       };
     }
     return switch (step.status) {
@@ -226,6 +228,11 @@ class _Node extends StatelessWidget {
       ApplyStatus.active => _circle(
           border: scheme.primary, child: const _PulsingDot(size: 10)),
       ApplyStatus.pending => _circle(border: pendingColor),
+      // Skipped only occurs on sub-steps; defensive rendering for parents.
+      ApplyStatus.skipped => _circle(
+          border: pendingColor,
+          child:
+              Icon(Icons.remove, size: 14, color: scheme.onSurfaceVariant)),
     };
   }
 

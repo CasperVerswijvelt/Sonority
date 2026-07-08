@@ -315,14 +315,16 @@ class SonosRepository {
 
   /// Sets a speaker's room name (used to restore names on profile-apply), only
   /// writing if it differs — preserving the current icon/configuration.
-  Future<void> setRoomName({required String ip, required String name}) async {
+  /// Returns whether a write actually happened (false = name already matched).
+  Future<bool> setRoomName({required String ip, required String name}) async {
     final attrs = await _deviceProps.getZoneAttributes(ip);
-    if (attrs.zoneName == name) return;
+    if (attrs.zoneName == name) return false;
     await _deviceProps.setZoneAttributes(
       ip,
       ZoneAttributes(
           zoneName: name, icon: attrs.icon, configuration: attrs.configuration),
     );
+    return true;
   }
 
   String _zoneKey(Iterable<String> uuids) {
