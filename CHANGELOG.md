@@ -20,6 +20,9 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   on Android, a matching SF Symbol on iOS).
 
 ### Changed
+- The macOS `.dmg` download now opens a styled drag-to-Applications install
+  window — the app icon, an arrow, and an Applications shortcut over a branded
+  background — instead of a bare disk image.
 - Re-snapshot moved to an app-bar action on the profile detail page.
 - Switching bottom-nav tabs (System ↔ Profiles) now animates with a Material 3
   shared-axis transition (fade + slide), sliding the way the tab bar moves.
