@@ -15,6 +15,12 @@ import es.antonborri.home_widget.HomeWidgetProvider
 /// into the apply flow. Per-widget data is written from Dart (keyed by widgetId)
 /// via home_widget.
 class ProfileWidgetProvider : HomeWidgetProvider() {
+    companion object {
+        // Fallback background when no/invalid profile colour is stored.
+        // Mirrors res/drawable/profile_widget_bg.xml (a different layer, can't share this const).
+        private val FALLBACK_COLOR = Color.parseColor("#1A1A1D")
+    }
+
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -25,9 +31,9 @@ class ProfileWidgetProvider : HomeWidgetProvider() {
             val name = widgetData.getString("profileName_$id", null) ?: "Tap to set up"
             val profileId = widgetData.getString("profileId_$id", null)
             val avatarPath = widgetData.getString("avatar_$id", null)
-            val color = runCatching {
-                Color.parseColor(widgetData.getString("color_$id", "#1A1A1D"))
-            }.getOrDefault(Color.parseColor("#1A1A1D"))
+            val color = widgetData.getString("color_$id", null)
+                ?.let { runCatching { Color.parseColor(it) }.getOrNull() }
+                ?: FALLBACK_COLOR
 
             val views = RemoteViews(context.packageName, R.layout.profile_widget).apply {
                 // Full widget background = the profile colour (Android 12+ rounds it).
@@ -36,7 +42,9 @@ class ProfileWidgetProvider : HomeWidgetProvider() {
                 avatarPath?.let { path ->
                     BitmapFactory.decodeFile(path)?.let { setImageViewBitmap(R.id.widget_avatar, it) }
                 }
-                val uri = profileId?.let { Uri.parse("sonority://apply?id=$it") }
+                // Canonical shape shared with iOS; home_widget's iOS isWidgetUrl
+                // requires the homeWidget marker, Dart reads only `id`.
+                val uri = profileId?.let { Uri.parse("sonority://apply?homeWidget=1&id=$it") }
                 val pendingIntent =
                     HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java, uri)
                 setOnClickPendingIntent(R.id.widget_container, pendingIntent)

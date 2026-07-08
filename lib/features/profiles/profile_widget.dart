@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
@@ -25,16 +26,30 @@ const _androidProvider = 'be.casperverswijvelt.sonority.ProfileWidgetProvider';
 /// iOS WidgetKit widget name (the `kind` string in the extension).
 const _iosWidgetName = 'ProfileWidget';
 
+/// home_widget only bridges iOS/Android; on macOS every call throws
+/// MissingPluginException, so gate like [profile_shortcuts].
+bool get _supported => Platform.isIOS || Platform.isAndroid;
+
+/// Parses a widget-tap deep link (`sonority://apply?...&id=<profileId>`) to the
+/// tapped profile id, or null if it isn't a valid apply link. Top-level so it's
+/// unit-testable without the plugin.
+@visibleForTesting
+String? applyIdFromWidgetUri(Uri? uri) {
+  if (uri == null || uri.host != 'apply') return null;
+  final id = uri.queryParameters['id'];
+  return (id != null && id.isNotEmpty) ? id : null;
+}
+
 /// Wires widget taps to [onApply] with the tapped profile's id — both the tap
 /// that cold-started the app and taps while it runs. Call once at app start.
 void initProfileWidget(void Function(String id) onApply) {
-  HomeWidget.setAppGroupId(_appGroupId);
+  if (!_supported) return;
   void dispatch(Uri? uri) {
-    if (uri == null || uri.host != 'apply') return;
-    final id = uri.queryParameters['id'];
-    if (id != null && id.isNotEmpty) onApply(id);
+    final id = applyIdFromWidgetUri(uri);
+    if (id != null) onApply(id);
   }
 
+  HomeWidget.setAppGroupId(_appGroupId);
   HomeWidget.widgetClicked.listen(dispatch);
   HomeWidget.initiallyLaunchedFromHomeWidget().then(dispatch);
 }
@@ -43,20 +58,23 @@ void initProfileWidget(void Function(String id) onApply) {
 /// (its AppIntent reads `widget_profiles`). Call whenever profiles change.
 /// Harmless on Android (the widget there is configured per-instance instead).
 Future<void> publishWidgetProfiles(List<Profile> profiles) async {
+  if (!_supported) return;
   final data = [
     for (final p in profiles)
       {
         'id': p.id,
         'name': p.name,
         'sf': sfSymbolName(p.iconId),
-        'color': _hex(profileColor(p.color)),
+        'color': hexColor(profileColor(p.color)),
       },
   ];
   await HomeWidget.saveWidgetData<String>('widget_profiles', jsonEncode(data));
   await HomeWidget.updateWidget(iOSName: _iosWidgetName);
 }
 
-String _hex(Color c) =>
+/// ARGB colour → `#RRGGBB` (drops alpha). Top-level for unit testing.
+@visibleForTesting
+String hexColor(Color c) =>
     '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
 
 /// Persists one widget instance's chosen profile (id + name + rendered avatar)
@@ -67,7 +85,7 @@ Future<void> _saveWidgetProfile(int widgetId, Profile p) async {
   await HomeWidget.saveWidgetData<String>('profileName_$widgetId', p.name);
   // The full widget background is the profile colour; the glyph is white on top.
   await HomeWidget.saveWidgetData<String>(
-      'color_$widgetId', _hex(profileColor(p.color)));
+      'color_$widgetId', hexColor(profileColor(p.color)));
   await HomeWidget.renderFlutterWidget(
     _WidgetGlyph(iconId: p.iconId),
     key: 'avatar_$widgetId',
