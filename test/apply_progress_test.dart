@@ -61,14 +61,36 @@ void main() {
         'attempt 2: re-asserting');
   });
 
-  test('doneSub short-circuits the active phase with a detail', () {
+  test('skipSub marks the active phase skipped with a detail', () {
     final p = tracker([]);
     p.start('e1');
     p.startSub('e1', 'e1/bond', 'Bond 3 speakers');
-    p.doneSub(detail: 'layout unchanged — nothing to do');
+    p.skipSub(detail: 'layout unchanged — nothing to do');
     final bond = p.steps.firstWhere((s) => s.id == 'e1/bond');
-    expect(bond.status, ApplyStatus.done);
+    expect(bond.status, ApplyStatus.skipped);
     expect(bond.detail, 'layout unchanged — nothing to do');
+  });
+
+  test('a skipped phase does not swallow noteActive for the next one', () {
+    final p = tracker([]);
+    p.start('e1');
+    p.startSub('e1', 'e1/bond', 'Bond 3 speakers');
+    p.skipSub(detail: 'already formed');
+    p.noteActive('working'); // no active child left → parent
+    expect(p.steps.first.detail, 'working');
+  });
+
+  test('parent stays a done checkmark even when every phase was skipped', () {
+    final p = tracker([]);
+    p.start('e1');
+    p.startSub('e1', 'e1/bond', 'Bond 3 speakers');
+    p.skipSub(detail: 'already formed — nothing to do');
+    p.startSub('e1', 'e1/names', 'Restore room name');
+    p.skipSub(detail: 'name already set');
+    p.done('e1');
+    expect(p.steps.first.status, ApplyStatus.done); // entity is OK → checkmark
+    expect(p.steps.firstWhere((s) => s.id == 'e1/names').status,
+        ApplyStatus.skipped);
   });
 
   test('parent done completes the active child and drops leftover pending ones',

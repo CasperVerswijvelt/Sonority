@@ -11,6 +11,11 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 ## [Unreleased]
 
 ### Changed
+- The apply progress timeline now marks no-op steps as **skipped** (grey dot +
+  reason, e.g. "layout unchanged — nothing to do", "name unchanged — nothing to
+  do") instead of showing them as completed work, so a re-apply that changed
+  nothing is honest about it. The entity itself keeps its green checkmark — it's
+  still in the desired state.
 - The macOS `.dmg` download now opens a styled drag-to-Applications install
   window — the app icon, an arrow, and an Applications shortcut over a branded
   background — instead of a bare disk image.
