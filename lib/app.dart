@@ -3,12 +3,15 @@ import 'dart:io' show Platform;
 import 'package:animations/animations.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/theme.dart';
 import 'features/discovery/discovery_screen.dart';
 import 'features/front_surrounds/front_surrounds_flow.dart';
 import 'features/home_theater/home_theater_screen.dart';
+import 'features/profiles/profile_controller.dart';
+import 'features/profiles/profile_shortcuts.dart';
 import 'features/profiles/profiles_screen.dart';
 import 'features/profiles/profile_create_screen.dart';
 import 'features/profiles/profile_detail_screen.dart';
@@ -16,7 +19,12 @@ import 'features/room/room_screen.dart';
 import 'features/group/group_flow.dart';
 import 'features/group/group_detail_screen.dart';
 
+/// Root navigator key — lets an out-of-app launch (app shortcut / widget) reach
+/// a BuildContext to run the apply flow even when no widget context is handy.
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final _router = GoRouter(
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/',
   routes: [
     StatefulShellRoute(
@@ -66,11 +74,15 @@ final _router = GoRouter(
                   path: 'edit/:id',
                   builder: (_, s) =>
                       ProfileDetailScreen(profileId: s.pathParameters['id']!),
-                ),
-                GoRoute(
-                  path: 'resnapshot/:id',
-                  builder: (_, s) =>
-                      ProfileCreateScreen(profileId: s.pathParameters['id']),
+                  // Nested so the stack is [overview, detail, resnapshot] —
+                  // Back returns to the detail page, declaratively (no push).
+                  routes: [
+                    GoRoute(
+                      path: 'resnapshot',
+                      builder: (_, s) =>
+                          ProfileCreateScreen(profileId: s.pathParameters['id']),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -214,11 +226,50 @@ class _AnimatedBranchContainerState extends State<_AnimatedBranchContainer>
   }
 }
 
-class SonorityApp extends StatelessWidget {
+class SonorityApp extends ConsumerStatefulWidget {
   const SonorityApp({super.key});
 
   @override
+  ConsumerState<SonorityApp> createState() => _SonorityAppState();
+}
+
+class _SonorityAppState extends ConsumerState<SonorityApp> {
+  @override
+  void initState() {
+    super.initState();
+    // App-icon shortcut tap → funnel through pendingApplyProvider (also fires
+    // for the shortcut that cold-started the app).
+    initProfileShortcuts(
+        (id) => ref.read(pendingApplyProvider.notifier).set(id));
+  }
+
+  /// Runs the scan→preflight→apply flow for a launch-requested profile. Deferred
+  /// to the next frame so the navigator exists even on a cold-start shortcut.
+  void _consumePending(String id) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx == null) return;
+      ref.read(pendingApplyProvider.notifier).set(null);
+      _router.go('/profiles');
+      final profiles = await ref.read(profilesProvider.future);
+      final matches = profiles.where((p) => p.id == id);
+      if (matches.isEmpty || !ctx.mounted) return;
+      await applyProfileFromLaunch(ctx, ref, matches.first);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // One top-level listener drives every out-of-app apply.
+    ref.listen(pendingApplyProvider, (_, next) {
+      if (next != null) _consumePending(next);
+    });
+    // Keep the OS shortcut list in sync with the saved profiles.
+    ref.listen(profilesProvider, (_, next) {
+      final list = next.value;
+      if (list != null) syncProfileShortcuts(list);
+    });
+
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
         // Material You only on Android. On macOS `dynamic_color` returns the

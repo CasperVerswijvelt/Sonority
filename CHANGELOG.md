@@ -10,10 +10,20 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 
 ## [Unreleased]
 
+### Added
+- **Apply a profile from an app shortcut** — long-press the app icon to apply a
+  saved profile in one tap. The shortcut opens the app and runs the apply,
+  scanning your system first and asking for confirmation only when some speakers
+  are missing or in use by another setup.
+- **Per-profile icon & colour** — pick an icon and colour for each profile,
+  shown on its tile, in the editor, and on its app shortcut (a full-colour glyph
+  on Android, a matching SF Symbol on iOS).
+
 ### Changed
 - The macOS `.dmg` download now opens a styled drag-to-Applications install
   window — the app icon, an arrow, and an Applications shortcut over a branded
   background — instead of a bare disk image.
+- Re-snapshot moved to an app-bar action on the profile detail page.
 - Switching bottom-nav tabs (System ↔ Profiles) now animates with a Material 3
   shared-axis transition (fade + slide), sliding the way the tab bar moves.
 - Consistent, flat separation for the top app bar and bottom navigation bar. The

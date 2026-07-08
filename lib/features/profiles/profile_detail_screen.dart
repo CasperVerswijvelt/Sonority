@@ -23,11 +23,24 @@ class ProfileDetailScreen extends ConsumerStatefulWidget {
 class _State extends ConsumerState<ProfileDetailScreen> {
   final _name = TextEditingController();
   bool _seeded = false;
+  late String _iconId;
+  late int _color;
 
   @override
   void dispose() {
     _name.dispose();
     super.dispose();
+  }
+
+  Future<void> _editAppearance() async {
+    final result =
+        await showAppearanceDialog(context, iconId: _iconId, color: _color);
+    if (result != null) {
+      setState(() {
+        _iconId = result.$1;
+        _color = result.$2;
+      });
+    }
   }
 
   @override
@@ -45,16 +58,32 @@ class _State extends ConsumerState<ProfileDetailScreen> {
     }
     if (!_seeded) {
       _name.text = profile.name;
+      _iconId = profile.iconId;
+      _color = profile.color;
       _seeded = true;
     }
 
     final name = _name.text.trim();
     final taken = isProfileNameTaken(profiles, name, exceptId: profile.id);
-    final changed = name != profile.name && name.isNotEmpty && !taken;
+    final appearanceChanged =
+        _iconId != profile.iconId || _color != profile.color;
+    final nameChanged = name != profile.name;
+    final changed =
+        (nameChanged || appearanceChanged) && name.isNotEmpty && !taken;
 
     return AppScaffold(
       title: 'Profile',
-      // Save only appears once the name actually differs from what's stored.
+      actions: [
+        IconButton(
+          tooltip: 'Re-snapshot from current setup',
+          onPressed: system == null
+              ? null
+              : () => context.go('/profiles/edit/${profile.id}/resnapshot'),
+          icon: const Icon(Icons.cameraswitch),
+        ),
+      ],
+      // Save appears once the name OR the appearance (icon/colour) differs from
+      // what's stored.
       floatingActionButton: changed
           ? FloatingActionButton.extended(
               onPressed: () => _save(profile, name),
@@ -65,31 +94,34 @@ class _State extends ConsumerState<ProfileDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
-          TextField(
-            controller: _name,
-            onChanged: (_) => setState(() {}),
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              labelText: 'Profile name',
-              border: const OutlineInputBorder(),
-              errorText: taken ? 'A profile with this name exists' : null,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppearanceButton(
+                  iconId: _iconId, color: _color, onTap: _editAppearance),
+              Gap.s,
+              Expanded(
+                child: TextField(
+                  controller: _name,
+                  onChanged: (_) => setState(() {}),
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: 'Profile name',
+                    border: const OutlineInputBorder(),
+                    errorText: taken ? 'A profile with this name exists' : null,
+                  ),
+                ),
+              ),
+            ],
           ),
           Gap.l,
           Text('Included', style: theme.textTheme.titleSmall),
           Text(
-            'Captured when the profile was created.',
+            'Captured when the profile was created. Use the re-snapshot button '
+            '(top right) to recapture from your current setup.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
-          ),
-          Gap.s,
-          OutlinedButton.icon(
-            onPressed: system == null
-                ? null
-                : () => context.go('/profiles/resnapshot/${profile.id}'),
-            icon: const Icon(Icons.cameraswitch),
-            label: const Text('Re-snapshot from current setup'),
           ),
           Gap.s,
           for (final e in profile.entities) ...[
@@ -115,9 +147,8 @@ class _State extends ConsumerState<ProfileDetailScreen> {
 
   Future<void> _save(Profile profile, String name) async {
     final router = GoRouter.of(context);
-    await ref
-        .read(profilesProvider.notifier)
-        .replace(profile.copyWith(name: name));
+    await ref.read(profilesProvider.notifier).replace(
+        profile.copyWith(name: name, iconId: _iconId, color: _color));
     router.go('/profiles');
   }
 }

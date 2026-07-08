@@ -34,10 +34,14 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   bool _saveEq = false;
   bool _saveVolume = false;
   bool _saving = false;
+  String _iconId = kDefaultProfileIcon;
+  int _color = 0;
 
   void _seed(SonosSystem system, Profile? existing) {
     if (_seeded) return;
     _name.text = existing?.name ?? 'My setup';
+    _iconId = existing?.iconId ?? kDefaultProfileIcon;
+    _color = existing?.color ?? 0;
     // Re-snapshot pre-selects the entities that were originally in the profile.
     // Match by involved UUIDs, not primaryUuid — current live bonding may differ
     // from what the profile stored, which is the whole point of re-snapshotting.
@@ -57,6 +61,18 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   void dispose() {
     _name.dispose();
     super.dispose();
+  }
+
+  /// Icon + colour picker in a dialog (keeps the create page uncluttered).
+  Future<void> _editAppearance() async {
+    final result =
+        await showAppearanceDialog(context, iconId: _iconId, color: _color);
+    if (result != null) {
+      setState(() {
+        _iconId = result.$1;
+        _color = result.$2;
+      });
+    }
   }
 
   @override
@@ -139,15 +155,27 @@ class _State extends ConsumerState<ProfileCreateScreen> {
             ),
             Gap.l,
           ],
-          TextField(
-            controller: _name,
-            onChanged: (_) => setState(() {}),
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              labelText: 'Profile name',
-              border: const OutlineInputBorder(),
-              errorText: taken ? 'A profile with this name exists' : null,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Tap the swatch to pick the icon + colour (kept off the main flow
+              // so the include list stays the focus of the page).
+              AppearanceButton(
+                  iconId: _iconId, color: _color, onTap: _editAppearance),
+              Gap.s,
+              Expanded(
+                child: TextField(
+                  controller: _name,
+                  onChanged: (_) => setState(() {}),
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: 'Profile name',
+                    border: const OutlineInputBorder(),
+                    errorText: taken ? 'A profile with this name exists' : null,
+                  ),
+                ),
+              ),
+            ],
           ),
           Gap.l,
           Card(
@@ -267,7 +295,9 @@ class _State extends ConsumerState<ProfileCreateScreen> {
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            // TextButton (not FilledButton) so the actions stay horizontal — the
+            // theme stretches FilledButton to full width, which forces a stack.
+            TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Replace'),
             ),
@@ -291,10 +321,12 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     }
 
     if (existing != null) {
-      await notifier.replace(existing.copyWith(name: name, entities: chosen));
+      await notifier.replace(existing.copyWith(
+          name: name, entities: chosen, iconId: _iconId, color: _color));
     } else {
       final id = DateTime.now().microsecondsSinceEpoch.toString();
-      await notifier.add(Profile(id: id, name: name, entities: chosen));
+      await notifier.add(Profile(
+          id: id, name: name, entities: chosen, iconId: _iconId, color: _color));
     }
     router.go('/profiles');
   }
