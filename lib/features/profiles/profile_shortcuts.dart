@@ -43,6 +43,11 @@ const _sfSymbols = <String, String>{
   'night': 'moon',
 };
 
+/// Key set of [_sfSymbols], exposed so a test can assert it stays in sync with
+/// the icon maps in `profile_ui.dart`.
+@visibleForTesting
+Set<String> get shortcutSfSymbolKeys => _sfSymbols.keys.toSet();
+
 bool get _supported => Platform.isIOS || Platform.isAndroid;
 
 /// Wires up tap delivery once: warm taps arrive as `applyShortcut` calls from
@@ -71,7 +76,7 @@ Future<void> syncProfileShortcuts(List<Profile> profiles) async {
       'title': p.name,
       // iOS uses the SF Symbol; Android uses the rendered PNG. Each side reads
       // only what it needs, so sending both is harmless.
-      'sfSymbol': _sfSymbols[p.iconId] ?? 'star.fill',
+      'sfSymbol': _sfSymbols[p.iconId] ?? 'star',
       if (Platform.isAndroid) 'png': await _renderAvatarPng(p.iconId, p.color),
     });
   }

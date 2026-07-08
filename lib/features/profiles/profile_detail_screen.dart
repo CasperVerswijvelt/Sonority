@@ -82,7 +82,8 @@ class _State extends ConsumerState<ProfileDetailScreen> {
           icon: const Icon(Icons.cameraswitch),
         ),
       ],
-      // Save only appears once the name actually differs from what's stored.
+      // Save appears once the name OR the appearance (icon/colour) differs from
+      // what's stored.
       floatingActionButton: changed
           ? FloatingActionButton.extended(
               onPressed: () => _save(profile, name),

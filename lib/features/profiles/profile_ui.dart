@@ -47,6 +47,11 @@ const _profileSfIcons = <String, IconData>{
   'night': SFIcons.sf_moon,
 };
 
+/// Key set of [_profileSfIcons], exposed so a test can assert it stays in sync
+/// with [profileIconChoices] (and the shortcut SF-symbol map).
+@visibleForTesting
+Set<String> get profileSfIconKeys => _profileSfIcons.keys.toSet();
+
 /// The profile glyph as a widget: an SF Symbol on iOS (matches the quick-action
 /// icon), a Material icon everywhere else (matches the Android launcher bitmap
 /// and the rest of that platform's iconography).
