@@ -70,16 +70,21 @@ Future<void> publishWidgetProfiles(List<Profile> profiles) async {
       },
   ];
   await HomeWidget.saveWidgetData<String>('widget_profiles', jsonEncode(data));
-  await HomeWidget.updateWidget(iOSName: _iosWidgetName);
 
-  if (Platform.isAndroid) {
-    final byId = {for (final p in profiles) p.id: p};
-    for (final w in await HomeWidget.getInstalledWidgets()) {
-      final wid = w.androidWidgetId;
-      if (wid == null) continue;
-      final p = byId[await HomeWidget.getWidgetData<String>('profileId_$wid')];
-      if (p != null) await _saveWidgetProfile(wid, p);
-    }
+  if (Platform.isIOS) {
+    // iOS-only: updateWidget with just iOSName throws on Android (it resolves an
+    // Android provider class `<pkg>.null`). Android reloads via _saveWidgetProfile.
+    await HomeWidget.updateWidget(iOSName: _iosWidgetName);
+    return;
+  }
+
+  // Android: re-render any placed widget whose profile is in the new list.
+  final byId = {for (final p in profiles) p.id: p};
+  for (final w in await HomeWidget.getInstalledWidgets()) {
+    final wid = w.androidWidgetId;
+    if (wid == null) continue;
+    final p = byId[await HomeWidget.getWidgetData<String>('profileId_$wid')];
+    if (p != null) await _saveWidgetProfile(wid, p);
   }
 }
 
