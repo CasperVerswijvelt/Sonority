@@ -61,7 +61,16 @@ const _sfSymbolNames = <String, String>{
   'night': 'moon',
 };
 
-String sfSymbolName(String iconId) => _sfSymbolNames[iconId] ?? 'star.fill';
+String sfSymbolName(String iconId) => _sfSymbolNames[iconId] ?? 'star';
+
+/// Key sets of the three hand-synced icon maps (Material [profileIconChoices],
+/// iOS SFIcon [_profileSfIcons], SF-symbol names [_sfSymbolNames]) — exposed so
+/// a test can assert they stay in sync. Drift silently falls back to a default
+/// glyph, so the parity test guards against it.
+@visibleForTesting
+Set<String> get profileSfIconKeys => _profileSfIcons.keys.toSet();
+@visibleForTesting
+Set<String> get sfSymbolNameKeys => _sfSymbolNames.keys.toSet();
 
 /// The profile glyph as a widget: an SF Symbol on iOS (matches the quick-action
 /// icon), a Material icon everywhere else (matches the Android launcher bitmap
