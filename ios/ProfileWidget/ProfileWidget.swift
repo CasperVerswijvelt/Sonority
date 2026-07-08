@@ -62,7 +62,8 @@ struct ProfileProvider: AppIntentTimelineProvider {
     ProfileEntry(date: Date(), profile: configuration.profile ?? loadProfiles().first)
   }
   func timeline(for configuration: SelectProfileIntent, in context: Context) async -> Timeline<ProfileEntry> {
-    Timeline(entries: [ProfileEntry(date: Date(), profile: configuration.profile ?? loadProfiles().first)], policy: .never)
+    let chosen = configuration.profile ?? loadProfiles().first
+    return Timeline(entries: [ProfileEntry(date: Date(), profile: chosen)], policy: .never)
   }
 }
 

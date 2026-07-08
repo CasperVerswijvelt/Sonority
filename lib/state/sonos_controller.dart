@@ -275,7 +275,11 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     Profile profile, {
     Future<bool> Function(List<EntityIssue> issues)? confirmIssues,
   }) async {
-    if (_activeOp != null) return; // don't stack bonding ops (scan/discovery is fine)
+    if (_activeOp != null) return; // don't stack bonding ops
+    // Set the cancel token BEFORE the scan so Abort works during the scan step
+    // too (not just once bonding starts).
+    final cancel = CancellationToken();
+    _activeOp = cancel;
     final tracker = _newTracker([
       const ApplyStep(id: _scanStepId, label: 'Scan network for Sonos system'),
       for (final e in profile.entities)
@@ -295,8 +299,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         scanned = state.value;
       }
     } catch (_) {/* handled below */}
+    // Aborted during the scan? Stop before any write.
+    if (cancel.isCancelled) {
+      _activeOp = null;
+      throw const OperationCancelled();
+    }
     if (scanned == null) {
       tracker.fail(_scanStepId, 'Couldn’t find your Sonos system on the network.');
+      _activeOp = null;
       throw state.error ??
           Exception('Couldn’t find your Sonos system on the network.');
     }
@@ -309,7 +319,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         issues.any((i) => i.missing.isNotEmpty || i.conflicts.isNotEmpty);
     if (hasIssues && confirmIssues != null) {
       final proceed = await confirmIssues(issues);
-      if (!proceed) throw const OperationCancelled();
+      if (!proceed) {
+        _activeOp = null;
+        throw const OperationCancelled();
+      }
+    }
+    if (cancel.isCancelled) {
+      _activeOp = null;
+      throw const OperationCancelled();
     }
     // Auto-skip entities whose speakers aren't present.
     final blocked = <String, String>{
@@ -326,8 +343,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       }
     }
 
-    // Step 3 — bond the resolvable entities under the same progress timeline.
-    _activeOp = CancellationToken();
+    // Step 3 — bond the resolvable entities under the same progress timeline
+    // (reusing the cancel token set up top so Abort stays wired throughout).
     final previous = scanned;
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(
