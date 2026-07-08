@@ -54,9 +54,10 @@ void initProfileWidget(void Function(String id) onApply) {
   HomeWidget.initiallyLaunchedFromHomeWidget().then(dispatch);
 }
 
-/// Publishes the profile list to the shared store for the iOS widget's picker
-/// (its AppIntent reads `widget_profiles`). Call whenever profiles change.
-/// Harmless on Android (the widget there is configured per-instance instead).
+/// Keeps placed widgets in sync when profiles change (rename / recolour / icon).
+/// iOS: publish the whole list — the widget's AppIntent re-resolves the selected
+/// profile from it, so it refreshes automatically. Android: the tile is baked at
+/// config time, so re-render any placed widget whose profile is in the new list.
 Future<void> publishWidgetProfiles(List<Profile> profiles) async {
   if (!_supported) return;
   final data = [
@@ -70,6 +71,16 @@ Future<void> publishWidgetProfiles(List<Profile> profiles) async {
   ];
   await HomeWidget.saveWidgetData<String>('widget_profiles', jsonEncode(data));
   await HomeWidget.updateWidget(iOSName: _iosWidgetName);
+
+  if (Platform.isAndroid) {
+    final byId = {for (final p in profiles) p.id: p};
+    for (final w in await HomeWidget.getInstalledWidgets()) {
+      final wid = w.androidWidgetId;
+      if (wid == null) continue;
+      final p = byId[await HomeWidget.getWidgetData<String>('profileId_$wid')];
+      if (p != null) await _saveWidgetProfile(wid, p);
+    }
+  }
 }
 
 /// ARGB colour → `#RRGGBB` (drops alpha). Top-level for unit testing.
@@ -77,31 +88,60 @@ Future<void> publishWidgetProfiles(List<Profile> profiles) async {
 String hexColor(Color c) =>
     '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
 
-/// Persists one widget instance's chosen profile (id + name + rendered avatar)
-/// to the shared store and refreshes the widget. Keyed by [widgetId] so each
-/// placed widget can show a different profile.
+/// Persists one Android widget instance's chosen profile: the tap-target id and
+/// a SQUARE tile image (profile colour + glyph + name) rendered in Flutter. The
+/// provider shows the tile `fitCenter`, so it's always the largest square that
+/// fits the widget's space. Keyed by [widgetId] so each placed widget can show a
+/// different profile. (iOS doesn't use this — its SwiftUI widget renders itself.)
 Future<void> _saveWidgetProfile(int widgetId, Profile p) async {
   await HomeWidget.saveWidgetData<String>('profileId_$widgetId', p.id);
-  await HomeWidget.saveWidgetData<String>('profileName_$widgetId', p.name);
-  // The full widget background is the profile colour; the glyph is white on top.
-  await HomeWidget.saveWidgetData<String>(
-      'color_$widgetId', hexColor(profileColor(p.color)));
   await HomeWidget.renderFlutterWidget(
-    _WidgetGlyph(iconId: p.iconId),
-    key: 'avatar_$widgetId',
-    logicalSize: const Size(96, 96),
+    _WidgetTile(iconId: p.iconId, color: p.color, name: p.name),
+    key: 'tile_$widgetId',
+    logicalSize: const Size(300, 300),
   );
-  await HomeWidget.updateWidget(
-      qualifiedAndroidName: _androidProvider, iOSName: _iosWidgetName);
+  await HomeWidget.updateWidget(qualifiedAndroidName: _androidProvider);
 }
 
-class _WidgetGlyph extends StatelessWidget {
+/// The Android widget's visual: a square, full-colour rounded tile with the
+/// white glyph + profile name. Rendered to a PNG and shown `fitCenter`.
+class _WidgetTile extends StatelessWidget {
   final String iconId;
-  const _WidgetGlyph({required this.iconId});
+  final int color;
+  final String name;
+  const _WidgetTile(
+      {required this.iconId, required this.color, required this.name});
 
   @override
-  Widget build(BuildContext context) =>
-      Icon(profileIcon(iconId), color: Colors.white, size: 64);
+  Widget build(BuildContext context) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: Container(
+          width: 300,
+          height: 300,
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: profileColor(color),
+            borderRadius: BorderRadius.circular(64),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(profileIcon(iconId), color: Colors.white, size: 120),
+              const SizedBox(height: 16),
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
 /// The Android widget-configuration UI. Runs as its own Flutter entrypoint

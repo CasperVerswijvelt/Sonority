@@ -1,26 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_container"
+<!-- The tile (colour + glyph + name) is a square PNG rendered in Flutter;
+     fitCenter scales it to the largest square that fits the widget's space. -->
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_tile"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="8dp"
-    android:background="@drawable/profile_widget_bg">
-
-    <ImageView
-        android:id="@+id/widget_avatar"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:contentDescription="@null" />
-
-    <TextView
-        android:id="@+id/widget_name"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:textSize="12sp"
-        android:textColor="#FFFFFF" />
-</LinearLayout>
+    android:scaleType="fitCenter"
+    android:contentDescription="@null" />
