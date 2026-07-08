@@ -31,7 +31,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   final List<EntitySnapshot> _entities = [];
   final Map<String, bool> _included = {};
   bool _seeded = false;
-  bool _saveEq = false;
+  bool _saveAudio = false;
   bool _saveVolume = false;
   bool _saving = false;
 
@@ -213,15 +213,16 @@ class _State extends ConsumerState<ProfileCreateScreen> {
                 // the card, so the ink highlight matches (top tile → top corners,
                 // bottom tile → bottom corners; the divider edge stays square).
                 SwitchListTile(
-                  value: _saveEq,
-                  onChanged: (v) => setState(() => _saveEq = v),
+                  value: _saveAudio,
+                  onChanged: (v) => setState(() => _saveAudio = v),
                   shape: const RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.vertical(top: Radius.circular(12))),
-                  secondary: const Icon(Icons.equalizer),
-                  title: const Text('Save EQ settings'),
+                  secondary: const Icon(Icons.tune),
+                  title: const Text('Save audio settings'),
                   subtitle: const Text(
-                      'Bass, treble, loudness, night sound, speech, sub & surround level'),
+                      'EQ, night sound, speech enhancement, sub & surround '
+                      'levels, lip sync & more'),
                 ),
                 const Divider(height: 1),
                 SwitchListTile(
@@ -277,14 +278,14 @@ class _State extends ConsumerState<ProfileCreateScreen> {
       if (ok != true) return;
     }
 
-    // Reading EQ/volume is several SOAP calls per speaker — show progress and
+    // Reading settings is several SOAP calls per speaker — show progress and
     // enrich the snapshots before saving.
-    if (_saveEq || _saveVolume) {
+    if (_saveAudio || _saveVolume) {
       setState(() => _saving = true);
       try {
         chosen = await ref
             .read(sonosControllerProvider.notifier)
-            .captureSettings(chosen, eq: _saveEq, volume: _saveVolume);
+            .captureSettings(chosen, audio: _saveAudio, volume: _saveVolume);
       } finally {
         if (mounted) setState(() => _saving = false);
       }

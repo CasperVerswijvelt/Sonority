@@ -11,6 +11,11 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 ## [Unreleased]
 
 ### Changed
+- Profiles: the EQ capture toggle is now **"Save audio settings"** — the label
+  undersold a bundle that also covers night sound, speech enhancement, sub &
+  surround levels and lip sync. Profile cards now show separate **Audio
+  settings** / **Volume** badges (instead of one combined "EQ" line) and use an
+  icon-only play button with a bit more breathing room.
 - The macOS `.dmg` download now opens a styled drag-to-Applications install
   window — the app icon, an arrow, and an Applications shortcut over a branded
   background — instead of a bare disk image.

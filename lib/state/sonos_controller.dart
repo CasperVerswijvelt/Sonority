@@ -108,23 +108,23 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
 
   final _settings = SpeakerSettingsClient();
 
-  /// Reads each entity's per-speaker audio settings ([eq] bundle and/or [volume])
+  /// Reads each entity's per-speaker settings ([audio] bundle and/or [volume])
   /// and returns copies enriched with a `settings` map. Called by
   /// the create flow when the user opts into saving speaker settings; keeps the
   /// SOAP reads off the widget. Speakers not currently on the network are simply
   /// skipped (nothing to read).
   Future<List<EntitySnapshot>> captureSettings(
       List<EntitySnapshot> entities,
-      {required bool eq, required bool volume}) async {
+      {required bool audio, required bool volume}) async {
     final sys = state.value;
-    if (sys == null || (!eq && !volume)) return entities;
+    if (sys == null || (!audio && !volume)) return entities;
     final out = <EntitySnapshot>[];
     for (final e in entities) {
       final map = <String, SpeakerSettings>{};
       for (final uuid in e.involvedUuids) {
         final ip = sys.device(uuid)?.ip;
         if (ip == null) continue;
-        final s = await _settings.read(ip, eq: eq, volume: volume);
+        final s = await _settings.read(ip, audio: audio, volume: volume);
         if (!s.isEmpty) map[uuid] = s;
       }
       out.add(map.isEmpty ? e : e.copyWith(settings: map));
@@ -148,7 +148,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       }
       final s = entry.value;
       final what = [
-        if (s.hasEq) 'EQ',
+        if (s.hasAudioSettings) 'audio settings',
         if (s.hasVolume) 'volume',
       ].join(' + ');
       ph.note('restoring $what — ${dev!.typeLabel}');
