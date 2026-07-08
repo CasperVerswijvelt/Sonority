@@ -168,14 +168,13 @@ class _ProfileTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final summary = profile.entities.map((e) => e.label).join(' · ');
-    final settings = profile.settingsSummary;
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onEdit,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
           child: Row(
             children: [
               Container(
@@ -205,16 +204,18 @@ class _ProfileTile extends StatelessWidget {
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    if (settings.isNotEmpty) ...[
-                      Gap.xs,
-                      Row(
+                    if (profile.hasAudioSettings || profile.hasVolume) ...[
+                      Gap.s,
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
                         children: [
-                          Icon(Icons.equalizer,
-                              size: 14, color: theme.colorScheme.primary),
-                          Gap.xs,
-                          Text(settings,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.primary)),
+                          if (profile.hasAudioSettings)
+                            const _Badge(
+                                icon: Icons.tune, label: 'Audio settings'),
+                          if (profile.hasVolume)
+                            const _Badge(
+                                icon: Icons.volume_up, label: 'Volume'),
                         ],
                       ),
                     ],
@@ -222,14 +223,10 @@ class _ProfileTile extends StatelessWidget {
                 ),
               ),
               Gap.s,
-              FilledButton.icon(
+              IconButton.filled(
                 onPressed: onApply,
-                icon: const Icon(Icons.play_arrow, size: 20),
-                label: const Text('Apply'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 40),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                ),
+                tooltip: 'Apply',
+                icon: const Icon(Icons.play_arrow),
               ),
               PopupMenuButton<String>(
                 onSelected: (v) => v == 'edit' ? onEdit() : onDelete(),
@@ -241,6 +238,38 @@ class _ProfileTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Small pill on the profile tile marking what captured settings it carries.
+class _Badge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _Badge({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: theme.colorScheme.onSecondaryContainer),
+          Gap.xs,
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+        ],
       ),
     );
   }

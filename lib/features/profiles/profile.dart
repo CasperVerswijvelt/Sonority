@@ -104,14 +104,14 @@ class EntitySnapshot {
         settings: settings ?? this.settings,
       );
 
-  /// A short label for the UI describing what audio settings are captured, or
-  /// `''` when none — appended to [entitySummary] on the tiles.
+  /// A short label for the UI describing what settings are captured, or `''`
+  /// when none — appended to [entitySummary] on the tiles.
   String get settingsSummary {
     final vals = settings.values;
-    final eq = vals.any((s) => s.hasEq);
+    final audio = vals.any((s) => s.hasAudioSettings);
     final vol = vals.any((s) => s.hasVolume);
-    if (eq && vol) return 'EQ + volume saved';
-    if (eq) return 'EQ saved';
+    if (audio && vol) return 'Audio settings + volume saved';
+    if (audio) return 'Audio settings saved';
     if (vol) return 'Volume saved';
     return '';
   }
@@ -160,17 +160,12 @@ class Profile {
     this.color = 0,
   });
 
-  /// Aggregated across entities: what audio settings this profile carries, or
-  /// `''` when none.
-  String get settingsSummary {
-    final all = entities.expand((e) => e.settings.values);
-    final eq = all.any((s) => s.hasEq);
-    final vol = all.any((s) => s.hasVolume);
-    if (eq && vol) return 'EQ + volume saved';
-    if (eq) return 'EQ saved';
-    if (vol) return 'Volume saved';
-    return '';
-  }
+  /// Aggregated across entities — drive the badges on the profile tile.
+  bool get hasAudioSettings =>
+      entities.any((e) => e.settings.values.any((s) => s.hasAudioSettings));
+
+  bool get hasVolume =>
+      entities.any((e) => e.settings.values.any((s) => s.hasVolume));
 
   Profile copyWith({
     String? name,
