@@ -47,17 +47,21 @@ Verified on the simulator: the extension registers with the system
 (`pluginkit -mv` lists `be.casperverswijvelt.sonority.ProfileWidget`) and appears
 in the widget gallery as "Sonority profile".
 
-### ⚠️ iOS Simulator can't persist the widget's profile selection
+### ⚠️ iOS 26 Simulator doesn't deliver the widget's profile selection
 
-On the **Simulator**, *Edit Widget → pick a profile* does **not** persist — WidgetKit
-always hands the widget the default (empty) configuration, so it falls back to the
-first profile and a tap applies that one. This is a known Simulator limitation, not
-a bug in this code: verified via `os_log` that `suggestedEntities` fires (the picker
-lists every profile) but the chosen value never comes back — `entities(for:)` is
-never called and the timeline's `configuration.profile` stays nil. The selection
-persists and resolves correctly on a **real device**. (The colour/glyph rendering
-and the tap→apply deep link both work on the Simulator; only the per-widget
-*selection* is affected.)
+Confirmed an **iOS 26 Simulator regression**, not a bug in this code:
+
+- **iOS 17.2 Simulator — works fully**: picking a profile in *Edit Widget* is
+  reflected in the widget and its tap applies that profile.
+- **iOS 26.5 Simulator — broken**: *Edit Widget* remembers the pick in its own UI,
+  but the widget always renders/applies the first profile. Traced with `os_log`:
+  `suggestedEntities` fires (the picker lists every profile) yet the chosen value
+  is never delivered to the timeline — `entities(for:)` is never called and
+  `configuration.profile` stays nil. A full simulator reboot didn't help.
+
+The App Intents metadata (`SelectProfileIntent` / `ProfileOption` / `ProfileQuery`)
+is correct, so the per-widget selection works on a real device / older simulator;
+only the iOS 26 Simulator drops it. (Rendering + tap→apply work everywhere.)
 
 ### The one manual bit: signing for a real device / release
 
