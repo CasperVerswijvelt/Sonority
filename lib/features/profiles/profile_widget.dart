@@ -69,7 +69,14 @@ Future<void> publishWidgetProfiles(List<Profile> profiles) async {
         'color': hexColor(profileColor(p.color)),
       },
   ];
-  await HomeWidget.saveWidgetData<String>('widget_profiles', jsonEncode(data));
+  final json = jsonEncode(data);
+  // The listener fires on every app start; when nothing changed since the last
+  // publish (the common case), skip the tile re-renders + widget reloads so
+  // startup does no extra work. ponytail: assumes the rendered tile files match
+  // the stored json — true unless external storage clearing, which a profile
+  // edit heals.
+  if (json == await HomeWidget.getWidgetData<String>('widget_profiles')) return;
+  await HomeWidget.saveWidgetData<String>('widget_profiles', json);
 
   if (Platform.isIOS) {
     // iOS-only: updateWidget with just iOSName throws on Android (it resolves an
