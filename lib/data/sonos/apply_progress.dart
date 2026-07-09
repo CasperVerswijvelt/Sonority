@@ -6,7 +6,7 @@
 /// active and exactly where/why it failed.
 library;
 
-enum ApplyStatus { pending, active, done, failed }
+enum ApplyStatus { pending, active, done, failed, skipped }
 
 /// One step in a bonding operation, e.g. "Bond surrounds" or "Restore names".
 /// A step with a [parentId] is a phase sub-step rendered nested under its
@@ -124,14 +124,15 @@ class ApplyProgress {
     _log(id, '▸');
   }
 
-  /// Marks the active phase done without starting the next one (used when an
-  /// entity's work short-circuits, e.g. "layout unchanged").
-  void doneSub({String? detail}) {
+  /// Marks the active phase skipped — it turned out to be a no-op (e.g.
+  /// "layout unchanged", "name already set"). The step stays in the list (no
+  /// layout shift) but renders distinctly from real work.
+  void skipSub({String? detail}) {
     final id = _activeChildId;
     if (id == null) return;
     _activeChildId = null;
-    _set(id, ApplyStatus.done, detail);
-    _log(id, '✓', detail);
+    _set(id, ApplyStatus.skipped, detail);
+    _log(id, '−', detail);
   }
 
   /// Verbose within-phase progress ("attempt 2: re-asserting") → subtitle of

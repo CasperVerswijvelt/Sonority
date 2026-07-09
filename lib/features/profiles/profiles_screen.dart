@@ -46,15 +46,11 @@ class ProfilesScreen extends ConsumerWidget {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        FilledButton.icon(
+                        IconButton.filled(
                           onPressed: () =>
                               applyProfileInteractive(context, ref, p),
-                          icon: const Icon(Icons.play_arrow, size: 20),
-                          label: const Text('Apply'),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 40),
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                          ),
+                          tooltip: 'Apply',
+                          icon: const Icon(Icons.play_arrow),
                         ),
                         PopupMenuButton<String>(
                           onSelected: (v) => v == 'edit'

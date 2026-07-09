@@ -208,7 +208,6 @@ class ProfileCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     final tonal = profileTonal(profile.color, theme.brightness);
     final summary = profile.entities.map((e) => e.label).join(' · ');
-    final settings = profile.settingsSummary;
     return Card(
       margin: EdgeInsets.zero,
       color: selected
@@ -224,7 +223,7 @@ class ProfileCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(16, 12, trailing == null ? 16 : 8, 12),
+          padding: EdgeInsets.fromLTRB(16, 16, trailing == null ? 16 : 8, 16),
           child: Row(
             crossAxisAlignment: crossAxisAlignment,
             children: [
@@ -252,15 +251,20 @@ class ProfileCard extends StatelessWidget {
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
-                    if (settings.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Row(children: [
-                        Icon(Icons.equalizer, size: 14, color: scheme.primary),
-                        const SizedBox(width: 4),
-                        Text(settings,
-                            style: theme.textTheme.labelSmall
-                                ?.copyWith(color: scheme.primary)),
-                      ]),
+                    if (profile.hasAudioSettings || profile.hasVolume) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          if (profile.hasAudioSettings)
+                            const _Badge(
+                                icon: Icons.tune, label: 'Audio settings'),
+                          if (profile.hasVolume)
+                            const _Badge(
+                                icon: Icons.volume_up, label: 'Volume'),
+                        ],
+                      ),
                     ],
                   ],
                 ),
@@ -269,6 +273,38 @@ class ProfileCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Small pill on the profile card marking what captured settings it carries.
+class _Badge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _Badge({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: theme.colorScheme.onSecondaryContainer),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -66,12 +66,12 @@ class SpeakerSettings {
 
   static const empty = SpeakerSettings();
 
-  bool get hasEq =>
+  bool get hasAudioSettings =>
       bass != null || treble != null || loudness != null || eq.isNotEmpty;
 
   bool get hasVolume => volume != null || mute != null;
 
-  bool get isEmpty => !hasEq && !hasVolume;
+  bool get isEmpty => !hasAudioSettings && !hasVolume;
 
   /// Serializes only the non-null/non-empty fields, so an EQ-only capture
   /// doesn't store bogus volume keys and old profiles round-trip cleanly.
@@ -106,13 +106,14 @@ class SpeakerSettingsClient {
   static const _service = 'urn:schemas-upnp-org:service:RenderingControl:1';
   static const _control = '/MediaRenderer/RenderingControl/Control';
 
-  /// Reads a settings snapshot for the speaker at [ip]. [eq] captures the EQ
-  /// bundle (bass/treble/loudness + every [eqTypes] token the speaker answers);
-  /// [volume] captures volume/mute. The two are independent toggles.
+  /// Reads a settings snapshot for the speaker at [ip]. [audio] captures the
+  /// audio-settings bundle (bass/treble/loudness + every [eqTypes] token the
+  /// speaker answers); [volume] captures volume/mute. The two are independent
+  /// toggles.
   Future<SpeakerSettings> read(String ip,
-      {bool eq = true, bool volume = false}) async {
+      {bool audio = true, bool volume = false}) async {
     final eqValues = <String, int>{};
-    if (eq) {
+    if (audio) {
       for (final t in eqTypes) {
         final v = await _readInt(ip, 'GetEQ', 'CurrentValue',
             extra: {'EQType': t});
@@ -120,9 +121,9 @@ class SpeakerSettingsClient {
       }
     }
     return SpeakerSettings(
-      bass: eq ? await _readInt(ip, 'GetBass', 'CurrentBass') : null,
-      treble: eq ? await _readInt(ip, 'GetTreble', 'CurrentTreble') : null,
-      loudness: eq
+      bass: audio ? await _readInt(ip, 'GetBass', 'CurrentBass') : null,
+      treble: audio ? await _readInt(ip, 'GetTreble', 'CurrentTreble') : null,
+      loudness: audio
           ? await _readBool(ip, 'GetLoudness', 'CurrentLoudness',
               extra: const {'Channel': 'Master'})
           : null,
