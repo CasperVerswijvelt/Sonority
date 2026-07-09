@@ -47,6 +47,16 @@ class ProfilesController extends AsyncNotifier<List<Profile>> {
         for (final x in state.value ?? const <Profile>[])
           if (x.id != id) x,
       ]);
+
+  /// Reorders the list (drag in the Profiles overview) and persists. This order
+  /// is the canonical profile order — widgets render their picked tiles in it.
+  Future<void> reorder(int oldIndex, int newIndex) async {
+    final next = [...?state.value];
+    if (oldIndex < 0 || oldIndex >= next.length) return;
+    if (newIndex > oldIndex) newIndex -= 1;
+    next.insert(newIndex.clamp(0, next.length - 1), next.removeAt(oldIndex));
+    await _persist(next);
+  }
 }
 
 /// What a profile entity would need at apply time, resolved against [system].

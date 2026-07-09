@@ -180,6 +180,100 @@ class AppearanceButton extends StatelessWidget {
   }
 }
 
+/// The profile card used in the Profiles overview and the widget picker — the
+/// same card everywhere. [trailing] swaps the actions (Apply + menu on the
+/// overview, a selection indicator in the picker); [selected] highlights it.
+class ProfileCard extends StatelessWidget {
+  final Profile profile;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+  final bool selected;
+
+  /// Vertical placement of the row's children — the overview centres its Apply
+  /// button; the picker top-aligns so its selection dot sits in the top-right.
+  final CrossAxisAlignment crossAxisAlignment;
+
+  const ProfileCard({
+    super.key,
+    required this.profile,
+    this.onTap,
+    this.trailing,
+    this.selected = false,
+    this.crossAxisAlignment = CrossAxisAlignment.center,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tonal = profileTonal(profile.color, theme.brightness);
+    final summary = profile.entities.map((e) => e.label).join(' · ');
+    final settings = profile.settingsSummary;
+    return Card(
+      margin: EdgeInsets.zero,
+      color: selected
+          ? Color.alphaBlend(scheme.primary.withValues(alpha: 0.12),
+              scheme.surfaceContainerHigh)
+          : null,
+      shape: selected
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: scheme.primary, width: 1.5))
+          : null,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 12, trailing == null ? 16 : 8, 12),
+          child: Row(
+            crossAxisAlignment: crossAxisAlignment,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                    color: tonal.card,
+                    borderRadius: BorderRadius.circular(tileRadius)),
+                child: Center(
+                    child: profileGlyph(profile.iconId,
+                        size: 22, color: tonal.icon)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(profile.name, style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    Text(
+                      summary.isEmpty ? 'No entities' : summary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                    if (settings.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(children: [
+                        Icon(Icons.equalizer, size: 14, color: scheme.primary),
+                        const SizedBox(width: 4),
+                        Text(settings,
+                            style: theme.textTheme.labelSmall
+                                ?.copyWith(color: scheme.primary)),
+                      ]),
+                    ],
+                  ],
+                ),
+              ),
+              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Icon + colour picker dialog. Returns the chosen `(iconId, color)`, or null if
 /// cancelled. Shared by the create and edit screens.
 Future<(String, int)?> showAppearanceDialog(BuildContext context,

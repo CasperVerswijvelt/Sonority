@@ -78,18 +78,19 @@ Future<void> publishWidgetProfiles(List<Profile> profiles) async {
     return;
   }
 
-  // Android: re-render each placed widget's chosen tiles, dropping any profile
-  // that no longer exists, and lazily upgrade old single-profile widgets.
-  final byId = {for (final p in profiles) p.id: p};
+  // Android: re-render each placed widget's chosen tiles in the PROFILE order
+  // (reorder lives in the overview), dropping any profile that no longer exists
+  // and lazily upgrading old single-profile widgets.
   for (final w in await HomeWidget.getInstalledWidgets()) {
     final wid = w.androidWidgetId;
     if (wid == null) continue;
-    final ids = await _widgetProfileIds(wid);
-    final chosen = [for (final id in ids) byId[id]].whereType<Profile>().toList();
+    final storedIds = await _widgetProfileIds(wid);
+    final want = storedIds.toSet();
+    final chosen = [for (final p in profiles) if (want.contains(p.id)) p];
     final chosenIds = [for (final p in chosen) p.id];
-    // Re-write the id list if it changed (a profile was deleted, or we're
-    // migrating an old profileId_ key to the JSON list).
-    if (chosenIds.join(',') != ids.join(',')) {
+    // Re-write when the set/order changed (a profile was deleted or reordered,
+    // or we're migrating an old profileId_ key to the JSON list).
+    if (chosenIds.join(',') != storedIds.join(',')) {
       await HomeWidget.saveWidgetData<String>(
           'profileIds_$wid', jsonEncode(chosenIds));
     }
@@ -209,20 +210,13 @@ class _WidgetConfigScreenState extends State<_WidgetConfigScreen> {
     final idStr = await HomeWidget.initiallyLaunchedFromHomeWidgetConfigure();
     _widgetId = int.tryParse(idStr ?? '');
     final all = await ProfileStore().load();
-
-    // Pre-select the widget's existing profiles (reconfigure) and float them to
-    // the top in their saved order; the rest follow.
+    // Profiles are shown in the overview's order (reorder lives there); the
+    // widget's current picks are pre-selected.
     final existing =
         _widgetId != null ? await _widgetProfileIds(_widgetId!) : const <String>[];
-    final byId = {for (final p in all) p.id: p};
-    final ordered = <Profile>[
-      for (final id in existing)
-        if (byId[id] != null) byId[id]!,
-      for (final p in all)
-        if (!existing.contains(p.id)) p,
-    ];
-    _checked.addAll(existing.where(byId.containsKey));
-    if (mounted) setState(() => _ordered = ordered);
+    final ids = all.map((p) => p.id).toSet();
+    _checked.addAll(existing.where(ids.contains));
+    if (mounted) setState(() => _ordered = all);
   }
 
   Future<void> _confirm() async {
@@ -232,41 +226,6 @@ class _WidgetConfigScreenState extends State<_WidgetConfigScreen> {
       await _saveWidgetProfiles(_widgetId!, chosen);
     }
     await HomeWidget.finishHomeWidgetConfigure();
-  }
-
-  /// One picker row: a leading checkbox, the tonal avatar + name, and a trailing
-  /// drag handle (the only drag origin, since default whole-row drag is off).
-  Widget _configRow(BuildContext context, Profile p, int index) {
-    final tonal = profileTonal(p.color, Theme.of(context).brightness);
-    return ListTile(
-      key: ValueKey(p.id),
-      onTap: () => setState(() =>
-          _checked.contains(p.id) ? _checked.remove(p.id) : _checked.add(p.id)),
-      leading: Checkbox(
-        value: _checked.contains(p.id),
-        onChanged: (on) => setState(() =>
-            (on ?? false) ? _checked.add(p.id) : _checked.remove(p.id)),
-      ),
-      title: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-                color: tonal.card,
-                borderRadius: BorderRadius.circular(tileRadius)),
-            child: Center(
-                child: profileGlyph(p.iconId, size: 20, color: tonal.icon)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(p.name, overflow: TextOverflow.ellipsis)),
-        ],
-      ),
-      trailing: ReorderableDragStartListener(
-        index: index,
-        child: const Icon(Icons.drag_handle),
-      ),
-    );
   }
 
   @override
@@ -287,25 +246,31 @@ class _WidgetConfigScreenState extends State<_WidgetConfigScreen> {
               : Column(
                   children: [
                     Expanded(
-                      child: ReorderableListView(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        // Explicit drag handle per row (below), so the whole-row
-                        // long-press is off and tapping the checkbox never drags.
-                        buildDefaultDragHandles: false,
-                        header: const Padding(
-                          padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
-                          child: Text(
-                            'Pick the profiles to show, and drag the handle to set '
-                            'their order.',
-                          ),
-                        ),
-                        onReorder: (oldIndex, newIndex) => setState(() {
-                          if (newIndex > oldIndex) newIndex -= 1;
-                          list.insert(newIndex, list.removeAt(oldIndex));
-                        }),
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                         children: [
-                          for (var i = 0; i < list.length; i++)
-                            _configRow(context, list[i], i),
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(4, 8, 4, 12),
+                            child: Text(
+                              'Pick the profiles to show. Reorder them in the '
+                              'Profiles tab.',
+                            ),
+                          ),
+                          for (final p in list)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: ProfileCard(
+                                profile: p,
+                                selected: _checked.contains(p.id),
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                onTap: () => setState(() =>
+                                    _checked.contains(p.id)
+                                        ? _checked.remove(p.id)
+                                        : _checked.add(p.id)),
+                                trailing: _SelectDot(
+                                    selected: _checked.contains(p.id)),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -322,6 +287,32 @@ class _WidgetConfigScreenState extends State<_WidgetConfigScreen> {
                     ),
                   ],
                 ),
+    );
+  }
+}
+
+/// The picker's selection indicator: a filled check circle when selected, an
+/// empty outlined circle when not.
+class _SelectDot extends StatelessWidget {
+  final bool selected;
+  const _SelectDot({required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected ? scheme.primary : Colors.transparent,
+        border: selected
+            ? null
+            : Border.all(color: scheme.outline, width: 2),
+      ),
+      child: selected
+          ? Icon(Icons.check, size: 18, color: scheme.onPrimary)
+          : null,
     );
   }
 }

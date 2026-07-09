@@ -25,7 +25,11 @@ in the normal on-surface colour — adapting to light/dark. The derivation lives
 length-scaling), corner radius 20 — so iOS and Android look identical across sizes.
 On Android the glyph is a white PNG tinted at runtime + a native label (sizable, so
 the glyph can be capped); on iOS the SF glyph is `.widgetAccentable()` so it stays
-clean on an iOS-18 tinted Home Screen. **Glyphs are SF Symbols on every platform**
+clean on an iOS-18 tinted Home Screen. **Reordering lives in the Profiles tab**
+(long-press a card to drag; that order is canonical and the widgets render their
+picked tiles in it) — the widget config screen is select-only, reusing the same
+`ProfileCard` with a checkmark/empty-circle selection indicator. **Glyphs are SF
+Symbols on every platform**
 (via `flutter_sficon`; `profileSfIcon`/`profileGlyph`) — note Apple's SF Symbols
 license technically covers Apple platforms only. Both widgets sit on a **neutral
 container card** that adapts light/dark (iOS `.containerBackground`; Android

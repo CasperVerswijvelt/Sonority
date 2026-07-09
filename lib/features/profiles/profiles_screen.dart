@@ -24,20 +24,52 @@ class ProfilesScreen extends ConsumerWidget {
       error: (e, _) => Center(child: Text('Couldn’t load profiles: $e')),
       data: (list) => list.isEmpty
           ? const _EmptyState()
-          : ListView(
+          : ReorderableListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
-              children: [
-                for (final p in list)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _ProfileTile(
-                      profile: p,
-                      onApply: () => applyProfileInteractive(context, ref, p),
-                      onEdit: () => context.go('/profiles/edit/${p.id}'),
-                      onDelete: () => _confirmDelete(context, ref, p),
+              itemCount: list.length,
+              // Drop the default elevated-Material drag proxy (it draws a square
+              // highlight/shadow behind the rounded card); the card lifts as-is.
+              proxyDecorator: (child, index, animation) =>
+                  Material(color: Colors.transparent, child: child),
+              // Long-press a card to drag it — this order is what the widgets use.
+              onReorder: (oldIndex, newIndex) => ref
+                  .read(profilesProvider.notifier)
+                  .reorder(oldIndex, newIndex),
+              itemBuilder: (context, i) {
+                final p = list[i];
+                return Padding(
+                  key: ValueKey(p.id),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: ProfileCard(
+                    profile: p,
+                    onTap: () => context.go('/profiles/edit/${p.id}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () =>
+                              applyProfileInteractive(context, ref, p),
+                          icon: const Icon(Icons.play_arrow, size: 20),
+                          label: const Text('Apply'),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 40),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                        ),
+                        PopupMenuButton<String>(
+                          onSelected: (v) => v == 'edit'
+                              ? context.go('/profiles/edit/${p.id}')
+                              : _confirmDelete(context, ref, p),
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(value: 'edit', child: Text('Edit')),
+                            PopupMenuItem(value: 'delete', child: Text('Delete')),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-              ],
+                );
+              },
             ),
     );
 
@@ -149,102 +181,6 @@ Future<void> applyProfileFromLaunch(
       },
     ),
   );
-}
-
-class _ProfileTile extends StatelessWidget {
-  final Profile profile;
-  final VoidCallback onApply;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const _ProfileTile({
-    required this.profile,
-    required this.onApply,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final tonal = profileTonal(profile.color, theme.brightness);
-    final summary = profile.entities.map((e) => e.label).join(' · ');
-    final settings = profile.settingsSummary;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onEdit,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: tonal.card,
-                  borderRadius: BorderRadius.circular(tileRadius),
-                ),
-                child: Center(
-                  child: profileGlyph(profile.iconId,
-                      size: 22, color: tonal.icon),
-                ),
-              ),
-              Gap.m,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(profile.name, style: theme.textTheme.titleMedium),
-                    Gap.xs,
-                    Text(
-                      summary.isEmpty ? 'No entities' : summary,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (settings.isNotEmpty) ...[
-                      Gap.xs,
-                      Row(
-                        children: [
-                          Icon(Icons.equalizer,
-                              size: 14, color: theme.colorScheme.primary),
-                          Gap.xs,
-                          Text(settings,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.primary)),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Gap.s,
-              FilledButton.icon(
-                onPressed: onApply,
-                icon: const Icon(Icons.play_arrow, size: 20),
-                label: const Text('Apply'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 40),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                ),
-              ),
-              PopupMenuButton<String>(
-                onSelected: (v) => v == 'edit' ? onEdit() : onDelete(),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(value: 'delete', child: Text('Delete')),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _EmptyState extends StatelessWidget {
