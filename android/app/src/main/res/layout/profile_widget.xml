@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Neutral rounded container (adapts light/dark, rounds to the launcher's widget
-     radius) holding a grid of tonal profile tiles. Tiles are inset by the 8dp
-     gap and use widget_tile_radius (= bg radius - 8dp) so they nest concentrically
-     inside the container. @android:id/background lets the launcher auto-clip us. -->
+<!-- Neutral rounded container (adapts light/dark, fixed widget_bg_radius to match
+     the iOS widget) holding a grid of tonal profile tiles. Tiles are inset by the
+     8dp gap and use widget_tile_radius (= bg radius - 8dp) so they nest
+     concentrically inside the container. @android:id/background lets the launcher
+     auto-clip us. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
     android:layout_width="match_parent"

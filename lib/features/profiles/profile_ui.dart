@@ -13,27 +13,23 @@ bool isProfileNameTaken(List<Profile> existing, String name, {String? exceptId})
   return existing.any((p) => p.id != exceptId && p.name.trim().toLowerCase() == n);
 }
 
-/// Curated icon set a user can pick for a profile. Keys are stored in
-/// [Profile.iconId]; the same glyph renders on the tile, widget, and (where the
-/// OS allows) the app shortcut. Deliberately small — no arbitrary image upload.
-const profileIconChoices = <String, IconData>{
-  'speaker': Icons.speaker,
-  'home_theater': Icons.surround_sound,
-  'movie': Icons.movie,
-  'music': Icons.music_note,
-  'living': Icons.weekend,
-  'tv': Icons.tv,
-  'party': Icons.celebration,
-  'night': Icons.nightlight_round,
-};
+/// Curated icon ids a user can pick for a profile, in picker order. Stored in
+/// [Profile.iconId]; each id resolves to an SF Symbol glyph ([profileSfIcon] /
+/// [sfSymbolName]) on every platform. Deliberately small — no arbitrary image
+/// upload.
+const profileIconIds = [
+  'speaker',
+  'home_theater',
+  'movie',
+  'music',
+  'living',
+  'tv',
+  'party',
+  'night',
+];
 
-/// Resolves a stored [Profile.iconId] to its Material glyph (falls back to the
-/// default). Used for the Android UI + the Android launcher-icon bitmap.
-IconData profileIcon(String iconId) =>
-    profileIconChoices[iconId] ?? profileIconChoices[kDefaultProfileIcon]!;
-
-/// Each curated icon's SF Symbol (iOS), matching the native quick-action glyph
-/// so the in-app icon and the home-screen shortcut look the same on iOS.
+/// Each curated icon's SF Symbol — the glyph shown on every platform (in-app
+/// tiles, widgets, shortcuts).
 const _profileSfIcons = <String, IconData>{
   'speaker': SFIcons.sf_hifispeaker,
   'home_theater': SFIcons.sf_tv,
@@ -61,10 +57,10 @@ const _sfSymbolNames = <String, String>{
 
 String sfSymbolName(String iconId) => _sfSymbolNames[iconId] ?? 'star';
 
-/// Key sets of the three hand-synced icon maps (Material [profileIconChoices],
-/// iOS SFIcon [_profileSfIcons], SF-symbol names [_sfSymbolNames]) — exposed so
-/// a test can assert they stay in sync. Drift silently falls back to a default
-/// glyph, so the parity test guards against it.
+/// Key sets of the two hand-synced icon maps ([_profileSfIcons] and
+/// [_sfSymbolNames]) — exposed so a test can assert they stay in sync with the
+/// curated [profileIconIds]. Drift silently falls back to a default glyph, so
+/// the parity test guards against it.
 @visibleForTesting
 Set<String> get profileSfIconKeys => _profileSfIcons.keys.toSet();
 @visibleForTesting
@@ -123,13 +119,11 @@ ProfileTonal profileTonal(int colorIndex, Brightness brightness) {
   );
 }
 
-/// Shared tile-shape/size spec (replicated in the iOS Swift widget + the Android
-/// native tile). Sizes that depend on the tile's short edge `s` are computed by
-/// [glyphSize] / [labelSize]; the corner radius is fixed so it reads consistent
-/// across widget sizes.
+/// Corner radius of the tonal chips/tiles. Fixed (not size-relative) so it reads
+/// consistent everywhere; mirrored by the iOS Swift widget and the Android
+/// native tile, which also compute glyph/label sizes from the tile's short edge
+/// (`clamp(0.30·s, 18, 40)` / `clamp(0.12·s, 11, 15)`).
 const double tileRadius = 20;
-double glyphSize(double s) => (0.30 * s).clamp(18, 40);
-double labelSize(double s) => (0.12 * s).clamp(11, 15);
 
 Color _mix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
 
@@ -369,7 +363,7 @@ class _AppearancePicker extends StatelessWidget {
           spacing: 10,
           runSpacing: 10,
           children: [
-            for (final key in profileIconChoices.keys)
+            for (final key in profileIconIds)
               _Swatch(
                 selected: key == iconId,
                 color: tonal.card,

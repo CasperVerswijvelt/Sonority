@@ -98,9 +98,33 @@ class ProfileWidgetProvider : HomeWidgetProvider() {
         views.setPendingIntentTemplate(
             R.id.grid, PendingIntent.getActivity(context, id, template, flags))
 
+        // The empty state says "Tap to pick profiles" — make that true: tapping
+        // it opens this widget's configure screen.
+        val configure = Intent(context, ProfileWidgetConfigActivity::class.java).apply {
+            action = AppWidgetManager.ACTION_APPWIDGET_CONFIGURE
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+            data = Uri.fromParts("widget", id.toString(), null) // distinct per widget
+        }
+        views.setOnClickPendingIntent(
+            R.id.empty,
+            PendingIntent.getActivity(
+                context, id, configure,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+
         mgr.updateAppWidget(id, views)
         // Force the factory to re-read (tile set / sizes may have changed).
         mgr.notifyAppWidgetViewDataChanged(id, R.id.grid)
+    }
+
+    // Drop the removed widgets' per-widget prefs (the shared per-profile tiles
+    // stay — other widgets may use them).
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        val edit = HomeWidgetPlugin.getData(context).edit()
+        appWidgetIds.forEach { id ->
+            edit.remove("profileIds_$id").remove("profileId_$id")
+                .remove("cellH_$id").remove("tileS_$id")
+        }
+        edit.apply()
     }
 
     companion object {

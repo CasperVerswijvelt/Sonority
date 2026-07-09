@@ -7,9 +7,10 @@ import WidgetKit
 // tapping a tile deep-links `sonority://apply?homeWidget=1&id=…`, which the app
 // routes into the apply flow (see profile_widget.dart `initProfileWidget`).
 //
-// The widget holds a user-picked SET of profiles (Edit Widget). Small shows the
-// first one full-bleed; medium/large lay the picks out as a row/grid of tiles,
-// each independently tappable via its own `Link`.
+// The widget holds a user-picked SET of profiles (Edit Widget), laid out as a
+// grid of tiles in every family. systemSmall allows only one tap target, so
+// there the whole widget applies the first pick; medium/large tap per-tile via
+// each tile's own `Link`.
 
 private let appGroup = "group.be.casperverswijvelt.sonority"
 
@@ -75,19 +76,6 @@ struct ProfileProvider: AppIntentTimelineProvider {
   }
   func timeline(for configuration: SelectProfileIntent, in context: Context) async -> Timeline<ProfileEntry> {
     Timeline(entries: [ProfileEntry(date: Date(), profiles: resolved(configuration))], policy: .never)
-  }
-}
-
-private extension Color {
-  init(hex: String) {
-    let s = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
-    var v: UInt64 = 0
-    Scanner(string: s).scanHexInt64(&v)
-    self.init(
-      .sRGB,
-      red: Double((v >> 16) & 0xFF) / 255,
-      green: Double((v >> 8) & 0xFF) / 255,
-      blue: Double(v & 0xFF) / 255)
   }
 }
 

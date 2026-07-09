@@ -13,8 +13,8 @@ import 'profile_ui.dart';
 /// owns both the shortcut list and tap delivery on each platform:
 ///  - **iOS**: monochrome **SF Symbols** (`UIApplicationShortcutIcon(systemImageName:)`),
 ///    the only colour iOS home-screen quick actions allow.
-///  - **Android**: a full-colour per-profile icon — the profile's colour circle +
-///    Material glyph, rendered here to a PNG and wrapped natively as the icon.
+///  - **Android**: a full-colour per-profile icon — the profile's tonal circle +
+///    SF glyph, rendered here to a PNG and wrapped natively as the icon.
 ///
 /// A tap only hands the profile id back to Dart (via [initProfileShortcuts]); the
 /// long-running scan→apply happens in the app — it can't run in an OS shortcut's
@@ -64,11 +64,11 @@ Future<void> syncProfileShortcuts(List<Profile> profiles) async {
   await _channel.invokeMethod('setShortcuts', {'items': items});
 }
 
-/// Renders a profile's avatar (tonal circle + Material glyph) to a square PNG
-/// for the Android launcher icon — reuses the shared [profileTonal] treatment so
-/// it matches the in-app tile and widgets exactly.
-Future<Uint8List> _renderAvatarPng(String iconId, int color,
-    {double size = 144}) async {
+/// Renders a profile's avatar (tonal circle + SF glyph) to a square PNG for the
+/// Android launcher icon — reuses the shared [profileTonal] treatment so it
+/// matches the in-app tile and widgets exactly.
+Future<Uint8List> _renderAvatarPng(String iconId, int color) async {
+  const size = 144.0;
   final tonal = profileTonal(color, Brightness.light);
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -85,7 +85,7 @@ Future<Uint8List> _renderAvatarPng(String iconId, int color,
     text: TextSpan(
       text: String.fromCharCode(icon.codePoint),
       style: TextStyle(
-        // SF renders larger than Material, so a touch smaller than the old 0.55.
+        // SF renders large for its point size; 0.46 fills the circle nicely.
         fontSize: size * 0.46,
         fontFamily: icon.fontFamily,
         package: icon.fontPackage,

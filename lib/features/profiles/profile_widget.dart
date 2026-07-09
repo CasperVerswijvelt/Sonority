@@ -80,7 +80,9 @@ Future<void> publishWidgetProfiles(List<Profile> profiles) async {
 
   // Android: re-render each placed widget's chosen tiles in the PROFILE order
   // (reorder lives in the overview), dropping any profile that no longer exists
-  // and lazily upgrading old single-profile widgets.
+  // and lazily upgrading old single-profile widgets. Tiles are keyed by profile
+  // id, so render each profile once even when several widgets show it.
+  final rendered = <String>{};
   for (final w in await HomeWidget.getInstalledWidgets()) {
     final wid = w.androidWidgetId;
     if (wid == null) continue;
@@ -95,7 +97,7 @@ Future<void> publishWidgetProfiles(List<Profile> profiles) async {
           'profileIds_$wid', jsonEncode(chosenIds));
     }
     for (final p in chosen) {
-      await _renderTile(p);
+      if (rendered.add(p.id)) await _renderTile(p);
     }
   }
   await HomeWidget.updateWidget(qualifiedAndroidName: _androidProvider);
@@ -148,9 +150,9 @@ Future<void> _renderTile(Profile p) async {
   );
 }
 
-/// The Android tile's glyph: a white Material icon centred on a transparent
-/// square. Rendered to a PNG; the native tile tints it to the accent and sizes
-/// it (see [_renderTile]).
+/// The Android tile's glyph: a white SF glyph centred on a transparent square.
+/// Rendered to a PNG; the native tile tints it to the accent and sizes it
+/// (see [_renderTile]).
 class _WidgetTile extends StatelessWidget {
   final String iconId;
   const _WidgetTile({required this.iconId});

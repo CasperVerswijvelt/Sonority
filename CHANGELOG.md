@@ -21,8 +21,8 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 - **Home-screen widgets** — place a widget showing a hand-picked set of profiles
   (small/medium/large) and apply any of them in one tap. Tiles use a muted tonal
   look that adapts to light/dark; reorder profiles in the Profiles tab by
-  long-pressing a card. Android is built in; iOS needs a one-time Xcode setup
-  (see `docs/WIDGETS-SETUP.md`).
+  long-pressing a card. Built in on Android and iOS (only signing for a physical
+  iOS device needs a one-time Xcode step — see `docs/WIDGETS-SETUP.md`).
 
 ### Changed
 - The apply progress timeline now marks no-op steps as **skipped** (grey dot +

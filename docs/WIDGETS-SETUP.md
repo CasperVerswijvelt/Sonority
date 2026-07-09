@@ -9,9 +9,10 @@ into the same apply flow as an app shortcut (`initProfileWidget` in
 ## Sizes & multiple profiles
 
 Each widget holds a **user-picked set of profiles** (not just one) and comes in
-**small / medium / large**. Small shows the first pick; medium/large lay the picks
-out as a row/grid where **each tile is its own tap target** (deep-links that tile's
-`id`). The picked set + order are chosen when the widget is placed / edited.
+**small / medium / large**. Every size lays the picks out as a row/grid of tiles;
+on medium/large **each tile is its own tap target** (deep-links that tile's `id`),
+while small allows only one tap target (an OS limit) — tapping it applies the
+first pick. The picked set is chosen when the widget is placed / edited.
 
 ## Tile appearance (muted tonal)
 
@@ -35,12 +36,12 @@ license technically covers Apple platforms only. Both widgets sit on a **neutral
 container card** that adapts light/dark (iOS `.containerBackground`; Android
 `@drawable/widget_container` + `@android:id/background`, `@color/widget_container`
 with a `values-night` variant). The tile radius is the container radius **minus the
-8dp gap** so the cards nest concentrically — Android uses the launcher's own
-`system_app_widget_background_radius`/`system_app_widget_inner_radius` (API 31+,
-`values-v31/dimens.xml`; 28/20dp fallback). The Android config picker follows the
-system light/dark theme (`ThemeMode.system`). **Reorder:** Android's config screen has a
-drag handle per row; iOS can't reorder an array parameter in the Edit sheet (Apple
-limitation), so order = selection order there.
+8dp gap** so the cards nest concentrically — fixed 28/20dp on Android
+(`res/values/dimens.xml`; deliberately NOT the launcher's system radii, so the
+corners match the iOS tiles). The Android config picker follows the system
+light/dark theme (`ThemeMode.system`). **Reorder:** both pickers are select-only.
+On Android tile order is the Profiles-tab order; iOS can't reorder an array
+parameter in the Edit sheet (Apple limitation), so order = selection order there.
 
 - **iOS** — fixed families (`.systemSmall/.systemMedium/.systemLarge`). The picks
   live in the `SelectProfileIntent`'s `profiles: [ProfileOption]` array parameter;
@@ -52,7 +53,7 @@ limitation), so order = selection order there.
   back to showing the published profiles until re-edited once (harmless).
 - **Android** — free resize (`resizeMode="horizontal|vertical"`). A collection
   widget (`ProfileTileRemoteViewsService` + a `GridView`) reflows the tiles;
-  `ProfileWidgetProvider` sets the column count from the current width. Widgets
+  `ProfileWidgetProvider` picks the best rows×cols fit for the current size. Widgets
   placed by an earlier build lazily migrate on next profile change
   (`profileIds_<id>` JSON with a `profileId_<id>` single-key fallback).
 
@@ -99,7 +100,7 @@ What's in the repo:
 
 Verified on the simulator: the extension registers with the system
 (`pluginkit -mv` lists `be.casperverswijvelt.sonority.ProfileWidget`) and appears
-in the widget gallery as "Sonority profile".
+in the widget gallery as "Sonority profiles".
 
 ### ⚠️ iOS 26 Simulator doesn't deliver the widget's profile selection
 
