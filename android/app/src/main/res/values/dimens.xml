@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget nesting radii. The tile radius is the container radius minus the 8dp
+     gap so the cards nest concentrically inside the widget background. Fixed (not
+     the launcher's larger system radius) so the tile corners match the iOS tiles. -->
+<resources>
+    <dimen name="widget_bg_radius">28dp</dimen>
+    <dimen name="widget_tile_radius">20dp</dimen>
+</resources>

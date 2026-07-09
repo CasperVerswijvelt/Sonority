@@ -64,11 +64,12 @@ Future<void> syncProfileShortcuts(List<Profile> profiles) async {
   await _channel.invokeMethod('setShortcuts', {'items': items});
 }
 
-/// Renders a profile's avatar (colour circle + Material glyph) to a square PNG
-/// for the Android launcher icon — reuses [profileColor] / [profileIcon] so it
-/// matches the in-app tile exactly.
+/// Renders a profile's avatar (tonal circle + Material glyph) to a square PNG
+/// for the Android launcher icon — reuses the shared [profileTonal] treatment so
+/// it matches the in-app tile and widgets exactly.
 Future<Uint8List> _renderAvatarPng(String iconId, int color,
     {double size = 144}) async {
+  final tonal = profileTonal(color, Brightness.light);
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   canvas.drawCircle(
@@ -76,18 +77,19 @@ Future<Uint8List> _renderAvatarPng(String iconId, int color,
     size / 2,
     Paint()
       ..isAntiAlias = true
-      ..color = profileColor(color),
+      ..color = tonal.card,
   );
-  final icon = profileIcon(iconId);
+  final icon = profileSfIcon(iconId);
   final tp = TextPainter(
     textDirection: TextDirection.ltr,
     text: TextSpan(
       text: String.fromCharCode(icon.codePoint),
       style: TextStyle(
-        fontSize: size * 0.55,
+        // SF renders larger than Material, so a touch smaller than the old 0.55.
+        fontSize: size * 0.46,
         fontFamily: icon.fontFamily,
         package: icon.fontPackage,
-        color: Colors.white,
+        color: tonal.icon,
       ),
     ),
   )..layout();

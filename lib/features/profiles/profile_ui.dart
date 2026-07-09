@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_sficon/flutter_sficon.dart';
 
@@ -72,18 +70,15 @@ Set<String> get profileSfIconKeys => _profileSfIcons.keys.toSet();
 @visibleForTesting
 Set<String> get sfSymbolNameKeys => _sfSymbolNames.keys.toSet();
 
-/// The profile glyph as a widget: an SF Symbol on iOS (matches the quick-action
-/// icon), a Material icon everywhere else (matches the Android launcher bitmap
-/// and the rest of that platform's iconography).
-Widget profileGlyph(String iconId, {required double size, required Color color}) {
-  if (Platform.isIOS) {
-    // SF Symbols render larger/tighter than a Material icon at the same point
-    // size, so scale down for the same visual weight + padding in the circle.
-    return SFIcon(_profileSfIcons[iconId] ?? SFIcons.sf_star,
-        fontSize: size * 0.82, color: color);
-  }
-  return Icon(profileIcon(iconId), size: size, color: color);
-}
+/// The SF Symbol [IconData] for a profile icon (falls back to a star). Used on
+/// every platform now — profiles are visualised with SF Symbols throughout.
+IconData profileSfIcon(String iconId) => _profileSfIcons[iconId] ?? SFIcons.sf_star;
+
+/// The profile glyph as a widget — an SF Symbol on all platforms (profiles use
+/// SF Symbols everywhere). SF renders larger/tighter than a Material icon at the
+/// same point size, so scale down for the same visual weight + padding.
+Widget profileGlyph(String iconId, {required double size, required Color color}) =>
+    SFIcon(profileSfIcon(iconId), fontSize: size * 0.82, color: color);
 
 /// Fixed accent palette a user can pick for a profile. [Profile.color] stores an
 /// index into this list; white foreground reads well on every entry.
@@ -101,6 +96,59 @@ const profilePalette = <Color>[
 /// Resolves a stored [Profile.color] index to its accent (wraps defensively).
 Color profileColor(int index) => profilePalette[index % profilePalette.length];
 
+/// The "muted tonal" rendering of a profile: a soft card fill, a contrast-safe
+/// icon in the accent, and a normal-weight label. Every surface (in-app tile,
+/// appearance preview, Android shortcut, both widgets) uses this so the look is
+/// identical — the iOS widget mirrors this in Swift (`tonal(...)`), and the
+/// Android widget derives it natively from the published accent hex + brightness.
+typedef ProfileTonal = ({Color card, Color icon, Color label});
+
+ProfileTonal profileTonal(int colorIndex, Brightness brightness) {
+  final a = profileColor(colorIndex);
+  if (brightness == Brightness.dark) {
+    const surface = Color(0xFF1B1B20);
+    final card = Color.alphaBlend(a.withValues(alpha: 0.30), surface);
+    return (
+      card: card,
+      icon: _ensureContrast(_mix(a, Colors.white, 0.30), card, toward: Colors.white),
+      label: const Color(0xFFECECEF),
+    );
+  }
+  const surface = Color(0xFFFBFBFD);
+  final card = Color.alphaBlend(a.withValues(alpha: 0.14), surface);
+  return (
+    card: card,
+    icon: _ensureContrast(a, card, toward: Colors.black),
+    label: const Color(0xFF1D1D22),
+  );
+}
+
+/// Shared tile-shape/size spec (replicated in the iOS Swift widget + the Android
+/// native tile). Sizes that depend on the tile's short edge `s` are computed by
+/// [glyphSize] / [labelSize]; the corner radius is fixed so it reads consistent
+/// across widget sizes.
+const double tileRadius = 20;
+double glyphSize(double s) => (0.30 * s).clamp(18, 40);
+double labelSize(double s) => (0.12 * s).clamp(11, 15);
+
+Color _mix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
+
+double _contrast(Color a, Color b) {
+  final l1 = a.computeLuminance(), l2 = b.computeLuminance();
+  final hi = l1 > l2 ? l1 : l2, lo = l1 > l2 ? l2 : l1;
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/// Nudges [fg] toward [toward] (black or white) until it clears ~3:1 against
+/// [bg] — icons are large, so 3:1 is an ample legibility floor.
+Color _ensureContrast(Color fg, Color bg, {required Color toward}) {
+  var c = fg;
+  for (var i = 0; i < 8 && _contrast(c, bg) < 3.0; i++) {
+    c = _mix(c, toward, 0.12);
+  }
+  return c;
+}
+
 /// Compact 56×56 swatch showing a profile's icon on its colour; opens the
 /// appearance picker on tap. Sits next to the name field on create + edit.
 class AppearanceButton extends StatelessWidget {
@@ -114,20 +162,22 @@ class AppearanceButton extends StatelessWidget {
       required this.onTap});
 
   @override
-  Widget build(BuildContext context) => InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: profileColor(color),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Center(
-              child: profileGlyph(iconId, size: 26, color: Colors.white)),
+  Widget build(BuildContext context) {
+    final t = profileTonal(color, Theme.of(context).brightness);
+    return InkWell(
+      borderRadius: BorderRadius.circular(tileRadius),
+      onTap: onTap,
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: t.card,
+          borderRadius: BorderRadius.circular(tileRadius),
         ),
-      );
+        child: Center(child: profileGlyph(iconId, size: 26, color: t.icon)),
+      ),
+    );
+  }
 }
 
 /// Icon + colour picker dialog. Returns the chosen `(iconId, color)`, or null if
@@ -180,7 +230,7 @@ class _AppearancePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = profileColor(color);
+    final tonal = profileTonal(color, theme.brightness);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,13 +242,13 @@ class _AppearancePicker extends StatelessWidget {
             for (final key in profileIconChoices.keys)
               _Swatch(
                 selected: key == iconId,
-                color: accent,
+                color: tonal.card,
                 onTap: () => onIcon(key),
                 child: profileGlyph(
                   key,
                   size: 22,
                   color: key == iconId
-                      ? Colors.white
+                      ? tonal.icon
                       : theme.colorScheme.onSurfaceVariant,
                 ),
               ),

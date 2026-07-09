@@ -167,6 +167,7 @@ class _ProfileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tonal = profileTonal(profile.color, theme.brightness);
     final summary = profile.entities.map((e) => e.label).join(' · ');
     final settings = profile.settingsSummary;
     return Card(
@@ -179,15 +180,15 @@ class _ProfileTile extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: profileColor(profile.color),
-                  shape: BoxShape.circle,
+                  color: tonal.card,
+                  borderRadius: BorderRadius.circular(tileRadius),
                 ),
                 child: Center(
                   child: profileGlyph(profile.iconId,
-                      size: 22, color: Colors.white),
+                      size: 22, color: tonal.icon),
                 ),
               ),
               Gap.m,

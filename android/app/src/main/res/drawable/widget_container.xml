@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The widget's neutral background card — adapts light/dark via @color/
+     widget_container and rounds to the launcher's widget radius. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/widget_container" />
+    <corners android:radius="@dimen/widget_bg_radius" />
+</shape>

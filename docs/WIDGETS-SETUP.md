@@ -2,25 +2,74 @@
 
 The **Profile widget** applies a saved profile in one tap from the home screen.
 A tap can't run the multi-minute apply in the widget's process, so it launches
-the app with `sonority://apply?id=<profileId>`, which Flutter routes into the
-same apply flow as an app shortcut (`initProfileWidget` in
+the app with `sonority://apply?homeWidget=1&id=<profileId>`, which Flutter routes
+into the same apply flow as an app shortcut (`initProfileWidget` in
 `lib/features/profiles/profile_widget.dart`).
+
+## Sizes & multiple profiles
+
+Each widget holds a **user-picked set of profiles** (not just one) and comes in
+**small / medium / large**. Small shows the first pick; medium/large lay the picks
+out as a row/grid where **each tile is its own tap target** (deep-links that tile's
+`id`). The picked set + order are chosen when the widget is placed / edited.
+
+## Tile appearance (muted tonal)
+
+Tiles use one shared "muted tonal" treatment across every surface (in-app tile,
+appearance picker, both widgets, Android shortcut): a soft tint of the profile
+colour as the card, the icon in the (contrast-guarded) accent colour, and the name
+in the normal on-surface colour — adapting to light/dark. The derivation lives in
+`profileTonal` (`profile_ui.dart`) and is mirrored in `ProfileTonal` (Kotlin) +
+`widgetTonal` (Swift) so all three match. Sizing is one spec too — glyph
+`clamp(0.30·shortEdge, 18, 40)`, label `clamp(0.12·shortEdge, 11, 15)` (fixed, no
+length-scaling), corner radius 20 — so iOS and Android look identical across sizes.
+On Android the glyph is a white PNG tinted at runtime + a native label (sizable, so
+the glyph can be capped); on iOS the SF glyph is `.widgetAccentable()` so it stays
+clean on an iOS-18 tinted Home Screen. **Glyphs are SF Symbols on every platform**
+(via `flutter_sficon`; `profileSfIcon`/`profileGlyph`) — note Apple's SF Symbols
+license technically covers Apple platforms only. Both widgets sit on a **neutral
+container card** that adapts light/dark (iOS `.containerBackground`; Android
+`@drawable/widget_container` + `@android:id/background`, `@color/widget_container`
+with a `values-night` variant). The tile radius is the container radius **minus the
+8dp gap** so the cards nest concentrically — Android uses the launcher's own
+`system_app_widget_background_radius`/`system_app_widget_inner_radius` (API 31+,
+`values-v31/dimens.xml`; 28/20dp fallback). The Android config picker follows the
+system light/dark theme (`ThemeMode.system`). **Reorder:** Android's config screen has a
+drag handle per row; iOS can't reorder an array parameter in the Edit sheet (Apple
+limitation), so order = selection order there.
+
+- **iOS** — fixed families (`.systemSmall/.systemMedium/.systemLarge`). The picks
+  live in the `SelectProfileIntent`'s `profiles: [ProfileOption]` array parameter;
+  *Edit Widget* renders an add/remove picker sourced from the shared
+  `widget_profiles` list (order = selection order; the Edit sheet can't reorder an
+  array parameter — an Apple limitation). ⚠️ **Migration:** renaming the old single
+  `profile`
+  parameter to `profiles` orphans widgets placed by an earlier build — they fall
+  back to showing the published profiles until re-edited once (harmless).
+- **Android** — free resize (`resizeMode="horizontal|vertical"`). A collection
+  widget (`ProfileTileRemoteViewsService` + a `GridView`) reflows the tiles;
+  `ProfileWidgetProvider` sets the column count from the current width. Widgets
+  placed by an earlier build lazily migrate on next profile change
+  (`profileIds_<id>` JSON with a `profileId_<id>` single-key fallback).
 
 ## Android — done, no manual step
 
 Fully wired in this repo:
 
-- `ProfileWidgetProvider.kt` — `HomeWidgetProvider`; renders the avatar + name
-  and sets the tap `PendingIntent`.
+- `ProfileWidgetProvider.kt` — `HomeWidgetProvider`; builds the `GridView`
+  collection, computes columns from the widget size, and sets a mutable, data-less
+  `PendingIntent` template (per-tile fill-ins supply each `id`).
+- `ProfileTileRemoteViewsService.kt` — the `RemoteViewsFactory` backing the grid:
+  one square tile per chosen profile, each with its own fill-in intent.
 - `ProfileWidgetConfigActivity.kt` — runs the `widgetConfig` Dart entrypoint
-  (a lightweight profile picker) when the widget is placed.
-- `res/layout/profile_widget.xml`, `res/drawable/profile_widget_bg.xml`,
-  `res/xml/profile_widget_info.xml`, and the `<receiver>` + `<activity>` in
-  `AndroidManifest.xml`.
+  (a multi-select profile picker) when the widget is placed.
+- `res/layout/profile_widget.xml` (GridView + empty view),
+  `res/layout/profile_tile_item.xml` (one cell), `res/xml/profile_widget_info.xml`,
+  and the `<receiver>` + `<service>` + `<activity>` in `AndroidManifest.xml`.
 
-Per-widget data is keyed by widget id in `home_widget`'s shared prefs; the
-colour circle + glyph is rendered in Flutter (`renderFlutterWidget`) and shown
-via `RemoteViews`.
+Per-widget data (the ordered `profileIds_<widgetId>` JSON) is keyed by widget id in
+`home_widget`'s shared prefs; each profile's colour tile + glyph is rendered in
+Flutter (`renderFlutterWidget`, keyed `tile_<profileId>`) and shown via `RemoteViews`.
 
 ## iOS — wired in this repo
 
@@ -31,9 +80,10 @@ committed** (the extension target was added to `Runner.xcodeproj` with the
 What's in the repo:
 
 - `ios/ProfileWidget/ProfileWidget.swift` — SwiftUI widget + `AppIntentConfiguration`
-  (iOS 17+); the long-press *Edit Widget → pick a profile* flow. Reads the shared
-  `widget_profiles` JSON and renders the profile's colour circle + SF glyph;
-  `widgetURL` deep-links `sonority://apply?id=…`.
+  (iOS 17+); the long-press *Edit Widget → pick profiles* flow (a `[ProfileOption]`
+  array parameter). Reads the shared `widget_profiles` JSON and renders each pick's
+  colour tile + SF glyph across small/medium/large; small uses `widgetURL`,
+  medium/large a `Link` per tile — both `sonority://apply?homeWidget=1&id=…`.
 - `ios/ProfileWidget/{Info.plist,ProfileWidget.entitlements}` and
   `ios/Runner/Runner.entitlements` — both carry the App Group
   `group.be.casperverswijvelt.sonority`.
@@ -57,7 +107,8 @@ Confirmed an **iOS 26 Simulator regression**, not a bug in this code:
   but the widget always renders/applies the first profile. Traced with `os_log`:
   `suggestedEntities` fires (the picker lists every profile) yet the chosen value
   is never delivered to the timeline — `entities(for:)` is never called and
-  `configuration.profile` stays nil. A full simulator reboot didn't help.
+  `configuration.profiles` stays empty (the provider then falls back to showing all
+  published profiles). A full simulator reboot didn't help.
 
 The App Intents metadata (`SelectProfileIntent` / `ProfileOption` / `ProfileQuery`)
 is correct, so the per-widget selection works on a real device / older simulator;

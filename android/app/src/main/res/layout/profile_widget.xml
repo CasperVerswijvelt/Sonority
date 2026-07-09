@@ -1,9 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The tile (colour + glyph + name) is a square PNG rendered in Flutter;
-     fitCenter scales it to the largest square that fits the widget's space. -->
-<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_tile"
+<!-- Neutral rounded container (adapts light/dark, rounds to the launcher's widget
+     radius) holding a grid of tonal profile tiles. Tiles are inset by the 8dp
+     gap and use widget_tile_radius (= bg radius - 8dp) so they nest concentrically
+     inside the container. @android:id/background lets the launcher auto-clip us. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:scaleType="fitCenter"
-    android:contentDescription="@null" />
+    android:background="@drawable/widget_container">
+    <GridView
+        android:id="@+id/grid"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:numColumns="1"
+        android:stretchMode="none"
+        android:horizontalSpacing="8dp"
+        android:verticalSpacing="8dp"
+        android:gravity="center" />
+    <TextView
+        android:id="@+id/empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:padding="12dp"
+        android:text="Tap to pick profiles"
+        android:textColor="?android:attr/textColorSecondary" />
+</FrameLayout>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rounded tile background. Solid white so it can be tinted to the profile
+     colour at runtime via ImageView.setColorFilter; corners are a fixed radius
+     (a GradientDrawable draws them at this radius regardless of the view's
+     size, so they never stretch when the cell is non-square). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FFFFFF" />
+    <corners android:radius="@dimen/widget_tile_radius" />
+</shape>

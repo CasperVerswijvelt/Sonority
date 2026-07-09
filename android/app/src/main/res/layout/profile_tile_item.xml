@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One grid cell (muted-tonal). The provider sets the cell height (API 31+; 72dp
+     fallback) and the column width; the factory tints tile_bg to the tonal card,
+     tints + sizes the glyph, and sets the label's text/size/colour. fitXY on the
+     rounded shape fills the (possibly non-square) cell with fixed corners; the
+     glyph + label are real views so they never stretch and sizing matches iOS. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tile_cell"
+    android:layout_width="match_parent"
+    android:layout_height="72dp">
+    <ImageView
+        android:id="@+id/tile_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/tile_bg"
+        android:scaleType="fitXY"
+        android:contentDescription="@null" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="8dp">
+        <ImageView
+            android:id="@+id/widget_tile"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@null" />
+        <TextView
+            android:id="@+id/widget_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textSize="13sp"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+</FrameLayout>
