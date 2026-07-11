@@ -106,8 +106,39 @@ shot mac   2560 1600 design/appstore/mac-1-overview.png 0        # macOS
 ```
 
 `i` (0–3) selects the source shot; `design/play/play-icon-512.png` is the app icon
-(regenerate from `design/export.html` only if the icon changes). For the README
-gallery, copy the raw `design/shots/*` into `docs/screenshots/*`.
+(regenerate from `design/export.html`, below, only if the icon changes). For the
+README gallery, copy the raw `design/shots/*` into `docs/screenshots/*`.
+
+### App icon + wordmark (from `design/export.html`)
+
+The launcher icon is the **mark only** (the 9c-3 speaker trio) on every platform;
+the "SONORITY" wordmark lives in the logo lockup, not the icon. Sources render
+from `design/export.html` the same headless way:
+
+```sh
+BASE="file://$PWD/design/export.html"
+shot(){ "$CHROME" --headless=new --disable-gpu --force-device-scale-factor=1 \
+  --hide-scrollbars --window-size=$2,$3 --virtual-time-budget=2500 \
+  --screenshot="$4" "$1" >/dev/null 2>&1; }
+
+shot "$BASE?mode=icon"    1024 1024 design/assets/icon.png      # iOS/macOS/Android-legacy + splash
+shot "$BASE?mode=iconfg"  1024 1024 design/assets/icon_fg.png   # Android adaptive foreground (safe inset)
+shot "$BASE?mode=wordmark" 1000 260 design/assets/wordmark.png  # splash branding (unchanged unless the wordmark changes)
+shot "$BASE?mode=icon"     512  512 design/play/play-icon-512.png  # Play store icon
+shot "$BASE?mode=icon"     512  512 docs/icon.png                  # README header icon
+```
+
+Then regenerate the native icon sets + splash and revert the manifest churn the
+splash tool introduces (it strips `android:screenOrientation="portrait"`):
+
+```sh
+~/fvm/versions/3.35.2/bin/dart run flutter_launcher_icons
+~/fvm/versions/3.35.2/bin/dart run flutter_native_splash:create
+git checkout android/app/src/main/AndroidManifest.xml   # keep portrait-only + avoid reformat churn
+```
+
+The parametric source of the mark is `design/logo.html` (icon + lockup); the full
+concept exploration is archived in `design/logo_concepts.html`.
 
 Verify every output's exact pixels:
 

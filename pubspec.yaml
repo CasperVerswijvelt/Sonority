@@ -66,24 +66,24 @@ dev_dependencies:
   flutter_native_splash: ^2.4.7
 
 # App launcher icons — generate with: dart run flutter_launcher_icons
-# Rendered from design/export.html. Per-platform sources by deliberate design:
-#  • Android (legacy + adaptive foreground) = diagram-only — the launcher's
-#    CIRCULAR mask would clip a wordmark.
-#  • iOS / macOS = diagram + "SONORITY" — the squircle mask never clips centered
-#    text (verified in design/ios_preview.html before it was removed).
+# Rendered from design/export.html. The icon is the MARK ONLY (the 9c-3 speaker
+# trio) on every platform — no wordmark: Apple HIG discourages app-name text in
+# icons and the Android mask would clip it, and the OS prints the name under the
+# icon anyway. The "SONORITY" wordmark lives in the logo lockup (splash branding
+# below + marketing + design/logo.html), not in the app icon.
 flutter_launcher_icons:
-  image_path: "design/assets/icon.png"          # Android legacy (diagram-only)
-  image_path_ios: "design/assets/icon_text.png" # iOS (with wordmark)
+  image_path: "design/assets/icon.png"          # mark only (Android legacy, iOS, macOS)
+  image_path_ios: "design/assets/icon.png"      # iOS — mark only
   android: true
   adaptive_icon_background: "#0A0A0B"
-  adaptive_icon_foreground: "design/assets/icon_fg.png"  # diagram-only, scale 1.0
+  adaptive_icon_foreground: "design/assets/icon_fg.png"  # mark only, safe inset (scale 1.0)
   min_sdk_android: 21
   ios: true
   remove_alpha_ios: true
   background_color_ios: "#0A0A0B"
   macos:
     generate: true
-    image_path: "design/assets/icon_text.png"   # macOS (with wordmark)
+    image_path: "design/assets/icon.png"         # macOS — mark only
 
 # Splash screen — generate with: dart run flutter_native_splash:create
 flutter_native_splash:
