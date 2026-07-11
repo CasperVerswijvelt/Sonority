@@ -8,6 +8,13 @@ import 'dart:io';
 /// multicast group `239.255.255.250:1900` and collect `LOCATION` headers from
 /// the unicast replies. Each location points at a player's
 /// `http://<ip>:1400/xml/device_description.xml`.
+///
+/// If SSDP yields nothing we fall back to a unicast sweep of the local /24
+/// on TCP port 1400. Multicast sends silently fail on physical iPhones
+/// (they need the restricted `com.apple.developer.networking.multicast`
+/// entitlement; unicast only needs the local-network permission) and are
+/// filtered by some mesh/guest networks. One hit is enough — the repository
+/// recovers the rest of the system from topology.
 class SsdpDiscovery {
   static final InternetAddress _multicast = InternetAddress('239.255.255.250');
   static const int _port = 1900;
@@ -49,6 +56,33 @@ class SsdpDiscovery {
     } finally {
       socket?.close();
     }
+    if (locations.isEmpty) return _scanSubnet();
+    return locations;
+  }
+
+  /// Unicast fallback: probe every /24 neighbour on TCP :1400 and synthesize
+  /// the same description URLs SSDP would have returned.
+  Future<Set<String>> _scanSubnet() async {
+    final locations = <String>{};
+    final interfaces = await NetworkInterface.list(
+      type: InternetAddressType.IPv4,
+      includeLoopback: false,
+    );
+    final candidates = <String>{
+      for (final i in interfaces)
+        for (final a in i.addresses)
+          if (!a.address.startsWith('169.254.')) ...subnetHosts(a.address),
+    };
+    await Future.wait(candidates.map((ip) async {
+      try {
+        final s = await Socket.connect(ip, 1400,
+            timeout: const Duration(milliseconds: 600));
+        s.destroy();
+        locations.add('http://$ip:1400/xml/device_description.xml');
+      } catch (_) {
+        // Not a Sonos player (or not up) — skip.
+      }
+    }));
     return locations;
   }
 
@@ -60,6 +94,19 @@ class SsdpDiscovery {
         'ST: $_searchTarget\r\n'
         '\r\n';
     return msg.codeUnits;
+  }
+
+  /// The other hosts of [ip]'s /24 (`.1`–`.254`, excluding [ip] itself).
+  // ponytail: dart:io exposes no netmask — assume /24. On a wider subnet the
+  // sweep still succeeds if ANY player shares this /24 slice (topology
+  // recovers the rest); only all-players-outside-the-slice fails. If that
+  // bites, add real netmask detection (platform channel / getifaddrs).
+  static List<String> subnetHosts(String ip) {
+    final prefix = ip.substring(0, ip.lastIndexOf('.'));
+    return [
+      for (var h = 1; h <= 254; h++)
+        if ('$prefix.$h' != ip) '$prefix.$h',
+    ];
   }
 
   String? _extractLocation(String response) {
