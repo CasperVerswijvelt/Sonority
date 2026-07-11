@@ -399,6 +399,11 @@ pkill -x Sonority                          # quit (AppleScript quit gets cancell
 - **Safety:** navigation + screenshots are fine autonomously; anything that fires a
   live Sonos write (apply/bond/separate/rename) still needs explicit user confirm —
   it's the user's real living-room system.
+- **Demo mode:** build with `--dart-define=DEMO=true` to feed the UI a fake
+  photogenic system + profiles (`lib/demo/demo_mode.dart`) — no LAN/hardware
+  needed; the marketing-screenshot path (`docs/MARKETING-ASSETS.md` §2). UI work
+  can be verified against it without touching the real system (read-only: apply/
+  bond taps just time out against the fake IPs).
 
 ## Feature status
 - ✅ Discovery + topology + Material 3 UI (discovery → home-theater diagram).

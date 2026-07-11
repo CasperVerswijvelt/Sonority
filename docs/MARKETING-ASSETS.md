@@ -34,17 +34,24 @@ When features ship, update all four in one pass, cross-checking `CHANGELOG.md`:
 ## 2. Screenshots — the four canonical screens
 
 Sonority markets four screens: **overview**, **home-theater detail**,
-**group creation**, **profiles**. Capturing them needs the app running against a
-real Sonos system, in a photogenic state.
+**group creation**, **profiles**. Capture them with the app in **demo mode**
+(`--dart-define=DEMO=true`, see `lib/demo/demo_mode.dart`): it feeds the UI a
+hand-crafted photogenic system — a Living Room 5.1 with dedicated fronts, an
+Office stereo pair, a 3-speaker Upstairs zone, three standalone rooms, and two
+seeded profiles — with **no LAN, no real hardware, no staging, and no revert
+step**. Demo mode is navigation-only: don't tap apply/bond (the fake IPs would
+just time out).
 
 ### Capture (Android emulator + adb)
 
 The macOS Flutter window can't be scripted (single canvas, no a11y tree); the
-Android emulator can, via `adb`.
+Android emulator can, via `adb` — and in demo mode it needs no LAN access.
+(The macOS window + `tool/macos_ui.swift` is a workable alternative capture
+host for non-store shots.)
 
 ```sh
-# build + install a release APK (no debug banner)
-~/fvm/versions/3.35.2/bin/flutter build apk --release
+# build + install a release APK (no debug banner) with the demo system baked in
+~/fvm/versions/3.35.2/bin/flutter build apk --release --dart-define=DEMO=true
 adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-release.apk
 adb -s emulator-5554 shell am start -n be.casperverswijvelt.sonority/.MainActivity
 
@@ -63,23 +70,11 @@ Save the four as `design/shots/01-overview.png`, `02-home-theater.png`,
 `03-group.png`, `04-profiles.png` (any size with a ~1080×2400 phone aspect; the
 generator frames them, so exact dimensions don't matter).
 
-### ⚠️ Staging on the LIVE system — snapshot & restore
+### Changing what the screenshots show
 
-To make the screens look good you'll bond a home theater, create a group, and
-rename rooms on the **real** Sonos system. This is destructive to the user's
-living-room setup, so:
-
-1. **Snapshot first** (read-only): `~/fvm/versions/3.35.2/bin/dart run tool/spike.dart`
-   — save every room's `RINCON_…` → name and any bonding.
-2. Stage: rename rooms to clean English names; build one HT (fronts + surrounds +
-   sub); create one group; save 1–2 profiles (profiles are app-local, no Sonos
-   impact).
-3. Capture the four screens.
-4. **Revert, non-negotiable:** separate every group/HT you created, then rename
-   every room back to its snapshot name. Re-run `tool/spike.dart` and confirm
-   names **and** topology match the snapshot exactly. (Group/pair separate
-   restores names automatically; HT-satellite removal does **not** rename the
-   soundbar or a room you renamed — restore those by hand.)
+Edit the fake system/profiles in `lib/demo/demo_mode.dart` — no live-Sonos
+staging or revert ritual anymore. `test/demo_mode_test.dart` guards the
+hand-written channel-map strings, so keep it in sync.
 
 ## 3. Generate the framed graphics
 

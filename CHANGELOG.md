@@ -9,6 +9,11 @@ Releasing: before tagging `vX.Y.Z-<rebuild>` (e.g. `v0.5.0-12` for build
 section into the GitHub Release notes regardless of the build suffix
 (see `.github/workflows/release.yml`).
 
+## [Unreleased]
+
+### Added
+- Internal: demo-data mode (`--dart-define=DEMO=true`) — a fake photogenic Sonos system + profiles for hardware-free marketing screenshots.
+
 ## [0.5.0] - 2026-07-11
 
 ### Added
