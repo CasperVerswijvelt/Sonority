@@ -41,8 +41,7 @@ section into the GitHub Release notes regardless of the build suffix
 - **Home-screen widgets** — place a widget showing a hand-picked set of profiles
   (small/medium/large) and apply any of them in one tap. Tiles use a muted tonal
   look that adapts to light/dark; reorder profiles in the Profiles tab by
-  long-pressing a card. Built in on Android and iOS (only signing for a physical
-  iOS device needs a one-time Xcode step — see `docs/WIDGETS-SETUP.md`).
+  long-pressing a card.
 - **Full in-app home-theater setup** — the guided flow now bonds dedicated
   fronts plus **rear surrounds and a sub** (each optional), with a live
   per-step progress timeline showing the active step and exactly where it

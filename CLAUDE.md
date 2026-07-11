@@ -446,7 +446,9 @@ pkill -x Sonority                          # quit (AppleScript quit gets cancell
 1. Implement on a **feature branch** off `main`. Never bump `version:` on the
    branch (see Toolchain — bumps happen only on `main`).
 2. Add a `CHANGELOG.md` entry under `## [Unreleased]` (create the section if
-   absent), unless the user names another version.
+   absent), unless the user names another version. Keep it **concise** — one
+   line/sentence unless the change genuinely needs more to explain it. Write
+   each entry as a **single unwrapped line** (no hard newlines mid-entry).
 3. `flutter analyze` + `flutter test` green.
 4. **Pre-merge review** before opening the PR: spawn a fresh review subagent
    prompted with the Review guidelines below, plus run `/code-review` and
