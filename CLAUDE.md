@@ -356,6 +356,20 @@ Run on the same Wi-Fi as the Sonos system:
 ## Platform notes
 - iOS: `Info.plist` has `NSLocalNetworkUsageDescription` + `NSBonjourServices`
   (mandatory on iOS 14+ or all LAN traffic is silently blocked).
+- **iOS device multicast is blocked (cost a real TestFlight bug):** physical
+  iPhones silently drop multicast sends (SSDP M-SEARCH) unless the app carries
+  the *restricted* `com.apple.developer.networking.multicast` entitlement —
+  the iOS target has no entitlements file. Simulator doesn't enforce it (sim
+  worked, device didn't); the local-network permission prompt covers unicast
+  only. Fix: `SsdpDiscovery.discover()` falls back to a unicast TCP :1400
+  sweep of each interface's /24 (assumed /24 — `dart:io` exposes no netmask;
+  ~600ms, one hit suffices since topology recovers the rest). Also helps
+  multicast-filtering mesh/guest networks. **Future improvement:** request the
+  multicast entitlement from Apple (developer.apple.com → "Multicast Networking
+  Entitlement Request", days–weeks), enable the capability on the App ID, add
+  `ios/Runner/Runner.entitlements` + `CODE_SIGN_ENTITLEMENTS` in the pbxproj,
+  regenerate match profiles (`docs/SIGNING.md`) — restores native SSDP on
+  device; keep the sweep as fallback regardless.
 - macOS: entitlements include `network.client` + `network.server`; window is locked
   to a fixed **420×880 portrait** (`MainFlutterWindow.swift`) so the UI only ever
   handles one mobile layout.

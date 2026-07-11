@@ -42,6 +42,15 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   appears only while content scrolls under it — replacing its drop shadow, so
   every screen's chrome reads as flat and line-based.
 
+### Fixed
+- **Discovery on iPhone** — the TestFlight build could hang on "Scanning your
+  network" and fail: real iPhones silently block the multicast discovery
+  packets (a restricted Apple entitlement the app doesn't carry; the simulator
+  doesn't enforce it). When multicast finds nothing, discovery now falls back
+  to directly probing the local network for Sonos players — which only needs
+  the local-network permission the app already asks for. This also helps
+  mesh/guest networks that filter multicast.
+
 ## [0.5.0] - 2026-07-06
 
 ### Added
