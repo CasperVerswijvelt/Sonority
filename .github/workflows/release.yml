@@ -1,8 +1,9 @@
 name: Release
 
 # Builds installable artifacts and publishes a GitHub Release when a version
-# tag is pushed, e.g.:
-#   git tag v0.1.0 && git push origin v0.1.0
+# tag is pushed. Tags are vX.Y.Z-<rebuild> (unique per build, never moved or
+# reused; see CLAUDE.md "Release flow"), e.g.:
+#   git tag v0.5.0-12 && git push origin v0.5.0-12
 #
 # One job per platform × destination, all running in parallel:
 #   android           release-signed APK + AAB → GitHub Release + Google Play
@@ -278,6 +279,8 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: artifacts
+      # Tags are never reused across builds, so this only cleans up a failed
+      # re-run of the SAME tag — it never removes a previous release.
       - name: Delete existing release for this tag (clean re-runs)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -285,6 +288,7 @@ jobs:
       - name: Compose release notes (changelog section + install notes)
         run: |
           version="${GITHUB_REF_NAME#v}"
+          version="${version%%-*}"   # v0.5.0-12 → 0.5.0 (notes ignore the build)
           # Extract the "## [<version>] ..." section from CHANGELOG.md, stopping
           # at the next "## [" heading.
           section=$(awk -v ver="$version" '
@@ -309,4 +313,7 @@ jobs:
           # NOTE: do not enable generate_release_notes — it overrides body_path.
           # body = the matching CHANGELOG.md section + the install instructions.
           body_path: release-body.md
+          # Every release starts as a pre-release; the user flips it to a full
+          # release manually when it actually ships.
+          prerelease: true
           fail_on_unmatched_files: false
