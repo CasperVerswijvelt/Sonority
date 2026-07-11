@@ -63,10 +63,18 @@ struct ProfileEntry: TimelineEntry {
 
 struct ProfileProvider: AppIntentTimelineProvider {
   /// The picks, or — when unconfigured / a selection wasn't delivered — every
-  /// published profile, so the widget is never blank.
+  /// published profile, so the widget is never blank. Re-reads the picks from the
+  /// published list every reload so both ORDER and name/colour stay fresh: app
+  /// order is canonical (reorder lives in the Profiles tab), and the order cached
+  /// in `configuration.profiles` is the stale config-time order — WidgetKit does
+  /// not re-run the EntityQuery on a timeline reload.
   private func resolved(_ configuration: SelectProfileIntent?) -> [ProfileOption] {
     let picked = configuration?.profiles ?? []
-    return picked.isEmpty ? loadProfiles() : picked
+    let all = loadProfiles()
+    if picked.isEmpty { return all }
+    if all.isEmpty { return picked }  // data not ready — keep last-known picks
+    let pickedIds = Set(picked.map { $0.id })
+    return all.filter { pickedIds.contains($0.id) }
   }
   func placeholder(in context: Context) -> ProfileEntry {
     ProfileEntry(date: Date(), profiles: loadProfiles())
