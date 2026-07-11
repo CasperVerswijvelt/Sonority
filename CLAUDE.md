@@ -350,8 +350,10 @@ Run on the same Wi-Fi as the Sonos system:
 - `tool/dump_chime.dart <path>` — write the generated WAV to disk.
 - `tool/capture_shots.dart` — no hardware: builds `flutter build web` in demo
   mode, serves it, and drives headless Chrome (CDP) to screenshot the four
-  canonical marketing screens into `design/shots/`. The marketing capture step
-  (`docs/MARKETING-ASSETS.md` §2); `--no-build` reuses `build/web`.
+  canonical marketing screens into `design/shots/`. `--frame` also renders every
+  framed Play/App Store graphic from `design/store.html` in the same run (§2–3 of
+  `docs/MARKETING-ASSETS.md`); `--no-capture` re-frames existing shots, `--no-build`
+  reuses `build/web`.
 - `tool/trueplay_probe.dart` — read-only Trueplay/room-calibration status per
   speaker (+ SCPD dump); `--enable/--disable <room|uuid>` to toggle (reversible).
 - `tool/eq_probe.dart` — read-only per-speaker EQ/audio settings dump

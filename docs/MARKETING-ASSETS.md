@@ -44,10 +44,12 @@ demo SOAP client throws, so a demo build emits no network I/O at all).
 
 ### Capture (Flutter web + headless Chrome)
 
-One command captures all four:
+One command captures all four — add `--frame` to also render every framed store
+graphic (§3) in the same run:
 
 ```sh
-~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart
+~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart          # raw shots only
+~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart --frame  # shots + framed graphics
 ```
 
 It builds `flutter build web --release --dart-define=DEMO=true`, serves it, and
@@ -76,31 +78,36 @@ hand-written channel-map strings, so keep it in sync.
 
 ## 3. Generate the framed graphics
 
-`design/store.html` renders every store size from the four source shots. Export
-with headless Chrome at device-scale-factor 1 so the PNG is exactly the window
-size:
+`tool/capture_shots.dart --frame` (§2) renders all of these automatically —
+`design/store.html` framed at each store size via the same headless Chrome, into
+`design/play/*` and `design/appstore/*`. To re-frame existing shots without
+re-capturing (e.g. after editing `store.html`), run `--frame --no-capture`.
+
+What it produces (the tool's job list mirrors this — `?mode=` picks the layout,
+`?i=` 0–3 picks the source shot):
+
+| Output | mode | size |
+|---|---|---|
+| `design/play/feature-graphic.png` | `feature` | 1024×500 |
+| `design/play/tablet-7in.png` | `tablet7` | 1920×1080 |
+| `design/play/tablet-10in.png` | `tablet10` | 2560×1440 |
+| `design/play/phone-{1..4}-*.png` | `phone` | 1080×1920 |
+| `design/appstore/iphone69-{1..4}-*.png` | `ios69` | 1290×2796 (iPhone 6.9") |
+| `design/appstore/mac-{1..4}-*.png` | `mac` | 2560×1600 |
+
+`design/play/play-icon-512.png` is the app icon (regenerate from
+`design/export.html`, below, only if the icon changes — not part of `--frame`).
+For the README gallery, copy the raw `design/shots/*` into `docs/screenshots/*`.
+
+To render one graphic by hand (e.g. debugging `store.html`), it's still a plain
+headless-Chrome screenshot at device-scale-factor 1:
 
 ```sh
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-BASE="file://$PWD/design/store.html"
-shot(){ "$CHROME" --headless=new --disable-gpu --force-device-scale-factor=1 \
-  --hide-scrollbars --window-size=$2,$3 --virtual-time-budget=3500 \
-  --screenshot="$4" "$BASE?mode=$1&i=${5:-0}" >/dev/null 2>&1; }
-
-# Google Play → design/play/
-shot feature 1024 500  design/play/feature-graphic.png
-shot tablet7 1920 1080 design/play/tablet-7in.png
-shot tablet10 2560 1440 design/play/tablet-10in.png
-shot phone 1080 1920 design/play/phone-1-overview.png 0   # i=1 home-theater, 2 group, 3 profiles
-
-# Apple → design/appstore/
-shot ios69 1290 2796 design/appstore/iphone69-1-overview.png 0   # iPhone 6.9"
-shot mac   2560 1600 design/appstore/mac-1-overview.png 0        # macOS
+"$CHROME" --headless=new --disable-gpu --force-device-scale-factor=1 \
+  --hide-scrollbars --window-size=1290,2796 --virtual-time-budget=3500 \
+  --screenshot=out.png "file://$PWD/design/store.html?mode=ios69&i=0"
 ```
-
-`i` (0–3) selects the source shot; `design/play/play-icon-512.png` is the app icon
-(regenerate from `design/export.html`, below, only if the icon changes). For the
-README gallery, copy the raw `design/shots/*` into `docs/screenshots/*`.
 
 ### App icon + wordmark (from `design/export.html`)
 

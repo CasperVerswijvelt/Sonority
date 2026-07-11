@@ -1,16 +1,20 @@
 // Captures the four canonical marketing screenshots from a Flutter WEB build
-// running in demo mode — no emulator, no device, no LAN. Output lands in the
-// same design/shots/0N-*.png files the framer (design/store.html, §3 of
-// docs/MARKETING-ASSETS.md) already reads, so framing needs zero changes.
+// running in demo mode — and, with --frame, renders every framed store graphic
+// from them too. No emulator, no device, no LAN. Raw shots land in
+// design/shots/0N-*.png; framed graphics land in design/play/* and
+// design/appstore/* (the same files docs/MARKETING-ASSETS.md §2–3 describe).
 //
-// Self-contained: builds web, serves build/web over http, drives headless
-// Chrome via the DevTools Protocol (dart:io WebSocket — no python/node/puppeteer)
-// and waits for Flutter to render AND the wordmark PNG to decode before each
-// shot, which one-shot `chrome --screenshot` can't do reliably.
+// Self-contained: builds web, serves build/web over http, and drives headless
+// Chrome via the DevTools Protocol (dart:io WebSocket — no python/node/puppeteer).
+// It waits for Flutter to render AND the wordmark PNG to decode before each
+// shot, which one-shot `chrome --screenshot` can't do reliably. Framing renders
+// design/store.html (a static page) the same headless way.
 //
-// Usage:  ~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart
-// Requires: fvm Flutter 3.35.2, Google Chrome. Override the browser with
-// $CHROME; skip the (re)build with --no-build.
+// Usage:  ~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart [flags]
+//   --frame        also render the framed Play + App Store graphics
+//   --no-capture   skip the shot capture (re-frame existing design/shots)
+//   --no-build     reuse an existing build/web (skip the web build)
+// Requires: fvm Flutter 3.35.2, Google Chrome ($CHROME overrides the browser).
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -35,6 +39,26 @@ const _screens = <(String, String)>[
   ('04-profiles', '/#/profiles'),
 ];
 
+// The four source shots, in `design/store.html`'s `i` order — used to name the
+// per-screen framed outputs (i=0 → "1-overview", …).
+const _shotNames = ['overview', 'home-theater', 'group', 'profiles'];
+
+/// One framed-graphic render: a `design/store.html` mode + output size + which
+/// source shot (`i`) + where it lands. Mirrors §3 of docs/MARKETING-ASSETS.md.
+typedef _FrameJob = ({String mode, int w, int h, int i, String out});
+
+List<_FrameJob> _frameJobs() => [
+      (mode: 'feature', w: 1024, h: 500, i: 0, out: 'design/play/feature-graphic.png'),
+      (mode: 'tablet7', w: 1920, h: 1080, i: 0, out: 'design/play/tablet-7in.png'),
+      (mode: 'tablet10', w: 2560, h: 1440, i: 0, out: 'design/play/tablet-10in.png'),
+      for (var i = 0; i < 4; i++)
+        (mode: 'phone', w: 1080, h: 1920, i: i, out: 'design/play/phone-${i + 1}-${_shotNames[i]}.png'),
+      for (var i = 0; i < 4; i++)
+        (mode: 'ios69', w: 1290, h: 2796, i: i, out: 'design/appstore/iphone69-${i + 1}-${_shotNames[i]}.png'),
+      for (var i = 0; i < 4; i++)
+        (mode: 'mac', w: 2560, h: 1600, i: i, out: 'design/appstore/mac-${i + 1}-${_shotNames[i]}.png'),
+    ];
+
 // The extensions a `flutter build web` output actually contains; anything else
 // falls back to octet-stream below.
 const _mime = <String, String>{
@@ -55,9 +79,11 @@ String get _chrome =>
 
 Future<void> main(List<String> args) async {
   _root = _repoRoot();
-  final build = !args.contains('--no-build');
+  final noBuild = args.contains('--no-build');
+  final doCapture = !args.contains('--no-capture');
+  final doFrame = args.contains('--frame');
 
-  if (build) {
+  if (doCapture && !noBuild) {
     stdout.writeln('==> Building Flutter web (demo mode)…');
     final r = await Process.start(_flutter,
         ['build', 'web', '--release', '--dart-define=DEMO=true'],
@@ -68,14 +94,18 @@ Future<void> main(List<String> args) async {
     }
   }
 
-  final webDir = Directory('$_root/build/web');
-  if (!webDir.existsSync()) {
-    stderr.writeln('build/web missing — run without --no-build first');
-    exit(1);
+  // Only the shot capture needs the built web app served over http; framing
+  // reads design/store.html straight off disk via file://.
+  HttpServer? server;
+  if (doCapture) {
+    final webDir = Directory('$_root/build/web');
+    if (!webDir.existsSync()) {
+      stderr.writeln('build/web missing — run without --no-build first');
+      exit(1);
+    }
+    stdout.writeln('==> Serving build/web on :$_httpPort');
+    server = await _serve(webDir);
   }
-
-  stdout.writeln('==> Serving build/web on :$_httpPort');
-  final server = await _serve(webDir);
 
   stdout.writeln('==> Launching headless Chrome');
   final tmp = Directory.systemTemp.createTempSync('sonority-shots');
@@ -92,40 +122,60 @@ Future<void> main(List<String> args) async {
   ]);
 
   try {
-    final wsUrl = await _pageWebSocketUrl();
-    final cdp = await _Cdp.connect(wsUrl);
+    final cdp = await _Cdp.connect(await _pageWebSocketUrl());
     await cdp.send('Page.enable');
-    await cdp.send('Emulation.setDeviceMetricsOverride', {
-      'width': _vw,
-      'height': _vh,
-      'deviceScaleFactor': _dsf,
-      'mobile': false,
-    });
-
-    final shotsDir = Directory('$_root/design/shots')..createSync(recursive: true);
-    for (final (name, path) in _screens) {
-      final url = 'http://localhost:$_httpPort$path';
-      stdout.writeln('==> Capturing $name  ($path)');
-      // Fresh boot per screen: about:blank → target URL fires a real load event
-      // (a hash-only change wouldn't), so Flutter re-parses the route each time.
-      await cdp.navigate('about:blank');
-      await cdp.navigate(url);
-      await cdp.waitForFlutterRender();
-      final b64 = await cdp.send('Page.captureScreenshot', {'format': 'png'});
-      final bytes = base64.decode((b64 as Map)['data'] as String);
-      File('${shotsDir.path}/$name.png').writeAsBytesSync(bytes);
-    }
+    if (doCapture) await _capture(cdp);
+    if (doFrame) await _frame(cdp);
     await cdp.close();
   } finally {
     chrome.kill();
     await chrome.exitCode.timeout(const Duration(seconds: 5), onTimeout: () => 0);
-    await server.close(force: true);
+    await server?.close(force: true);
     try {
       tmp.deleteSync(recursive: true);
     } catch (_) {/* Chrome may still hold a lock; harmless temp dir */}
   }
-  stdout.writeln('==> Done. Four shots in design/shots/ — now run the framer (§3).');
+  stdout.writeln('==> Done.');
   exit(0);
+}
+
+/// Screenshots the four canonical screens into design/shots/ at iPhone scale.
+Future<void> _capture(_Cdp cdp) async {
+  await cdp.send('Emulation.setDeviceMetricsOverride',
+      {'width': _vw, 'height': _vh, 'deviceScaleFactor': _dsf, 'mobile': false});
+  final shotsDir = Directory('$_root/design/shots')..createSync(recursive: true);
+  for (final (name, path) in _screens) {
+    stdout.writeln('==> Capturing $name  ($path)');
+    // Fresh boot per screen: about:blank → target URL fires a real load event
+    // (a hash-only change wouldn't), so Flutter re-parses the route each time.
+    await cdp.navigate('about:blank');
+    await cdp.navigate('http://localhost:$_httpPort$path');
+    await cdp.waitForFlutterRender();
+    await _writeShot(cdp, '${shotsDir.path}/$name.png');
+  }
+}
+
+/// Renders every framed Play + App Store graphic from design/store.html.
+Future<void> _frame(_Cdp cdp) async {
+  final base = Uri.file('$_root/design/store.html');
+  for (final job in _frameJobs()) {
+    stdout.writeln('==> Framing ${job.out}  (${job.mode} ${job.w}x${job.h})');
+    // DSF 1 so the PNG is exactly the window size; size the viewport per job
+    // BEFORE loading so store.html's layout JS reads the right dimensions.
+    await cdp.send('Emulation.setDeviceMetricsOverride',
+        {'width': job.w, 'height': job.h, 'deviceScaleFactor': 1, 'mobile': false});
+    final url = base.replace(
+        queryParameters: {'mode': job.mode, 'i': '${job.i}'}).toString();
+    await cdp.navigate(url);
+    await cdp.waitForImages();
+    final out = File('$_root/${job.out}')..parent.createSync(recursive: true);
+    await _writeShot(cdp, out.path);
+  }
+}
+
+Future<void> _writeShot(_Cdp cdp, String path) async {
+  final res = await cdp.send('Page.captureScreenshot', {'format': 'png'});
+  File(path).writeAsBytesSync(base64.decode((res as Map)['data'] as String));
 }
 
 String _repoRoot() {
@@ -221,17 +271,23 @@ class _Cdp {
 
   /// Wait until Flutter has mounted its view, then settle so the wordmark PNG
   /// and icon fonts finish decoding before the shot.
-  Future<void> waitForFlutterRender() async {
+  Future<void> waitForFlutterRender() =>
+      _pollThenSettle("!!document.querySelector('flutter-view, flt-glass-pane')",
+          const Duration(milliseconds: 2500));
+
+  /// Wait until every <img> on a static page (design/store.html) has decoded.
+  Future<void> waitForImages() => _pollThenSettle(
+      'Array.from(document.images).every(im => im.complete && im.naturalWidth > 0)',
+      const Duration(milliseconds: 400));
+
+  Future<void> _pollThenSettle(String expression, Duration settle) async {
     for (var i = 0; i < 60; i++) {
-      final r = await send('Runtime.evaluate', {
-        'expression':
-            "!!document.querySelector('flutter-view, flt-glass-pane')",
-        'returnByValue': true,
-      });
+      final r = await send('Runtime.evaluate',
+          {'expression': expression, 'returnByValue': true});
       if (((r as Map)['result'] as Map)['value'] == true) break;
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
-    await Future<void>.delayed(const Duration(milliseconds: 2500));
+    await Future<void>.delayed(settle);
   }
 
   Future<void> close() => _ws.close();
