@@ -24,20 +24,48 @@ class ProfilesScreen extends ConsumerWidget {
       error: (e, _) => Center(child: Text('Couldn’t load profiles: $e')),
       data: (list) => list.isEmpty
           ? const _EmptyState()
-          : ListView(
+          : ReorderableListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
-              children: [
-                for (final p in list)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _ProfileTile(
-                      profile: p,
-                      onApply: () => applyProfileInteractive(context, ref, p),
-                      onEdit: () => context.go('/profiles/edit/${p.id}'),
-                      onDelete: () => _confirmDelete(context, ref, p),
+              itemCount: list.length,
+              // Drop the default elevated-Material drag proxy (it draws a square
+              // highlight/shadow behind the rounded card); the card lifts as-is.
+              proxyDecorator: (child, index, animation) =>
+                  Material(color: Colors.transparent, child: child),
+              // Long-press a card to drag it — this order is what the widgets use.
+              onReorder: (oldIndex, newIndex) => ref
+                  .read(profilesProvider.notifier)
+                  .reorder(oldIndex, newIndex),
+              itemBuilder: (context, i) {
+                final p = list[i];
+                return Padding(
+                  key: ValueKey(p.id),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: ProfileCard(
+                    profile: p,
+                    onTap: () => context.go('/profiles/edit/${p.id}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton.filled(
+                          onPressed: () =>
+                              applyProfileInteractive(context, ref, p),
+                          tooltip: 'Apply',
+                          icon: const Icon(Icons.play_arrow),
+                        ),
+                        PopupMenuButton<String>(
+                          onSelected: (v) => v == 'edit'
+                              ? context.go('/profiles/edit/${p.id}')
+                              : _confirmDelete(context, ref, p),
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(value: 'edit', child: Text('Edit')),
+                            PopupMenuItem(value: 'delete', child: Text('Delete')),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-              ],
+                );
+              },
             ),
     );
 
@@ -149,130 +177,6 @@ Future<void> applyProfileFromLaunch(
       },
     ),
   );
-}
-
-class _ProfileTile extends StatelessWidget {
-  final Profile profile;
-  final VoidCallback onApply;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const _ProfileTile({
-    required this.profile,
-    required this.onApply,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final summary = profile.entities.map((e) => e.label).join(' · ');
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onEdit,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: profileColor(profile.color),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: profileGlyph(profile.iconId,
-                      size: 22, color: Colors.white),
-                ),
-              ),
-              Gap.m,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(profile.name, style: theme.textTheme.titleMedium),
-                    Gap.xs,
-                    Text(
-                      summary.isEmpty ? 'No entities' : summary,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (profile.hasAudioSettings || profile.hasVolume) ...[
-                      Gap.s,
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          if (profile.hasAudioSettings)
-                            const _Badge(
-                                icon: Icons.tune, label: 'Audio settings'),
-                          if (profile.hasVolume)
-                            const _Badge(
-                                icon: Icons.volume_up, label: 'Volume'),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Gap.s,
-              IconButton.filled(
-                onPressed: onApply,
-                tooltip: 'Apply',
-                icon: const Icon(Icons.play_arrow),
-              ),
-              PopupMenuButton<String>(
-                onSelected: (v) => v == 'edit' ? onEdit() : onDelete(),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(value: 'delete', child: Text('Delete')),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Small pill on the profile tile marking what captured settings it carries.
-class _Badge extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _Badge({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: theme.colorScheme.onSecondaryContainer),
-          Gap.xs,
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSecondaryContainer,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _EmptyState extends StatelessWidget {

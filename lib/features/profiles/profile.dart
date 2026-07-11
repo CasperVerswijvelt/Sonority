@@ -1,7 +1,7 @@
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/speaker_settings.dart';
 
-/// Default icon key for a profile (see `profileIconChoices` in `profile_ui.dart`).
+/// Default icon key for a profile (see `profileIconIds` in `profile_ui.dart`).
 const kDefaultProfileIcon = 'speaker';
 
 /// What kind of bonded entity a snapshot captures. One visible

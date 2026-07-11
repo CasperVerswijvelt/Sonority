@@ -282,6 +282,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "17.2.3"
+  home_widget:
+    dependency: "direct main"
+    description:
+      name: home_widget
+      sha256: bd6889c9e91475c8f5e957e8a2dd7d5458937e8b9f2e68004935636aca537ff4
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.2+1"
   html:
     dependency: transitive
     description:
@@ -463,6 +471,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.9.1"
+  path_provider:
+    dependency: transitive
+    description:
+      name: path_provider
+      sha256: "50c5dd5b6e1aaf6fb3a78b33f6aa3afca52bf903a8a5298f53101fdaee55bbcd"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.5"
+  path_provider_android:
+    dependency: transitive
+    description:
+      name: path_provider_android
+      sha256: "149441ca6e4f38193b2e004c0ca6376a3d11f51fa5a77552d8bd4d2b0c0912ba"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.23"
+  path_provider_foundation:
+    dependency: transitive
+    description:
+      name: path_provider_foundation
+      sha256: "6d13aece7b3f5c5a9731eaf553ff9dcbc2eff41087fd2df587fd0fed9a3eb0c4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.5.1"
   path_provider_linux:
     dependency: transitive
     description:

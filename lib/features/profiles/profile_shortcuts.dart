@@ -13,8 +13,8 @@ import 'profile_ui.dart';
 /// owns both the shortcut list and tap delivery on each platform:
 ///  - **iOS**: monochrome **SF Symbols** (`UIApplicationShortcutIcon(systemImageName:)`),
 ///    the only colour iOS home-screen quick actions allow.
-///  - **Android**: a full-colour per-profile icon — the profile's colour circle +
-///    Material glyph, rendered here to a PNG and wrapped natively as the icon.
+///  - **Android**: a full-colour per-profile icon — the profile's tonal circle +
+///    SF glyph, rendered here to a PNG and wrapped natively as the icon.
 ///
 /// A tap only hands the profile id back to Dart (via [initProfileShortcuts]); the
 /// long-running scan→apply happens in the app — it can't run in an OS shortcut's
@@ -28,25 +28,6 @@ const maxProfileShortcuts = 4;
 /// The profiles that actually get published, in order (respects the OS cap).
 List<Profile> shortcutProfiles(List<Profile> profiles) =>
     profiles.take(maxProfileShortcuts).toList();
-
-/// Curated icon → SF Symbol (iOS). Unknown/absent symbols just render no glyph,
-/// so this is safe to tweak; all are long-standing symbols. Keys match
-/// [profileIconChoices].
-const _sfSymbols = <String, String>{
-  'speaker': 'hifispeaker',
-  'home_theater': 'tv',
-  'movie': 'film',
-  'music': 'music.note',
-  'living': 'sofa',
-  'tv': 'play.tv',
-  'party': 'party.popper',
-  'night': 'moon',
-};
-
-/// Key set of [_sfSymbols], exposed so a test can assert it stays in sync with
-/// the icon maps in `profile_ui.dart`.
-@visibleForTesting
-Set<String> get shortcutSfSymbolKeys => _sfSymbols.keys.toSet();
 
 bool get _supported => Platform.isIOS || Platform.isAndroid;
 
@@ -76,18 +57,19 @@ Future<void> syncProfileShortcuts(List<Profile> profiles) async {
       'title': p.name,
       // iOS uses the SF Symbol; Android uses the rendered PNG. Each side reads
       // only what it needs, so sending both is harmless.
-      'sfSymbol': _sfSymbols[p.iconId] ?? 'star',
+      'sfSymbol': sfSymbolName(p.iconId),
       if (Platform.isAndroid) 'png': await _renderAvatarPng(p.iconId, p.color),
     });
   }
   await _channel.invokeMethod('setShortcuts', {'items': items});
 }
 
-/// Renders a profile's avatar (colour circle + Material glyph) to a square PNG
-/// for the Android launcher icon — reuses [profileColor] / [profileIcon] so it
-/// matches the in-app tile exactly.
-Future<Uint8List> _renderAvatarPng(String iconId, int color,
-    {double size = 144}) async {
+/// Renders a profile's avatar (tonal circle + SF glyph) to a square PNG for the
+/// Android launcher icon — reuses the shared [profileTonal] treatment so it
+/// matches the in-app tile and widgets exactly.
+Future<Uint8List> _renderAvatarPng(String iconId, int color) async {
+  const size = 144.0;
+  final tonal = profileTonal(color, Brightness.light);
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   canvas.drawCircle(
@@ -95,18 +77,19 @@ Future<Uint8List> _renderAvatarPng(String iconId, int color,
     size / 2,
     Paint()
       ..isAntiAlias = true
-      ..color = profileColor(color),
+      ..color = tonal.card,
   );
-  final icon = profileIcon(iconId);
+  final icon = profileSfIcon(iconId);
   final tp = TextPainter(
     textDirection: TextDirection.ltr,
     text: TextSpan(
       text: String.fromCharCode(icon.codePoint),
       style: TextStyle(
-        fontSize: size * 0.55,
+        // SF renders large for its point size; 0.46 fills the circle nicely.
+        fontSize: size * 0.46,
         fontFamily: icon.fontFamily,
         package: icon.fontPackage,
-        color: Colors.white,
+        color: tonal.icon,
       ),
     ),
   )..layout();
