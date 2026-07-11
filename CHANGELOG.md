@@ -42,6 +42,11 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   appears only while content scrolls under it — replacing its drop shadow, so
   every screen's chrome reads as flat and line-based.
 
+### Fixed
+- The "couldn't find your system" screen no longer shows a raw `Exception:`
+  prefix on its message, and its title now centres correctly when it wraps to
+  two lines — so an empty network reads as a normal state, not a crash.
+
 ## [0.5.0] - 2026-07-06
 
 ### Added

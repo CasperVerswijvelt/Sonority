@@ -29,7 +29,10 @@ class DiscoveryScreen extends ConsumerWidget {
         : 'system';
     final content = state.when(
       loading: () => const Center(child: _Scanning()),
-      error: (e, _) => _ErrorView(message: '$e', onRetry: controller.scan),
+      error: (e, _) => _ErrorView(
+        message: e.toString().replaceFirst('Exception: ', ''),
+        onRetry: controller.scan,
+      ),
       // discover() throws on an empty network, so data is never null here;
       // fall back to the spinner defensively rather than crash.
       data: (system) => system == null
@@ -443,6 +446,7 @@ class _ErrorView extends StatelessWidget {
           Gap.m,
           Text(
             'Couldn’t find your system',
+            textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           Gap.s,

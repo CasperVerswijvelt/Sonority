@@ -5,10 +5,15 @@ Support email + the hosted privacy/support URLs are filled in below. The only
 remaining placeholder is `DEMO_VIDEO_URL` (in the review notes) — record the demo
 first, then paste its link.
 
-> **Trademark note (important for review):** "Sonos" is deliberately kept out of
-> the **app name, subtitle, and icon**. It appears only descriptively in the
-> body + keywords, always with the disclaimer. This is what keeps the listing on
-> the right side of Guideline 5.2.1. Don't move "Sonos" into the name/subtitle.
+> **Trademark note (important for review):** the intended-safe listing keeps
+> "Sonos" out of the **app name, subtitle, and icon** — it appears only
+> descriptively in the body + keywords, always with the disclaimer, to stay on
+> the right side of Guideline 5.2.1 / 4.1(a). **Current state (Jul 2026):** the
+> App Store Connect app record is titled **"Sonority for Sonos"** and that name is
+> being *contested* after a 4.1(a) rejection (see Review history at the bottom).
+> If Apple holds the rejection, the fallback is to rename the record to the plain
+> **"Sonority"** used here. Don't add "Sonos" to the name/subtitle beyond the
+> record title already under review.
 
 ---
 
@@ -120,6 +125,54 @@ Contact for any questions: casperverswijveltdev@gmail.com
 Record a ~60s screen capture of discovery → building a home theater → saving a
 profile → identify → undo, and host it (unlisted YouTube/Vimeo or a direct link);
 put the URL in `DEMO_VIDEO_URL`.
+
+---
+
+## Review history
+
+### 0.5 (50008) — iOS — rejected Jul 10 2026 (Submission ID `ee2688b7-5ae8-4039-9580-97a72c2ee25e`)
+
+Two issues, reviewed on iPad Air 11" (M3):
+
+1. **Guideline 4.1(a) — Copycats.** Flagged the App Store Connect app-record name
+   **"Sonority for Sonos"** as a misleading third-party reference. **Decision:
+   contest** (keep the name). Reply sent argues nominative/descriptive use, no
+   Sonos logos/imagery/"Works with Sonos" wording, the in-description disclaimer,
+   and live precedents **"SonoPhone for Sonos"** (id815251931) and **"SonoPad for
+   Sonos"** (id579984303). Draft reply text:
+
+   > Hi, thanks for the review.
+   >
+   > The word "Sonos" is in our metadata only to say which speakers the app works
+   > with. There is no way to describe what the app does without naming the
+   > speakers it configures. We do not use any Sonos logos, product photos, or the
+   > "Works with Sonos" certification wording anywhere in the app, the icon, or the
+   > screenshots.
+   >
+   > We also make the relationship clear in the app description: "Sonority is an
+   > independent app and is not affiliated with, authorized, maintained, sponsored,
+   > or endorsed by Sonos, Inc. 'Sonos' is a trademark of Sonos, Inc., used here
+   > only to describe compatibility."
+   >
+   > Naming an independent controller this way is already common on the App Store.
+   > Two live examples that use the same "for Sonos" wording are "SonoPhone for
+   > Sonos" (id815251931) and "SonoPad for Sonos" (id579984303).
+   >
+   > If there is one specific field you would like us to change, please let us
+   > know and we will be glad to update it.
+
+   **Fallback if held:** rename the ASC record to plain **"Sonority"**.
+
+2. **Guideline 2.1 — Information Needed.** Wanted a demo video on a physical
+   device showing pairing + the full workflow. The reviewer's screenshots (added
+   to the rejection) show the empty state — they granted local-network access but
+   had no speakers on the test LAN, so discovery showed "No Sonos devices found."
+   Resolution: film the demo (shot list in the plan) and paste the link into
+   `DEMO_VIDEO_URL` above + reply in the ASC thread. No demo account needed.
+
+Follow-up shipped in the next build: the discovery empty state no longer prints an
+"Exception:" prefix and centers its wrapped title (both visible-looking-broken in
+the reviewer screenshots).
 
 ```
 
