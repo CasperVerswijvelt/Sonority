@@ -449,13 +449,18 @@ pkill -x Sonority                          # quit (AppleScript quit gets cancell
    absent), unless the user names another version. Keep it **concise** — one
    line/sentence unless the change genuinely needs more to explain it. Write
    each entry as a **single unwrapped line** (no hard newlines mid-entry).
-3. `flutter analyze` + `flutter test` green.
-4. **Pre-merge review** before opening the PR: spawn a fresh review subagent
+3. **Keep textual marketing copy in sync** with the feature set — when a feature
+   adds/changes user-facing capability, update the copy per §1 of
+   `docs/MARKETING-ASSETS.md` (`docs/app-store/listing.md`, `pubspec.yaml`
+   `description:`, `design/store.html` captions, `README.md` alt text). This is
+   text only; visual assets are a release-time step (see Release flow).
+4. `flutter analyze` + `flutter test` green.
+5. **Pre-merge review** before opening the PR: spawn a fresh review subagent
    prompted with the Review guidelines below, plus run `/code-review` and
    `/ponytail-review`; address the findings.
-5. Integrate the latest `origin/main` into the branch, then open a PR to `main`
+6. Integrate the latest `origin/main` into the branch, then open a PR to `main`
    (gh CLI).
-6. The **user merges the PR manually** unless they say otherwise.
+7. The **user merges the PR manually** unless they say otherwise.
 
 ### Release flow (on `main`, after merges)
 1. Everything under `[Unreleased]` becomes the new version. Version = semver
@@ -469,7 +474,13 @@ pkill -x Sonority                          # quit (AppleScript quit gets cancell
    **Never move, delete, or reuse a tag; never delete a GitHub Release** — full
    history is kept. A re-cut of the same version = rebuild+1 → new tag → new
    release.
-5. CI publishes the GitHub Release **as pre-release**, with the version's full
+5. **Check visual marketing assets.** Review the version's features/changes and
+   decide whether the store screenshots or framed graphics (`design/shots/*`,
+   `design/play/*`, `design/appstore/*`, `docs/screenshots/*`) no longer reflect
+   the app. If they do, **notify the user and get approval before regenerating**
+   — capturing screenshots stages the live Sonos system (see §2–3 of
+   `docs/MARKETING-ASSETS.md`), so never do it unprompted.
+6. CI publishes the GitHub Release **as pre-release**, with the version's full
    changelog section (the build suffix is stripped for the notes lookup). The
    user removes the pre-release mark when it's actually released.
 
