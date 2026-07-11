@@ -61,13 +61,16 @@ class DiscoveryScreen extends ConsumerWidget {
             icon: const Icon(Icons.refresh),
           ),
       ],
-      // The Scaffold body is a tight viewport-height box, so each child fills
-      // the screen: the scanning/error placeholders center, _SystemView scrolls
-      // internally. The switcher never inflates to the tall outgoing list
-      // mid-transition, so the spinner stays screen-centered (no jump).
+      // The scanning/error placeholders center themselves (their Center
+      // expands to the body height); _SystemView shrink-wraps when short. The
+      // switcher's default layout is a center-aligned Stack, which floats that
+      // shrink-wrapped content to the vertical middle mid-transition (when the
+      // expanding placeholder inflates the Stack) — top-align it instead.
       body: PageTransitionSwitcher(
         duration: const Duration(milliseconds: 250),
         reverse: state.isLoading,
+        layoutBuilder: (entries) =>
+            Stack(alignment: Alignment.topCenter, children: entries),
         transitionBuilder: (child, anim, secondaryAnim) => SharedAxisTransition(
           animation: anim,
           secondaryAnimation: secondaryAnim,
