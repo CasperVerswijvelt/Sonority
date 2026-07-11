@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'demo/demo_mode.dart';
 import 'features/profiles/profile_widget.dart';
 
 void main() {
@@ -12,7 +13,10 @@ void main() {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  runApp(const ProviderScope(child: SonorityApp()));
+  runApp(ProviderScope(
+    overrides: kDemoMode ? demoOverrides() : const [],
+    child: const SonorityApp(),
+  ));
 }
 
 /// Dedicated entrypoint for the Android home-screen-widget configuration

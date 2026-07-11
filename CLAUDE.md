@@ -224,7 +224,9 @@ Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
     below Sonos' claimed 16. A feature should settle before reporting success and
     probably cap / warn on large mixed-gear zones.
   - `GetZoneAttributes` / `SetZoneAttributes` — read/set room name (used to restore
-    names after un-pairing / un-zoning).
+    names after un-pairing / un-zoning). NB: group/pair separate restores member
+    names automatically, but `RemoveHTSatellite` does NOT rename the soundbar or
+    freed satellites — restore those names yourself.
   - `GetLEDState` / `SetLEDState` (`CurrentLEDState`/`DesiredLEDState` = `On`/`Off`)
     — the white status light. Used by the **LED-blink identify**
     (`led_identify.dart`): an outbound-only SOAP call, so unlike the audio chime it
@@ -399,6 +401,12 @@ pkill -x Sonority                          # quit (AppleScript quit gets cancell
 - **Safety:** navigation + screenshots are fine autonomously; anything that fires a
   live Sonos write (apply/bond/separate/rename) still needs explicit user confirm —
   it's the user's real living-room system.
+- **Demo mode:** build with `--dart-define=DEMO=true` to feed the UI a fake
+  photogenic system + profiles (`lib/demo/demo_mode.dart`) — no LAN/hardware
+  needed; the marketing-screenshot path (`docs/MARKETING-ASSETS.md` §2). UI work
+  can be verified against it without touching the real system: navigation-only —
+  write/identify taps fail fast (the demo SOAP client throws, so a demo build
+  emits no network I/O; IPs are unrouteable TEST-NET besides).
 
 ## Feature status
 - ✅ Discovery + topology + Material 3 UI (discovery → home-theater diagram).
