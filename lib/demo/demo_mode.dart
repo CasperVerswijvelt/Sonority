@@ -1,8 +1,17 @@
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:xml/xml.dart' show XmlElement;
 
 import '../data/models/sonos_models.dart';
+import '../data/sonos/av_transport.dart';
+import '../data/sonos/channel_map.dart';
+import '../data/sonos/device_properties.dart';
+import '../data/sonos/identify_service.dart';
+import '../data/sonos/led_identify.dart';
 import '../data/sonos/room_calibration.dart';
+import '../data/sonos/soap_client.dart';
 import '../data/sonos/sonos_repository.dart';
+import '../data/sonos/zone_layout.dart' show buildGroupMap;
+import '../data/sonos/zone_topology.dart';
 import '../features/profiles/profile.dart';
 import '../features/profiles/profile_controller.dart';
 import '../features/profiles/profile_store.dart';
@@ -14,18 +23,51 @@ import '../state/sonos_controller.dart';
 /// `--dart-define=DEMO=true`; off (and tree-shaken out) otherwise.
 const kDemoMode = bool.fromEnvironment('DEMO');
 
-/// The two provider overrides demo mode swaps in: the repository (topology +
-/// Trueplay reads) and the profile store. Everything on screen derives from
-/// these.
+/// The provider overrides demo mode swaps in: the repository (topology +
+/// Trueplay reads), the profile store, and the identify clients. Everything on
+/// screen derives from these.
 List<Override> demoOverrides() => [
       sonosRepositoryProvider.overrideWithValue(_DemoSonosRepository()),
       profileStoreProvider.overrideWithValue(_DemoProfileStore()),
+      // Identify taps fail instantly with the normal "could not reach"
+      // feedback instead of spinning through ~30s of SOAP timeouts.
+      ledIdentifyProvider.overrideWithValue(LedIdentifyClient(_demoSoap)),
+      identifyServiceProvider
+          .overrideWithValue(IdentifyServiceClient(_demoSoap)),
     ];
 
-// ponytail: read-only demo — the bonding/write methods stay inherited and
-// would just time out against the fake IPs. Fine for screenshots; stub them
-// if a demo of the apply flow is ever needed.
+final _demoSoap = _DemoSoapClient();
+
+/// Throws on any SOAP call, so NOTHING in a demo build can emit network I/O —
+/// including repository write methods and any read method added later.
+class _DemoSoapClient extends SonosSoapClient {
+  @override
+  Future<XmlElement> call({
+    required String ip,
+    required String controlPath,
+    required String serviceType,
+    required String action,
+    Map<String, String> args = const {},
+    Duration timeout = const Duration(seconds: 8),
+  }) async =>
+      throw StateError('demo mode: no network I/O ($action)');
+}
+
+// ponytail: demo is navigation-only — write flows (apply/bond/separate/rename)
+// fail fast on _DemoSoapClient instead of succeeding against fake state. Fake
+// the write semantics (mutate demoSystem) if a demo of a full apply is ever
+// needed. Known leak: SpeakerSettingsClient is constructed inside
+// SonosController, so the profile-create "save speaker settings" toggle still
+// times out against the (unrouteable TEST-NET) demo IPs.
 class _DemoSonosRepository extends SonosRepository {
+  _DemoSonosRepository()
+      : super(
+          topology: ZoneTopologyClient(_demoSoap),
+          deviceProps: DevicePropertiesClient(_demoSoap),
+          calibration: RoomCalibrationClient(_demoSoap),
+          avTransport: AvTransportClient(_demoSoap),
+        );
+
   @override
   Future<SonosSystem> discover() async => demoSystem;
 
@@ -56,6 +98,10 @@ class _DemoProfileStore extends ProfileStore {
 // The demo system: one hero home theater with dedicated fronts (the app's
 // flagship config), a stereo pair, a 3-speaker zone (incl. app-blocked
 // Play:1s), and three standalone rooms for the group-creation flow.
+//
+// IPs are RFC 5737 TEST-NET-1 (192.0.2.0/24) — reserved for documentation and
+// never assigned, so even a network call that slips past the demo SOAP client
+// can't reach a real device on someone's LAN.
 // ---------------------------------------------------------------------------
 
 const _arc = 'RINCON_DEMO_ARC000001400';
@@ -74,47 +120,55 @@ const _bedroom = 'RINCON_DEMO_BED000001400';
 const _bathroom = 'RINCON_DEMO_BATH00001400';
 
 const _devices = <SonosDevice>[
-  SonosDevice(uuid: _arc, roomName: 'Living Room', modelName: 'Sonos Arc', ip: '10.0.0.10'),
-  SonosDevice(uuid: _frontL, roomName: 'Living Room', modelName: 'Sonos Era 100', ip: '10.0.0.11'),
-  SonosDevice(uuid: _frontR, roomName: 'Living Room', modelName: 'Sonos Era 100', ip: '10.0.0.12'),
-  SonosDevice(uuid: _rearL, roomName: 'Living Room', modelName: 'Sonos Era 300', ip: '10.0.0.13'),
-  SonosDevice(uuid: _rearR, roomName: 'Living Room', modelName: 'Sonos Era 300', ip: '10.0.0.14'),
-  SonosDevice(uuid: _sub, roomName: 'Living Room', modelName: 'Sonos Sub', ip: '10.0.0.15'),
-  SonosDevice(uuid: _officeL, roomName: 'Office', modelName: 'Sonos One', ip: '10.0.0.20'),
-  SonosDevice(uuid: _officeR, roomName: 'Office', modelName: 'Sonos One', ip: '10.0.0.21'),
-  SonosDevice(uuid: _up1, roomName: 'Upstairs', modelName: 'Sonos Era 100', ip: '10.0.0.30'),
-  SonosDevice(uuid: _up2, roomName: 'Upstairs', modelName: 'Sonos Play:1', ip: '10.0.0.31'),
-  SonosDevice(uuid: _up3, roomName: 'Upstairs', modelName: 'Sonos Play:1', ip: '10.0.0.32'),
-  SonosDevice(uuid: _kitchen, roomName: 'Kitchen', modelName: 'Sonos One', ip: '10.0.0.40'),
-  SonosDevice(uuid: _bedroom, roomName: 'Bedroom', modelName: 'Sonos Five', ip: '10.0.0.41'),
-  SonosDevice(uuid: _bathroom, roomName: 'Bathroom', modelName: 'Sonos One SL', ip: '10.0.0.42'),
+  SonosDevice(uuid: _arc, roomName: 'Living Room', modelName: 'Sonos Arc', ip: '192.0.2.10'),
+  SonosDevice(uuid: _frontL, roomName: 'Living Room', modelName: 'Sonos Era 100', ip: '192.0.2.11'),
+  SonosDevice(uuid: _frontR, roomName: 'Living Room', modelName: 'Sonos Era 100', ip: '192.0.2.12'),
+  SonosDevice(uuid: _rearL, roomName: 'Living Room', modelName: 'Sonos Era 300', ip: '192.0.2.13'),
+  SonosDevice(uuid: _rearR, roomName: 'Living Room', modelName: 'Sonos Era 300', ip: '192.0.2.14'),
+  SonosDevice(uuid: _sub, roomName: 'Living Room', modelName: 'Sonos Sub', ip: '192.0.2.15'),
+  SonosDevice(uuid: _officeL, roomName: 'Office', modelName: 'Sonos One', ip: '192.0.2.20'),
+  SonosDevice(uuid: _officeR, roomName: 'Office', modelName: 'Sonos One', ip: '192.0.2.21'),
+  SonosDevice(uuid: _up1, roomName: 'Upstairs', modelName: 'Sonos Era 100', ip: '192.0.2.30'),
+  SonosDevice(uuid: _up2, roomName: 'Upstairs', modelName: 'Sonos Play:1', ip: '192.0.2.31'),
+  SonosDevice(uuid: _up3, roomName: 'Upstairs', modelName: 'Sonos Play:1', ip: '192.0.2.32'),
+  SonosDevice(uuid: _kitchen, roomName: 'Kitchen', modelName: 'Sonos One', ip: '192.0.2.40'),
+  SonosDevice(uuid: _bedroom, roomName: 'Bedroom', modelName: 'Sonos Five', ip: '192.0.2.41'),
+  SonosDevice(uuid: _bathroom, roomName: 'Bathroom', modelName: 'Sonos One SL', ip: '192.0.2.42'),
 ];
 
 String _location(String ip) => 'http://$ip:1400/xml/device_description.xml';
 
+const _htSatellites = [
+  SonosSatellite(uuid: _frontL, zoneName: 'Living Room', channels: [SonosChannel.leftFront], ip: '192.0.2.11'),
+  SonosSatellite(uuid: _frontR, zoneName: 'Living Room', channels: [SonosChannel.rightFront], ip: '192.0.2.12'),
+  SonosSatellite(uuid: _rearL, zoneName: 'Living Room', channels: [SonosChannel.leftRear], ip: '192.0.2.13'),
+  SonosSatellite(uuid: _rearR, zoneName: 'Living Room', channels: [SonosChannel.rightRear], ip: '192.0.2.14'),
+  SonosSatellite(uuid: _sub, zoneName: 'Living Room', channels: [SonosChannel.sub], ip: '192.0.2.15'),
+];
+
 /// Living Room: Arc as center + dedicated Era 100 fronts + Era 300 rears + Sub
-/// — the 5.1-with-fronts config the official Sonos app refuses to create.
+/// — the 5.1-with-fronts config the official Sonos app refuses to create. The
+/// map string is derived from the typed satellite list (one source of truth).
 final demoHomeTheater = ZoneGroupMember(
   uuid: _arc,
   zoneName: 'Living Room',
-  location: _location('10.0.0.10'),
-  htSatChanMapSet:
-      '$_arc:CC;$_frontL:LF;$_frontR:RF;$_rearL:LR;$_rearR:RR;$_sub:SW',
-  satellites: [
-    SonosSatellite(uuid: _frontL, zoneName: 'Living Room', channels: const [SonosChannel.leftFront], ip: '10.0.0.11'),
-    SonosSatellite(uuid: _frontR, zoneName: 'Living Room', channels: const [SonosChannel.rightFront], ip: '10.0.0.12'),
-    SonosSatellite(uuid: _rearL, zoneName: 'Living Room', channels: const [SonosChannel.leftRear], ip: '10.0.0.13'),
-    SonosSatellite(uuid: _rearR, zoneName: 'Living Room', channels: const [SonosChannel.rightRear], ip: '10.0.0.14'),
-    SonosSatellite(uuid: _sub, zoneName: 'Living Room', channels: const [SonosChannel.sub], ip: '10.0.0.15'),
-  ],
+  location: _location('192.0.2.10'),
+  htSatChanMapSet: ChannelMap([
+    ChannelMapEntry.fromChannels(_arc, [SonosChannel.center]),
+    for (final s in _htSatellites) ChannelMapEntry.fromChannels(s.uuid, s.channels),
+  ]).encode(),
+  satellites: _htSatellites,
 );
 
 /// Office: a stereo pair of two Sonos Ones (right half hidden, as on hardware).
 final demoStereoPair = ZoneGroupMember(
   uuid: _officeL,
   zoneName: 'Office',
-  location: _location('10.0.0.20'),
-  channelMapSet: '$_officeL:LF,LF;$_officeR:RF,RF',
+  location: _location('192.0.2.20'),
+  channelMapSet: buildGroupMap([
+    (uuid: _officeL, channel: GroupChannel.left),
+    (uuid: _officeR, channel: GroupChannel.right),
+  ]),
 );
 
 /// Upstairs: a 3-speaker full-range zone mixing an Era 100 with two Play:1s —
@@ -122,8 +176,10 @@ final demoStereoPair = ZoneGroupMember(
 final demoZone = ZoneGroupMember(
   uuid: _up1,
   zoneName: 'Upstairs',
-  location: _location('10.0.0.30'),
-  channelMapSet: '$_up1:LF,RF;$_up2:LF,RF;$_up3:LF,RF',
+  location: _location('192.0.2.30'),
+  channelMapSet: buildGroupMap([
+    for (final u in [_up1, _up2, _up3]) (uuid: u, channel: GroupChannel.both),
+  ]),
 );
 
 final demoSystem = SonosSystem(
@@ -131,21 +187,21 @@ final demoSystem = SonosSystem(
     ZoneGroup(coordinatorUuid: _arc, members: [demoHomeTheater]),
     ZoneGroup(coordinatorUuid: _officeL, members: [
       demoStereoPair,
-      ZoneGroupMember(uuid: _officeR, zoneName: 'Office', location: _location('10.0.0.21'), invisible: true),
+      ZoneGroupMember(uuid: _officeR, zoneName: 'Office', location: _location('192.0.2.21'), invisible: true),
     ]),
     ZoneGroup(coordinatorUuid: _up1, members: [
       demoZone,
-      ZoneGroupMember(uuid: _up2, zoneName: 'Upstairs', location: _location('10.0.0.31'), invisible: true),
-      ZoneGroupMember(uuid: _up3, zoneName: 'Upstairs', location: _location('10.0.0.32'), invisible: true),
+      ZoneGroupMember(uuid: _up2, zoneName: 'Upstairs', location: _location('192.0.2.31'), invisible: true),
+      ZoneGroupMember(uuid: _up3, zoneName: 'Upstairs', location: _location('192.0.2.32'), invisible: true),
     ]),
     ZoneGroup(coordinatorUuid: _kitchen, members: [
-      ZoneGroupMember(uuid: _kitchen, zoneName: 'Kitchen', location: _location('10.0.0.40')),
+      ZoneGroupMember(uuid: _kitchen, zoneName: 'Kitchen', location: _location('192.0.2.40')),
     ]),
     ZoneGroup(coordinatorUuid: _bedroom, members: [
-      ZoneGroupMember(uuid: _bedroom, zoneName: 'Bedroom', location: _location('10.0.0.41')),
+      ZoneGroupMember(uuid: _bedroom, zoneName: 'Bedroom', location: _location('192.0.2.41')),
     ]),
     ZoneGroup(coordinatorUuid: _bathroom, members: [
-      ZoneGroupMember(uuid: _bathroom, zoneName: 'Bathroom', location: _location('10.0.0.42')),
+      ZoneGroupMember(uuid: _bathroom, zoneName: 'Bathroom', location: _location('192.0.2.42')),
     ]),
   ],
   devicesByUuid: {for (final d in _devices) d.uuid: d},

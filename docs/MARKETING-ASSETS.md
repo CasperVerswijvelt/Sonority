@@ -39,8 +39,8 @@ Sonority markets four screens: **overview**, **home-theater detail**,
 hand-crafted photogenic system — a Living Room 5.1 with dedicated fronts, an
 Office stereo pair, a 3-speaker Upstairs zone, three standalone rooms, and two
 seeded profiles — with **no LAN, no real hardware, no staging, and no revert
-step**. Demo mode is navigation-only: don't tap apply/bond (the fake IPs would
-just time out).
+step**. Demo mode is navigation-only: apply/bond/identify taps fail fast (the
+demo SOAP client throws, so a demo build emits no network I/O at all).
 
 ### Capture (Android emulator + adb)
 
