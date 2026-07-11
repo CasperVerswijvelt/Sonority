@@ -15,18 +15,22 @@
 </style>
 <div id="stage"></div>
 <script>
-const INK='#FFFFFF', SUB='#6E6E77';
+const INK='#FFFFFF', BG='#0A0A0B', GREY='#98989F';
 const circle=(cx,cy,r,f)=>`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${f}"/>`;
 const rrect=(x,y,w,h,r,f)=>`<rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${r}" fill="${f}"/>`;
-// surround diagram in a 1000x1000 viewBox
-function diagramSvg(scale=1){
-  const x=500, s=`
-    ${rrect(x,300,360,52,26,INK)}
-    ${circle(x-288,470,46,INK)}${circle(x+288,470,46,INK)}
-    ${rrect(x,470,70,70,18,SUB)}
-    ${circle(x-288,720,46,INK)}${circle(x+288,720,46,INK)}`;
+// The Sonority mark (9c-3): three speaker cabinets (tweeter + woofer), white front
+// speaker flanked by two grey ones with tops peeking higher. Kept in sync with
+// design/export.html / design/logo.html (bbox cx 500, cy 445).
+function spk(cx,cy,h,fill){
+  const w=h*0.74, r=h*0.16;
+  return rrect(cx,cy,w,h,r,fill)
+    + circle(cx, cy-h*0.235, h*0.085, BG)
+    + circle(cx, cy+h*0.16,  h*0.185, BG);
+}
+function diagramSvg(scale=1.15){
+  const m = spk(325,400,300,GREY)+spk(675,400,300,GREY)+spk(500,460,360,INK);
   return `<svg viewBox="0 0 1000 1000" style="width:100%;height:100%">
-    <g transform="translate(500 510) scale(${scale}) translate(-500 -510)">${s}</g></svg>`;
+    <g transform="translate(500 500) scale(${scale}) translate(-500 -445)">${m}</g></svg>`;
 }
 
 // Marketing copy per screenshot. Sources are captured app screens (1080x2400)

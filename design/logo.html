@@ -1,4 +1,4 @@
-<title>Sonority — logo / icon / splash</title>
+<title>Sonority — logo / icon / lockup</title>
 <style>
   :root { color-scheme: dark; }
   body{
@@ -10,44 +10,55 @@
   h2{font-weight:600;font-size:14px;margin:8px 0 0;color:#b9b9c0;letter-spacing:.04em;text-transform:uppercase}
   .row{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;align-items:flex-end}
   .tile{display:flex;flex-direction:column;gap:8px;align-items:center}
-  .tile small{color:#9a9aa0;text-align:center;max-width:240px}
+  .tile small{color:#9a9aa0;text-align:center;max-width:260px}
   .card{border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.5)}
   pre{background:#0e0e10;border:1px solid #2a2a2e;border-radius:10px;padding:16px;
       max-width:760px;width:100%;overflow:auto;color:#cfd0d6;font-size:12.5px}
-  .hint{color:#9a9aa0;max-width:780px;text-align:center}
+  .hint{color:#9a9aa0;max-width:820px;text-align:center}
 </style>
 
-<h1>Sonority — logo / icon / splash (parametric)</h1>
-<p class="hint">Layout A (rectangle). Comparing subwoofer treatments — the rest stays the same. Pick one and I’ll lock it into <code>CONFIG</code>.</p>
+<h1>Sonority — logo / icon / lockup (parametric)</h1>
+<p class="hint">
+  The mark is <b>9c-3</b>: three speaker cabinets (tweeter + woofer), a white front
+  speaker flanked by two grey ones whose tops peek a little higher. The
+  <b>app icon is mark-only</b> on every platform; the <b>SONORITY wordmark</b> lives
+  in the <b>lockup</b> (splash + marketing). Edit <code>CONFIG</code> to tune both.
+  The old exploration lives in <code>design/logo_concepts.html</code>.
+</p>
 
-<h2>Subwoofer treatment</h2>
-<div class="row" id="subs"></div>
+<h2>Logo lockup — mark + wordmark</h2>
+<div class="row" id="lockups"></div>
 
-<h2>Chosen baseline — sizes</h2>
-<div class="row" id="sizes"></div>
+<h2>App icon — mark only</h2>
+<div class="row" id="icons"></div>
 
 <pre id="cfgdump"></pre>
 
 <script>
 // ─── Parametric config — tweak these ──────────────────────────────────────
 const CONFIG = {
-  bg:   '#0A0A0B',
-  ink:  '#FFFFFF',   // speakers + wordmark
-  sub:  '#6E6E77',   // subwoofer colour — greyed so it recedes (was #FFFFFF)
+  bg:     '#0A0A0B',
+  ink:    '#FFFFFF',   // front speaker + wordmark
+  grey:   '#98989F',   // the two receding back speakers
   tileRadius: 230,
 
-  diagram: {
-    cx: 500,
-    bar:   { y: 188, w: 330, h: 46, r: 23 },          // diagram nudged up ~22px
-    front: { y: 350, spread: 270, r: 37 },
-    sub:   { show: true, y: 350, size: 60, r: 16 },   // front-centre
-    rear:  { y: 638, spread: 270, r: 37 },
+  // The 9c-3 mark, in a 1000×1000 viewBox. spk() draws a cabinet with a tweeter
+  // (small, upper) + woofer (large, lower) hole. bbox ≈ x 214–786, y 250–640.
+  mark: {
+    back:  { dx: 175, y: 400, h: 300 },   // two grey speakers at cx = 500 ± dx
+    front: {          y: 460, h: 360 },   // white speaker, centre
   },
+
+  // Icon: mark only, scaled about the tile centre.
+  icon: { scale: 1.15 },
+
+  // Lockup: mark shifted up, wordmark below.
+  lockup: { markShiftY: -55 },
 
   text: {
     value: 'SONORITY',
-    y: 895,
-    size: 115,                                         // bumped up
+    y: 880,
+    size: 140,
     weight: 500,
     tracking: 0.005,
     font: "'Futura','Avenir Next','Century Gothic',ui-rounded,system-ui,sans-serif",
@@ -59,53 +70,45 @@ function circle(cx, cy, r, fill) { return `<circle cx="${cx}" cy="${cy}" r="${r}
 function rrect(x, y, w, h, r, fill) {
   return `<rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" rx="${r}" fill="${fill}"/>`;
 }
-
-function diagram(c) {
-  const d = c.diagram, x = d.cx;
-  return [
-    rrect(x, d.bar.y, d.bar.w, d.bar.h, d.bar.r, c.ink),               // soundbar / center
-    circle(x - d.front.spread, d.front.y, d.front.r, c.ink),          // front L
-    circle(x + d.front.spread, d.front.y, d.front.r, c.ink),          // front R
-    d.sub.show ? rrect(x, d.sub.y, d.sub.size, d.sub.size, d.sub.r, c.sub) : '', // sub
-    circle(x - d.rear.spread, d.rear.y, d.rear.r, c.ink),             // surround L
-    circle(x + d.rear.spread, d.rear.y, d.rear.r, c.ink),             // surround R
-  ].join('\n    ');
+function spk(c, cx, cy, h, fill) {
+  const w = h * 0.74, r = h * 0.16;
+  return rrect(cx, cy, w, h, r, fill)
+    + circle(cx, cy - h*0.235, h*0.085, c.bg)
+    + circle(cx, cy + h*0.16,  h*0.185, c.bg);
+}
+function mark(c) {
+  const m = c.mark;
+  return spk(c, 500 - m.back.dx, m.back.y, m.back.h, c.grey)
+    + spk(c, 500 + m.back.dx, m.back.y, m.back.h, c.grey)
+    + spk(c, 500, m.front.y, m.front.h, c.ink);
 }
 
-function logo(c, { withText = true } = {}) {
-  const word = withText
-    ? `<text x="500" y="${c.text.y}" text-anchor="middle"
-            font-family="${c.text.font}" font-size="${c.text.size}"
-            font-weight="${c.text.weight}" letter-spacing="${c.text.tracking}em"
-            fill="${c.ink}">${c.text.value}</text>`
-    : '';
+function icon(c) {
   return `<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
     <rect width="1000" height="1000" rx="${c.tileRadius}" fill="${c.bg}"/>
-    ${diagram(c)}${word}</svg>`;
+    <g transform="translate(500 500) scale(${c.icon.scale}) translate(-500 -445)">${mark(c)}</g></svg>`;
+}
+function lockup(c) {
+  const word = `<text x="500" y="${c.text.y}" text-anchor="middle"
+      font-family="${c.text.font}" font-size="${c.text.size}" font-weight="${c.text.weight}"
+      letter-spacing="${c.text.tracking}em" fill="${c.ink}">${c.text.value}</text>`;
+  return `<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1000" height="1000" rx="${c.tileRadius}" fill="${c.bg}"/>
+    <g transform="translate(0 ${c.lockup.markShiftY})">${mark(c)}</g>${word}</svg>`;
 }
 function tile(label, px, svg) {
   return `<div class="tile"><div class="card" style="width:${px}px;height:${px}px">${svg}</div><small>${label}</small></div>`;
 }
-function variant(mut) { const v = structuredClone(CONFIG); mut?.(v); return v; }
 
-const vWhite  = variant(v => { v.sub = '#FFFFFF'; });
-const vGrey   = CONFIG;                                              // recommended
-const vSmall  = variant(v => { v.diagram.sub.size = 48; });          // grey + smaller
-const vUnder  = variant(v => { v.diagram.sub.y = 268; });           // tucked under the soundbar
-const vNone   = variant(v => { v.diagram.sub.show = false; });       // 5.0, no sub
+document.getElementById('lockups').innerHTML =
+  tile('splash / marketing lockup', 230, lockup(CONFIG)) +
+  tile('120', 120, lockup(CONFIG)) +
+  tile('64', 64, lockup(CONFIG));
 
-document.getElementById('subs').innerHTML =
-  tile('1 · white (before)', 230, logo(vWhite)) +
-  tile('2 · grey, recedes ★', 230, logo(vGrey)) +
-  tile('3 · grey + smaller', 230, logo(vSmall)) +
-  tile('4 · grey, under soundbar', 230, logo(vUnder)) +
-  tile('5 · no sub (5.0)', 230, logo(vNone));
-
-const chosen = vGrey;
-document.getElementById('sizes').innerHTML =
-  tile('icon 180', 180, logo(chosen)) +
-  tile('launcher 120', 120, logo(chosen)) +
-  tile('tiny 64', 64, logo(chosen));
+document.getElementById('icons').innerHTML =
+  tile('app icon (iOS · macOS · Android)', 230, icon(CONFIG)) +
+  tile('launcher 120', 120, icon(CONFIG)) +
+  tile('tiny 64', 64, icon(CONFIG));
 
 document.getElementById('cfgdump').textContent = 'CONFIG = ' + JSON.stringify(CONFIG, null, 2);
 </script>

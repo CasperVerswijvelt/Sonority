@@ -2,87 +2,50 @@
 <style>html,body{margin:0;padding:0;background:#0A0A0B}#stage{}svg{display:block}</style>
 <div id="stage"></div>
 <script>
-const BG='#0A0A0B', INK='#FFFFFF', SUB='#6E6E77';
+const BG='#0A0A0B', INK='#FFFFFF', GREY='#98989F';
 const FONT="'Futura','Avenir Next','Century Gothic',ui-rounded,system-ui,sans-serif";
 
-// Diagram-only, centered & scaled up to sit nicely inside a circular mask.
-const D = {
-  cx: 500,
-  bar:   { y: 282, w: 360, h: 52, r: 26 },
-  front: { y: 450, spread: 288, r: 42 },
-  sub:   { y: 450, size: 70, r: 18 },
-  rear:  { y: 720, spread: 288, r: 42 },
-};
 const circle=(cx,cy,r,f)=>`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${f}"/>`;
 const rrect=(x,y,w,h,r,f)=>`<rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${r}" fill="${f}"/>`;
 
-function diagram() {
-  const x = D.cx;
-  return [
-    rrect(x, D.bar.y, D.bar.w, D.bar.h, D.bar.r, INK),
-    circle(x - D.front.spread, D.front.y, D.front.r, INK),
-    circle(x + D.front.spread, D.front.y, D.front.r, INK),
-    rrect(x, D.sub.y, D.sub.size, D.sub.size, D.sub.r, SUB),
-    circle(x - D.rear.spread, D.rear.y, D.rear.r, INK),
-    circle(x + D.rear.spread, D.rear.y, D.rear.r, INK),
-  ].join('');
+// The mark (9c-3): three speaker cabinets — tweeter (upper) + woofer (lower) each,
+// a white front speaker flanked by two grey ones whose tops peek a little higher.
+// bbox ≈ x 214–786 (cx 500), y 250–640 (cy 445). No soundbar, no sub.
+function spk(cx,cy,h,fill){
+  const w=h*0.74, r=h*0.16;
+  return rrect(cx,cy,w,h,r,fill)
+    + circle(cx, cy-h*0.235, h*0.085, BG)   // tweeter
+    + circle(cx, cy+h*0.16,  h*0.185, BG);  // woofer
+}
+function mark(){
+  return spk(325,400,300,GREY) + spk(675,400,300,GREY) + spk(500,460,360,INK);
 }
 
+// App ICON — mark only, large, on EVERY platform (iOS, macOS, Android legacy,
+// splash, README/Play 512). Apple HIG discourages app-name text in icons and the
+// Android mask would clip a wordmark; the OS prints the name under the icon. The
+// SONORITY wordmark lives in the logo lockup (splash branding + marketing +
+// design/logo.html), not here. Centred, scaled 1.15 about (500,500).
 function iconSvg() {
   return `<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
-    <rect width="1000" height="1000" fill="${BG}"/>${diagram()}</svg>`;
+    <rect width="1000" height="1000" fill="${BG}"/>
+    <g transform="translate(500 500) scale(1.15) translate(-500 -445)">${mark()}</g></svg>`;
 }
 // Android adaptive FOREGROUND. The generator wraps this image in a 16% inset and
-// the launcher then masks to a circle ≈ the inscribed circle of this frame, so
-// scale 1.0 already leaves clean margin and NEVER clips. (1.33 clipped the
-// corner speakers — see design/icon_variants.html.) Opaque black bg blends with
-// the adaptive background layer (also #0A0A0B).
+// the launcher then masks to ≈ the inscribed circle, so keep the mark modest
+// (scale 1.0 about its own centre) — it NEVER clips the outer speakers. Opaque
+// black bg blends with the adaptive background layer (also #0A0A0B).
 function iconFgSvg() {
   return `<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
     <rect width="1000" height="1000" fill="${BG}"/>
-    <g transform="translate(500 500) scale(1.0) translate(-500 -500)">${diagram()}</g></svg>`;
+    <g transform="translate(500 500) scale(1.0) translate(-500 -445)">${mark()}</g></svg>`;
 }
+// Splash branding wordmark (SONORITY only). Unchanged.
 function wordmarkSvg() {
   return `<svg viewBox="0 0 1000 260" xmlns="http://www.w3.org/2000/svg">
     <rect width="1000" height="260" fill="${BG}"/>
     <text x="500" y="192" text-anchor="middle" font-family="${FONT}" font-size="150"
       font-weight="500" letter-spacing="0.005em" fill="${INK}">SONORITY</text></svg>`;
-}
-
-// Full logo (diagram up top + SONORITY wordmark) — for iOS/macOS only, where the
-// squircle mask never clips a centered wordmark (verified design/ios_preview.html).
-// Android stays diagram-only (the circular mask WOULD clip text). Layout mirrors
-// design/logo.html. Everything is horizontally centered, clear of the squircle
-// corners.
-const L = {
-  bar:   { y: 188, w: 330, h: 46, r: 23 },
-  front: { y: 350, spread: 270, r: 37 },
-  sub:   { y: 350, size: 60, r: 16 },
-  rear:  { y: 638, spread: 270, r: 37 },
-  text:  { value: 'SONORITY', y: 895, size: 115, weight: 500, tracking: 0.005 },
-  // Shrink the diagram about its visual centre so it doesn't crowd the wordmark.
-  diagramScale: 0.82,
-  diagramPivotY: 420,   // midpoint between bar (188) and rears (638)
-};
-function fullDiagram() {
-  const x = 500;
-  return [
-    rrect(x, L.bar.y, L.bar.w, L.bar.h, L.bar.r, INK),
-    circle(x - L.front.spread, L.front.y, L.front.r, INK),
-    circle(x + L.front.spread, L.front.y, L.front.r, INK),
-    rrect(x, L.sub.y, L.sub.size, L.sub.size, L.sub.r, SUB),
-    circle(x - L.rear.spread, L.rear.y, L.rear.r, INK),
-    circle(x + L.rear.spread, L.rear.y, L.rear.r, INK),
-  ].join('');
-}
-function iconTextSvg() {
-  const s = L.diagramScale, py = L.diagramPivotY;
-  return `<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
-    <rect width="1000" height="1000" fill="${BG}"/>
-    <g transform="translate(500 ${py}) scale(${s}) translate(-500 -${py})">${fullDiagram()}</g>
-    <text x="500" y="${L.text.y}" text-anchor="middle" font-family="${FONT}"
-      font-size="${L.text.size}" font-weight="${L.text.weight}"
-      letter-spacing="${L.text.tracking}em" fill="${INK}">${L.text.value}</text></svg>`;
 }
 
 const mode = new URLSearchParams(location.search).get('mode') || 'icon';
@@ -93,9 +56,7 @@ if (mode === 'wordmark') {
   stage.firstElementChild.style.cssText = 'width:1000px;height:260px';
 } else {
   stage.style.cssText = 'width:1024px;height:1024px';
-  stage.innerHTML = (mode === 'iconfg') ? iconFgSvg()
-                  : (mode === 'icontext') ? iconTextSvg()
-                  : iconSvg();
+  stage.innerHTML = (mode === 'iconfg') ? iconFgSvg() : iconSvg();
   stage.firstElementChild.style.cssText = 'width:1024px;height:1024px';
 }
 </script>
