@@ -42,12 +42,16 @@ class DiscoveryScreen extends ConsumerWidget {
 
     return AppScaffold(
       title: 'Sonority',
-      titleWidget: Image.asset(
-        'assets/brand/sonority_wordmark.png',
-        height: 18,
-        // White glyphs on alpha → default srcIn tint recolors them to the
-        // theme text colour, so the one asset works in light and dark.
-        color: Theme.of(context).colorScheme.onSurface,
+      // White glyphs on alpha → srcIn tint recolors them to the theme text
+      // colour, so the one asset works in light and dark. ColorFiltered (not
+      // Image(color:)) because CanvasKit renders an image `color` tint blank on
+      // web — this path tints correctly on every platform (the screenshot host).
+      titleWidget: ColorFiltered(
+        colorFilter: ColorFilter.mode(
+          Theme.of(context).colorScheme.onSurface,
+          BlendMode.srcIn,
+        ),
+        child: Image.asset('assets/brand/sonority_wordmark.png', height: 18),
       ),
       onRefresh: state.value != null ? () => controller.scan() : null,
       actions: [

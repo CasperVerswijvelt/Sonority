@@ -42,33 +42,31 @@ seeded profiles — with **no LAN, no real hardware, no staging, and no revert
 step**. Demo mode is navigation-only: apply/bond/identify taps fail fast (the
 demo SOAP client throws, so a demo build emits no network I/O at all).
 
-### Capture (Android emulator + adb)
+### Capture (Flutter web + headless Chrome)
 
-The macOS Flutter window can't be scripted (single canvas, no a11y tree); the
-Android emulator can, via `adb` — and in demo mode it needs no LAN access.
-(The macOS window + `tool/macos_ui.swift` is a workable alternative capture
-host for non-store shots.)
+One command captures all four:
 
 ```sh
-# build + install a release APK (no debug banner) with the demo system baked in
-~/fvm/versions/3.35.2/bin/flutter build apk --release --dart-define=DEMO=true
-adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-release.apk
-adb -s emulator-5554 shell am start -n be.casperverswijvelt.sonority/.MainActivity
-
-# clean status bar for pro screenshots (9:41, full battery/signal, no clutter)
-adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command enter
-adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0941
-adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false
-adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false
-# ...drive the UI with `adb shell input tap X Y` / `input text`, capturing:
-adb -s emulator-5554 exec-out screencap -p > design/shots/01-overview.png
-# exit demo mode when done:
-adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command exit
+~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart
 ```
 
-Save the four as `design/shots/01-overview.png`, `02-home-theater.png`,
-`03-group.png`, `04-profiles.png` (any size with a ~1080×2400 phone aspect; the
-generator frames them, so exact dimensions don't matter).
+It builds `flutter build web --release --dart-define=DEMO=true`, serves it, and
+drives headless Chrome over the DevTools Protocol — deep-linking to each screen
+by its go_router URL (no tapping) and waiting for Flutter to render (incl. the
+wordmark PNG) before shooting into `design/shots/0N-*.png` at 1080×2400. No
+emulator, no device, no LAN. `--no-build` reuses an existing `build/web`; set
+`$CHROME` to override the browser. (The **web target is screenshot-only**, not a
+shipped app — a browser can't do SSDP/sockets, so it only runs under `DEMO=true`.)
+
+There's no OS status bar on a web canvas — so no `9:41`/battery faking to do, and
+the look is identical for every store frame. Demo mode injects safe-area padding
+(`lib/app.dart`, gated to `kIsWeb`) so the top/bottom don't look crammed. Two
+Chrome details the tool bakes in and the framer relies on: `--enable-unsafe-
+swiftshader` (else CanvasKit falls back to CPU rendering and draws images blank),
+and a render-settle before each shot.
+
+The four land as `design/shots/01-overview.png`, `02-home-theater.png`,
+`03-group.png`, `04-profiles.png` — the exact files §3's framer reads.
 
 ### Changing what the screenshots show
 

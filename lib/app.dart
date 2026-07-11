@@ -1,12 +1,12 @@
-import 'dart:io' show Platform;
-
 import 'package:animations/animations.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/theme.dart';
+import 'demo/demo_mode.dart';
 import 'features/discovery/discovery_screen.dart';
 import 'features/front_surrounds/front_surrounds_flow.dart';
 import 'features/home_theater/home_theater_screen.dart';
@@ -281,7 +281,8 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
         // Material You only on Android. On macOS `dynamic_color` returns the
         // system accent (not Material You), which would diverge from Android —
         // so Apple platforms ignore it and use our fixed seed instead.
-        final useDynamic = Platform.isAndroid;
+        final useDynamic =
+            !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
         return MaterialApp.router(
           title: 'Sonority',
           debugShowCheckedModeBanner: false,
@@ -290,6 +291,22 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
               AppTheme.dark(useDynamic ? darkDynamic?.harmonized() : null),
           themeMode: ThemeMode.system,
           routerConfig: _router,
+          // The screenshot-only web demo build has no OS status bar / home
+          // indicator, so inject safe insets that the screens' SafeArea turns
+          // into comfortable top/bottom breathing room (see docs/MARKETING-
+          // ASSETS.md §2). Native builds already have real insets — untouched.
+          builder: (kDemoMode && kIsWeb)
+              ? (context, child) {
+                  final mq = MediaQuery.of(context);
+                  return MediaQuery(
+                    data: mq.copyWith(
+                      padding: mq.padding.copyWith(top: 44, bottom: 34),
+                      viewPadding: mq.viewPadding.copyWith(top: 44, bottom: 34),
+                    ),
+                    child: child!,
+                  );
+                }
+              : null,
         );
       },
     );

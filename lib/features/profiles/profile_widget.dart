@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 
@@ -28,7 +28,10 @@ const _iosWidgetName = 'ProfileWidget';
 
 /// home_widget only bridges iOS/Android; on macOS every call throws
 /// MissingPluginException, so gate like [profile_shortcuts].
-bool get _supported => Platform.isIOS || Platform.isAndroid;
+bool get _supported =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.android);
 
 /// Parses a widget-tap deep link (`sonority://apply?...&id=<profileId>`) to the
 /// tapped profile id, or null if it isn't a valid apply link. Top-level so it's
@@ -78,7 +81,7 @@ Future<void> publishWidgetProfiles(List<Profile> profiles) async {
   if (json == await HomeWidget.getWidgetData<String>('widget_profiles')) return;
   await HomeWidget.saveWidgetData<String>('widget_profiles', json);
 
-  if (Platform.isIOS) {
+  if (defaultTargetPlatform == TargetPlatform.iOS) {
     // iOS-only: updateWidget with just iOSName throws on Android (it resolves an
     // Android provider class `<pkg>.null`). Android reloads below.
     await HomeWidget.updateWidget(iOSName: _iosWidgetName);

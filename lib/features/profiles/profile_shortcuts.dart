@@ -1,6 +1,6 @@
-import 'dart:io' show Platform;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -29,7 +29,10 @@ const maxProfileShortcuts = 4;
 List<Profile> shortcutProfiles(List<Profile> profiles) =>
     profiles.take(maxProfileShortcuts).toList();
 
-bool get _supported => Platform.isIOS || Platform.isAndroid;
+bool get _supported =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.android);
 
 /// Wires up tap delivery once: warm taps arrive as `applyShortcut` calls from
 /// native; a cold-start tap is pulled via `getInitialShortcut`. Both funnel the
@@ -58,7 +61,8 @@ Future<void> syncProfileShortcuts(List<Profile> profiles) async {
       // iOS uses the SF Symbol; Android uses the rendered PNG. Each side reads
       // only what it needs, so sending both is harmless.
       'sfSymbol': sfSymbolName(p.iconId),
-      if (Platform.isAndroid) 'png': await _renderAvatarPng(p.iconId, p.color),
+      if (defaultTargetPlatform == TargetPlatform.android)
+        'png': await _renderAvatarPng(p.iconId, p.color),
     });
   }
   await _channel.invokeMethod('setShortcuts', {'items': items});
