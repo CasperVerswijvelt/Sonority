@@ -20,6 +20,9 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   on Android, a matching SF Symbol on iOS).
 
 ### Changed
+- The **version chip** in the app bar is now tappable — it opens a dialog with
+  the full version and build number, this changelog, and a link to the GitHub
+  project.
 - The apply progress timeline now marks no-op steps as **skipped** (grey dot +
   reason, e.g. "layout unchanged — nothing to do", "name unchanged — nothing to
   do") instead of showing them as completed work, so a re-apply that changed
@@ -43,6 +46,13 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   every screen's chrome reads as flat and line-based.
 
 ### Fixed
+- **Discovery on iPhone** — the TestFlight build could hang on "Scanning your
+  network" and fail: real iPhones silently block the multicast discovery
+  packets (a restricted Apple entitlement the app doesn't carry; the simulator
+  doesn't enforce it). When multicast finds nothing, discovery now falls back
+  to directly probing the local network for Sonos players — which only needs
+  the local-network permission the app already asks for. This also helps
+  mesh/guest networks that filter multicast.
 - The "couldn't find your system" screen no longer shows a raw `Exception:`
   prefix on its message, and its title now centres correctly when it wraps to
   two lines — so an empty network reads as a normal state, not a crash.
