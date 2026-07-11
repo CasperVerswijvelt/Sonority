@@ -46,6 +46,10 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   every screen's chrome reads as flat and line-based.
 
 ### Fixed
+- The system overview no longer drifts to the vertical centre during the
+  scan/rescan transition — short (non-scrolling) content now stays pinned to
+  the top throughout the animation instead of floating to the middle and
+  snapping back.
 - **Discovery on iPhone** — the TestFlight build could hang on "Scanning your
   network" and fail: real iPhones silently block the multicast discovery
   packets (a restricted Apple entitlement the app doesn't carry; the simulator
