@@ -43,9 +43,9 @@ private func loadProfiles() -> [ProfileOption] {
 
 struct ProfileQuery: EntityQuery {
   func entities(for ids: [String]) async throws -> [ProfileOption] {
-    let byId = Dictionary(loadProfiles().map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-    // Preserve the caller's id order (the user's chosen tile order).
-    return ids.compactMap { byId[$0] }
+    // App order is canonical (reorder lives in the Profiles tab; Android does the
+    // same), so order by the published list, not the intent's stored id order.
+    return loadProfiles().filter { ids.contains($0.id) }
   }
   func suggestedEntities() async throws -> [ProfileOption] { loadProfiles() }
 }
