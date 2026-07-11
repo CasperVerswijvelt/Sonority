@@ -53,6 +53,9 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   to directly probing the local network for Sonos players — which only needs
   the local-network permission the app already asks for. This also helps
   mesh/guest networks that filter multicast.
+- The "couldn't find your system" screen no longer shows a raw `Exception:`
+  prefix on its message, and its title now centres correctly when it wraps to
+  two lines — so an empty network reads as a normal state, not a crash.
 
 ## [0.5.0] - 2026-07-06
 
