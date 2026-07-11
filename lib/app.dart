@@ -283,12 +283,21 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
         // so Apple platforms ignore it and use our fixed seed instead.
         final useDynamic =
             !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+        // The screenshot-only web build renders on desktop Chrome, which
+        // reports a desktop platform — so ReorderableListView shows drag
+        // handles and scrollbars appear. Pose as iOS there so the captured
+        // screens look like the mobile app. (Can't use
+        // debugDefaultTargetPlatformOverride — it throws in release builds.)
+        final platform =
+            (kDemoMode && kIsWeb) ? TargetPlatform.iOS : null;
         return MaterialApp.router(
           title: 'Sonority',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(useDynamic ? lightDynamic?.harmonized() : null),
+          theme: AppTheme.light(useDynamic ? lightDynamic?.harmonized() : null)
+              .copyWith(platform: platform),
           darkTheme:
-              AppTheme.dark(useDynamic ? darkDynamic?.harmonized() : null),
+              AppTheme.dark(useDynamic ? darkDynamic?.harmonized() : null)
+                  .copyWith(platform: platform),
           themeMode: ThemeMode.system,
           routerConfig: _router,
           // The screenshot-only web demo build has no OS status bar / home

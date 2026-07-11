@@ -18,11 +18,13 @@ import 'dart:io';
 const _httpPort = 8420;
 const _dbgPort = 9222;
 
-// A web canvas has no OS status bar; emulate a 450x1000 phone viewport at
-// DSF 2.4 → a 1080x2400 shot (the framer's expected ~0.45 aspect). Demo mode
+// Match a recent large iPhone (6.9" / 15–17 Pro Max class): a 430x932 logical
+// viewport at DPR 3 → a 1290x2796 shot, which is also Apple's exact App Store
+// 6.9" screenshot size (the framer's ios69 target). Real iPhone density (DPR 3,
+// ~430pt wide) makes the UI scale like the device, not zoomed-out. Demo mode
 // injects safe-area padding (lib/app.dart) so nothing looks crammed.
-const _vw = 450, _vh = 1000;
-const _dsf = 2.4;
+const _vw = 430, _vh = 932;
+const _dsf = 3.0;
 
 // go_router uses the hash URL strategy on web; deep-link straight to each
 // screen (demo UUIDs are fixed in lib/demo/demo_mode.dart) instead of tapping.
@@ -33,21 +35,16 @@ const _screens = <(String, String)>[
   ('04-profiles', '/#/profiles'),
 ];
 
+// The extensions a `flutter build web` output actually contains; anything else
+// falls back to octet-stream below.
 const _mime = <String, String>{
   '.html': 'text/html',
   '.js': 'text/javascript',
-  '.mjs': 'text/javascript',
   '.json': 'application/json',
   '.wasm': 'application/wasm',
-  '.css': 'text/css',
   '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
   '.otf': 'font/otf',
   '.ttf': 'font/ttf',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
 };
 
 late final String _root;
@@ -141,6 +138,12 @@ Future<HttpServer> _serve(Directory webDir) async {
   server.listen((req) async {
     var p = req.uri.path;
     if (p == '/' || p.isEmpty) p = '/index.html';
+    // Stay inside build/web (defensive — the tool drives its own loopback server).
+    if (p.contains('..')) {
+      req.response.statusCode = HttpStatus.forbidden;
+      await req.response.close();
+      return;
+    }
     final file = File('${webDir.path}$p');
     if (!file.existsSync()) {
       req.response.statusCode = HttpStatus.notFound;
@@ -159,23 +162,24 @@ Future<HttpServer> _serve(Directory webDir) async {
 /// The debugger WebSocket URL of Chrome's initial page target.
 Future<String> _pageWebSocketUrl() async {
   final client = HttpClient();
-  for (var i = 0; i < 100; i++) {
-    try {
-      final req = await client.get('localhost', _dbgPort, '/json/list');
-      final res = await req.close();
-      final body = await res.transform(utf8.decoder).join();
-      final targets = (jsonDecode(body) as List).cast<Map<String, dynamic>>();
-      final page = targets.firstWhere((t) => t['type'] == 'page',
-          orElse: () => const {});
-      final ws = page['webSocketDebuggerUrl'] as String?;
-      if (ws != null) {
-        client.close();
-        return ws;
-      }
-    } catch (_) {/* Chrome not up yet */}
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+  try {
+    for (var i = 0; i < 100; i++) {
+      try {
+        final req = await client.get('localhost', _dbgPort, '/json/list');
+        final res = await req.close();
+        final body = await res.transform(utf8.decoder).join();
+        final targets = (jsonDecode(body) as List).cast<Map<String, dynamic>>();
+        final page = targets.firstWhere((t) => t['type'] == 'page',
+            orElse: () => const {});
+        final ws = page['webSocketDebuggerUrl'] as String?;
+        if (ws != null) return ws;
+      } catch (_) {/* Chrome not up yet */}
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    throw StateError('Could not reach Chrome DevTools on :$_dbgPort');
+  } finally {
+    client.close();
   }
-  throw StateError('Could not reach Chrome DevTools on :$_dbgPort');
 }
 
 /// Minimal DevTools-Protocol client over a single page WebSocket.

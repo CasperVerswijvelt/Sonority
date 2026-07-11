@@ -8,13 +8,4 @@ class SsdpDiscovery {
     Duration timeout = const Duration(seconds: 4),
   }) async =>
       throw UnsupportedError('SSDP discovery is not available on web');
-
-  /// Pure string math, kept for API parity with the IO impl.
-  static List<String> subnetHosts(String ip) {
-    final prefix = ip.substring(0, ip.lastIndexOf('.'));
-    return [
-      for (var h = 1; h <= 254; h++)
-        if ('$prefix.$h' != ip) '$prefix.$h',
-    ];
-  }
 }
