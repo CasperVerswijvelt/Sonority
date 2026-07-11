@@ -33,9 +33,9 @@ function diagramSvg(scale=1.15){
     <g transform="translate(500 500) scale(${scale}) translate(-500 -445)">${m}</g></svg>`;
 }
 
-// Marketing copy per screenshot. Sources are captured app screens (1080x2400)
-// in shots/; the CANVAS is what hits each store's required size, so the inner
-// shot can be any size. See docs/MARKETING-ASSETS.md.
+// Marketing copy per screenshot. Sources are captured app screens (1290x2796,
+// tool/capture_shots.dart) in shots/; the CANVAS is what hits each store's
+// required size, so the inner shot can be any size. See docs/MARKETING-ASSETS.md.
 const SHOTS = [
   { src:'shots/01-overview.png', head:'Your whole<br>Sonos system',
     sub:'Home theaters, speaker groups and every room — at a glance.' },
@@ -74,16 +74,18 @@ function featureGraphic(){
 function framedPortrait(w,h,i){
   size(w,h);
   const sh = SHOTS[i];
-  const phoneH = h*0.62;
-  const phoneW = phoneH*(1080/2400);
+  const phoneH = h*0.68;
+  // Match the source-shot aspect (1290x2796, tool/capture_shots.dart) so the
+  // frame doesn't object-fit:cover-crop the top/bottom of the screen.
+  const phoneW = phoneH*(1290/2796);
   stage.innerHTML = `
     <div class="bg"></div>
-    <div style="position:absolute;left:0;right:0;top:${h*0.06}px;text-align:center;padding:0 ${w*0.08}px">
+    <div style="position:absolute;left:0;right:0;top:${h*0.055}px;text-align:center;padding:0 ${w*0.08}px">
       <div class="word" style="font-size:${w*0.078}px;line-height:1.08">${sh.head}</div>
       <div class="grey" style="font-size:${w*0.032}px;line-height:1.4;margin-top:${h*0.015}px">${sh.sub}</div>
     </div>
     <div class="phone" style="position:absolute;left:50%;transform:translateX(-50%);
-        bottom:${h*0.05}px;width:${phoneW}px;height:${phoneH}px;border-width:${w*0.013}px;border-radius:${w*0.05}px">
+        bottom:${h*0.045}px;width:${phoneW}px;height:${phoneH}px;border-width:${w*0.013}px;border-radius:${w*0.05}px">
       <img src="${sh.src}">
     </div>`;
 }

@@ -301,16 +301,19 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
           themeMode: ThemeMode.system,
           routerConfig: _router,
           // The screenshot-only web demo build has no OS status bar / home
-          // indicator, so inject safe insets that the screens' SafeArea turns
-          // into comfortable top/bottom breathing room (see docs/MARKETING-
-          // ASSETS.md §2). Native builds already have real insets — untouched.
+          // indicator, so inject small safe insets purely as framing margin
+          // (see docs/MARKETING-ASSETS.md §2). Less top/bottom than a real
+          // device (no bars to clear); a little left/right so cards don't hug
+          // the phone frame. app_scaffold's body SafeArea turns bottom/left/
+          // right into margins; the AppBar consumes top. Native is untouched.
           builder: (kDemoMode && kIsWeb)
               ? (context, child) {
+                  const inset = EdgeInsets.fromLTRB(16, 16, 16, 12);
                   final mq = MediaQuery.of(context);
                   return MediaQuery(
                     data: mq.copyWith(
-                      padding: mq.padding.copyWith(top: 44, bottom: 34),
-                      viewPadding: mq.viewPadding.copyWith(top: 44, bottom: 34),
+                      padding: mq.padding + inset,
+                      viewPadding: mq.viewPadding + inset,
                     ),
                     child: child!,
                   );
