@@ -83,8 +83,10 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     expect(find.text('v0.5.0-8'), findsOneWidget);
-    // Real CHANGELOG.md asset loaded and parsed.
-    expect(find.text('0.5.0 — 2026-07-06'), findsOneWidget);
+    // Real CHANGELOG.md asset loaded and parsed. Match the header shape, not a
+    // literal version/date — those change on every release cut.
+    expect(find.textContaining(RegExp(r'^\d+\.\d+\.\d+ — \d{4}-\d{2}-\d{2}$')),
+        findsWidgets);
     expect(find.text('GitHub'), findsOneWidget);
   });
 }
