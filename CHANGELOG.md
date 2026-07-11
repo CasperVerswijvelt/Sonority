@@ -8,60 +8,7 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 `[X.Y.Z] - YYYY-MM-DD`. CI copies that section into the GitHub Release notes
 (see `.github/workflows/release.yml`).
 
-## [Unreleased]
-
-### Added
-- **Apply a profile from an app shortcut** — long-press the app icon to apply a
-  saved profile in one tap. The shortcut opens the app and runs the apply,
-  scanning your system first and asking for confirmation only when some speakers
-  are missing or in use by another setup.
-- **Per-profile icon & colour** — pick an icon and colour for each profile,
-  shown on its tile, in the editor, and on its app shortcut (a full-colour glyph
-  on Android, a matching SF Symbol on iOS).
-
-### Changed
-- The **version chip** in the app bar is now tappable — it opens a dialog with
-  the full version and build number, this changelog, and a link to the GitHub
-  project.
-- The apply progress timeline now marks no-op steps as **skipped** (grey dot +
-  reason, e.g. "layout unchanged — nothing to do", "name unchanged — nothing to
-  do") instead of showing them as completed work, so a re-apply that changed
-  nothing is honest about it. The entity itself keeps its green checkmark — it's
-  still in the desired state.
-- Profiles: the EQ capture toggle is now **"Save audio settings"** — the label
-  undersold a bundle that also covers night sound, speech enhancement, sub &
-  surround levels and lip sync. Profile cards now show separate **Audio
-  settings** / **Volume** badges (instead of one combined "EQ" line) and use an
-  icon-only play button with a bit more breathing room.
-- The macOS `.dmg` download now opens a styled drag-to-Applications install
-  window — the app icon, an arrow, and an Applications shortcut over a branded
-  background — instead of a bare disk image.
-- Re-snapshot moved to an app-bar action on the profile detail page.
-- Switching bottom-nav tabs (System ↔ Profiles) now animates with a Material 3
-  shared-axis transition (fade + slide), sliding the way the tab bar moves.
-- Consistent, flat separation for the top app bar and bottom navigation bar. The
-  nav bar now shows a hairline dividing it from the page and cards (it was
-  meant to but never rendered), and the app bar matches with a hairline that
-  appears only while content scrolls under it — replacing its drop shadow, so
-  every screen's chrome reads as flat and line-based.
-
-### Fixed
-- The system overview no longer drifts to the vertical centre during the
-  scan/rescan transition — short (non-scrolling) content now stays pinned to
-  the top throughout the animation instead of floating to the middle and
-  snapping back.
-- **Discovery on iPhone** — the TestFlight build could hang on "Scanning your
-  network" and fail: real iPhones silently block the multicast discovery
-  packets (a restricted Apple entitlement the app doesn't carry; the simulator
-  doesn't enforce it). When multicast finds nothing, discovery now falls back
-  to directly probing the local network for Sonos players — which only needs
-  the local-network permission the app already asks for. This also helps
-  mesh/guest networks that filter multicast.
-- The "couldn't find your system" screen no longer shows a raw `Exception:`
-  prefix on its message, and its title now centres correctly when it wraps to
-  two lines — so an empty network reads as a normal state, not a crash.
-
-## [0.5.0] - 2026-07-06
+## [0.5.0] - 2026-07-11
 
 ### Added
 - **Dual Subs** — a home theater can now bond **two Subs**, with both shown in the
@@ -83,6 +30,13 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 - **Config profiles** — snapshot your current layout (home theaters, speaker
   groups, rooms, with their names) and re-apply it in one tap, e.g. to rebuild a
   fronts/surrounds setup after moving speakers. A dedicated bottom tab.
+- **Apply a profile from an app shortcut** — long-press the app icon to apply a
+  saved profile in one tap. The shortcut opens the app and runs the apply,
+  scanning your system first and asking for confirmation only when some speakers
+  are missing or in use by another setup.
+- **Per-profile icon & colour** — pick an icon and colour for each profile,
+  shown on its tile, in the editor, and on its app shortcut (a full-colour glyph
+  on Android, a matching SF Symbol on iOS).
 - **Full in-app home-theater setup** — the guided flow now bonds dedicated
   fronts plus **rear surrounds and a sub** (each optional), with a live
   per-step progress timeline showing the active step and exactly where it
@@ -102,7 +56,9 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
   rooms → other devices, with a compact "+" in the Speaker groups header.
 - Speaker groups now have a **tappable detail view**, and the configure-bond flow
   **pre-selects the current layout** so it opens on what's actually bonded.
-- The **app version** is shown as a chip in the discovery app bar.
+- The **app version** is shown as a tappable chip in the discovery app bar — it
+  opens a dialog with the full version and build number, this changelog, and a
+  link to the GitHub project.
 - Discovery **auto-scans on launch** — the separate landing page is gone.
 - Applying a home theater or profile now diffs against the live layout and only
   changes what moved — faster, and an unchanged layout re-applies with no writes.
@@ -111,12 +67,47 @@ Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
 - The apply/profile progress timeline is now **two-level** — each phase's
   sub-steps are nested under the entity they act on, so it's clear what's
   happening and exactly where it failed.
+- The apply progress timeline now marks no-op steps as **skipped** (grey dot +
+  reason, e.g. "layout unchanged — nothing to do", "name unchanged — nothing to
+  do") instead of showing them as completed work, so a re-apply that changed
+  nothing is honest about it. The entity itself keeps its green checkmark — it's
+  still in the desired state.
 - Detail pages show the **entity type as an app-bar subtitle** (speaker model
   for a room, "Home theater", or the speaker-group kind).
 - Profile creation warns before overwriting, and applying a profile is guarded
   against re-entrant taps.
+- Profiles: the EQ capture toggle is now **"Save audio settings"** — the label
+  undersold a bundle that also covers night sound, speech enhancement, sub &
+  surround levels and lip sync. Profile cards now show separate **Audio
+  settings** / **Volume** badges (instead of one combined "EQ" line) and use an
+  icon-only play button with a bit more breathing room.
+- Re-snapshot moved to an app-bar action on the profile detail page.
+- Switching bottom-nav tabs (System ↔ Profiles) now animates with a Material 3
+  shared-axis transition (fade + slide), sliding the way the tab bar moves.
+- Consistent, flat separation for the top app bar and bottom navigation bar. The
+  nav bar now shows a hairline dividing it from the page and cards (it was
+  meant to but never rendered), and the app bar matches with a hairline that
+  appears only while content scrolls under it — replacing its drop shadow, so
+  every screen's chrome reads as flat and line-based.
+- The macOS `.dmg` download now opens a styled drag-to-Applications install
+  window — the app icon, an arrow, and an Applications shortcut over a branded
+  background — instead of a bare disk image.
 
 ### Fixed
+- **Discovery on iPhone** — the TestFlight build could hang on "Scanning your
+  network" and fail: real iPhones silently block the multicast discovery
+  packets (a restricted Apple entitlement the app doesn't carry; the simulator
+  doesn't enforce it). When multicast finds nothing, discovery now falls back
+  to directly probing the local network for Sonos players — which only needs
+  the local-network permission the app already asks for. This also helps
+  mesh/guest networks that filter multicast.
+- The "couldn't find your system" screen no longer shows a raw `Exception:`
+  prefix on its message, and its title now centres correctly when it wraps to
+  two lines — so an empty network reads as a normal state, not a crash.
+- The system overview no longer drifts to the vertical centre during the
+  scan/rescan transition — short (non-scrolling) content now stays pinned to
+  the top throughout the animation instead of floating to the middle and
+  snapping back.
 - macOS: the window is kept within the visible frame so the Dock can no longer
   clip it.
 - Tap highlights on list rows now follow the card's rounded corners instead of
