@@ -27,15 +27,17 @@
 FLUTTER = ENV["FLUTTER_BIN"] || File.expand_path("~/fvm/versions/3.35.2/bin/flutter")
 
 APP_ID = "be.casperverswijvelt.sonority"
+# iOS-only WidgetKit extension embedded in Runner; needs its own App Store profile.
+WIDGET_APP_ID = "be.casperverswijvelt.sonority.ProfileWidget"
 TEAM_ID = "V95M6HBV65"
 
 # The provisioning-profile name match installs differs per platform (macOS gets a
-# " macos" suffix). match exports it into ENV after it runs; fall back to the
-# documented naming if absent.
-def match_profile_name(platform)
+# " macos" suffix) and per app id. match exports it into ENV after it runs; fall
+# back to the documented naming if absent.
+def match_profile_name(platform, app_id = APP_ID)
   suffix = platform == "macos" ? "_macos" : ""
-  ENV["sigh_#{APP_ID}#{suffix}_profile-name"] ||
-    "match AppStore #{APP_ID}#{platform == "macos" ? " macos" : ""}"
+  ENV["sigh_#{app_id}#{suffix}_profile-name"] ||
+    "match AppStore #{app_id}#{platform == "macos" ? " macos" : ""}"
 end
 
 def asc_key
@@ -81,15 +83,29 @@ def ci_signing(platform)
     api_key: asc_key,
     additional_cert_types: platform == "macos" ? ["mac_installer_distribution"] : nil,
   )
+  proj = platform == "macos" ? "macos/Runner.xcodeproj" : "ios/Runner.xcodeproj"
   update_code_signing_settings(
     use_automatic_signing: false,
-    path: platform == "macos" ? "macos/Runner.xcodeproj" : "ios/Runner.xcodeproj",
+    path: proj,
     team_id: TEAM_ID,
     code_sign_identity: "Apple Distribution",
     profile_name: match_profile_name(platform),
     targets: ["Runner"],
     build_configurations: ["Release"],
   )
+  # iOS embeds the ProfileWidget app extension — sign it with its OWN profile
+  # (a per-target call; profile_name can't map two bundle ids at once).
+  if platform == "ios"
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: proj,
+      team_id: TEAM_ID,
+      code_sign_identity: "Apple Distribution",
+      profile_name: match_profile_name(platform, WIDGET_APP_ID),
+      targets: ["ProfileWidget"],
+      build_configurations: ["Release"],
+    )
+  end
 end
 
 # One build_app config for both platforms; adds CI-only manual export options.
@@ -103,9 +119,12 @@ def archive_apple(platform)
   }
   opts[:export_team_id] = TEAM_ID if platform == "macos" # "No Team Found in Archive" otherwise
   if is_ci
+    profiles = { APP_ID => match_profile_name(platform) }
+    # iOS export must also map the embedded ProfileWidget extension's profile.
+    profiles[WIDGET_APP_ID] = match_profile_name(platform, WIDGET_APP_ID) if platform == "ios"
     opts[:export_options] = {
       signingStyle: "manual",
-      provisioningProfiles: { APP_ID => match_profile_name(platform) },
+      provisioningProfiles: profiles,
     }
   end
   build_app(opts)

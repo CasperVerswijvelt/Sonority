@@ -13,4 +13,4 @@
 git_url(ENV["MATCH_GIT_URL"])
 storage_mode("git")
 type("appstore")
-app_identifier(["be.casperverswijvelt.sonority"])
+app_identifier(["be.casperverswijvelt.sonority", "be.casperverswijvelt.sonority.ProfileWidget"])
