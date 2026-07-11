@@ -440,6 +440,52 @@ pkill -x Sonority                          # quit (AppleScript quit gets cancell
 - Candidate next: channel-level/height trim (overlaps the app — weak). Discovery
   now recovers topology-only speakers when a description fetch fails (done upstream).
 
+## Recurring workflows
+
+### Feature flow
+1. Implement on a **feature branch** off `main`. Never bump `version:` on the
+   branch (see Toolchain — bumps happen only on `main`).
+2. Add a `CHANGELOG.md` entry under `## [Unreleased]` (create the section if
+   absent), unless the user names another version.
+3. `flutter analyze` + `flutter test` green.
+4. **Pre-merge review** before opening the PR: spawn a fresh review subagent
+   prompted with the Review guidelines below, plus run `/code-review` and
+   `/ponytail-review`; address the findings.
+5. Integrate the latest `origin/main` into the branch, then open a PR to `main`
+   (gh CLI).
+6. The **user merges the PR manually** unless they say otherwise.
+
+### Release flow (on `main`, after merges)
+1. Everything under `[Unreleased]` becomes the new version. Version = semver
+   over what's included (pre-1.0: any feature → minor bump, fixes-only → patch),
+   unless the user specifies a version (existing or new).
+2. Rename `## [Unreleased]` → `## [X.Y.Z] - YYYY-MM-DD`; start a fresh empty
+   `[Unreleased]` above it.
+3. Set pubspec `version: X.Y.Z+<versionCode>` per the formula in
+   `docs/PUBLISHING.md` (the `+N` build counter); commit on `main`.
+4. Tag **`vX.Y.Z-<rebuild>`** (e.g. `v0.5.0-12` = 0.5.0 build 50012) and push.
+   **Never move, delete, or reuse a tag; never delete a GitHub Release** — full
+   history is kept. A re-cut of the same version = rebuild+1 → new tag → new
+   release.
+5. CI publishes the GitHub Release **as pre-release**, with the version's full
+   changelog section (the build suffix is stripped for the notes lookup). The
+   user removes the pre-release mark when it's actually released.
+
+### Review guidelines (the checklist for the review subagent)
+- Correctness and overall code quality; architecture fits the engine/UI split
+  (wire-format details stay in `lib/data/sonos/`).
+- Ponytail principles: simplest thing that works, reuse existing shared
+  helpers/widgets (see Conventions), no speculative abstraction.
+- No dead code.
+- Product principle honored: nothing duplicates the official Sonos app beyond
+  the documented exceptions (see "What this app is").
+- Live-Sonos-write safety patterns respected: snapshot first, explicit confirm,
+  poll-verify (see CRITICAL gotchas).
+- Tests added for new parsing/recipe logic; `flutter analyze` + `flutter test`
+  green.
+- Documentation in sync with the actual featureset (CLAUDE.md feature status,
+  CHANGELOG entry present) — no contradictory or duplicate information.
+
 ## Conventions
 - Keep `flutter analyze` clean and unit tests passing; add tests for new parsing/
   recipe logic (see `test/`).

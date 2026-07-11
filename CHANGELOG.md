@@ -4,8 +4,9 @@ All notable changes to Sonority are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Releasing: before tagging `vX.Y.Z`, rename `[Unreleased]` below to
-`[X.Y.Z] - YYYY-MM-DD`. CI copies that section into the GitHub Release notes
+Releasing: before tagging `vX.Y.Z-<rebuild>` (e.g. `v0.5.0-12` for build
+50012), rename `[Unreleased]` below to `[X.Y.Z] - YYYY-MM-DD`. CI copies that
+section into the GitHub Release notes regardless of the build suffix
 (see `.github/workflows/release.yml`).
 
 ## [0.5.0] - 2026-07-11

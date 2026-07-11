@@ -1,7 +1,7 @@
 # Publishing to Google Play
 
 CI (`.github/workflows/release.yml`) builds a **signed release AAB** and uploads
-it to the **internal testing** track whenever a `vX.Y.Z` tag is pushed — *once*
+it to the **open testing** track (Play "beta") whenever a `vX.Y.Z-<rebuild>` tag is pushed — *once*
 the one-time setup below is done. Without the secrets it just builds a
 debug-signed APK and skips Play (so the workflow never breaks for forks).
 
@@ -72,10 +72,14 @@ Before tagging:
 2. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` (and
    start a fresh empty `[Unreleased]` above it). CI slices that section into the
    GitHub Release notes, followed by the install instructions.
-3. Commit, then:
+3. Commit, then tag `vX.Y.Z-<rebuild>` — the rebuild counter from the
+   versionCode formula above (e.g. `0.5.0+50012` → `v0.5.0-12`). Tags are
+   unique per build and never moved, reused, or deleted; a re-cut gets
+   rebuild+1 and a fresh tag:
 ```sh
-git tag vX.Y.Z && git push origin vX.Y.Z
+git tag v0.5.0-12 && git push origin v0.5.0-12
 ```
-CI signs the AAB, pushes it to Play internal testing, and publishes the GitHub
-Release (changelog section + install notes). Promote to production in the Console
-when ready.
+CI signs the AAB, pushes it to Play open testing (the "beta" track), and
+publishes the GitHub Release (changelog section + install notes) marked as **pre-release** — remove
+that mark when it actually ships. Previous releases are never deleted. Promote
+to production in the Console when ready.
