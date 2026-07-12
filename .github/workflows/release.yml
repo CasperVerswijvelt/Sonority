@@ -254,9 +254,9 @@ jobs:
 
       - name: Build & upload macOS → TestFlight
         if: env.HAS_SIGNING == 'true'
-        # Best-effort: macOS TestFlight processing is finicky and this job blocks
-        # nothing, so a failure here shouldn't fail the run.
-        continue-on-error: true
+        # A failure here turns the run red so it's never silently green — but it
+        # still blocks nothing: macos-testflight isn't in publish-github's needs,
+        # so the GitHub Release ships regardless.
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
