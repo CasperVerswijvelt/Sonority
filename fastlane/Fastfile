@@ -81,6 +81,10 @@ def ci_signing(platform)
     platform: platform,
     readonly: true,
     api_key: asc_key,
+    # The Matchfile lists both app ids, but ProfileWidget is an iOS-only extension
+    # (no macOS target/profile) — so macOS match must fetch the app profile only,
+    # else it fails looking for a nonexistent macOS widget profile.
+    app_identifier: platform == "macos" ? [APP_ID] : [APP_ID, WIDGET_APP_ID],
     additional_cert_types: platform == "macos" ? ["mac_installer_distribution"] : nil,
   )
   proj = platform == "macos" ? "macos/Runner.xcodeproj" : "ios/Runner.xcodeproj"
@@ -180,7 +184,10 @@ platform :mac do
   desc "Create/refresh the shared macOS signing assets in the match repo"
   lane :certificates do
     # App Store distribution cert (+ installer) for TestFlight / Mac App Store.
+    # app_identifier: [APP_ID] only — the widget is iOS-only, so don't try to
+    # create a macOS widget profile (see ci_signing).
     match(type: "appstore", platform: "macos", readonly: false, api_key: asc_key,
+          app_identifier: [APP_ID],
           additional_cert_types: ["mac_installer_distribution"])
     # NB: the Developer ID Application cert (for the notarized .dmg) canNOT be
     # created via the App Store Connect API — Apple restricts creation to the

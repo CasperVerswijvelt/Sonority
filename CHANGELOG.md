@@ -11,6 +11,9 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Fixed
+- Internal: the macOS TestFlight CI job was silently failing at fastlane `match` (it tried to fetch a nonexistent macOS profile for the iOS-only ProfileWidget) yet showing green via `continue-on-error`. macOS `match` now fetches the app profile only, and the step no longer masks failures.
+
 ## [0.5.0] - 2026-07-12
 
 ### Added
