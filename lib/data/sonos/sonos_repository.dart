@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/sonos_models.dart';
@@ -16,8 +16,10 @@ import 'ssdp_discovery.dart';
 import 'zone_layout.dart';
 import 'zone_topology.dart';
 
-/// Orchestrates discovery, topology reads, and the bonding actions, and keeps
-/// a per-soundbar restore point so the user can always undo.
+/// Orchestrates discovery, topology reads, and the bonding actions. Persists
+/// only the pre-group room *names* (so they can be restored when a stereo pair /
+/// zone is separated); HT bonding keeps no persisted snapshot, so undoing an HT
+/// change relies on the in-memory previous [SonosSystem].
 class SonosRepository {
   final SsdpDiscovery _ssdp;
   final DeviceDescriptionClient _descriptions;
@@ -55,7 +57,8 @@ class SonosRepository {
         } catch (e) {
           // Non-fatal: a device that fails its description fetch is dropped here
           // and recovered topology-only later. Log so it's diagnosable.
-          debugPrint('Sonority: device_description fetch failed for $loc: $e');
+          developer.log('device_description fetch failed for $loc: $e',
+              name: 'sonority.discover');
           return null;
         }
       }),
@@ -66,7 +69,23 @@ class SonosRepository {
     }
 
     final devicesByUuid = {for (final d in found) d.uuid: d};
-    final groups = await _topology.getZoneGroups(found.first.ip!);
+    // Topology is a system-wide query any player can answer; try each until one
+    // responds so a single unreachable device doesn't fail the whole discovery.
+    List<ZoneGroup>? groups;
+    Object? lastErr;
+    for (final d in found) {
+      final ip = d.ip;
+      if (ip == null) continue;
+      try {
+        groups = await _topology.getZoneGroups(ip);
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (groups == null) {
+      throw Exception('Could not read the Sonos topology from any player: $lastErr');
+    }
 
     // Topology is authoritative; SSDP and the per-device description fetch are
     // both lossy. Re-fetch any visible member we don't yet have a description
@@ -165,6 +184,13 @@ class SonosRepository {
       } on TimeoutException {
         // Big bonding calls time out at 8s but the write still takes effect.
         onNote?.call('attempt $attempt: write timed out, verifying');
+      } on SonosSoapException catch (e) {
+        // Only UPnPError 800 ("satellite still mid-reshuffle") is the documented
+        // transient fault. A malformed map (402) or an invalid action for this
+        // coordinator (401) will never converge — surface it immediately instead
+        // of retrying for ~160s and masking it as "channels never joined".
+        if (e.faultCode != '800') rethrow;
+        onNote?.call('attempt $attempt: write error 800, re-asserting');
       } catch (e) {
         // Bonding is eventually-consistent (confirmed on hardware): a write can
         // partially apply then settle, or return a transient UPnPError (e.g. 800
@@ -265,16 +291,23 @@ class SonosRepository {
     if (coordIp == null) throw Exception('Speaker IP unknown; rescan and retry.');
     await _deviceProps.separateBondedZones(
         ip: coordIp, channelMapSet: channelMapSet);
+    await _restoreZoneNames(members);
+  }
+
+  /// Restores each member's saved room name after a group is dissolved (Sonos
+  /// absorbs member names into the coordinator's on separate, and doesn't put
+  /// them back). No-op when no snapshot was persisted — e.g. the group was
+  /// created outside the app or prefs were cleared.
+  Future<void> _restoreZoneNames(List<SonosDevice> members) async {
     final snap = await _loadZoneSnapshot([for (final m in members) m.uuid]);
-    if (snap != null) {
-      await Future<void>.delayed(const Duration(seconds: 2));
-      for (final m in members) {
-        final want = snap[m.uuid];
-        final ip = m.ip;
-        if (want == null || ip == null) continue;
-        if ((await _deviceProps.getZoneAttributes(ip)).zoneName != want.zoneName) {
-          await _deviceProps.setZoneAttributes(ip, want);
-        }
+    if (snap == null) return;
+    await Future<void>.delayed(const Duration(seconds: 2));
+    for (final m in members) {
+      final want = snap[m.uuid];
+      final ip = m.ip;
+      if (want == null || ip == null) continue;
+      if ((await _deviceProps.getZoneAttributes(ip)).zoneName != want.zoneName) {
+        await _deviceProps.setZoneAttributes(ip, want);
       }
     }
   }
@@ -306,6 +339,13 @@ class SonosRepository {
             await _avTransport.becomeCoordinatorOfStandaloneGroup(ip);
             await Future<void>.delayed(const Duration(seconds: 4));
             await _deviceProps.separateBondedZones(ip: ip, channelMapSet: cms);
+            // Same as separateGroup: Sonos leaves members under the coordinator's
+            // absorbed name — restore them from the snapshot if we have one.
+            final members = [
+              m.uuid,
+              ...m.channelMapUuids.where((u) => u != m.uuid),
+            ].map(system.device).whereType<SonosDevice>().toList();
+            await _restoreZoneNames(members);
           }
           return;
         }
