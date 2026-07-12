@@ -11,9 +11,6 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
-### Fixed
-- Internal: the macOS TestFlight CI job was silently failing at fastlane `match` (it tried to fetch a nonexistent macOS profile for the iOS-only ProfileWidget) yet showing green via `continue-on-error`. macOS `match` now fetches the app profile only, and the step no longer masks failures.
-
 ## [0.5.0] - 2026-07-12
 
 ### Added
@@ -62,6 +59,7 @@ section into the GitHub Release notes regardless of the build suffix
 ### Packaging
 - iOS and macOS are now available via **TestFlight**; the macOS direct download is a **Developer ID-signed, notarized `.dmg`** (no Gatekeeper workaround) and the Android APK is **release-signed**.
 - Release CI restructured into clear, per-platform jobs (Android, iOS sideload, iOS TestFlight, macOS `.dmg`, macOS TestFlight, GitHub Release).
+- Fixed the macOS TestFlight CI job silently failing to upload: it died at fastlane `match` fetching a nonexistent macOS profile for the iOS-only widget, but showed green via `continue-on-error`. macOS signing now fetches the app profile only, and the job no longer masks failures.
 
 ## [0.4.0] - 2026-06-28
 
