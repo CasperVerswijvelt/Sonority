@@ -6,6 +6,7 @@
 import 'dart:io';
 
 import 'package:sonority/data/models/sonos_models.dart';
+import 'package:sonority/data/sonos/channel_map.dart';
 import 'package:sonority/data/sonos/device_description.dart';
 import 'package:sonority/data/sonos/soap_client.dart';
 import 'package:sonority/data/sonos/ssdp_discovery.dart';
@@ -144,20 +145,25 @@ Future<DiscoveryIndex> discoverIndexed() async {
     labelByUuid[d.uuid] = '${d.roomName} (${d.modelName})';
   }
   final channelByUuid = <String, String>{};
-  if (anyIp != null) {
-    final groups = await ZoneTopologyClient(SonosSoapClient()).getZoneGroups(anyIp);
-    for (final g in groups) {
-      for (final m in g.members) {
-        for (final raw in [m.htSatChanMapSet, m.channelMapSet]) {
-          if (raw == null || raw.isEmpty) continue;
-          for (final part in raw.split(';')) {
-            final c = part.indexOf(':');
-            if (c < 0) continue;
-            channelByUuid[part.substring(0, c).trim()] =
-                part.substring(c + 1).trim();
+  // Topology is a system-wide query any player can answer; try each until one
+  // responds so a single unreachable device doesn't fail the probe (mirrors
+  // SonosRepository.discover).
+  for (final ip in ipByUuid.values) {
+    try {
+      final groups = await ZoneTopologyClient(SonosSoapClient()).getZoneGroups(ip);
+      for (final g in groups) {
+        for (final m in g.members) {
+          for (final raw in [m.htSatChanMapSet, m.channelMapSet]) {
+            if (raw == null || raw.isEmpty) continue;
+            for (final e in ChannelMap.parse(raw).entries) {
+              channelByUuid[e.uuid] = e.tokens.join(',');
+            }
           }
         }
       }
+      break;
+    } catch (_) {
+      // Try the next player.
     }
   }
   return DiscoveryIndex(ipByUuid, labelByUuid, anyIp, channelByUuid);
