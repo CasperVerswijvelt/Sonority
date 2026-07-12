@@ -243,7 +243,14 @@ class _Cdp {
     _ws.listen((data) {
       final msg = jsonDecode(data as String) as Map<String, dynamic>;
       if (msg.containsKey('id')) {
-        _pending.remove(msg['id'])?.complete(msg['result']);
+        final c = _pending.remove(msg['id']);
+        // Surface CDP errors instead of completing null → a misleading
+        // "Null is not a Map" cast crash downstream hides the real message.
+        if (msg.containsKey('error')) {
+          c?.completeError(StateError('CDP error: ${msg['error']}'));
+        } else {
+          c?.complete(msg['result']);
+        }
       } else if (msg.containsKey('method')) {
         _events.add(msg);
       }

@@ -12,7 +12,7 @@ produce the current set; redo the same steps to regenerate.
 | Listing copy (App Store **and** Play) | `docs/app-store/listing.md` |
 | One-line app description | `pubspec.yaml` `description:` |
 | README screenshot gallery | `README.md` → `docs/screenshots/*` |
-| Source app screenshots (raw captures) | `design/shots/0N-*.png` (1080×2400) |
+| Source app screenshots (raw captures) | `design/shots/0N-*.png` (1290×2796) |
 | Parametric graphics generator | `design/store.html` |
 | Google Play graphics | `design/play/*` |
 | Apple screenshots (iPhone + macOS) | `design/appstore/*` |
@@ -55,7 +55,7 @@ graphic (§3) in the same run:
 It builds `flutter build web --release --dart-define=DEMO=true`, serves it, and
 drives headless Chrome over the DevTools Protocol — deep-linking to each screen
 by its go_router URL (no tapping) and waiting for Flutter to render (incl. the
-wordmark PNG) before shooting into `design/shots/0N-*.png` at 1080×2400. No
+wordmark PNG) before shooting into `design/shots/0N-*.png` at 1290×2796. No
 emulator, no device, no LAN. `--no-build` reuses an existing `build/web`; set
 `$CHROME` to override the browser. (The **web target is screenshot-only**, not a
 shipped app — a browser can't do SSDP/sockets, so it only runs under `DEMO=true`.)
