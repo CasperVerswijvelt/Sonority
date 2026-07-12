@@ -11,11 +11,7 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
-### Added
-- Internal: demo-data mode (`--dart-define=DEMO=true`) — a fake photogenic Sonos system + profiles for hardware-free marketing screenshots.
-- Internal: marketing screenshots now capture from a Flutter web build in demo mode via `tool/capture_shots.dart` (headless Chrome), replacing the Android emulator + adb flow; `--frame` also renders the full framed Play/App Store graphic set. Web is a screenshot-only target, not a shipped platform.
-
-## [0.5.0] - 2026-07-11
+## [0.5.0] - 2026-07-12
 
 ### Added
 - **Dual Subs** — a home theater can now bond **two Subs**, with both shown in the layout diagram and re-applied from a profile.
@@ -30,8 +26,11 @@ section into the GitHub Release notes regardless of the build suffix
 - **Room renaming** from the room and home-theater detail pages.
 - **Identify a speaker by blinking its status LED** — works on every platform, including macOS (the audio chime stays as a mobile-only extra).
 - Standalone **Subs are now shown in the overview** so a free Sub is easy to spot and add to a home theater or group.
+- Internal: demo-data mode (`--dart-define=DEMO=true`) — a fake photogenic Sonos system + profiles for hardware-free marketing screenshots.
+- Internal: marketing screenshots now capture from a Flutter web build in demo mode via `tool/capture_shots.dart` (headless Chrome), replacing the Android emulator + adb flow; `--frame` also renders the full framed Play/App Store graphic set. Web is a screenshot-only target, not a shipped platform.
 
 ### Changed
+- **New app icon** — a three-speaker "trio" mark, used across every platform.
 - UI overhaul: collapsing large-title app bars, a stepped stereo-pair creation flow, distinct card/nav-bar surfaces on a darker page background, and speaker **types** (e.g. "Beam (Gen 2)", "Play:1") shown wherever a model appears — in diagrams, bonded-speaker cards, and profile summaries.
 - System overview re-sectioned: home theaters → speaker groups → single speaker rooms → other devices, with a compact "+" in the Speaker groups header.
 - Speaker groups now have a **tappable detail view**, and the configure-bond flow **pre-selects the current layout** so it opens on what's actually bonded.
