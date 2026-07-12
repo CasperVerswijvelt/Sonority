@@ -3,6 +3,7 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_sficon/flutter_sficon.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/theme.dart';
@@ -300,27 +301,80 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
                   .copyWith(platform: platform),
           themeMode: ThemeMode.system,
           routerConfig: _router,
-          // The screenshot-only web demo build has no OS status bar / home
-          // indicator, so inject small safe insets purely as framing margin
-          // (see docs/MARKETING-ASSETS.md §2). Less top/bottom than a real
-          // device (no bars to clear); a little left/right so cards don't hug
-          // the phone frame. app_scaffold's body SafeArea turns bottom/left/
-          // right into margins; the AppBar consumes top. Native is untouched.
+          // The screenshot-only web demo build has no OS chrome, which looks
+          // bare — so paint a faux iOS status bar and reserve its height as the
+          // top inset (the AppBar renders below it). Small left/right/bottom
+          // insets keep cards off the phone frame without crowding. app_scaffold's
+          // body SafeArea turns bottom/left/right into margins. Native untouched.
           builder: (kDemoMode && kIsWeb)
               ? (context, child) {
-                  const inset = EdgeInsets.fromLTRB(16, 16, 16, 12);
+                  const statusBarH = 50.0;
                   final mq = MediaQuery.of(context);
                   return MediaQuery(
                     data: mq.copyWith(
-                      padding: mq.padding + inset,
-                      viewPadding: mq.viewPadding + inset,
+                      padding: mq.padding
+                          .copyWith(top: statusBarH, left: 8, right: 8, bottom: 10),
+                      viewPadding: mq.viewPadding
+                          .copyWith(top: statusBarH, left: 8, right: 8, bottom: 10),
                     ),
-                    child: child!,
+                    child: Stack(
+                      children: [
+                        child!,
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: _DemoStatusBar(height: statusBarH),
+                        ),
+                      ],
+                    ),
                   );
                 }
               : null,
         );
       },
+    );
+  }
+}
+
+/// A faux iOS status bar (9:41 + cellular/wifi/battery) painted over the top of
+/// the demo web build so marketing screenshots look like a real phone instead
+/// of a bare chrome-less canvas. Demo/web only (see the `MaterialApp.builder`
+/// above); never part of a shipped build.
+class _DemoStatusBar extends StatelessWidget {
+  final double height;
+  const _DemoStatusBar({required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurface;
+    // Transparent Material so the Text/icons get proper styling (no "missing
+    // Material" yellow underline) — this bar sits above the Navigator.
+    return Material(
+      type: MaterialType.transparency,
+      child: SizedBox(
+      height: height,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 26),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('9:41',
+                style: TextStyle(
+                    color: color, fontSize: 17, fontWeight: FontWeight.w600)),
+            Row(
+              children: [
+                SFIcon(SFIcons.sf_cellularbars, fontSize: 17, color: color),
+                const SizedBox(width: 7),
+                SFIcon(SFIcons.sf_wifi, fontSize: 17, color: color),
+                const SizedBox(width: 7),
+                SFIcon(SFIcons.sf_battery_100percent, fontSize: 20, color: color),
+              ],
+            ),
+          ],
+        ),
+      ),
+      ),
     );
   }
 }
