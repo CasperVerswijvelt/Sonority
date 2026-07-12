@@ -124,8 +124,12 @@ shot(){ "$CHROME" --headless=new --disable-gpu --force-device-scale-factor=1 \
 shot "$BASE?mode=icon"    1024 1024 design/assets/icon.png      # iOS/macOS/Android-legacy + splash
 shot "$BASE?mode=iconfg"  1024 1024 design/assets/icon_fg.png   # Android adaptive foreground (safe inset)
 shot "$BASE?mode=wordmark" 1000 260 design/assets/wordmark.png  # splash branding (unchanged unless the wordmark changes)
-shot "$BASE?mode=icon"     512  512 design/play/play-icon-512.png  # Play store icon
-shot "$BASE?mode=icon"     512  512 docs/icon.png                  # README header icon
+shot "$BASE?mode=icon"     512  512 design/play/play-icon-512.png  # Play store icon (full-bleed square)
+# README header icon — rounded corners baked in (transparent outside), README only:
+"$CHROME" --headless=new --disable-gpu --force-device-scale-factor=1 \
+  --hide-scrollbars --window-size=512,512 --virtual-time-budget=2500 \
+  --default-background-color=00000000 \
+  --screenshot=docs/icon.png "$BASE?mode=icon&round=1"
 ```
 
 Then regenerate the native icon sets + splash and revert the manifest churn the

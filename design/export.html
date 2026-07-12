@@ -26,10 +26,15 @@ function mark(){
 // Android mask would clip a wordmark; the OS prints the name under the icon. The
 // SONORITY wordmark lives in the logo lockup (splash branding + marketing +
 // design/logo.html), not here. Centred, scaled 1.15 about (500,500).
-function iconSvg() {
-  return `<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
-    <rect width="1000" height="1000" fill="${BG}"/>
-    <g transform="translate(500 500) scale(1.15) translate(-500 -445)">${mark()}</g></svg>`;
+// `round` bakes iOS-style rounded corners (~22.4% radius, transparent outside)
+// for the README header only — store/launcher icons stay full-bleed square
+// (Google Play and the OS apply their own masks).
+function iconSvg(round) {
+  const content = `<rect width="1000" height="1000" fill="${BG}"/>
+    <g transform="translate(500 500) scale(1.15) translate(-500 -445)">${mark()}</g>`;
+  return `<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">${round
+    ? `<clipPath id="r"><rect width="1000" height="1000" rx="224"/></clipPath><g clip-path="url(#r)">${content}</g>`
+    : content}</svg>`;
 }
 // Android adaptive FOREGROUND. The generator wraps this image in a 16% inset and
 // the launcher then masks to ≈ the inscribed circle, so keep the mark modest
@@ -48,15 +53,15 @@ function wordmarkSvg() {
       font-weight="500" letter-spacing="0.005em" fill="${INK}">SONORITY</text></svg>`;
 }
 
-const mode = new URLSearchParams(location.search).get('mode') || 'icon';
+// Stage fills the shot window (SVGs scale via viewBox), so 512 and 1024
+// exports come out identical instead of the small one cropping the big render.
+const params = new URLSearchParams(location.search);
+const mode = params.get('mode') || 'icon';
+const round = params.has('round');
 const stage = document.getElementById('stage');
-if (mode === 'wordmark') {
-  stage.style.cssText = 'width:1000px;height:260px';
-  stage.innerHTML = wordmarkSvg();
-  stage.firstElementChild.style.cssText = 'width:1000px;height:260px';
-} else {
-  stage.style.cssText = 'width:1024px;height:1024px';
-  stage.innerHTML = (mode === 'iconfg') ? iconFgSvg() : iconSvg();
-  stage.firstElementChild.style.cssText = 'width:1024px;height:1024px';
-}
+if (round) document.documentElement.style.background = document.body.style.background = 'transparent';
+stage.innerHTML = (mode === 'wordmark') ? wordmarkSvg()
+  : (mode === 'iconfg') ? iconFgSvg() : iconSvg(round);
+stage.style.cssText = 'width:100vw;height:100vh';
+stage.firstElementChild.style.cssText = 'width:100vw;height:100vh';
 </script>
