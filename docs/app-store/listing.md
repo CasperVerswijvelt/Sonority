@@ -38,7 +38,7 @@ Create the speaker setups the standard app won’t: dedicated front speakers, st
 ## Keywords (≤100, comma-separated, not shown publicly)
 
 ```
-sonos,home theater,surround,stereo pair,zone,profile,speakers,soundbar,5.1,trueplay,front
+sonos,home theater,surround,stereo pair,zone,profile,speakers,soundbar,5.1,trueplay,front,widget
 ```
 
 (Trim to fit 100 chars. "sonos" as a keyword for an app that controls Sonos is
@@ -52,10 +52,11 @@ Sonority configures your speakers in ways the standard controller app doesn’t 
 WHAT YOU CAN DO
 
 • Dedicated front speakers on a soundbar — add a discrete left/right pair so your bar becomes the center channel, for a true three-speaker front stage.
-• Build a complete home theater in one guided flow — fronts, rear surrounds and a sub, each optional.
+• Build a complete home theater in one guided flow — fronts, rear surrounds and one or two subs, each optional.
 • Use a single amplifier to drive both passive front speakers.
 • Speaker groups the standard app won’t make — full-range zones of 2–16 speakers, stereo pairs (including mismatched models), or a custom per-speaker left/right/both layout, each with an optional sub.
-• Config profiles — snapshot your whole layout and rebuild it in one tap after moving speakers around.
+• Config profiles — snapshot your whole layout and rebuild it in one tap after moving speakers around. Each profile gets its own icon and colour, and can also capture and restore per-speaker audio settings (bass, treble, loudness, night sound, speech enhancement, sub and surround levels, lip-sync) and, optionally, volume.
+• Apply a profile without opening the app — from a home-screen widget (small, medium or large) or a long-press on the app icon.
 • Rename rooms, identify which physical speaker is which by blinking its status light (or a short chime on iPhone/iPad), and toggle a speaker’s room-calibration tuning.
 
 Every change is made over your local network, is shown to you before it’s applied, and is fully reversible from within the app.
@@ -77,8 +78,10 @@ Sonority is an independent app and is not affiliated with, authorized, maintaine
 
 ```
 • Speaker groups: full-range zones (2–16), stereo pairs and custom per-speaker layouts
-• Complete in-app home-theater setup — fronts, rear surrounds and a sub
-• Config profiles: save a layout and reapply it in one tap
+• Complete in-app home-theater setup — fronts, rear surrounds and one or two subs
+• Config profiles: save a layout and reapply it in one tap, each with its own icon and colour
+• Apply a profile from a home-screen widget or a long-press on the app icon
+• Profiles can now capture and restore per-speaker audio settings and volume
 • Rename rooms; toggle room-calibration tuning
 • Dedicated front speakers on a soundbar (a single Amp works too)
 ```

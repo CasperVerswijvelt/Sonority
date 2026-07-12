@@ -143,9 +143,11 @@ there if a different model/firmware ever needs it.
 
 - ✅ Discovery + home-theater topology UI (Material 3, dark mode)
 - ✅ Dedicated front surrounds — guided add flow (+ Identify), one-tap remove
-- ✅ Full in-app home-theater setup — fronts + rear surrounds + sub (each optional),
-  staged bonding with a live per-step progress timeline
-- ✅ Config profiles — snapshot a layout (maps + room names) and re-apply in one tap
+- ✅ Full in-app home-theater setup — fronts + rear surrounds + one or two subs (each
+  optional), staged bonding with a live per-step progress timeline
+- ✅ Config profiles — snapshot a layout (maps + room names, optionally per-speaker audio
+  settings/EQ and volume) and re-apply in one tap; each profile has its own icon & colour
+- ✅ Apply a profile from a home-screen widget (small/medium/large) or a long-press app-icon shortcut
 - ✅ Room renaming from the room / home-theater detail pages
 - ✅ Speaker groups — one page (Stereo / Zone / Custom) to bond 2–16 speakers as a stereo
   pair, a full-range zone, or a custom per-speaker L/R/Both layout, each with an optional Sub;
