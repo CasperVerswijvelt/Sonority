@@ -13,6 +13,7 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Added
 - Internal: demo-data mode (`--dart-define=DEMO=true`) — a fake photogenic Sonos system + profiles for hardware-free marketing screenshots.
+- Internal: marketing screenshots now capture from a Flutter web build in demo mode via `tool/capture_shots.dart` (headless Chrome), replacing the Android emulator + adb flow; `--frame` also renders the full framed Play/App Store graphic set. Web is a screenshot-only target, not a shipped platform.
 
 ## [0.5.0] - 2026-07-11
 

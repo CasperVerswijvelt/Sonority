@@ -12,7 +12,7 @@ produce the current set; redo the same steps to regenerate.
 | Listing copy (App Store **and** Play) | `docs/app-store/listing.md` |
 | One-line app description | `pubspec.yaml` `description:` |
 | README screenshot gallery | `README.md` → `docs/screenshots/*` |
-| Source app screenshots (raw captures) | `design/shots/0N-*.png` (1080×2400) |
+| Source app screenshots (raw captures) | `design/shots/0N-*.png` (1290×2796) |
 | Parametric graphics generator | `design/store.html` |
 | Google Play graphics | `design/play/*` |
 | Apple screenshots (iPhone + macOS) | `design/appstore/*` |
@@ -42,33 +42,33 @@ seeded profiles — with **no LAN, no real hardware, no staging, and no revert
 step**. Demo mode is navigation-only: apply/bond/identify taps fail fast (the
 demo SOAP client throws, so a demo build emits no network I/O at all).
 
-### Capture (Android emulator + adb)
+### Capture (Flutter web + headless Chrome)
 
-The macOS Flutter window can't be scripted (single canvas, no a11y tree); the
-Android emulator can, via `adb` — and in demo mode it needs no LAN access.
-(The macOS window + `tool/macos_ui.swift` is a workable alternative capture
-host for non-store shots.)
+One command captures all four — add `--frame` to also render every framed store
+graphic (§3) in the same run:
 
 ```sh
-# build + install a release APK (no debug banner) with the demo system baked in
-~/fvm/versions/3.35.2/bin/flutter build apk --release --dart-define=DEMO=true
-adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-release.apk
-adb -s emulator-5554 shell am start -n be.casperverswijvelt.sonority/.MainActivity
-
-# clean status bar for pro screenshots (9:41, full battery/signal, no clutter)
-adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command enter
-adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0941
-adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false
-adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false
-# ...drive the UI with `adb shell input tap X Y` / `input text`, capturing:
-adb -s emulator-5554 exec-out screencap -p > design/shots/01-overview.png
-# exit demo mode when done:
-adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command exit
+~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart          # raw shots only
+~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart --frame  # shots + framed graphics
 ```
 
-Save the four as `design/shots/01-overview.png`, `02-home-theater.png`,
-`03-group.png`, `04-profiles.png` (any size with a ~1080×2400 phone aspect; the
-generator frames them, so exact dimensions don't matter).
+It builds `flutter build web --release --dart-define=DEMO=true`, serves it, and
+drives headless Chrome over the DevTools Protocol — deep-linking to each screen
+by its go_router URL (no tapping) and waiting for Flutter to render (incl. the
+wordmark PNG) before shooting into `design/shots/0N-*.png` at 1290×2796. No
+emulator, no device, no LAN. `--no-build` reuses an existing `build/web`; set
+`$CHROME` to override the browser. (The **web target is screenshot-only**, not a
+shipped app — a browser can't do SSDP/sockets, so it only runs under `DEMO=true`.)
+
+There's no OS status bar on a web canvas — so no `9:41`/battery faking to do, and
+the look is identical for every store frame. Demo mode injects safe-area padding
+(`lib/app.dart`, gated to `kIsWeb`) so the top/bottom don't look crammed. Two
+Chrome details the tool bakes in and the framer relies on: `--enable-unsafe-
+swiftshader` (else CanvasKit falls back to CPU rendering and draws images blank),
+and a render-settle before each shot.
+
+The four land as `design/shots/01-overview.png`, `02-home-theater.png`,
+`03-group.png`, `04-profiles.png` — the exact files §3's framer reads.
 
 ### Changing what the screenshots show
 
@@ -78,31 +78,36 @@ hand-written channel-map strings, so keep it in sync.
 
 ## 3. Generate the framed graphics
 
-`design/store.html` renders every store size from the four source shots. Export
-with headless Chrome at device-scale-factor 1 so the PNG is exactly the window
-size:
+`tool/capture_shots.dart --frame` (§2) renders all of these automatically —
+`design/store.html` framed at each store size via the same headless Chrome, into
+`design/play/*` and `design/appstore/*`. To re-frame existing shots without
+re-capturing (e.g. after editing `store.html`), run `--frame --no-capture`.
+
+What it produces (the tool's job list mirrors this — `?mode=` picks the layout,
+`?i=` 0–3 picks the source shot):
+
+| Output | mode | size |
+|---|---|---|
+| `design/play/feature-graphic.png` | `feature` | 1024×500 |
+| `design/play/tablet-7in.png` | `tablet7` | 1920×1080 |
+| `design/play/tablet-10in.png` | `tablet10` | 2560×1440 |
+| `design/play/phone-{1..4}-*.png` | `phone` | 1080×1920 |
+| `design/appstore/iphone69-{1..4}-*.png` | `ios69` | 1290×2796 (iPhone 6.9") |
+| `design/appstore/mac-{1..4}-*.png` | `mac` | 2560×1600 |
+
+`design/play/play-icon-512.png` is the app icon (regenerate from
+`design/export.html`, below, only if the icon changes — not part of `--frame`).
+For the README gallery, copy the raw `design/shots/*` into `docs/screenshots/*`.
+
+To render one graphic by hand (e.g. debugging `store.html`), it's still a plain
+headless-Chrome screenshot at device-scale-factor 1:
 
 ```sh
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-BASE="file://$PWD/design/store.html"
-shot(){ "$CHROME" --headless=new --disable-gpu --force-device-scale-factor=1 \
-  --hide-scrollbars --window-size=$2,$3 --virtual-time-budget=3500 \
-  --screenshot="$4" "$BASE?mode=$1&i=${5:-0}" >/dev/null 2>&1; }
-
-# Google Play → design/play/
-shot feature 1024 500  design/play/feature-graphic.png
-shot tablet7 1920 1080 design/play/tablet-7in.png
-shot tablet10 2560 1440 design/play/tablet-10in.png
-shot phone 1080 1920 design/play/phone-1-overview.png 0   # i=1 home-theater, 2 group, 3 profiles
-
-# Apple → design/appstore/
-shot ios69 1290 2796 design/appstore/iphone69-1-overview.png 0   # iPhone 6.9"
-shot mac   2560 1600 design/appstore/mac-1-overview.png 0        # macOS
+"$CHROME" --headless=new --disable-gpu --force-device-scale-factor=1 \
+  --hide-scrollbars --window-size=1290,2796 --virtual-time-budget=3500 \
+  --screenshot=out.png "file://$PWD/design/store.html?mode=ios69&i=0"
 ```
-
-`i` (0–3) selects the source shot; `design/play/play-icon-512.png` is the app icon
-(regenerate from `design/export.html`, below, only if the icon changes). For the
-README gallery, copy the raw `design/shots/*` into `docs/screenshots/*`.
 
 ### App icon + wordmark (from `design/export.html`)
 

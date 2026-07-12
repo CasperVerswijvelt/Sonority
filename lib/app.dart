@@ -1,12 +1,13 @@
-import 'dart:io' show Platform;
-
 import 'package:animations/animations.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_sficon/flutter_sficon.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/theme.dart';
+import 'demo/demo_mode.dart';
 import 'features/discovery/discovery_screen.dart';
 import 'features/front_surrounds/front_surrounds_flow.dart';
 import 'features/home_theater/home_theater_screen.dart';
@@ -281,17 +282,99 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
         // Material You only on Android. On macOS `dynamic_color` returns the
         // system accent (not Material You), which would diverge from Android —
         // so Apple platforms ignore it and use our fixed seed instead.
-        final useDynamic = Platform.isAndroid;
+        final useDynamic =
+            !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+        // The screenshot-only web build renders on desktop Chrome, which
+        // reports a desktop platform — so ReorderableListView shows drag
+        // handles and scrollbars appear. Pose as iOS there so the captured
+        // screens look like the mobile app. (Can't use
+        // debugDefaultTargetPlatformOverride — it throws in release builds.)
+        final platform =
+            (kDemoMode && kIsWeb) ? TargetPlatform.iOS : null;
         return MaterialApp.router(
           title: 'Sonority',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(useDynamic ? lightDynamic?.harmonized() : null),
+          theme: AppTheme.light(useDynamic ? lightDynamic?.harmonized() : null)
+              .copyWith(platform: platform),
           darkTheme:
-              AppTheme.dark(useDynamic ? darkDynamic?.harmonized() : null),
+              AppTheme.dark(useDynamic ? darkDynamic?.harmonized() : null)
+                  .copyWith(platform: platform),
           themeMode: ThemeMode.system,
           routerConfig: _router,
+          // The screenshot-only web demo build has no OS chrome, which looks
+          // bare — so paint a faux iOS status bar and reserve its height as the
+          // top inset (the AppBar renders below it). Small left/right/bottom
+          // insets keep cards off the phone frame without crowding. app_scaffold's
+          // body SafeArea turns bottom/left/right into margins. Native untouched.
+          builder: (kDemoMode && kIsWeb)
+              ? (context, child) {
+                  const statusBarH = 50.0;
+                  final mq = MediaQuery.of(context);
+                  return MediaQuery(
+                    data: mq.copyWith(
+                      padding: mq.padding
+                          .copyWith(top: statusBarH, left: 8, right: 8, bottom: 10),
+                      viewPadding: mq.viewPadding
+                          .copyWith(top: statusBarH, left: 8, right: 8, bottom: 10),
+                    ),
+                    child: Stack(
+                      children: [
+                        child!,
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: _DemoStatusBar(height: statusBarH),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              : null,
         );
       },
+    );
+  }
+}
+
+/// A faux iOS status bar (9:41 + cellular/wifi/battery) painted over the top of
+/// the demo web build so marketing screenshots look like a real phone instead
+/// of a bare chrome-less canvas. Demo/web only (see the `MaterialApp.builder`
+/// above); never part of a shipped build.
+class _DemoStatusBar extends StatelessWidget {
+  final double height;
+  const _DemoStatusBar({required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurface;
+    // Transparent Material so the Text/icons get proper styling (no "missing
+    // Material" yellow underline) — this bar sits above the Navigator.
+    return Material(
+      type: MaterialType.transparency,
+      child: SizedBox(
+      height: height,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 26),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('9:41',
+                style: TextStyle(
+                    color: color, fontSize: 17, fontWeight: FontWeight.w600)),
+            Row(
+              children: [
+                SFIcon(SFIcons.sf_cellularbars, fontSize: 17, color: color),
+                const SizedBox(width: 7),
+                SFIcon(SFIcons.sf_wifi, fontSize: 17, color: color),
+                const SizedBox(width: 7),
+                SFIcon(SFIcons.sf_battery_100percent, fontSize: 20, color: color),
+              ],
+            ),
+          ],
+        ),
+      ),
+      ),
     );
   }
 }

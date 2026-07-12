@@ -348,6 +348,12 @@ Run on the same Wi-Fi as the Sonos system:
 - `tool/led_probe.dart <room|uuid|ip>` — dump DeviceProperties SCPD LED actions +
   blink one speaker's status LED (read-only/self-reverting; the macOS-safe identify).
 - `tool/dump_chime.dart <path>` — write the generated WAV to disk.
+- `tool/capture_shots.dart` — no hardware: builds `flutter build web` in demo
+  mode, serves it, and drives headless Chrome (CDP) to screenshot the four
+  canonical marketing screens into `design/shots/`. `--frame` also renders every
+  framed Play/App Store graphic from `design/store.html` in the same run (§2–3 of
+  `docs/MARKETING-ASSETS.md`); `--no-capture` re-frames existing shots, `--no-build`
+  reuses `build/web`.
 - `tool/trueplay_probe.dart` — read-only Trueplay/room-calibration status per
   speaker (+ SCPD dump); `--enable/--disable <room|uuid>` to toggle (reversible).
 - `tool/eq_probe.dart` — read-only per-speaker EQ/audio settings dump
@@ -407,6 +413,15 @@ pkill -x Sonority                          # quit (AppleScript quit gets cancell
   can be verified against it without touching the real system: navigation-only —
   write/identify taps fail fast (the demo SOAP client throws, so a demo build
   emits no network I/O; IPs are unrouteable TEST-NET besides).
+- **Web is a screenshot-only demo target, NOT a shipped platform.** A browser
+  can't do SSDP/sockets, so the app only runs meaningfully on web under
+  `DEMO=true`. The engine's `dart:io` bits (`ssdp_discovery.dart`,
+  `identify_service.dart`) are conditional-import barrels with throwing web stubs
+  (`*_io.dart`/`*_web.dart`); `Platform.is*` gates use `kIsWeb`/
+  `defaultTargetPlatform`. Marketing screenshots come from `flutter build web`
+  driven by `tool/capture_shots.dart` (headless-Chrome/CDP; needs
+  `--enable-unsafe-swiftshader` or CanvasKit CPU-mode draws images blank). Keep
+  web that way — don't wire real networking or ship it as an app.
 
 ## Feature status
 - ✅ Discovery + topology + Material 3 UI (discovery → home-theater diagram).
