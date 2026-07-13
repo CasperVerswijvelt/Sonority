@@ -5,9 +5,9 @@
 <p align="center">
   <a href="https://play.google.com/store/apps/details?id=be.casperverswijvelt.sonority"><img src="docs/badges/google-play.png" height="48" alt="Get it on Google Play" title="Get it on Google Play" /></a>
   &nbsp;&nbsp;
-  <a href="https://apps.apple.com/us/app/sonority-for-sonos/id6785994018"><img src="docs/badges/app-store-soon.png" height="48" alt="Download on the App Store" title="Download on the App Store" /></a>
+  <a href="https://apps.apple.com/us/app/sonority-for-sonos/id6785994018"><img src="docs/badges/app-store.png" height="48" alt="Download on the App Store" title="Download on the App Store" /></a>
   &nbsp;&nbsp;
-  <a href="https://apps.apple.com/us/app/sonority-for-sonos/id6785994018"><img src="docs/badges/mac-app-store-soon.png" height="48" alt="Download on the Mac App Store" title="Download on the Mac App Store" /></a>
+  <a href="https://apps.apple.com/us/app/sonority-for-sonos/id6785994018"><img src="docs/badges/mac-app-store.png" height="48" alt="Download on the Mac App Store" title="Download on the Mac App Store" /></a>
 </p>
 
 <p align="center">
@@ -57,8 +57,9 @@ Or grab a direct download from [**Releases**](https://github.com/CasperVerswijve
 - Or via adb: `adb install -r Sonority-*.apk`
 
 **macOS — `Sonority-*-macos.dmg`** (Developer ID-signed & notarized)
-- Open the `.dmg`, drag **Sonority** to Applications, and launch it. No Gatekeeper
-  workaround needed — it’s notarized by Apple.
+- Prefer the [App Store](https://apps.apple.com/us/app/sonority-for-sonos/id6785994018) above. To install
+  the direct download instead, open the `.dmg`, drag **Sonority** to Applications, and launch it. No
+  Gatekeeper workaround needed — it’s notarized by Apple.
 
 **iOS — `Sonority-*-ios-unsigned.ipa`** (unsigned; sideload only)
 - Prefer the App Store above. To sideload the raw `.ipa`, re-sign it with

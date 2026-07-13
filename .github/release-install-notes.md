@@ -10,7 +10,7 @@ Or install a direct download from the assets below:
 - Or via adb: `adb install -r Sonority-*.apk`
 
 **macOS — `Sonority-*-macos.dmg`** (Developer ID-signed & notarized)
-- Open the `.dmg`, drag **Sonority** to Applications, and launch it. No Gatekeeper workaround needed — Apple has notarized it.
+- Prefer the [App Store](https://apps.apple.com/us/app/sonority-for-sonos/id6785994018) above. To install the direct download instead, open the `.dmg`, drag **Sonority** to Applications, and launch it. No Gatekeeper workaround needed — Apple has notarized it.
 
 **iOS — `Sonority-*-ios-unsigned.ipa`** (unsigned; sideload only)
 - Prefer the App Store above. To sideload the raw `.ipa`, re-sign it with [AltStore](https://altstore.io) or [Sideloadly](https://sideloadly.io) using your Apple ID. A plain install isn’t possible without signing.
