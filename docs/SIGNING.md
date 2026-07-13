@@ -61,7 +61,8 @@ certs) and exported from Keychain. Full steps: `docs/PUBLISHING-APPLE.md`.
 | Play service-account JSON | ✓ (attach) | `PLAY_SERVICE_ACCOUNT_JSON` | — (regenerable in Google Cloud) |
 
 ## Distribution links (not secret)
-- TestFlight (iOS + macOS beta): `https://testflight.apple.com/join/FJ2zGC9w`
+- App Store (iOS + macOS, public): `https://apps.apple.com/us/app/sonority-for-sonos/id6785994018`
+- TestFlight (iOS + macOS beta — internal only, do NOT link publicly: it's a free bypass of the paid App Store): `https://testflight.apple.com/join/FJ2zGC9w`
 - Google Play (internal): `https://play.google.com/store/apps/details?id=be.casperverswijvelt.sonority`
 
 ## Gitignored working files (NOT backups)

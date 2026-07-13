@@ -5,13 +5,13 @@
 <p align="center">
   <a href="https://play.google.com/store/apps/details?id=be.casperverswijvelt.sonority"><img src="docs/badges/google-play.png" height="48" alt="Get it on Google Play" title="Get it on Google Play" /></a>
   &nbsp;&nbsp;
-  <img src="docs/badges/app-store-soon.png" height="48" alt="App Store — coming soon" title="iOS App Store — not available yet, hopefully soon!" />
+  <a href="https://apps.apple.com/us/app/sonority-for-sonos/id6785994018"><img src="docs/badges/app-store-soon.png" height="48" alt="Download on the App Store" title="Download on the App Store" /></a>
   &nbsp;&nbsp;
-  <img src="docs/badges/mac-app-store-soon.png" height="48" alt="Mac App Store — coming soon" title="Mac App Store — not available yet, hopefully soon!" />
+  <a href="https://apps.apple.com/us/app/sonority-for-sonos/id6785994018"><img src="docs/badges/mac-app-store-soon.png" height="48" alt="Download on the Mac App Store" title="Download on the Mac App Store" /></a>
 </p>
 
 <p align="center">
-  <sub><i>iOS &amp; macOS — public App Store coming later; available now via <a href="https://testflight.apple.com/join/FJ2zGC9w">TestFlight</a> (beta) or manual installation — see <a href="https://github.com/CasperVerswijvelt/Sonority/releases">Releases</a>.</i></sub>
+  <sub><i>iOS &amp; macOS on the <a href="https://apps.apple.com/us/app/sonority-for-sonos/id6785994018">App Store</a>, Android on <a href="https://play.google.com/store/apps/details?id=be.casperverswijvelt.sonority">Google Play</a> — or manual installation, see <a href="https://github.com/CasperVerswijvelt/Sonority/releases">Releases</a>.</i></sub>
 </p>
 
 # Sonority
@@ -46,9 +46,9 @@ undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr
 
 ## Install (prebuilt)
 
-**iOS & macOS — TestFlight (recommended)**
-- Join the beta: **[TestFlight](https://testflight.apple.com/join/FJ2zGC9w)**. Installs the signed app and keeps it
-  auto-updated. (Public App Store release coming later.)
+**iOS & macOS — App Store (recommended)**
+- Get it on the **[App Store](https://apps.apple.com/us/app/sonority-for-sonos/id6785994018)** — the same
+  listing installs on both iPhone/iPad and Mac.
 
 Or grab a direct download from [**Releases**](https://github.com/CasperVerswijvelt/Sonority/releases):
 
@@ -61,7 +61,7 @@ Or grab a direct download from [**Releases**](https://github.com/CasperVerswijve
   workaround needed — it’s notarized by Apple.
 
 **iOS — `Sonority-*-ios-unsigned.ipa`** (unsigned; sideload only)
-- Prefer TestFlight above. To sideload the raw `.ipa`, re-sign it with
+- Prefer the App Store above. To sideload the raw `.ipa`, re-sign it with
   [AltStore](https://altstore.io) or [Sideloadly](https://sideloadly.io) using your Apple ID —
   a plain install isn’t possible without signing.
 
