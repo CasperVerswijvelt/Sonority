@@ -61,8 +61,12 @@ certs) and exported from Keychain. Full steps: `docs/PUBLISHING-APPLE.md`.
 | Play service-account JSON | ✓ (attach) | `PLAY_SERVICE_ACCOUNT_JSON` | — (regenerable in Google Cloud) |
 
 ## Distribution links (not secret)
-- TestFlight (iOS + macOS beta): `https://testflight.apple.com/join/FJ2zGC9w`
+- App Store (iOS + macOS, public): `https://apps.apple.com/us/app/sonority-for-sonos/id6785994018`
 - Google Play (internal): `https://play.google.com/store/apps/details?id=be.casperverswijvelt.sonority`
+
+The TestFlight beta join link is deliberately NOT recorded here — this repo is
+public, and a public TestFlight link is a free bypass of the paid App Store.
+Find it in App Store Connect → TestFlight when you need it.
 
 ## Gitignored working files (NOT backups)
 `fastlane/.env`, `fastlane/AuthKey_*.p8`, `fastlane/devid.p12`, `fastlane/devid.cer`,
