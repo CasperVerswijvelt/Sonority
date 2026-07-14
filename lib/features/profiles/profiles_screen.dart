@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/confirm_dialog.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_ui.dart';
@@ -100,30 +101,13 @@ class ProfilesScreen extends ConsumerWidget {
     WidgetRef ref,
     Profile p,
   ) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Delete “${p.name}”?'),
-        content: const Text(
-          'This removes the saved profile. Your speakers are '
-          'not changed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      title: 'Delete “${p.name}”?',
+      message: 'This removes the saved profile. Your speakers are not changed.',
+      confirmLabel: 'Delete',
     );
-    if (ok == true) await ref.read(profilesProvider.notifier).remove(p.id);
+    if (ok) await ref.read(profilesProvider.notifier).remove(p.id);
   }
 }
 

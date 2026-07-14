@@ -1,3 +1,5 @@
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/sonos/soap_client.dart';
 import 'package:xml/xml.dart';
@@ -49,5 +51,38 @@ void main() {
     );
     expect(xml, contains('Living &amp; &lt;Room&gt;'));
     expect(xml, isNot(contains('Living & <Room>')));
+  });
+
+  group('SonosSoapClient.call error handling', () {
+    Future<XmlElement> callWith(int status, String body) {
+      final client = MockClient((_) async => http.Response(body, status));
+      return SonosSoapClient(client).call(
+        ip: '1.2.3.4',
+        controlPath: '/x/Control',
+        serviceType: 'svc',
+        action: 'DoThing',
+      );
+    }
+
+    test('non-200 with a non-XML body throws SonosSoapException, not XmlException',
+        () async {
+      // Regression: the body used to be parsed before the status check, so a
+      // truncated/empty error body threw XmlParserException and callers keyed on
+      // SonosSoapException never ran.
+      await expectLater(
+        callWith(500, 'gateway timeout - not xml'),
+        throwsA(isA<SonosSoapException>()
+            .having((e) => e.statusCode, 'statusCode', 500)),
+      );
+    });
+
+    test('non-200 with a SOAP fault body extracts the fault code', () async {
+      await expectLater(
+        callWith(500,
+            '<Body><faultstring>UPnPError</faultstring><errorCode>402</errorCode></Body>'),
+        throwsA(isA<SonosSoapException>()
+            .having((e) => e.faultCode, 'faultCode', '402')),
+      );
+    });
   });
 }
