@@ -45,11 +45,6 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/profile_widget_info"/>
         </receiver>
-        <!-- Backs the widget's GridView of profile tiles. -->
-        <service
-            android:name=".ProfileTileRemoteViewsService"
-            android:permission="android.permission.BIND_REMOTEVIEWS"
-            android:exported="false"/>
         <!-- Config screen shown when the widget is placed (dedicated Flutter
              entrypoint `widgetConfig`). -->
         <activity

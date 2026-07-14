@@ -1,13 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One grid cell (muted-tonal). The provider sets the cell height (API 31+; 72dp
-     fallback) and the column width; the factory tints tile_bg to the tonal card,
-     tints + sizes the glyph, and sets the label's text/size/colour. fitXY on the
-     rounded shape fills the (possibly non-square) cell with fixed corners; the
-     glyph + label are real views so they never stretch and sizing matches iOS. -->
+<!-- One tonal tile. Weighted (0dp + layout_weight) so it splits its row's width
+     evenly and fills the row height; the 4dp margin + the grid's 4dp padding make
+     a uniform 8dp gap. The provider tints tile_bg to the tonal card, tints the
+     glyph, and sets the label. fitXY on the rounded shape fills the (possibly
+     non-square) cell with fixed corners; the glyph + label are real views so they
+     never stretch.
+     ponytail: glyph (40dp) and label (13sp) are a FIXED size, not scaled to the
+     tile — layout weights don't expose the cell's px, and scaling would drag back
+     the launcher-size pixel math this design removed. Upgrade path if it ever
+     matters: setViewLayoutWidth / setTextViewTextSize from measured cell px (API 31+). -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/tile_cell"
-    android:layout_width="match_parent"
-    android:layout_height="72dp">
+    android:layout_width="0dp"
+    android:layout_height="match_parent"
+    android:layout_weight="1"
+    android:layout_margin="4dp">
     <ImageView
         android:id="@+id/tile_bg"
         android:layout_width="match_parent"

@@ -90,6 +90,15 @@ class ApplyProgress {
     _log(id, '✗', detail);
   }
 
+  /// Fails whichever top-level step is currently active (and its active child)
+  /// with [detail]. No-op if nothing is active. Used to attach an abort reason
+  /// to the step that was running when the user hit Abort.
+  void failActive(String detail) {
+    final i = _steps.indexWhere(
+        (s) => s.parentId == null && s.status == ApplyStatus.active);
+    if (i >= 0) fail(_steps[i].id, detail);
+  }
+
   /// Seeds pending phase sub-steps under [parentId] (the phases knowable
   /// upfront); conditional phases are inserted later by [startSub].
   void seedSubs(String parentId, List<(String id, String label)> subs) {

@@ -9,7 +9,7 @@ import 'profile.dart';
 import 'profile_store.dart';
 import 'profile_ui.dart';
 
-/// Home-screen widget: a single, user-configured profile the user taps to apply.
+/// Home-screen widget: a user-configured set of profiles, each tile taps to apply.
 /// The native widget UI is per-platform (RemoteViews on Android, WidgetKit on
 /// iOS); this file is the shared Dart glue — `home_widget` bridges the data +
 /// launch handling. Like app shortcuts, a tap can't run the multi-minute apply
@@ -131,9 +131,9 @@ String hexColor(Color c) =>
 
 /// Persists one Android widget instance's chosen profiles: the ordered id list
 /// (tap targets, order = tile order) and a SQUARE tile image per profile. The
-/// native GridView shows each tile `fitCenter`. Tile images are keyed by profile
-/// id (`tile_<id>`) so identical profiles across widgets share one render.
-/// (iOS doesn't use this — its SwiftUI widget renders itself.)
+/// native side shows each glyph `fitCenter` in a weight-filled tile. Tile images
+/// are keyed by profile id (`tile_<id>`) so identical profiles across widgets
+/// share one render. (iOS doesn't use this — its SwiftUI widget renders itself.)
 Future<void> _saveWidgetProfiles(int widgetId, List<Profile> chosen) async {
   await HomeWidget.saveWidgetData<String>(
       'profileIds_$widgetId', jsonEncode([for (final p in chosen) p.id]));
@@ -147,8 +147,8 @@ Future<void> _saveWidgetProfiles(int widgetId, List<Profile> chosen) async {
 /// stores its accent colour, keyed by profile id (shared across every widget
 /// showing it). The native side derives the muted-tonal treatment from the accent
 /// + system brightness: it tints a rounded card, tints this glyph to the accent,
-/// sizes the glyph, and draws the name as a native label — so glyph, text, and
-/// corners never stretch and sizing matches iOS.
+/// and draws the name as a native label — so glyph, text, and corners never
+/// stretch (glyph/label are a fixed size on Android; see profile_tile_cell.xml).
 Future<void> _renderTile(Profile p) async {
   await HomeWidget.saveWidgetData<String>(
       'tileColor_${p.id}', hexColor(profileColor(p.color)));
