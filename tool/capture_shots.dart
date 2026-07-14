@@ -10,11 +10,11 @@
 // shot, which one-shot `chrome --screenshot` can't do reliably. Framing renders
 // design/store.html (a static page) the same headless way.
 //
-// Usage:  ~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart [flags]
+// Usage:  ~/fvm/versions/3.44.6/bin/dart run tool/capture_shots.dart [flags]
 //   --frame        also render the framed Play + App Store graphics
 //   --no-capture   skip the shot capture (re-frame existing design/shots)
 //   --no-build     reuse an existing build/web (skip the web build)
-// Requires: fvm Flutter 3.35.2, Google Chrome ($CHROME overrides the browser).
+// Requires: fvm Flutter 3.44.6, Google Chrome ($CHROME overrides the browser).
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -72,7 +72,7 @@ const _mime = <String, String>{
 };
 
 late final String _root;
-final String _flutter = '${Platform.environment['HOME']}/fvm/versions/3.35.2/bin/flutter';
+final String _flutter = '${Platform.environment['HOME']}/fvm/versions/3.44.6/bin/flutter';
 String get _chrome =>
     Platform.environment['CHROME'] ??
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';

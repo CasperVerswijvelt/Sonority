@@ -77,8 +77,9 @@ android {
     }
 }
 
-// AGP 9 (android.newDsl=true) drops the old kotlinOptions block; the Kotlin
-// jvmTarget now lives in the top-level compilerOptions DSL.
+// Kotlin jvmTarget lives in the top-level KGP compilerOptions DSL. The old
+// `android { kotlinOptions {} }` block forced AGP's deprecated DSL overload and
+// broke under AGP 9; this form works whether android.newDsl is on or off.
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
