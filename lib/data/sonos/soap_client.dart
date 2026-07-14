@@ -40,18 +40,23 @@ class SonosSoapClient {
       body: body,
     ).timeout(timeout);
 
-    final doc = XmlDocument.parse(res.body);
     if (res.statusCode != 200) {
-      final fault = doc.findAllElements('faultstring');
-      final code = doc.findAllElements('errorCode');
+      // A fault body is usually XML, but a truncated/empty/non-XML error body
+      // must still surface as a SonosSoapException — not an XmlParserException.
+      final doc = _tryParse(res.body);
+      final fault = doc?.findAllElements('faultstring');
+      final code = doc?.findAllElements('errorCode');
       throw SonosSoapException(
         action,
         statusCode: res.statusCode,
-        faultCode: code.isEmpty ? null : code.first.innerText,
-        faultString: fault.isEmpty ? res.reasonPhrase : fault.first.innerText,
+        faultCode: (code == null || code.isEmpty) ? null : code.first.innerText,
+        faultString: (fault == null || fault.isEmpty)
+            ? res.reasonPhrase
+            : fault.first.innerText,
       );
     }
 
+    final doc = XmlDocument.parse(res.body);
     final bodies = doc.findAllElements('Body', namespace: '*');
     if (bodies.isEmpty) {
       throw SonosSoapException(action, faultString: 'Missing SOAP Body in response');
@@ -79,6 +84,14 @@ class SonosSoapClient {
       ..write('</s:Body>')
       ..write('</s:Envelope>');
     return buf.toString();
+  }
+
+  static XmlDocument? _tryParse(String body) {
+    try {
+      return XmlDocument.parse(body);
+    } on XmlException {
+      return null;
+    }
   }
 
   static String _escape(String input) => input

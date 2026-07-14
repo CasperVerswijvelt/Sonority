@@ -13,6 +13,13 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Fixed
 - The "Done" button on the apply-progress screen now looks the same whether an apply succeeds or fails (a consistent filled button, with Retry beside it on failure).
+- Apply-progress sub-step subtitles no longer render with a broken synthetic font weight on Android (Roboto has no `w200`; use `w300`).
+- **macOS profile reordering** — removed the stray drag-handle icon that collided with each profile card's ⋮ menu, and made long-press-to-drag reordering work on macOS (it previously only responded to the now-removed handle).
+- Applying a profile that reuses a speaker from another named stereo pair/zone now restores those speakers' room names instead of leaving them under the group's name.
+- Removing home-theater speakers now reports a clear error if Sonos silently no-ops the change, rather than falsely showing success.
+- Renaming a room no longer displays the new name until Sonos actually confirms it.
+- Discovery now falls back to another player when the first one can't answer the topology read.
+- A permanent bonding fault (e.g. a malformed map) now surfaces immediately instead of retrying for ~2½ minutes, and a failed EQ/volume restore is now reported instead of silently swallowed.
 
 ## [0.5.0] - 2026-07-12
 

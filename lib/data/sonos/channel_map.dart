@@ -74,9 +74,6 @@ class ChannelMap {
                 e.hasChannel(SonosChannel.rightFront)),
       );
 
-  ChannelMap withEntries(Iterable<ChannelMapEntry> add) =>
-      ChannelMap([...entries, ...add]);
-
   ChannelMap withoutUuid(String uuid) =>
       ChannelMap(entries.where((e) => e.uuid != uuid).toList());
 

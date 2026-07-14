@@ -36,6 +36,10 @@ void main() {
     final ls = ht.satellites.firstWhere((s) => s.uuid == 'RINCON_S101400');
     expect(ls.channels, [SonosChannel.leftRear]);
     expect(ls.isRear, isTrue);
+    // A satellite resolves its own IP + name from its Location, independent of
+    // the primary (drives the name-restore-after-unbond path).
+    expect(ls.ip, '192.168.1.11');
+    expect(ls.zoneName, 'Living Room (LS)');
     expect(ht.hasDedicatedFronts, isFalse);
     expect(ht.ip, '192.168.1.10');
 

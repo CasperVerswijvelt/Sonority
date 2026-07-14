@@ -30,14 +30,14 @@ import 'dart:io';
 
 import 'package:sonority/data/models/sonos_models.dart';
 import 'package:sonority/data/sonos/channel_map.dart';
-import 'package:sonority/data/sonos/device_description.dart';
 import 'package:sonority/data/sonos/device_properties.dart';
 import 'package:sonority/data/sonos/soap_client.dart';
-import 'package:sonority/data/sonos/ssdp_discovery.dart';
 import 'package:sonority/data/sonos/zone_topology.dart';
 
+import 'discover_util.dart';
+
 Future<void> main(List<String> argv) async {
-  final args = _parseArgs(argv);
+  final args = parseArgs(argv, flags: {'confirm'});
   final barSel = args['bar'];
   final confirm = args.containsKey('confirm');
   if (barSel == null) {
@@ -47,14 +47,7 @@ Future<void> main(List<String> argv) async {
   }
 
   print('🔎 Discovering system…');
-  final locations = await SsdpDiscovery().discover();
-  final descriptions = DeviceDescriptionClient();
-  final devices = <SonosDevice>[];
-  for (final loc in locations) {
-    try {
-      devices.add(await descriptions.fetch(loc));
-    } catch (_) {}
-  }
+  final devices = await discoverDevices();
   if (devices.isEmpty) {
     print('❌ No devices found.');
     exit(1);
@@ -63,7 +56,7 @@ Future<void> main(List<String> argv) async {
   final topology = ZoneTopologyClient(SonosSoapClient());
   var groups = await topology.getZoneGroups(anyIp);
 
-  final barDevice = _resolveDevice(devices, barSel, mustBeSoundbar: true);
+  final barDevice = resolveDevice(devices, barSel, mustBeSoundbar: true);
   final bar = _findMember(groups, barDevice.uuid);
   final barIp = bar?.ip;
   if (bar == null || barIp == null) {
@@ -76,11 +69,11 @@ Future<void> main(List<String> argv) async {
   // Explicit roles → build a different layout from bare; otherwise rebuild the
   // current one (the realistic profile-apply test).
   final roles = <(SonosChannel, SonosDevice)>[
-    if (args['left'] != null) (SonosChannel.leftFront, _resolveDevice(devices, args['left']!)),
-    if (args['right'] != null) (SonosChannel.rightFront, _resolveDevice(devices, args['right']!)),
-    if (args['rear-left'] != null) (SonosChannel.leftRear, _resolveDevice(devices, args['rear-left']!)),
-    if (args['rear-right'] != null) (SonosChannel.rightRear, _resolveDevice(devices, args['rear-right']!)),
-    if (args['sub'] != null) (SonosChannel.sub, _resolveDevice(devices, args['sub']!)),
+    if (args['left'] != null) (SonosChannel.leftFront, resolveDevice(devices, args['left']!)),
+    if (args['right'] != null) (SonosChannel.rightFront, resolveDevice(devices, args['right']!)),
+    if (args['rear-left'] != null) (SonosChannel.leftRear, resolveDevice(devices, args['rear-left']!)),
+    if (args['rear-right'] != null) (SonosChannel.rightRear, resolveDevice(devices, args['rear-right']!)),
+    if (args['sub'] != null) (SonosChannel.sub, resolveDevice(devices, args['sub']!)),
   ];
   final rebuild = roles.isEmpty;
   final target = rebuild
@@ -203,46 +196,4 @@ ZoneGroupMember? _findMember(List<ZoneGroup> groups, String uuid) {
     }
   }
   return null;
-}
-
-SonosDevice _resolveDevice(List<SonosDevice> devices, String selector,
-    {bool mustBeSoundbar = false}) {
-  if (selector.startsWith('RINCON_')) {
-    final match = devices.where((d) => d.uuid == selector);
-    if (match.isEmpty) {
-      print('❌ No device with uuid $selector');
-      exit(1);
-    }
-    return match.first;
-  }
-  final byName = devices
-      .where((d) => d.roomName.toLowerCase() == selector.toLowerCase())
-      .where((d) => !mustBeSoundbar || d.isSoundbar)
-      .toList();
-  if (byName.isEmpty) {
-    print('❌ No ${mustBeSoundbar ? "soundbar" : "device"} in room "$selector". '
-        'Use a RINCON_ uuid instead.');
-    exit(1);
-  }
-  if (byName.length > 1) {
-    print('❌ Room "$selector" matches ${byName.length} devices — use a RINCON_ uuid.');
-    exit(1);
-  }
-  return byName.first;
-}
-
-Map<String, String> _parseArgs(List<String> argv) {
-  final out = <String, String>{};
-  const flags = {'confirm'};
-  for (var i = 0; i < argv.length; i++) {
-    final a = argv[i];
-    if (!a.startsWith('--')) continue;
-    final key = a.substring(2);
-    if (flags.contains(key)) {
-      out[key] = 'true';
-    } else if (i + 1 < argv.length) {
-      out[key] = argv[++i];
-    }
-  }
-  return out;
 }

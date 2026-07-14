@@ -8,6 +8,7 @@ import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/busy_view.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/destructive_button.dart';
 import '../widgets/diagram_labels.dart';
@@ -116,30 +117,15 @@ class HomeTheaterScreen extends ConsumerWidget {
     Set<SonosChannel> channels,
     String label,
   ) async {
-    final scheme = Theme.of(context).colorScheme;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.link_off),
-        title: Text('Remove $label?'),
-        content: Text(
-          'These speakers will be un-bonded and become standalone rooms again. '
-          'The rest of your home theater stays as it is.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: scheme.error),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      icon: Icons.link_off,
+      title: 'Remove $label?',
+      message: 'These speakers will be un-bonded and become standalone rooms '
+          'again. The rest of your home theater stays as it is.',
+      confirmLabel: 'Remove',
     );
-    if (ok != true || !context.mounted) return;
+    if (!ok || !context.mounted) return;
 
     final controller = ref.read(sonosControllerProvider.notifier);
     // No success toast — the progress screen already showed the outcome.
