@@ -245,24 +245,24 @@ class _BottomBar extends StatelessWidget {
             backgroundColor: scheme.error, foregroundColor: scheme.onError),
         child: Text(aborting ? 'Aborting…' : 'Abort'),
       );
-    } else if (failed) {
+    } else {
       child = Row(
         children: [
           Expanded(
-            child: OutlinedButton(onPressed: onDone, child: const Text('Done')),
+            child: FilledButton(onPressed: onDone, child: const Text('Done')),
           ),
-          Gap.s,
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+          if (failed) ...[
+            Gap.s,
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
             ),
-          ),
+          ],
         ],
       );
-    } else {
-      child = FilledButton(onPressed: onDone, child: const Text('Done'));
     }
     return Padding(
       padding: const EdgeInsets.all(16),

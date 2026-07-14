@@ -192,7 +192,7 @@ class _TimelineRow extends StatelessWidget {
                       child: Text(step.detail!,
                           style: theme.textTheme.bodySmall?.copyWith(
                               color: scheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w200)),
+                              fontWeight: FontWeight.w300)),
                     ),
                 ],
               ),
