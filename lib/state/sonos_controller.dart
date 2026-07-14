@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -104,28 +102,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// an in-flight SOAP write still completes, but the sequence stops before the
   /// next step — which is why the UI warns it can leave an in-between state.
   void cancelActiveOperation() => _activeOp?.cancel();
-
-  /// Resolves with [work], or throws [OperationCancelled] the instant [token]
-  /// trips — WITHOUT waiting for [work]. SSDP discovery isn't interruptible, so
-  /// this just stops the UI waiting; the socket self-closes within its timeout.
-  Future<T> _untilCancelled<T>(Future<T> work, CancellationToken token) {
-    final out = Completer<T>();
-    work.then((v) {
-      if (!out.isCompleted) out.complete(v);
-    }, onError: (Object e, StackTrace s) {
-      if (!out.isCompleted) out.completeError(e, s);
-    });
-    () async {
-      while (!out.isCompleted) {
-        if (token.isCancelled) {
-          if (!out.isCompleted) out.completeError(const OperationCancelled());
-          return;
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-      }
-    }();
-    return out.future;
-  }
 
   @override
   Future<SonosSystem?> build() => _discover();
@@ -253,10 +229,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         );
         tracker.done('bond');
         return sys;
-      } on OperationCancelled {
-        tracker.fail('bond', 'Aborted');
-        rethrow;
       } catch (e) {
+        // OperationCancelled lands here too — its toString is 'Aborted'.
         tracker.fail('bond', '$e');
         rethrow;
       }
@@ -331,7 +305,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           state.isLoading ? future : scan().then((_) => state.value);
       SonosSystem? scanned;
       try {
-        scanned = await _untilCancelled(scanFuture, cancel);
+        scanned = await untilCancelled(scanFuture, cancel);
       } catch (_) {/* aborted → rethrown by throwIfCancelled below; other errors
                        → scanned stays null → handled below */}
       cancel.throwIfCancelled(); // aborted during the scan? stop before any write
@@ -412,10 +386,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // Restore captured EQ/volume last — bonding can reset EQ.
         await _restoreSettings(e, sys, ph);
         tracker.done(e.primaryUuid);
-      } on OperationCancelled {
-        tracker.fail(e.primaryUuid, 'Aborted');
-        rethrow;
       } catch (err) {
+        // OperationCancelled lands here too — its toString is 'Aborted'.
         tracker.fail(e.primaryUuid, '$err');
         rethrow;
       }
@@ -692,10 +664,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         );
         tracker.done('remove');
         return sys;
-      } on OperationCancelled {
-        tracker.fail('remove', 'Aborted');
-        rethrow;
       } catch (e) {
+        // OperationCancelled lands here too — its toString is 'Aborted'.
         tracker.fail('remove', '$e');
         rethrow;
       }
@@ -772,10 +742,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         tracker.done('group');
         return system;
-      } on OperationCancelled {
-        tracker.fail('group', 'Aborted');
-        rethrow;
       } catch (e) {
+        // OperationCancelled lands here too — its toString is 'Aborted'.
         tracker.fail('group', '$e');
         rethrow;
       }
@@ -848,10 +816,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         tracker.done('ungroup');
         return system;
-      } on OperationCancelled {
-        tracker.fail('ungroup', 'Aborted');
-        rethrow;
       } catch (e) {
+        // OperationCancelled lands here too — its toString is 'Aborted'.
         tracker.fail('ungroup', '$e');
         rethrow;
       }

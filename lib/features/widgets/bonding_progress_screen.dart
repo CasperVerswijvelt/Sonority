@@ -56,7 +56,12 @@ class BondingProgressScreen extends ConsumerStatefulWidget {
 class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
   bool _finished = false;
   bool _failed = false;
+  // _aborting: the Abort button was pressed (drives its "Aborting…" label and
+  // the cancel). _aborted: the op actually ended via cancellation — only this
+  // drives the outcome/header, so a late abort that the op outran still reports
+  // its true success/failure.
   bool _aborting = false;
+  bool _aborted = false;
   bool _showLogs = false;
 
   @override
@@ -70,6 +75,7 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
       _finished = false;
       _failed = false;
       _aborting = false;
+      _aborted = false;
     });
     final navigator = Navigator.of(context);
     try {
@@ -81,7 +87,7 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
       if (!_aborting) {
         if (mounted) navigator.pop(BondingOutcome.aborted);
       } else if (mounted) {
-        setState(() => _finished = _failed = true);
+        setState(() => _finished = _failed = _aborted = true);
       }
     } catch (_) {
       // The failing step + the raw log carry the reason; show Retry/Done.
@@ -142,7 +148,7 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
         ),
         body: _showLogs
             ? const _RawLogView()
-            : ApplyProgressView(steps: steps, aborted: _aborting),
+            : ApplyProgressView(steps: steps, aborted: _aborted),
         bottomNavigationBar: SafeArea(
           child: _BottomBar(
             finished: _finished,
@@ -150,7 +156,7 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
             aborting: _aborting,
             onAbort: _abort,
             onRetry: _retry,
-            onDone: () => Navigator.of(context).pop(_aborting
+            onDone: () => Navigator.of(context).pop(_aborted
                 ? BondingOutcome.aborted
                 : _failed
                     ? BondingOutcome.failed
