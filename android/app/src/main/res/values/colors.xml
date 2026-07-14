@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#0A0A0B</color>
+    <color name="ic_launcher_background">#000000</color>
     <!-- Neutral widget container surface (light). See values-night for dark. -->
     <color name="widget_container">#F3F3F7</color>
 </resources>

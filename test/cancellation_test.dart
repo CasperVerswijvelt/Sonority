@@ -45,6 +45,40 @@ void main() {
     });
   });
 
+  group('untilCancelled', () {
+    test('resolves with the work result when never cancelled', () async {
+      final t = CancellationToken();
+      final r = await untilCancelled(
+          Future<int>.delayed(const Duration(milliseconds: 20), () => 42), t);
+      expect(r, 42);
+    });
+
+    test('propagates the work error when never cancelled', () async {
+      final t = CancellationToken();
+      await expectLater(
+        untilCancelled(
+            Future<int>.error(StateError('boom')), t),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('throws OperationCancelled promptly, not waiting out slow work',
+        () async {
+      final t = CancellationToken();
+      final sw = Stopwatch()..start();
+      Future<void>.delayed(const Duration(milliseconds: 30), t.cancel);
+      await expectLater(
+        // Work that would take 10s — must not be awaited once cancelled.
+        untilCancelled(
+            Future<int>.delayed(const Duration(seconds: 10), () => 1), t,
+            slice: const Duration(milliseconds: 10)),
+        throwsA(isA<OperationCancelled>()),
+      );
+      sw.stop();
+      expect(sw.elapsed, lessThan(const Duration(seconds: 2)));
+    });
+  });
+
   group('ApplyProgress.onLog', () {
     test('emits a line for start / note / done / fail', () {
       final log = <String>[];

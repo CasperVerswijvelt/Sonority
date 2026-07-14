@@ -33,7 +33,7 @@ permissions:
   contents: write
 
 env:
-  FLUTTER_VERSION: '3.35.2'
+  FLUTTER_VERSION: '3.44.6'
 
 jobs:
   # ── Android · build + Google Play ───────────────────────────────────────────
