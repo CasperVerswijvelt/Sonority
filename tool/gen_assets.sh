@@ -14,9 +14,16 @@ set -euo pipefail
 cd "$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 
 CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
-FLUTTER="$HOME/fvm/versions/3.35.2/bin/flutter"
 DART="$HOME/fvm/versions/3.35.2/bin/dart"
 BASE="file://$PWD/design/export.html"
+
+# The wordmark renders in Futura Medium (a macOS system font). Headless Chrome exits 0
+# even when it substitutes a fallback font, so bail up front if Futura is missing rather
+# than silently shipping the wrong wordmark.
+if [ ! -f /System/Library/Fonts/Supplemental/Futura.ttc ] && ! fc-list 2>/dev/null | grep -qi 'futura'; then
+  echo "✗ Futura font not found — the wordmark would render in a fallback font. Aborting." >&2
+  exit 1
+fi
 
 # shot <query> <w> <h> <out> — render one export.html mode to a PNG. The SVG fills
 # the window (viewBox scaling), so W:H MUST match the mode's viewBox aspect or it
@@ -43,25 +50,25 @@ shot "mode=icon"        512  512 design/play/play-icon-512.png     # Play store 
 # upscales on device (aspect MUST stay 1000:260). Then TRIM to the glyph bbox: the
 # in-app appbar draws it at a fixed height, so any surrounding padding would shrink
 # the letters. -trim only removes transparent margin (never clips the glyphs).
-shot "mode=wordmark"       2500 650 assets/brand/sonority_wordmark.png   # in-app appbar + marketing (Flutter scales it down; keep hi-res)
+shot "mode=wordmark"       2500 650 assets/brand/sonority_wordmark.png   # THE master wordmark: in-app appbar + marketing, and the source every splash branding derives from
 magick assets/brand/sonority_wordmark.png -trim +repage assets/brand/sonority_wordmark.png
-# Splash branding (iOS storyboard + Android-legacy launch_background). flutter_native_splash
-# maps source RESOLUTION → point size (@1x ≈ source/4), so render a moderate ~600px-wide
-# wordmark (~150pt on device). Render it FRESH from the vector (a small Chrome shot, like
-# wordmark-a12) then trim — NOT a downscale of the hi-res raster, which fattens the strokes
-# and makes the iOS wordmark look heavier than Android's vector-rendered one.
-shot "mode=wordmark"        764 199 design/assets/wordmark_splash.png
-magick design/assets/wordmark_splash.png -trim +repage design/assets/wordmark_splash.png
-# Android 12 branding stays LETTERBOXED (do NOT trim) — the OS renders it into a
-# fixed 2.5:1 region and would stretch a tight image.
+# Splash-branding source for flutter_native_splash (it seeds the iOS BrandingImage imageset
+# + storyboard, and produces the Android-legacy launch_background branding). flutter_native_splash
+# maps source RESOLUTION → point size (@1x ≈ source/4), so give it a moderate ~600px width
+# (~150pt on device) via a high-quality Lanczos reduction of the master — matches stroke
+# weight + AA (a default-filter -resize fattens). NB: the iOS BrandingImage this produces is
+# overwritten below with per-scale Lanczos cuts, so this asset only ships on pre-12 Android.
+magick assets/brand/sonority_wordmark.png -filter Lanczos -resize 600x design/assets/wordmark_splash.png
+# Android 12 branding: the wordmark LETTERBOXED into the fixed 2.5:1 region the OS renders
+# it in (a tight image would be stretched). Rendered on its own 800x320 canvas.
 shot "mode=wordmark-a12"    800 320 design/assets/wordmark_android12.png
 
 # README header lockup (mark + wordmark, rounded, transparent)
 shot "mode=icontext&round" 512 512 docs/icon.png
 
-# Icon Composer layers for the iOS/macOS glass-pane .icon (front > back > bg).
-# Each pane carries its own cone holes as cut-outs; front occludes back.
-shot "mode=layer-bg"    1024 1024 design/assets/layers/layer-bg.png
+# Icon Composer layers for the iOS/macOS glass-pane .icon (front over back; the background
+# is a solid fill set in Icon Composer, not a layer). Each pane carries its own cone holes
+# as cut-outs; front occludes back.
 shot "mode=layer-back"  1024 1024 design/assets/layers/layer-back.png
 shot "mode=layer-front" 1024 1024 design/assets/layers/layer-front.png
 
@@ -71,7 +78,8 @@ echo "==> Regenerating native icon sets + splash"
 
 # The splash generator overreaches: it strips android:screenOrientation="portrait"
 # from the manifest (portrait-only is required) and injects a web splash (web is
-# screenshot-only here). Revert both.
+# screenshot-only here). Revert both. NB: this discards ALL local AndroidManifest
+# changes — commit unrelated manifest edits before running.
 git checkout -- android/app/src/main/AndroidManifest.xml
 git checkout -- web/index.html 2>/dev/null || true
 rm -rf web/splash
@@ -85,7 +93,10 @@ if ruby -e 'require "xcodeproj"' 2>/dev/null; then
     echo "  ✓ re-asserted Sonority app icon in $PROJ"
   done
 else
-  echo "  ⚠ ruby/xcodeproj not found — set ASSETCATALOG_COMPILER_APPICON_NAME=Sonority manually in ios/macos Runner targets"
+  echo "✗ ruby/xcodeproj gem not found — cannot re-assert the Sonority .icon app-icon name" >&2
+  echo "  that flutter_launcher_icons just reset to AppIcon, so the build would ship the flat" >&2
+  echo "  PNG icon instead of the layered glass .icon. Install it (ships with CocoaPods) and re-run." >&2
+  exit 1
 fi
 
 # flutter_native_splash downscales the iOS branding with a nearest-neighbour filter →

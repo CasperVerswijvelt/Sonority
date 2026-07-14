@@ -110,8 +110,8 @@ function wordmarkA12Svg() {
 // tweeter/woofer holes as alpha cut-outs (so the glass material renders them as
 // gaps); the front layer stacks over the back layer, so the front pane occludes
 // the back panes — no separate holes layer (which would punch back-speaker holes
-// through the front). `layer-bg` is the solid backdrop the glass refracts. Same
-// scale 1.15 as the flat icon so the composition matches.
+// through the front). The background is a solid fill set in Icon Composer, not a
+// layer. Same scale 1.15 as the flat icon so the composition matches.
 // BOTH pane layers are plain WHITE OPAQUE shapes on purpose: all colour, opacity,
 // and glass/translucency tuning is done non-destructively in Icon Composer (the
 // grey of the back speakers is a Composer setting, not baked into the source).
@@ -125,7 +125,6 @@ function paneCut(cx,cy,h,id){
     </mask>
     <rect x="${cx-w/2}" y="${cy-h/2}" width="${w}" height="${h}" rx="${r}" fill="${INK}" mask="url(#${id})"/>`;
 }
-function layerBgSvg()    { return svg('1000 1000', `<rect width="1000" height="1000" fill="${BG}"/>`); }
 function layerBackSvg()  { return svg('1000 1000', `<g transform="${layerT}">${paneCut(325,400,300,'bl')+paneCut(675,400,300,'br')}</g>`); }
 function layerFrontSvg() { return svg('1000 1000', `<g transform="${layerT}">${paneCut(500,460,360,'fr')}</g>`); }
 
@@ -144,7 +143,6 @@ const render = {
   icontext: () => iconTextSvg(round),
   wordmark: () => wordmarkSvg(),
   'wordmark-a12': () => wordmarkA12Svg(),
-  'layer-bg': () => layerBgSvg(),
   'layer-back': () => layerBackSvg(),
   'layer-front': () => layerFrontSvg(),
 };

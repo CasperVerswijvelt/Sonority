@@ -138,7 +138,7 @@ Android mask clips it; the wordmark lives in the lockup/splash/marketing only):
 | `wordmark` | `assets/brand/sonority_wordmark.png` (2500×650) | **Futura Medium**, white-on-alpha; splash branding + in-app appbar + marketing |
 | `wordmark-a12` | `design/assets/wordmark_android12.png` (800×320) | Android-12 branding — letterboxed to the fixed **2.5:1** region (no vertical stretch) |
 | `icontext&round` | `docs/icon.png` | README header lockup (mark + wordmark) |
-| `layer-bg/back/front` | `design/assets/layers/*.png` | Icon Composer glass-pane layers (below) |
+| `layer-back` / `layer-front` | `design/assets/layers/*.png` | Icon Composer glass-pane layers (below) |
 
 The parametric design twin is `design/logo.html`; concept exploration is archived
 in `design/logo_concepts.html`.
@@ -148,9 +148,10 @@ in `design/logo_concepts.html`.
 iOS 26 / macOS 26 render a layered `.icon` with the Liquid Glass material. Rather
 than fighting the glow, the speaker cabinets are authored as **translucent glass
 panes**. `tool/gen_assets.sh` exports the layer art (`design/assets/layers/`:
-`layer-bg` solid `#0A0A0B`, `layer-back` + `layer-front` — both plain **white
-opaque** panes, each with its own tweeter/woofer holes as alpha cut-outs, front
-stacked over back). Colour/opacity/glass (incl. the back speakers' grey) are tuned
+`layer-back` + `layer-front` — both plain **white opaque** panes, each with its own
+tweeter/woofer holes as alpha cut-outs, front stacked over back; the background is a
+solid `#0A0A0B` fill set in Icon Composer, not a layer). Colour/opacity/glass (incl.
+the back speakers' grey) are tuned
 non-destructively in Icon Composer, not baked into the source. **Manual step** (Icon Composer.app,
 ships with Xcode 26 — or `icon-composer-mcp`): import the layers (front > back),
 apply the glass material with tuned opacity, set the **icon Background fill to solid
@@ -161,10 +162,16 @@ The authored `Sonority.icon` is committed at **`ios/Runner/Sonority.icon`** and
 **`macos/Runner/Sonority.icon`**, wired via `ASSETCATALOG_COMPILER_APPICON_NAME =
 Sonority` in each Runner target (actool compiles the layered icon + its raster
 fallbacks). **To update it:** re-export from Icon Composer over both copies and
-rebuild — no pbxproj change needed. The PNG `AppIcon.appiconset` stays in place as a
-safety net. Note: `flutter_launcher_icons` resets the iOS `ASSETCATALOG_COMPILER_APPICON_NAME`
-back to `AppIcon`, so `tool/gen_assets.sh` **re-asserts** `= Sonority` on both Runner
-targets at the end (the `.icon` file references themselves are never removed).
+rebuild — no pbxproj change needed. Note: `flutter_launcher_icons` resets the iOS
+`ASSETCATALOG_COMPILER_APPICON_NAME` back to `AppIcon`, so `tool/gen_assets.sh`
+**re-asserts** `= Sonority` on both Runner targets at the end (the `.icon` file
+references themselves are never removed).
+
+The PNG `AppIcon.appiconset` is still generated (by `flutter_launcher_icons`) but is
+**not** what ships: with `APPICON_NAME = Sonority`, actool compiles the `.icon`'s own
+rasterised fallbacks even for pre-26 OSes, so `AppIcon` is unreferenced. It's kept as a
+manual recovery path only — flip `APPICON_NAME` back to `AppIcon` (e.g. if a submission
+ever rejects the `.icon`) and the PNG set takes over.
 
 Verify every output's exact pixels:
 
