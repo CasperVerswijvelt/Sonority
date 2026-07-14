@@ -48,8 +48,8 @@ One command captures all four — add `--frame` to also render every framed stor
 graphic (§3) in the same run:
 
 ```sh
-~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart          # raw shots only
-~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart --frame  # shots + framed graphics
+~/fvm/versions/3.44.6/bin/dart run tool/capture_shots.dart          # raw shots only
+~/fvm/versions/3.44.6/bin/dart run tool/capture_shots.dart --frame  # shots + framed graphics
 ```
 
 It builds `flutter build web --release --dart-define=DEMO=true`, serves it, and

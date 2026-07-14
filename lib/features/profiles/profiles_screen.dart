@@ -38,7 +38,9 @@ class ProfilesScreen extends ConsumerWidget {
               proxyDecorator: (child, index, animation) =>
                   Material(color: Colors.transparent, child: child),
               // Long-press a card to drag it — this order is what the widgets use.
-              onReorder: (oldIndex, newIndex) => ref
+              // onReorderItem (not the deprecated onReorder): newIndex is already
+              // adjusted for the removed item, so reorder() must not re-adjust it.
+              onReorderItem: (oldIndex, newIndex) => ref
                   .read(profilesProvider.notifier)
                   .reorder(oldIndex, newIndex),
               itemBuilder: (context, i) {

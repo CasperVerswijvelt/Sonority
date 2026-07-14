@@ -24,7 +24,7 @@
 # populated + secrets set (see docs/PUBLISHING-APPLE.md).
 
 # fvm-managed Flutter (this machine — see CLAUDE.md). CI sets FLUTTER_BIN=flutter.
-FLUTTER = ENV["FLUTTER_BIN"] || File.expand_path("~/fvm/versions/3.35.2/bin/flutter")
+FLUTTER = ENV["FLUTTER_BIN"] || File.expand_path("~/fvm/versions/3.44.6/bin/flutter")
 
 APP_ID = "be.casperverswijvelt.sonority"
 # iOS-only WidgetKit extension embedded in Runner; needs its own App Store profile.

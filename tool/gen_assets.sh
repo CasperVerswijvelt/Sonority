@@ -7,14 +7,14 @@
 #   tool/gen_assets.sh
 #   CHROME="/path/to/Chrome" tool/gen_assets.sh   # override the browser
 #
-# Requires: Google Chrome (headless) + fvm Flutter 3.35.2. macOS-oriented (sips/magick
+# Requires: Google Chrome (headless) + fvm Flutter 3.44.6. macOS-oriented (sips/magick
 # available), same as the rest of tool/.
 set -euo pipefail
 
 cd "$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 
 CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
-DART="$HOME/fvm/versions/3.35.2/bin/dart"
+DART="$HOME/fvm/versions/3.44.6/bin/dart"
 BASE="file://$PWD/design/export.html"
 
 # The wordmark renders in Futura Medium (a macOS system font). Headless Chrome exits 0

@@ -14,6 +14,7 @@ section into the GitHub Release notes regardless of the build suffix
 ### Changed
 - Aborting a profile apply now stops immediately (no confirmation dialog) and marks the step it stopped on as "Aborted" with a Retry option, instead of just closing — and aborting during the initial network scan now stops within a moment rather than waiting for the scan to finish.
 - Icons now regenerate from a single source (`design/export.html` via `tool/gen_assets.sh`), ending the wordmark drift. Added an Android 13+ themed (monochrome) icon, gave the adaptive foreground real transparency, and switched the macOS icon to Apple's rounded squircle. iOS/macOS additionally support a layered glass-pane icon (Icon Composer) with the PNG icon kept as a fallback.
+- Android: upgraded to Flutter 3.44 / AGP 9 (targetSdk 36) and enabled R8 code + resource shrinking, clearing the Play Console edge-to-edge, deprecated-API, and technical-quality recommendations.
 
 ### Fixed
 - Android splash screen: the logo is no longer clipped by the Android 12+ circular mask, and the "SONORITY" wordmark renders crisp, correctly proportioned, and in the right (Futura Medium) weight — no longer heavy, cropped, or stretched.

@@ -53,7 +53,8 @@ class ProfilesController extends AsyncNotifier<List<Profile>> {
   Future<void> reorder(int oldIndex, int newIndex) async {
     final next = [...?state.value];
     if (oldIndex < 0 || oldIndex >= next.length) return;
-    if (newIndex > oldIndex) newIndex -= 1;
+    // newIndex arrives already adjusted for the removed item (onReorderItem
+    // semantics), so no manual `-1` here — it would double-shift downward drags.
     next.insert(newIndex.clamp(0, next.length - 1), next.removeAt(oldIndex));
     await _persist(next);
   }

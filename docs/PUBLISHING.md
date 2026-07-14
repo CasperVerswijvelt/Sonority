@@ -23,7 +23,7 @@ upload must use this same key. Never commit the `.jks`.
 Copy `android/key.properties.example` to `android/key.properties` (gitignored),
 fill in the absolute keystore path + passwords, then:
 ```sh
-~/fvm/versions/3.35.2/bin/flutter build appbundle --release
+~/fvm/versions/3.44.6/bin/flutter build appbundle --release
 # → build/app/outputs/bundle/release/app-release.aab
 ```
 
