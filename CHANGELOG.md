@@ -11,6 +11,9 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Fixed
+- A failed bond/apply/rename no longer wipes the system overview — the last-known layout stays visible while the progress screen shows the error and offers Retry.
+
 ## [0.5.0] - 2026-07-12
 
 ### Added
