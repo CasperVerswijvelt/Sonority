@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- Source for assets/brand/sonority_wordmark.png — regenerate with the inkscape
-     command in design/logo.html notes / the plan. Avenir Next is Futura's intended
-     fallback (see CONFIG.text in logo.html); weight 500, letter-spacing 0.005em. -->
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="220" viewBox="0 0 1400 220">
-  <text x="10" y="165" font-family="Avenir Next" font-weight="600" font-size="160"
-        letter-spacing="0.8" fill="#ffffff">SONORITY</text>
-</svg>

@@ -109,41 +109,69 @@ CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
   --screenshot=out.png "file://$PWD/design/store.html?mode=ios69&i=0"
 ```
 
-### App icon + wordmark (from `design/export.html`)
+### App icon + wordmark (single source: `design/export.html`)
 
-The launcher icon is the **mark only** (the 9c-3 speaker trio) on every platform;
-the "SONORITY" wordmark lives in the logo lockup, not the icon. Sources render
-from `design/export.html` the same headless way:
-
-```sh
-BASE="file://$PWD/design/export.html"
-shot(){ "$CHROME" --headless=new --disable-gpu --force-device-scale-factor=1 \
-  --hide-scrollbars --window-size=$2,$3 --virtual-time-budget=2500 \
-  --screenshot="$4" "$1" >/dev/null 2>&1; }
-
-shot "$BASE?mode=icon"    1024 1024 design/assets/icon.png      # iOS/macOS/Android-legacy + splash
-shot "$BASE?mode=iconfg"  1024 1024 design/assets/icon_fg.png   # Android adaptive foreground (safe inset)
-shot "$BASE?mode=wordmark" 1000 260 design/assets/wordmark.png  # splash branding (unchanged unless the wordmark changes)
-shot "$BASE?mode=icon"     512  512 design/play/play-icon-512.png  # Play store icon (full-bleed square)
-# README header icon — mark + SONORITY wordmark, rounded corners baked in
-# (transparent outside), README only:
-"$CHROME" --headless=new --disable-gpu --force-device-scale-factor=1 \
-  --hide-scrollbars --window-size=512,512 --virtual-time-budget=2500 \
-  --default-background-color=00000000 \
-  --screenshot=docs/icon.png "$BASE?mode=icontext&round=1"
-```
-
-Then regenerate the native icon sets + splash and revert the manifest churn the
-splash tool introduces (it strips `android:screenOrientation="portrait"`):
+`design/export.html` is the **single source of truth** for every raster icon,
+wordmark, splash, and Icon Composer layer — each emitted by a `?mode=`. **Don't
+hand-edit the PNGs** (that is how they drifted before): change `export.html`, then
+run the generator, which renders every mode at the right size/aspect and fans them
+out to the native trees:
 
 ```sh
-~/fvm/versions/3.35.2/bin/dart run flutter_launcher_icons
-~/fvm/versions/3.35.2/bin/dart run flutter_native_splash:create
-git checkout android/app/src/main/AndroidManifest.xml   # keep portrait-only + avoid reformat churn
+tool/gen_assets.sh          # CHROME=… to override the browser
 ```
 
-The parametric source of the mark is `design/logo.html` (icon + lockup); the full
-concept exploration is archived in `design/logo_concepts.html`.
+It reverts the manifest/web overreach `flutter_native_splash` introduces (it strips
+`android:screenOrientation="portrait"` and injects a web splash). Review with
+`git diff --stat` — expect only intended asset churn.
+
+**`?mode=` outputs** (all mark-only icons — Apple HIG discourages icon text and the
+Android mask clips it; the wordmark lives in the lockup/splash/marketing only):
+
+| `mode` | Output | Notes |
+|---|---|---|
+| `icon` | `design/assets/icon.png` (1024) | full-bleed square; iOS/Android-legacy + splash image; `&round` = README corners |
+| `iconfg` | `design/assets/icon_fg.png` | Android adaptive foreground — **transparent** bg (background-color layer shows) |
+| `iconmono` | `design/assets/icon_mono.png` | Android 13+ **monochrome/themed** layer (holes cut out) |
+| `icon-macos` | `design/assets/icon_macos.png` | macOS **squircle** (rounded + ~10% margin) fallback |
+| `icon-a12` | `design/assets/icon_android12.png` (1152) | Android-12 splash icon, fits the **768px** circular mask |
+| `wordmark` | `assets/brand/sonority_wordmark.png` (2500×650) | **Futura Medium**, white-on-alpha; splash branding + in-app appbar + marketing |
+| `wordmark-a12` | `design/assets/wordmark_android12.png` (800×320) | Android-12 branding — letterboxed to the fixed **2.5:1** region (no vertical stretch) |
+| `icontext&round` | `docs/icon.png` | README header lockup (mark + wordmark) |
+| `layer-back` / `layer-front` | `design/assets/layers/*.png` | Icon Composer glass-pane layers (below) |
+
+The parametric design twin is `design/logo.html`; concept exploration is archived
+in `design/logo_concepts.html`.
+
+### Layered iOS/macOS icon (Icon Composer, glass panes)
+
+iOS 26 / macOS 26 render a layered `.icon` with the Liquid Glass material. Rather
+than fighting the glow, the speaker cabinets are authored as **translucent glass
+panes**. `tool/gen_assets.sh` exports the layer art (`design/assets/layers/`:
+`layer-back` + `layer-front` — both plain **white opaque** panes, each with its own
+tweeter/woofer holes as alpha cut-outs, front stacked over back; the background is a
+solid `#000000` fill set in Icon Composer, not a layer). Colour/opacity/glass (incl.
+the back speakers' grey) are tuned
+non-destructively in Icon Composer, not baked into the source. **Manual step** (Icon Composer.app,
+ships with Xcode 26 — or `icon-composer-mcp`): import the layers (front > back),
+apply the glass material with tuned opacity, set the **icon Background fill to solid
+`#000000`** (NOT just a bg layer — the default is a blue gradient that bleeds
+through the group translucency), preview Default/Dark/Tinted, export `Sonority.icon`.
+
+The authored `Sonority.icon` is committed at **`ios/Runner/Sonority.icon`** and
+**`macos/Runner/Sonority.icon`**, wired via `ASSETCATALOG_COMPILER_APPICON_NAME =
+Sonority` in each Runner target (actool compiles the layered icon + its raster
+fallbacks). **To update it:** re-export from Icon Composer over both copies and
+rebuild — no pbxproj change needed. Note: `flutter_launcher_icons` resets the iOS
+`ASSETCATALOG_COMPILER_APPICON_NAME` back to `AppIcon`, so `tool/gen_assets.sh`
+**re-asserts** `= Sonority` on both Runner targets at the end (the `.icon` file
+references themselves are never removed).
+
+The PNG `AppIcon.appiconset` is still generated (by `flutter_launcher_icons`) but is
+**not** what ships: with `APPICON_NAME = Sonority`, actool compiles the `.icon`'s own
+rasterised fallbacks even for pre-26 OSes, so `AppIcon` is unreferenced. It's kept as a
+manual recovery path only — flip `APPICON_NAME` back to `AppIcon` (e.g. if a submission
+ever rejects the `.icon`) and the PNG set takes over.
 
 Verify every output's exact pixels:
 

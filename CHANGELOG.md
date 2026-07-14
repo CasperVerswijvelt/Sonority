@@ -13,8 +13,10 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Changed
 - Aborting a profile apply now stops immediately (no confirmation dialog) and marks the step it stopped on as "Aborted" with a Retry option, instead of just closing — and aborting during the initial network scan now stops within a moment rather than waiting for the scan to finish.
+- Icons now regenerate from a single source (`design/export.html` via `tool/gen_assets.sh`), ending the wordmark drift. Added an Android 13+ themed (monochrome) icon, gave the adaptive foreground real transparency, and switched the macOS icon to Apple's rounded squircle. iOS/macOS additionally support a layered glass-pane icon (Icon Composer) with the PNG icon kept as a fallback.
 
 ### Fixed
+- Android splash screen: the logo is no longer clipped by the Android 12+ circular mask, and the "SONORITY" wordmark renders crisp, correctly proportioned, and in the right (Futura Medium) weight — no longer heavy, cropped, or stretched.
 - Android home-screen widget tiles now fill the widget correctly on all launchers/sizes (no more dead space, clipped corners, or gaps drifting on resize).
 - The "Done" button on the apply-progress screen now looks the same whether an apply succeeds or fails (a consistent filled button, with Retry beside it on failure).
 - Apply-progress sub-step subtitles no longer render with a broken synthetic font weight on Android (Roboto has no `w200`; use `w300`).
@@ -24,7 +26,6 @@ section into the GitHub Release notes regardless of the build suffix
 - Renaming a room no longer displays the new name until Sonos actually confirms it.
 - Discovery now falls back to another player when the first one can't answer the topology read.
 - A permanent bonding fault (e.g. a malformed map) now surfaces immediately instead of retrying for ~2½ minutes, and a failed EQ/volume restore is now reported instead of silently swallowed.
-
 
 ## [0.5.0] - 2026-07-12
 
