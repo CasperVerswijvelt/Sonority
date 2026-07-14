@@ -152,12 +152,18 @@ panes**. `tool/gen_assets.sh` exports the layer art (`design/assets/layers/`:
 opaque** panes, each with its own tweeter/woofer holes as alpha cut-outs, front
 stacked over back). Colour/opacity/glass (incl. the back speakers' grey) are tuned
 non-destructively in Icon Composer, not baked into the source. **Manual step** (Icon Composer.app,
-ships with Xcode 26 — or `icon-composer-mcp`): import the layers (front > back > bg),
-apply the glass material with tuned opacity (front pane more opaque, back panes more
-translucent), bg `#0A0A0B`, preview Default/Dark/Mono, export `Sonority.icon` into
-`ios/Runner/` + `macos/Runner/` and set it as the app icon in Xcode. The PNG
-`AppIcon.appiconset` stays as the pre-26 fallback; `flutter_launcher_icons` writes
-only the PNG set, so re-running `tool/gen_assets.sh` won't clobber the `.icon`.
+ships with Xcode 26 — or `icon-composer-mcp`): import the layers (front > back),
+apply the glass material with tuned opacity, set the **icon Background fill to solid
+`#0A0A0B`** (NOT just a bg layer — the default is a blue gradient that bleeds
+through the group translucency), preview Default/Dark/Tinted, export `Sonority.icon`.
+
+The authored `Sonority.icon` is committed at **`ios/Runner/Sonority.icon`** and
+**`macos/Runner/Sonority.icon`**, wired via `ASSETCATALOG_COMPILER_APPICON_NAME =
+Sonority` in each Runner target (actool compiles the layered icon + its raster
+fallbacks). **To update it:** re-export from Icon Composer over both copies and
+rebuild — no pbxproj change needed. The PNG `AppIcon.appiconset` stays in place as a
+safety net; `flutter_launcher_icons` writes only the PNG set, so re-running
+`tool/gen_assets.sh` never touches the `.icon`.
 
 Verify every output's exact pixels:
 
