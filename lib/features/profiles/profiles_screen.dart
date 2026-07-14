@@ -28,6 +28,11 @@ class ProfilesScreen extends ConsumerWidget {
           : ReorderableListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
               itemCount: list.length,
+              // No default drag handles: on desktop they draw a trailing ≡ icon
+              // (clashes with the card's ⋮ menu) and make dragging start only
+              // from that handle. We wrap each item in a delayed listener below
+              // so long-press-to-drag works on every platform (incl. macOS).
+              buildDefaultDragHandles: false,
               // Drop the default elevated-Material drag proxy (it draws a square
               // highlight/shadow behind the rounded card); the card lifts as-is.
               proxyDecorator: (child, index, animation) =>
@@ -38,31 +43,35 @@ class ProfilesScreen extends ConsumerWidget {
                   .reorder(oldIndex, newIndex),
               itemBuilder: (context, i) {
                 final p = list[i];
-                return Padding(
+                return ReorderableDelayedDragStartListener(
                   key: ValueKey(p.id),
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: ProfileCard(
-                    profile: p,
-                    onTap: () => context.go('/profiles/edit/${p.id}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton.filled(
-                          onPressed: () =>
-                              applyProfileInteractive(context, ref, p),
-                          tooltip: 'Apply',
-                          icon: const Icon(Icons.play_arrow),
-                        ),
-                        PopupMenuButton<String>(
-                          onSelected: (v) => v == 'edit'
-                              ? context.go('/profiles/edit/${p.id}')
-                              : _confirmDelete(context, ref, p),
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(value: 'edit', child: Text('Edit')),
-                            PopupMenuItem(value: 'delete', child: Text('Delete')),
-                          ],
-                        ),
-                      ],
+                  index: i,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: ProfileCard(
+                      profile: p,
+                      onTap: () => context.go('/profiles/edit/${p.id}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton.filled(
+                            onPressed: () =>
+                                applyProfileInteractive(context, ref, p),
+                            tooltip: 'Apply',
+                            icon: const Icon(Icons.play_arrow),
+                          ),
+                          PopupMenuButton<String>(
+                            onSelected: (v) => v == 'edit'
+                                ? context.go('/profiles/edit/${p.id}')
+                                : _confirmDelete(context, ref, p),
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(value: 'edit', child: Text('Edit')),
+                              PopupMenuItem(
+                                  value: 'delete', child: Text('Delete')),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
