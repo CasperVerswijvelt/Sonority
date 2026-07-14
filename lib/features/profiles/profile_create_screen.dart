@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/confirm_dialog.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_ui.dart';
@@ -282,30 +283,17 @@ class _State extends ConsumerState<ProfileCreateScreen> {
 
     if (existing != null) {
       // Re-snapshot: gate the overwrite behind an explicit confirm before we
-      // do the (potentially slow) settings read.
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('Replace “${existing.name}”?'),
-          content: const Text(
-            'The previously captured layout will be permanently replaced '
+      // do the (potentially slow) settings read. Not destructive-tinted — it
+      // replaces saved data, not the live speakers.
+      final ok = await confirmDialog(
+        context,
+        title: 'Replace “${existing.name}”?',
+        message: 'The previously captured layout will be permanently replaced '
             'with your current setup.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            // TextButton (not FilledButton) so the actions stay horizontal — the
-            // theme stretches FilledButton to full width, which forces a stack.
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Replace'),
-            ),
-          ],
-        ),
+        confirmLabel: 'Replace',
+        destructive: false,
       );
-      if (ok != true) return;
+      if (!ok) return;
     }
 
     // Reading settings is several SOAP calls per speaker — show progress and

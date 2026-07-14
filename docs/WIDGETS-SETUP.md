@@ -21,12 +21,14 @@ appearance picker, both widgets, Android shortcut): a soft tint of the profile
 colour as the card, the icon in the (contrast-guarded) accent colour, and the name
 in the normal on-surface colour — adapting to light/dark. The derivation lives in
 `profileTonal` (`profile_ui.dart`) and is mirrored in `ProfileTonal` (Kotlin) +
-`widgetTonal` (Swift) so all three match. Sizing is one spec too — glyph
-`clamp(0.30·shortEdge, 18, 40)`, label `clamp(0.12·shortEdge, 11, 15)` (fixed, no
-length-scaling), corner radius 20 — so iOS and Android look identical across sizes.
-On Android the glyph is a white PNG tinted at runtime + a native label (sizable, so
-the glyph can be capped); on iOS the SF glyph is `.widgetAccentable()` so it stays
-clean on an iOS-18 tinted Home Screen. **Reordering lives in the Profiles tab**
+`widgetTonal` (Swift) so all three match. Corner radius is a shared 20. Glyph/label
+sizing differs by platform: **iOS** scales to the tile — glyph
+`clamp(0.30·shortEdge, 18, 40)`, label `clamp(0.12·shortEdge, 11, 15)`; **Android**
+uses a fixed 40dp glyph + 13sp label (the weight-filled `RemoteViews` grid doesn't
+expose the cell's px, and scaling would drag back the launcher-size pixel math the
+grid removed — see `profile_tile_cell.xml`). On Android the glyph is a white PNG
+tinted at runtime + a native label; on iOS the SF glyph is `.widgetAccentable()` so
+it stays clean on an iOS-18 tinted Home Screen. **Reordering lives in the Profiles tab**
 (long-press a card to drag; that order is canonical and the widgets render their
 picked tiles in it) — the widget config screen is select-only, reusing the same
 `ProfileCard` with a checkmark/empty-circle selection indicator. **Glyphs are SF
@@ -51,26 +53,31 @@ parameter in the Edit sheet (Apple limitation), so order = selection order there
   `profile`
   parameter to `profiles` orphans widgets placed by an earlier build — they fall
   back to showing the published profiles until re-edited once (harmless).
-- **Android** — free resize (`resizeMode="horizontal|vertical"`). A collection
-  widget (`ProfileTileRemoteViewsService` + a `GridView`) reflows the tiles;
-  `ProfileWidgetProvider` picks the best rows×cols fit for the current size. Widgets
-  placed by an earlier build lazily migrate on next profile change
-  (`profileIds_<id>` JSON with a `profileId_<id>` single-key fallback).
+- **Android** — free resize (`resizeMode="horizontal|vertical"`).
+  `ProfileWidgetProvider` builds a weight-filled grid (a vertical `LinearLayout` of
+  weighted rows, each holding weighted tile cells) so the tiles fill the widget
+  exactly at any size — no reading of the launcher-reported pixel size (which
+  varies by launcher/size and used to cause left-anchored dead space, clipped
+  corners, or gap drift). `bestGrid` only picks the rows×cols split. Widgets placed
+  by an earlier build lazily migrate on next profile change (`profileIds_<id>` JSON
+  with a `profileId_<id>` single-key fallback).
 
 ## Android — done, no manual step
 
 Fully wired in this repo:
 
-- `ProfileWidgetProvider.kt` — `HomeWidgetProvider`; builds the `GridView`
-  collection, computes columns from the widget size, and sets a mutable, data-less
-  `PendingIntent` template (per-tile fill-ins supply each `id`).
-- `ProfileTileRemoteViewsService.kt` — the `RemoteViewsFactory` backing the grid:
-  one square tile per chosen profile, each with its own fill-in intent.
+- `ProfileWidgetProvider.kt` — `HomeWidgetProvider`; builds the weighted-`LinearLayout`
+  grid via `RemoteViews.addView` (rows and tile cells split height/width by
+  `layout_weight`), tints each tile from its accent colour (`ProfileTonal`), and
+  gives each tile its own tap-to-apply `PendingIntent`
+  (`sonority://apply?homeWidget=1&id=<profileId>`).
 - `ProfileWidgetConfigActivity.kt` — runs the `widgetConfig` Dart entrypoint
   (a multi-select profile picker) when the widget is placed.
-- `res/layout/profile_widget.xml` (GridView + empty view),
-  `res/layout/profile_tile_item.xml` (one cell), `res/xml/profile_widget_info.xml`,
-  and the `<receiver>` + `<service>` + `<activity>` in `AndroidManifest.xml`.
+- `res/layout/profile_widget.xml` (rounded container + vertical grid + empty view),
+  `res/layout/profile_widget_row.xml` (a weighted row), `res/layout/profile_tile_cell.xml`
+  (a weighted tile), `res/layout/profile_widget_spacer.xml` (pads a short last row),
+  `res/xml/profile_widget_info.xml`, and the `<receiver>` + `<activity>` in
+  `AndroidManifest.xml`.
 
 Per-widget data (the ordered `profileIds_<widgetId>` JSON) is keyed by widget id in
 `home_widget`'s shared prefs; each profile's colour tile + glyph is rendered in

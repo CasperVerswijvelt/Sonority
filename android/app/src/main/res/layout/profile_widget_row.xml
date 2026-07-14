@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One grid row: a horizontal band that splits the grid height evenly with its
+     siblings (layout_weight). The provider adds weighted tile cells (and, for a
+     short last row, weighted spacers) into it. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:orientation="horizontal" />

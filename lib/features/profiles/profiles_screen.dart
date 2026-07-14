@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/confirm_dialog.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_ui.dart';
@@ -27,6 +28,11 @@ class ProfilesScreen extends ConsumerWidget {
           : ReorderableListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
               itemCount: list.length,
+              // No default drag handles: on desktop they draw a trailing ≡ icon
+              // (clashes with the card's ⋮ menu) and make dragging start only
+              // from that handle. We wrap each item in a delayed listener below
+              // so long-press-to-drag works on every platform (incl. macOS).
+              buildDefaultDragHandles: false,
               // Drop the default elevated-Material drag proxy (it draws a square
               // highlight/shadow behind the rounded card); the card lifts as-is.
               proxyDecorator: (child, index, animation) =>
@@ -39,31 +45,35 @@ class ProfilesScreen extends ConsumerWidget {
                   .reorder(oldIndex, newIndex),
               itemBuilder: (context, i) {
                 final p = list[i];
-                return Padding(
+                return ReorderableDelayedDragStartListener(
                   key: ValueKey(p.id),
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: ProfileCard(
-                    profile: p,
-                    onTap: () => context.go('/profiles/edit/${p.id}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton.filled(
-                          onPressed: () =>
-                              applyProfileInteractive(context, ref, p),
-                          tooltip: 'Apply',
-                          icon: const Icon(Icons.play_arrow),
-                        ),
-                        PopupMenuButton<String>(
-                          onSelected: (v) => v == 'edit'
-                              ? context.go('/profiles/edit/${p.id}')
-                              : _confirmDelete(context, ref, p),
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(value: 'edit', child: Text('Edit')),
-                            PopupMenuItem(value: 'delete', child: Text('Delete')),
-                          ],
-                        ),
-                      ],
+                  index: i,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: ProfileCard(
+                      profile: p,
+                      onTap: () => context.go('/profiles/edit/${p.id}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton.filled(
+                            onPressed: () =>
+                                applyProfileInteractive(context, ref, p),
+                            tooltip: 'Apply',
+                            icon: const Icon(Icons.play_arrow),
+                          ),
+                          PopupMenuButton<String>(
+                            onSelected: (v) => v == 'edit'
+                                ? context.go('/profiles/edit/${p.id}')
+                                : _confirmDelete(context, ref, p),
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(value: 'edit', child: Text('Edit')),
+                              PopupMenuItem(
+                                  value: 'delete', child: Text('Delete')),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -93,30 +103,13 @@ class ProfilesScreen extends ConsumerWidget {
     WidgetRef ref,
     Profile p,
   ) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Delete “${p.name}”?'),
-        content: const Text(
-          'This removes the saved profile. Your speakers are '
-          'not changed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      title: 'Delete “${p.name}”?',
+      message: 'This removes the saved profile. Your speakers are not changed.',
+      confirmLabel: 'Delete',
     );
-    if (ok == true) await ref.read(profilesProvider.notifier).remove(p.id);
+    if (ok) await ref.read(profilesProvider.notifier).remove(p.id);
   }
 }
 
