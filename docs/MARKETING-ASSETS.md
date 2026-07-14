@@ -162,8 +162,9 @@ The authored `Sonority.icon` is committed at **`ios/Runner/Sonority.icon`** and
 Sonority` in each Runner target (actool compiles the layered icon + its raster
 fallbacks). **To update it:** re-export from Icon Composer over both copies and
 rebuild — no pbxproj change needed. The PNG `AppIcon.appiconset` stays in place as a
-safety net; `flutter_launcher_icons` writes only the PNG set, so re-running
-`tool/gen_assets.sh` never touches the `.icon`.
+safety net. Note: `flutter_launcher_icons` resets the iOS `ASSETCATALOG_COMPILER_APPICON_NAME`
+back to `AppIcon`, so `tool/gen_assets.sh` **re-asserts** `= Sonority` on both Runner
+targets at the end (the `.icon` file references themselves are never removed).
 
 Verify every output's exact pixels:
 

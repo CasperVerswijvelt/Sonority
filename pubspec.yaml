@@ -90,7 +90,8 @@ flutter_launcher_icons:
 flutter_native_splash:
   color: "#0A0A0B"
   image: "design/assets/icon.png"                 # legacy/iOS/macOS — no mask, keep full-bleed
-  branding: "assets/brand/sonority_wordmark.png"   # crisp transparent canonical wordmark
+  branding: "design/assets/wordmark_splash.png"    # moderate width — flutter_native_splash maps resolution→point size, so the hi-res appbar asset renders too big here
+  branding_bottom_padding_ios: 48                  # keep the wordmark clear of the home indicator (storyboard pins branding flush to the physical bottom)
   android_12:
     color: "#0A0A0B"
     image: "design/assets/icon_android12.png"      # padded to clear the Android 12 circular mask

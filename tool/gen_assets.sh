@@ -43,8 +43,15 @@ shot "mode=icon"        512  512 design/play/play-icon-512.png     # Play store 
 # upscales on device (aspect MUST stay 1000:260). Then TRIM to the glyph bbox: the
 # in-app appbar draws it at a fixed height, so any surrounding padding would shrink
 # the letters. -trim only removes transparent margin (never clips the glyphs).
-shot "mode=wordmark"       2500 650 assets/brand/sonority_wordmark.png   # splash branding + in-app appbar + marketing
+shot "mode=wordmark"       2500 650 assets/brand/sonority_wordmark.png   # in-app appbar + marketing (Flutter scales it down; keep hi-res)
 magick assets/brand/sonority_wordmark.png -trim +repage assets/brand/sonority_wordmark.png
+# Splash branding (iOS storyboard + Android-legacy launch_background). flutter_native_splash
+# maps source RESOLUTION → point size (@1x ≈ source/4), so render a moderate ~600px-wide
+# wordmark (~150pt on device). Render it FRESH from the vector (a small Chrome shot, like
+# wordmark-a12) then trim — NOT a downscale of the hi-res raster, which fattens the strokes
+# and makes the iOS wordmark look heavier than Android's vector-rendered one.
+shot "mode=wordmark"        764 199 design/assets/wordmark_splash.png
+magick design/assets/wordmark_splash.png -trim +repage design/assets/wordmark_splash.png
 # Android 12 branding stays LETTERBOXED (do NOT trim) — the OS renders it into a
 # fixed 2.5:1 region and would stretch a tight image.
 shot "mode=wordmark-a12"    800 320 design/assets/wordmark_android12.png
@@ -68,5 +75,27 @@ echo "==> Regenerating native icon sets + splash"
 git checkout -- android/app/src/main/AndroidManifest.xml
 git checkout -- web/index.html 2>/dev/null || true
 rm -rf web/splash
+
+# flutter_launcher_icons resets the iOS Runner's ASSETCATALOG_COMPILER_APPICON_NAME
+# back to "AppIcon" — which clobbers the layered glass Sonority.icon. Re-assert it on
+# both platforms (the .icon file refs already live in the committed pbxproj).
+if ruby -e 'require "xcodeproj"' 2>/dev/null; then
+  for PROJ in ios/Runner.xcodeproj macos/Runner.xcodeproj; do
+    ruby -e 'require "xcodeproj"; p=Xcodeproj::Project.open(ARGV[0]); t=p.targets.find{|t|t.name=="Runner"}; t.build_configurations.each{|c| c.build_settings["ASSETCATALOG_COMPILER_APPICON_NAME"]="Sonority"}; p.save' "$PROJ"
+    echo "  ✓ re-asserted Sonority app icon in $PROJ"
+  done
+else
+  echo "  ⚠ ruby/xcodeproj not found — set ASSETCATALOG_COMPILER_APPICON_NAME=Sonority manually in ios/macos Runner targets"
+fi
+
+# flutter_native_splash downscales the iOS branding with a nearest-neighbour filter →
+# hard, aliased edges, which iOS shows ~1:1 on the splash. Regenerate the three scales
+# from the crisp hi-res wordmark with a high-quality (Lanczos) reduction: smooth AA,
+# matched stroke weight. @1x width = 150 sets the storyboard's ~150pt display size.
+IMS=ios/Runner/Assets.xcassets/BrandingImage.imageset
+magick assets/brand/sonority_wordmark.png -filter Lanczos -resize 150x "$IMS/BrandingImage.png"
+magick assets/brand/sonority_wordmark.png -filter Lanczos -resize 300x "$IMS/BrandingImage@2x.png"
+magick assets/brand/sonority_wordmark.png -filter Lanczos -resize 450x "$IMS/BrandingImage@3x.png"
+echo "  ✓ re-rendered iOS BrandingImage @1x/2x/3x (crisp, anti-aliased)"
 
 echo "==> Done. Review 'git diff --stat' — expect only intended asset churn."
