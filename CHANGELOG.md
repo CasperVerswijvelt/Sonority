@@ -11,6 +11,9 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Fixed
+- Android home-screen widget tiles now fill the widget correctly on all launchers/sizes (no more dead space, clipped corners, or gaps drifting on resize).
+
 ## [0.5.0] - 2026-07-12
 
 ### Added
