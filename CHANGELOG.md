@@ -11,6 +11,9 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Changed
+- Aborting a profile apply now stops immediately (no confirmation dialog) and marks the step it stopped on as "Aborted" with a Retry option, instead of just closing — and aborting during the initial network scan now stops within a moment rather than waiting for the scan to finish.
+
 ### Fixed
 - The "Done" button on the apply-progress screen now looks the same whether an apply succeeds or fails (a consistent filled button, with Retry beside it on failure).
 - Apply-progress sub-step subtitles no longer render with a broken synthetic font weight on Android (Roboto has no `w200`; use `w300`).

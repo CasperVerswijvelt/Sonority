@@ -126,6 +126,26 @@ void main() {
     expect(p.steps.firstWhere((s) => s.id == 'e2').detail, 'freeing');
   });
 
+  test('failActive fails the running top-level step (and its active child)', () {
+    final p = tracker([]);
+    p.start('e1');
+    p.startSub('e1', 'e1/bond', 'Bond 3 speakers');
+    p.failActive('Aborted');
+    expect(p.steps.first.status, ApplyStatus.failed);
+    final bond = p.steps.firstWhere((s) => s.id == 'e1/bond');
+    expect(bond.status, ApplyStatus.failed);
+    expect(bond.detail, 'Aborted');
+  });
+
+  test('failActive is a no-op when nothing is active', () {
+    final p = tracker([]);
+    p.start('e1');
+    p.done('e1'); // e1 done, e2 still pending → nothing active
+    p.failActive('Aborted');
+    expect(p.steps.map((s) => s.status),
+        [ApplyStatus.done, ApplyStatus.pending]);
+  });
+
   test('raw log indents child lines', () {
     final log = <String>[];
     final p = tracker(log);

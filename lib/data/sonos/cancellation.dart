@@ -7,11 +7,15 @@
 /// cancelled token throws [OperationCancelled], which unwinds the sequence.
 library;
 
+import 'dart:async';
+
 /// Thrown by [CancellationToken.throwIfCancelled] when an operation was aborted.
+/// [toString] is also the reason shown against the aborted progress step, so
+/// keep it terse.
 class OperationCancelled implements Exception {
   const OperationCancelled();
   @override
-  String toString() => 'Operation aborted';
+  String toString() => 'Aborted';
 }
 
 /// A one-shot cancel flag. Create one per operation, hand it to the worker, and
@@ -47,4 +51,31 @@ Future<void> interruptibleDelay(
     remaining -= step;
   }
   token.throwIfCancelled();
+}
+
+/// Resolves with [work], or throws [OperationCancelled] the instant [token]
+/// trips — WITHOUT waiting for [work]. For work that can't itself be
+/// interrupted (e.g. an SSDP discovery socket): this stops callers waiting on
+/// it while the underlying future runs to completion in the background.
+Future<T> untilCancelled<T>(
+  Future<T> work,
+  CancellationToken token, {
+  Duration slice = const Duration(milliseconds: 250),
+}) {
+  final out = Completer<T>();
+  work.then((v) {
+    if (!out.isCompleted) out.complete(v);
+  }, onError: (Object e, StackTrace s) {
+    if (!out.isCompleted) out.completeError(e, s);
+  });
+  () async {
+    while (!out.isCompleted) {
+      if (token.isCancelled) {
+        if (!out.isCompleted) out.completeError(const OperationCancelled());
+        return;
+      }
+      await Future<void>.delayed(slice);
+    }
+  }();
+  return out.future;
 }

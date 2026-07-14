@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../data/sonos/cancellation.dart';
 import '../../state/sonos_controller.dart';
-import 'confirm_dialog.dart';
 import 'app_scaffold.dart';
 import 'apply_progress_view.dart';
 
@@ -57,7 +56,12 @@ class BondingProgressScreen extends ConsumerStatefulWidget {
 class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
   bool _finished = false;
   bool _failed = false;
+  // _aborting: the Abort button was pressed (drives its "Aborting…" label and
+  // the cancel). _aborted: the op actually ended via cancellation — only this
+  // drives the outcome/header, so a late abort that the op outran still reports
+  // its true success/failure.
   bool _aborting = false;
+  bool _aborted = false;
   bool _showLogs = false;
 
   @override
@@ -71,34 +75,31 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
       _finished = false;
       _failed = false;
       _aborting = false;
+      _aborted = false;
     });
     final navigator = Navigator.of(context);
     try {
       await widget.run();
       if (mounted) setState(() => _finished = true);
     } on OperationCancelled {
-      // User abort — the controller already restored a usable state.
-      if (mounted) navigator.pop(BondingOutcome.aborted);
+      // Abort button → surface like a failure (the step reads 'Aborted', Retry
+      // re-runs). A pre-flight confirm decline (no Abort pressed) just closes.
+      if (!_aborting) {
+        if (mounted) navigator.pop(BondingOutcome.aborted);
+      } else if (mounted) {
+        setState(() => _finished = _failed = _aborted = true);
+      }
     } catch (_) {
       // The failing step + the raw log carry the reason; show Retry/Done.
       if (mounted) setState(() => _finished = _failed = true);
     }
   }
 
-  Future<void> _confirmAbort() async {
-    final ok = await confirmDialog(
-      context,
-      icon: Icons.warning_amber,
-      title: 'Abort?',
-      message: 'Stopping now can leave your speakers in an in-between state — '
-          'some changes may be half-applied. You can re-apply afterwards to fix it.',
-      confirmLabel: 'Abort',
-      cancelLabel: 'Keep going',
-    );
-    if (ok && mounted) {
-      setState(() => _aborting = true);
-      ref.read(sonosControllerProvider.notifier).cancelActiveOperation();
-    }
+  // No confirm dialog — abort should stop as fast as possible. The aborted step
+  // is marked in the timeline and re-applying afterwards fixes any half-state.
+  void _abort() {
+    setState(() => _aborting = true);
+    ref.read(sonosControllerProvider.notifier).cancelActiveOperation();
   }
 
   void _retry() {
@@ -147,16 +148,19 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
         ),
         body: _showLogs
             ? const _RawLogView()
-            : ApplyProgressView(steps: steps),
+            : ApplyProgressView(steps: steps, aborted: _aborted),
         bottomNavigationBar: SafeArea(
           child: _BottomBar(
             finished: _finished,
             failed: _failed,
             aborting: _aborting,
-            onAbort: _confirmAbort,
+            onAbort: _abort,
             onRetry: _retry,
-            onDone: () => Navigator.of(context).pop(
-                _failed ? BondingOutcome.failed : BondingOutcome.success),
+            onDone: () => Navigator.of(context).pop(_aborted
+                ? BondingOutcome.aborted
+                : _failed
+                    ? BondingOutcome.failed
+                    : BondingOutcome.success),
           ),
         ),
       ),
