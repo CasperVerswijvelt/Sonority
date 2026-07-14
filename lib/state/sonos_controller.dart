@@ -622,8 +622,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       }
       return system;
     });
-    state = result;
-    if (result.hasError) rethrowLast(result);
+    _commit(result, previous);
   }
 
   /// Unbonds the satellites occupying [channels] (e.g. {LF,RF} fronts, {LR,RR}
@@ -887,9 +886,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     return system ?? await _repo.discover();
   }
 
-  /// Surfaces the error to the caller (so the UI can show a SnackBar) while
-  /// keeping it in `state` for inline display.
-  void rethrowLast(AsyncValue<SonosSystem?> result) {
+  /// Surfaces the error to the caller (so the UI can show a SnackBar / the
+  /// progress screen can flip to Retry). The topology is NOT left in `state` as
+  /// an error — `_commit` restores the last-known system first (see there).
+  void _rethrowLast(AsyncValue<SonosSystem?> result) {
     final err = result.error;
     if (err != null) throw err;
   }
@@ -920,17 +920,23 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       );
 
   /// Finalizes a bonding op's [result] against the pre-op [previous] state.
-  /// A user **abort** is not an error: restore `state` to the last-known system
-  /// (the live layout may be mid-change — that's the warned-about case) and
-  /// rethrow [OperationCancelled] so the progress screen can close. Otherwise
-  /// behaves like the old `state = result; if (hasError) rethrowLast(result)`.
+  /// On ANY error (a user **abort** or a real failure like [SonosSoapException])
+  /// the topology stays the last-known system rather than becoming an
+  /// [AsyncError] — otherwise the overview would drop the whole system and show
+  /// the error instead. Abort rethrows [OperationCancelled] so the progress
+  /// screen closes; a real failure rethrows so the progress screen / snackbar
+  /// shows it (the failed step already lives in [applyProgressProvider]). Only a
+  /// successful [result] is adopted as the new topology.
   void _commit(AsyncValue<SonosSystem?> result, SonosSystem? previous) {
     _activeOp = null;
     if (result.error is OperationCancelled) {
       state = AsyncData(previous);
       throw const OperationCancelled();
     }
-    state = result;
-    if (result.hasError) rethrowLast(result);
+    if (result.hasError) {
+      state = AsyncData(previous); // keep showing the last-known system
+      _rethrowLast(result); // progress screen / snackbar shows the error
+    }
+    state = result; // success: adopt the new topology
   }
 }

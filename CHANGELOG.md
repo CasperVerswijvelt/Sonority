@@ -17,6 +17,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Android: upgraded to Flutter 3.44 / AGP 9 (targetSdk 36) and enabled R8 code + resource shrinking, clearing the Play Console edge-to-edge, deprecated-API, and technical-quality recommendations.
 
 ### Fixed
+- A failed bond/apply/rename no longer wipes the system overview — the last-known layout stays visible while the progress screen shows the error and offers Retry.
 - Android splash screen: the logo is no longer clipped by the Android 12+ circular mask, and the "SONORITY" wordmark renders crisp, correctly proportioned, and in the right (Futura Medium) weight — no longer heavy, cropped, or stretched.
 - Android home-screen widget tiles now fill the widget correctly on all launchers/sizes (no more dead space, clipped corners, or gaps drifting on resize).
 - The "Done" button on the apply-progress screen now looks the same whether an apply succeeds or fails (a consistent filled button, with Retry beside it on failure).
