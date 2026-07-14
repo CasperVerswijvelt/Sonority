@@ -48,8 +48,8 @@ One command captures all four — add `--frame` to also render every framed stor
 graphic (§3) in the same run:
 
 ```sh
-~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart          # raw shots only
-~/fvm/versions/3.35.2/bin/dart run tool/capture_shots.dart --frame  # shots + framed graphics
+~/fvm/versions/3.44.6/bin/dart run tool/capture_shots.dart          # raw shots only
+~/fvm/versions/3.44.6/bin/dart run tool/capture_shots.dart --frame  # shots + framed graphics
 ```
 
 It builds `flutter build web --release --dart-define=DEMO=true`, serves it, and
@@ -137,8 +137,8 @@ Then regenerate the native icon sets + splash and revert the manifest churn the
 splash tool introduces (it strips `android:screenOrientation="portrait"`):
 
 ```sh
-~/fvm/versions/3.35.2/bin/dart run flutter_launcher_icons
-~/fvm/versions/3.35.2/bin/dart run flutter_native_splash:create
+~/fvm/versions/3.44.6/bin/dart run flutter_launcher_icons
+~/fvm/versions/3.44.6/bin/dart run flutter_native_splash:create
 git checkout android/app/src/main/AndroidManifest.xml   # keep portrait-only + avoid reformat churn
 ```
 

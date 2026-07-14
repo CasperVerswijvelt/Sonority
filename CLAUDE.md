@@ -55,12 +55,25 @@ calls the official app blocks. Audio quality comes from the real speakers.
 
 ## Toolchain & commands
 
-Flutter is **not on PATH**; this machine uses **fvm, Flutter 3.35.2**:
+Flutter is **not on PATH**; this machine uses **fvm, Flutter 3.44.6**:
 ```
-~/fvm/versions/3.35.2/bin/flutter <cmd>
-~/fvm/versions/3.35.2/bin/dart run tool/<x>.dart
+~/fvm/versions/3.44.6/bin/flutter <cmd>
+~/fvm/versions/3.44.6/bin/dart run tool/<x>.dart
 ```
 - `flutter analyze` and `flutter test` must stay green before committing.
+- **Android build (AGP 9 / Gradle 9 gotchas, cost real debugging):** on AGP 9
+  `android.newDsl=true` is the default and breaks the old `android { kotlinOptions {} }`
+  block — `build.gradle.kts` uses the new DSL (top-level `kotlin { compilerOptions {} }`,
+  Java 17). The Flutter 3.44 migrator adds `newDsl=false`/`builtInKotlin=false` to
+  `gradle.properties` for compat; our code works under either. **Jetifier must stay
+  OFF** (`android.enableJetifier=false`) — it OOMs on Flutter's jars under AGP 9 and
+  nothing here needs it (all deps are AndroidX). The KGP "built-in Kotlin" warnings
+  are a *future*-Flutter concern, deferred (blocked on plugins still applying KGP:
+  dynamic_color, home_widget, package_info_plus, shared_preferences_android).
+  **R8 is on** for release (`isMinifyEnabled`/`isShrinkResources`); keep rules for
+  reflection/channel paths (Flutter, our components, home_widget) live in
+  `android/app/proguard-rules.pro` — smoke-test a real release build on device when
+  touching them (analyze/test can't catch R8 over-stripping).
 - CocoaPods is **Homebrew's** (`/opt/homebrew/bin/pod`); system-Ruby pod is broken — don't use it. iOS/macOS builds need full **Xcode** (installed).
 - Identifiers: Dart package `sonority`, bundle id / Android namespace
   `be.casperverswijvelt.sonority`. The **project folder is still `soyes`**
@@ -390,7 +403,7 @@ The macOS app IS the mobile layout (fixed 420-wide portrait window), so it's the
 proxy for iOS UI work — and unlike simulators it reaches the real LAN Sonos system.
 `tool/macos_ui.swift` screenshots and drives the window:
 ```
-~/fvm/versions/3.35.2/bin/flutter build macos --debug
+~/fvm/versions/3.44.6/bin/flutter build macos --debug
 open build/macos/Build/Products/Debug/Sonority.app   # wait ~5s for discovery
 swift tool/macos_ui.swift shot [out.png]   # capture window → /tmp/sonority.png
 swift tool/macos_ui.swift click <x> <y>    # window-relative POINTS (top-left origin,

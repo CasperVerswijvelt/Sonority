@@ -103,7 +103,7 @@ tool/spike.dart  read-only hardware validation CLI
 
 ## Run
 
-This repo uses [fvm](https://fvm.app) (Flutter 3.35.2). Replace `flutter` with
+This repo uses [fvm](https://fvm.app) (Flutter 3.44.6). Replace `flutter` with
 `fvm flutter` if you have fvm on PATH.
 
 ```bash

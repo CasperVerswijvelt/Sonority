@@ -28,12 +28,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     defaultConfig {
@@ -67,7 +63,25 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+            // R8 code + resource shrinking (Play Console "technical quality"
+            // recommendation). Keep rules for reflection/channel paths live in
+            // proguard-rules.pro. Smoke-test a real release build on device when
+            // touching these — R8 can strip classes analyze/test never exercise.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
+    }
+}
+
+// AGP 9 (android.newDsl=true) drops the old kotlinOptions block; the Kotlin
+// jvmTarget now lives in the top-level compilerOptions DSL.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
