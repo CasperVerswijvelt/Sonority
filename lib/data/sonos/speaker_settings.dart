@@ -140,29 +140,35 @@ class SpeakerSettingsClient {
   }
 
   /// Writes every non-null field of [s]. Each write is independent; a failure is
-  /// swallowed so the remaining settings still apply.
-  Future<void> apply(String ip, SpeakerSettings s) async {
+  /// swallowed so the remaining settings still apply. Returns the number of
+  /// writes that failed — a non-zero count (e.g. a firmware change renaming an
+  /// EQ token so every SetEQ faults) is otherwise invisible to the caller.
+  Future<int> apply(String ip, SpeakerSettings s) async {
+    var failed = 0;
+    Future<void> set(String action, Map<String, String> extra) async {
+      if (!await _set(ip, action, extra)) failed++;
+    }
+
     if (s.bass != null) {
-      await _set(ip, 'SetBass', {'DesiredBass': '${s.bass}'});
+      await set('SetBass', {'DesiredBass': '${s.bass}'});
     }
     if (s.treble != null) {
-      await _set(ip, 'SetTreble', {'DesiredTreble': '${s.treble}'});
+      await set('SetTreble', {'DesiredTreble': '${s.treble}'});
     }
     if (s.loudness != null) {
-      await _set(ip, 'SetLoudness',
+      await set('SetLoudness',
           {'Channel': 'Master', 'DesiredLoudness': s.loudness! ? '1' : '0'});
     }
     for (final e in s.eq.entries) {
-      await _set(ip, 'SetEQ', {'EQType': e.key, 'DesiredValue': '${e.value}'});
+      await set('SetEQ', {'EQType': e.key, 'DesiredValue': '${e.value}'});
     }
     if (s.volume != null) {
-      await _set(ip, 'SetVolume',
-          {'Channel': 'Master', 'DesiredVolume': '${s.volume}'});
+      await set('SetVolume', {'Channel': 'Master', 'DesiredVolume': '${s.volume}'});
     }
     if (s.mute != null) {
-      await _set(
-          ip, 'SetMute', {'Channel': 'Master', 'DesiredMute': s.mute! ? '1' : '0'});
+      await set('SetMute', {'Channel': 'Master', 'DesiredMute': s.mute! ? '1' : '0'});
     }
+    return failed;
   }
 
   // ---- read helpers (null on any fault so unsupported settings are skipped) ----
@@ -196,7 +202,9 @@ class SpeakerSettingsClient {
 
   // ---- write helper (swallows faults; one setting must not block the rest) ----
 
-  Future<void> _set(String ip, String action, Map<String, String> extra) async {
+  /// Returns true if the write succeeded, false if it faulted (best-effort — a
+  /// single failed setting must not block the rest).
+  Future<bool> _set(String ip, String action, Map<String, String> extra) async {
     try {
       await _soap.call(
         ip: ip,
@@ -205,6 +213,9 @@ class SpeakerSettingsClient {
         action: action,
         args: {'InstanceID': '0', ...extra},
       );
-    } catch (_) {/* best-effort */}
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }
