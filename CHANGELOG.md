@@ -12,6 +12,7 @@ section into the GitHub Release notes regardless of the build suffix
 ## [Unreleased]
 
 ### Fixed
+- The "Done" button on the apply-progress screen now looks the same whether an apply succeeds or fails (a consistent filled button, with Retry beside it on failure).
 - Apply-progress sub-step subtitles no longer render with a broken synthetic font weight on Android (Roboto has no `w200`; use `w300`).
 - **macOS profile reordering** — removed the stray drag-handle icon that collided with each profile card's ⋮ menu, and made long-press-to-drag reordering work on macOS (it previously only responded to the now-removed handle).
 - Applying a profile that reuses a speaker from another named stereo pair/zone now restores those speakers' room names instead of leaving them under the group's name.
