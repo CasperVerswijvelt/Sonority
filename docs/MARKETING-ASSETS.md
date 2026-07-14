@@ -150,12 +150,12 @@ than fighting the glow, the speaker cabinets are authored as **translucent glass
 panes**. `tool/gen_assets.sh` exports the layer art (`design/assets/layers/`:
 `layer-back` + `layer-front` — both plain **white opaque** panes, each with its own
 tweeter/woofer holes as alpha cut-outs, front stacked over back; the background is a
-solid `#0A0A0B` fill set in Icon Composer, not a layer). Colour/opacity/glass (incl.
+solid `#000000` fill set in Icon Composer, not a layer). Colour/opacity/glass (incl.
 the back speakers' grey) are tuned
 non-destructively in Icon Composer, not baked into the source. **Manual step** (Icon Composer.app,
 ships with Xcode 26 — or `icon-composer-mcp`): import the layers (front > back),
 apply the glass material with tuned opacity, set the **icon Background fill to solid
-`#0A0A0B`** (NOT just a bg layer — the default is a blue gradient that bleeds
+`#000000`** (NOT just a bg layer — the default is a blue gradient that bleeds
 through the group translucency), preview Default/Dark/Tinted, export `Sonority.icon`.
 
 The authored `Sonority.icon` is committed at **`ios/Runner/Sonority.icon`** and

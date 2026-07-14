@@ -2,7 +2,7 @@
 <style>html,body{margin:0;padding:0;background:transparent}#stage{}svg{display:block}</style>
 <div id="stage"></div>
 <script>
-const BG='#0A0A0B', INK='#FFFFFF', GREY='#98989F';
+const BG='#000000', INK='#FFFFFF', GREY='#98989F';
 const FONT="'Futura','Avenir Next','Century Gothic',ui-rounded,system-ui,sans-serif";
 
 const circle=(cx,cy,r,f)=>`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${f}"/>`;
@@ -57,7 +57,7 @@ function iconSvg(round) {
     : content);
 }
 // Android adaptive FOREGROUND — TRANSPARENT so the adaptive background-color layer
-// (#0A0A0B) is what shows behind the mark. The generator wraps this in a 16% inset
+// (#000000) is what shows behind the mark. The generator wraps this in a 16% inset
 // and the launcher masks to ≈ the inscribed circle, so keep the mark modest (scale
 // 1.0) — it never clips the outer speakers.
 function iconFgSvg() {
