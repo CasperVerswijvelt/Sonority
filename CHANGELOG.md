@@ -15,6 +15,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Aborting a profile apply now stops immediately (no confirmation dialog) and marks the step it stopped on as "Aborted" with a Retry option, instead of just closing — and aborting during the initial network scan now stops within a moment rather than waiting for the scan to finish.
 
 ### Fixed
+- Android home-screen widget tiles now fill the widget correctly on all launchers/sizes (no more dead space, clipped corners, or gaps drifting on resize).
 - The "Done" button on the apply-progress screen now looks the same whether an apply succeeds or fails (a consistent filled button, with Retry beside it on failure).
 - Apply-progress sub-step subtitles no longer render with a broken synthetic font weight on Android (Roboto has no `w200`; use `w300`).
 - **macOS profile reordering** — removed the stray drag-handle icon that collided with each profile card's ⋮ menu, and made long-press-to-drag reordering work on macOS (it previously only responded to the now-removed handle).
@@ -23,6 +24,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Renaming a room no longer displays the new name until Sonos actually confirms it.
 - Discovery now falls back to another player when the first one can't answer the topology read.
 - A permanent bonding fault (e.g. a malformed map) now surfaces immediately instead of retrying for ~2½ minutes, and a failed EQ/volume restore is now reported instead of silently swallowed.
+
 
 ## [0.5.0] - 2026-07-12
 
