@@ -11,6 +11,13 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Fixed
+- Applying a profile that reuses a speaker from another named stereo pair/zone now restores those speakers' room names instead of leaving them under the group's name.
+- Removing home-theater speakers now reports a clear error if Sonos silently no-ops the change, rather than falsely showing success.
+- Renaming a room no longer displays the new name until Sonos actually confirms it.
+- Discovery now falls back to another player when the first one can't answer the topology read.
+- A permanent bonding fault (e.g. a malformed map) now surfaces immediately instead of retrying for ~2½ minutes, and a failed EQ/volume restore is now reported instead of silently swallowed.
+
 ## [0.5.0] - 2026-07-12
 
 ### Added

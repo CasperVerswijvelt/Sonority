@@ -7,6 +7,7 @@ import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/destructive_button.dart';
 import '../widgets/pill_chip.dart';
@@ -97,28 +98,15 @@ class GroupDetailScreen extends ConsumerWidget {
 
   Future<void> _confirmSeparate(
       BuildContext context, WidgetRef ref, ZoneGroupMember group) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.link_off),
-        title: const Text('Separate group?'),
-        content: const Text(
-            'The speakers become standalone rooms again. Their original room '
-            'names will be restored.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-                foregroundColor: Theme.of(ctx).colorScheme.error),
-            child: const Text('Separate'),
-          ),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      icon: Icons.link_off,
+      title: 'Separate group?',
+      message: 'The speakers become standalone rooms again. Their original room '
+          'names will be restored.',
+      confirmLabel: 'Separate',
     );
-    if (ok != true || !context.mounted) return;
+    if (!ok || !context.mounted) return;
     final controller = ref.read(sonosControllerProvider.notifier);
     final outcome = await showBondingProgress(
       context,

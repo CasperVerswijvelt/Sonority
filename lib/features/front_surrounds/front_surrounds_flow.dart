@@ -9,6 +9,7 @@ import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/speaker_diagram.dart';
 import '../widgets/speaker_side_card.dart';
@@ -160,9 +161,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     Gap.m,
                     _AmpWiringNote(
                       amp: system.device(_fronts.first),
-                      onIdentify: identify,
-                      onChime: onChime,
-                      identifying: identifyingUuid,
+                      identifyControls: identifyButtons,
                     ),
                   ] else if (_fronts.length == 2) ...[
                     Gap.m,
@@ -404,33 +403,17 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   /// Confirms unbonding the speakers the user deselected (they become standalone
   /// rooms again). Shows their type since a bonded speaker's name is absorbed.
   Future<bool> _confirmRemoval(SonosSystem system, Set<String> removed) async {
-    final scheme = Theme.of(context).colorScheme;
     final types = [
       for (final u in removed) system.device(u)?.typeLabel ?? 'Speaker',
     ].join(', ');
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.link_off),
-        title: Text('Unbond ${removed.length} speaker'
-            '${removed.length == 1 ? '' : 's'}?'),
-        content: Text(
-          '$types will be removed from this home theater and become standalone '
-          'rooms again. The rest of your layout stays as it is.',
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: scheme.error),
-            child: const Text('Unbond'),
-          ),
-        ],
-      ),
+    return confirmDialog(
+      context,
+      icon: Icons.link_off,
+      title: 'Unbond ${removed.length} speaker${removed.length == 1 ? '' : 's'}?',
+      message: '$types will be removed from this home theater and become '
+          'standalone rooms again. The rest of your layout stays as it is.',
+      confirmLabel: 'Unbond',
     );
-    return ok == true;
   }
 }
 
@@ -531,16 +514,9 @@ class _ChooseSub extends StatelessWidget {
 /// Amp mode: the Amp drives both fronts itself — nothing to assign in-app.
 class _AmpWiringNote extends StatelessWidget {
   final SonosDevice? amp;
-  final void Function(SonosDevice device) onIdentify;
-  final Future<void> Function(SonosDevice device)? onChime;
-  final String? identifying;
+  final Widget Function(SonosDevice device) identifyControls;
 
-  const _AmpWiringNote({
-    required this.amp,
-    required this.onIdentify,
-    required this.onChime,
-    required this.identifying,
-  });
+  const _AmpWiringNote({required this.amp, required this.identifyControls});
 
   @override
   Widget build(BuildContext context) {
@@ -556,28 +532,7 @@ class _AmpWiringNote extends StatelessWidget {
         ),
         if (amp != null) ...[
           Gap.s,
-          Wrap(
-            spacing: 8,
-            children: [
-              TextButton.icon(
-                onPressed: identifying == amp.uuid ? null : () => onIdentify(amp),
-                icon: identifying == amp.uuid
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.lightbulb_outline, size: 18),
-                label: Text('Blink ${amp.roomName}'),
-              ),
-              if (onChime != null)
-                TextButton.icon(
-                  onPressed:
-                      identifying == amp.uuid ? null : () => onChime!(amp),
-                  icon: const Icon(Icons.volume_up_outlined, size: 18),
-                  label: const Text('Chime'),
-                ),
-            ],
-          ),
+          identifyControls(amp),
         ],
       ],
     );
