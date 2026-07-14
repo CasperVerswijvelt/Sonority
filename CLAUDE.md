@@ -12,8 +12,12 @@ It's a cleaner, focused alternative to *SonoSequencr*.
 
 ### Product principle (important)
 **Default: do NOT duplicate features the official Sonos app already has** (EQ/bass/
-treble, volume, grouping, surround level sliders, night sound, Trueplay, …). Every
-feature should be something the Sonos app **won't** let users do. Examples:
+treble editing, volume, grouping, surround-level editing, night sound, Trueplay
+*measurement*, …). Every feature should be something the Sonos app **won't** let
+users do. (Two things below look like exceptions but aren't duplication: we
+*capture+restore* EQ/surround/volume in profiles — never edit them with sliders —
+and we *toggle* an already-measured Trueplay calibration the app hides for
+unofficial fronts — never measure it. Both are called out again below.) Examples:
 - **Dedicated front L/R speakers** on a soundbar (the bar becomes center). ✅ built
 - **Mismatched / app-blocked stereo pairs**. ✅ built
 - **Zones** — bond 2–16 speakers into one room (full-range L+R, no L/R split),

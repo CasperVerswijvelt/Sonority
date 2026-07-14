@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../data/sonos/cancellation.dart';
 import '../../state/sonos_controller.dart';
+import 'confirm_dialog.dart';
 import 'app_scaffold.dart';
 import 'apply_progress_view.dart';
 
@@ -85,28 +86,16 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
   }
 
   Future<void> _confirmAbort() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.warning_amber),
-        title: const Text('Abort?'),
-        content: const Text(
-            'Stopping now can leave your speakers in an in-between state — some '
-            'changes may be half-applied. You can re-apply afterwards to fix it.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Keep going')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-                foregroundColor: Theme.of(ctx).colorScheme.error),
-            child: const Text('Abort'),
-          ),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      icon: Icons.warning_amber,
+      title: 'Abort?',
+      message: 'Stopping now can leave your speakers in an in-between state — '
+          'some changes may be half-applied. You can re-apply afterwards to fix it.',
+      confirmLabel: 'Abort',
+      cancelLabel: 'Keep going',
     );
-    if (ok == true && mounted) {
+    if (ok && mounted) {
       setState(() => _aborting = true);
       ref.read(sonosControllerProvider.notifier).cancelActiveOperation();
     }
@@ -252,24 +241,24 @@ class _BottomBar extends StatelessWidget {
             backgroundColor: scheme.error, foregroundColor: scheme.onError),
         child: Text(aborting ? 'Aborting…' : 'Abort'),
       );
-    } else if (failed) {
+    } else {
       child = Row(
         children: [
           Expanded(
-            child: OutlinedButton(onPressed: onDone, child: const Text('Done')),
+            child: FilledButton(onPressed: onDone, child: const Text('Done')),
           ),
-          Gap.s,
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+          if (failed) ...[
+            Gap.s,
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
             ),
-          ),
+          ],
         ],
       );
-    } else {
-      child = FilledButton(onPressed: onDone, child: const Text('Done'));
     }
     return Padding(
       padding: const EdgeInsets.all(16),
