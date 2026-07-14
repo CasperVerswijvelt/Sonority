@@ -104,7 +104,7 @@ lib/
   features/        discovery / home_theater / front_surrounds (full HT setup) /
                      group (unified Stereo/Zone/Custom) / profiles / room / widgets
   app.dart, main.dart — go_router StatefulShellRoute (System|Profiles tabs), ProviderScope
-tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, zone_probe, lr_audiotest, eq_probe
+tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, zone_probe, lr_audiotest, eq_probe, capture_shots, gen_assets.sh (icon/wordmark/splash pipeline)
 ```
 Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
 `shared_preferences` → Flutter). The pure recipes live in `front_layout.dart` /
@@ -354,6 +354,18 @@ Run on the same Wi-Fi as the Sonos system:
   framed Play/App Store graphic from `design/store.html` in the same run (§2–3 of
   `docs/MARKETING-ASSETS.md`); `--no-capture` re-frames existing shots, `--no-build`
   reuses `build/web`.
+- `tool/gen_assets.sh` — regenerates ALL app-icon / wordmark / splash / Icon-Composer
+  layer assets from the **single source `design/export.html`** (one `?mode=` each,
+  rendered headless), then runs `flutter_launcher_icons` + `flutter_native_splash`
+  and reverts the splash tool's manifest/web overreach. Run whenever the mark or
+  wordmark changes — never hand-edit the generated PNGs (that caused the wordmark
+  drift). Wordmark = **Futura Medium** (white-on-alpha), used for splash branding +
+  the in-app appbar (`discovery_screen.dart`, srcIn-tinted) + marketing. Android-12
+  splash needs a padded icon (fits the 768px circle) + an **800×320** branding
+  letterbox (the OS renders branding in a fixed 2.5:1 region and stretches anything
+  else). iOS/macOS additionally get a layered **glass-pane `.icon`** authored in
+  Icon Composer (manual; PNG `AppIcon.appiconset` kept as the pre-26 fallback). See
+  `docs/MARKETING-ASSETS.md`.
 - `tool/trueplay_probe.dart` — read-only Trueplay/room-calibration status per
   speaker (+ SCPD dump); `--enable/--disable <room|uuid>` to toggle (reversible).
 - `tool/eq_probe.dart` — read-only per-speaker EQ/audio settings dump

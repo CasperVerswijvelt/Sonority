@@ -72,28 +72,29 @@ dev_dependencies:
 # icon anyway. The "SONORITY" wordmark lives in the logo lockup (splash branding
 # below + marketing + design/logo.html), not in the app icon.
 flutter_launcher_icons:
-  image_path: "design/assets/icon.png"          # mark only (Android legacy, iOS, macOS)
-  image_path_ios: "design/assets/icon.png"      # iOS — mark only
+  image_path: "design/assets/icon.png"          # mark only (Android legacy, iOS)
+  image_path_ios: "design/assets/icon.png"      # iOS — mark only (pre-iOS-26 PNG fallback; iOS 26 uses the layered .icon)
   android: true
   adaptive_icon_background: "#0A0A0B"
-  adaptive_icon_foreground: "design/assets/icon_fg.png"  # mark only, safe inset (scale 1.0)
+  adaptive_icon_foreground: "design/assets/icon_fg.png"    # mark on TRANSPARENT bg → the background layer shows
+  adaptive_icon_monochrome: "design/assets/icon_mono.png"  # Android 13+ themed (tinted) icons
   min_sdk_android: 21
   ios: true
   remove_alpha_ios: true
   background_color_ios: "#0A0A0B"
   macos:
     generate: true
-    image_path: "design/assets/icon.png"         # macOS — mark only
+    image_path: "design/assets/icon_macos.png"   # macOS — Apple squircle (rounded + ~10% margin); pre-macOS-26 fallback
 
 # Splash screen — generate with: dart run flutter_native_splash:create
 flutter_native_splash:
   color: "#0A0A0B"
-  image: "design/assets/icon.png"
-  branding: "design/assets/wordmark.png"
+  image: "design/assets/icon.png"                 # legacy/iOS/macOS — no mask, keep full-bleed
+  branding: "assets/brand/sonority_wordmark.png"   # crisp transparent canonical wordmark
   android_12:
     color: "#0A0A0B"
-    image: "design/assets/icon.png"
-    branding: "design/assets/wordmark.png"
+    image: "design/assets/icon_android12.png"      # padded to clear the Android 12 circular mask
+    branding: "design/assets/wordmark_android12.png"  # MUST be 800x320 — Android renders branding in a fixed 2.5:1 region; wordmark letterboxed to avoid vertical stretch
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -1,5 +1,5 @@
 <title>Sonority asset export</title>
-<style>html,body{margin:0;padding:0;background:#0A0A0B}#stage{}svg{display:block}</style>
+<style>html,body{margin:0;padding:0;background:transparent}#stage{}svg{display:block}</style>
 <div id="stage"></div>
 <script>
 const BG='#0A0A0B', INK='#FFFFFF', GREY='#98989F';
@@ -11,71 +11,144 @@ const rrect=(x,y,w,h,r,f)=>`<rect x="${x-w/2}" y="${y-h/2}" width="${w}" height=
 // The mark (9c-3): three speaker cabinets — tweeter (upper) + woofer (lower) each,
 // a white front speaker flanked by two grey ones whose tops peek a little higher.
 // bbox ≈ x 214–786 (cx 500), y 250–640 (cy 445). No soundbar, no sub.
-function spk(cx,cy,h,fill){
-  const w=h*0.74, r=h*0.16;
-  return rrect(cx,cy,w,h,r,fill)
-    + circle(cx, cy-h*0.235, h*0.085, BG)   // tweeter
-    + circle(cx, cy+h*0.16,  h*0.185, BG);  // woofer
-}
+const pane=(cx,cy,h,fill)=>{const w=h*0.74, r=h*0.16; return rrect(cx,cy,w,h,r,fill);};
+const holes=(cx,cy,h)=>circle(cx, cy-h*0.235, h*0.085, BG)   // tweeter
+                     + circle(cx, cy+h*0.16,  h*0.185, BG);  // woofer
+function spk(cx,cy,h,fill){ return pane(cx,cy,h,fill) + holes(cx,cy,h); }
 function mark(){
   return spk(325,400,300,GREY) + spk(675,400,300,GREY) + spk(500,460,360,INK);
 }
+// Monochrome silhouette (Android 13+ themed icons): one flat INK shape with the
+// tweeter/woofer holes as real alpha cut-outs (a single mask over all cabinets),
+// so the system tint reveals the speaker detail. Holes never fall in a cabinet
+// overlap, so cutting through the whole group is safe. A ~GAP-wide bg ring is
+// carved around the front speaker so the three cabinets stay visually separated
+// (otherwise the flat tint fuses the overlapping fronts/backs into one blob).
+function markMono(){
+  const GAP=14;
+  const cab=(cx,cy,h,f,pad=0)=>{const w=h*0.74+2*pad,hh=h+2*pad,r=h*0.16+pad;
+    return `<rect x="${cx-w/2}" y="${cy-hh/2}" width="${w}" height="${hh}" rx="${r}" fill="${f}"/>`;};
+  const hole=(cx,cy,r)=>`<circle cx="${cx}" cy="${cy}" r="${r}" fill="black"/>`;
+  const allHoles=(cx,cy,h)=>hole(cx,cy-h*0.235,h*0.085)+hole(cx,cy+h*0.16,h*0.185);
+  // Z-ORDER matters: cut each back speaker's holes BEFORE the front pane is drawn
+  // over it, otherwise a back hole that overlaps the front bleeds through it.
+  return `<mask id="mono" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000">
+      <rect width="1000" height="1000" fill="black"/>
+      ${cab(325,400,300,'white')}${cab(675,400,300,'white')}
+      ${allHoles(325,400,300)}${allHoles(675,400,300)}
+      ${cab(500,460,360,'black',GAP)}${cab(500,460,360,'white')}
+      ${allHoles(500,460,360)}
+    </mask>
+    <rect width="1000" height="1000" fill="${INK}" mask="url(#mono)"/>`;
+}
+const svg=(vb,inner)=>`<svg viewBox="0 0 ${vb}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
 
-// App ICON — mark only, large, on EVERY platform (iOS, macOS, Android legacy,
-// splash, README/Play 512). Apple HIG discourages app-name text in icons and the
-// Android mask would clip a wordmark; the OS prints the name under the icon. The
-// SONORITY wordmark lives in the logo lockup (splash branding + marketing +
-// design/logo.html), not here. Centred, scaled 1.15 about (500,500).
-// `round` bakes iOS-style rounded corners (~22.4% radius, transparent outside)
-// for the README header only — store/launcher icons stay full-bleed square
-// (Google Play and the OS apply their own masks).
+// App ICON — mark only, large, on EVERY platform (iOS/macOS/Android legacy + splash
+// + README/Play 512). Apple HIG discourages app-name text in icons and the Android
+// mask would clip a wordmark; the OS prints the name under the icon. The SONORITY
+// wordmark lives in the logo lockup (splash branding + marketing + design/logo.html),
+// not here. Centred, scaled 1.15 about (500,500). `round` bakes iOS-style rounded
+// corners (~22.4% radius, transparent outside) for the README header only.
 function iconSvg(round) {
   const content = `<rect width="1000" height="1000" fill="${BG}"/>
     <g transform="translate(500 500) scale(1.15) translate(-500 -445)">${mark()}</g>`;
-  return `<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">${round
+  return svg('1000 1000', round
     ? `<clipPath id="r"><rect width="1000" height="1000" rx="224"/></clipPath><g clip-path="url(#r)">${content}</g>`
-    : content}</svg>`;
+    : content);
 }
-// Android adaptive FOREGROUND. The generator wraps this image in a 16% inset and
-// the launcher then masks to ≈ the inscribed circle, so keep the mark modest
-// (scale 1.0 about its own centre) — it NEVER clips the outer speakers. Opaque
-// black bg blends with the adaptive background layer (also #0A0A0B).
+// Android adaptive FOREGROUND — TRANSPARENT so the adaptive background-color layer
+// (#0A0A0B) is what shows behind the mark. The generator wraps this in a 16% inset
+// and the launcher masks to ≈ the inscribed circle, so keep the mark modest (scale
+// 1.0) — it never clips the outer speakers.
 function iconFgSvg() {
-  return `<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
-    <rect width="1000" height="1000" fill="${BG}"/>
-    <g transform="translate(500 500) scale(1.0) translate(-500 -445)">${mark()}</g></svg>`;
+  return svg('1000 1000', `<g transform="translate(500 500) scale(1.0) translate(-500 -445)">${mark()}</g>`);
 }
-// Mark + SONORITY wordmark — README header only (the old icontext lockup,
-// rebuilt on the trio mark). Launcher/store icons stay mark-only: the OS/store
-// prints the name and their masks would clip text. Text params mirror the
-// pre-9c-3 lockup (y 895, size 115); mark shifts up 25 to clear the wordmark.
+// Android MONOCHROME layer (themed icons). Same modest scale as the foreground.
+function iconMonoSvg() {
+  return svg('1000 1000', `<g transform="translate(500 500) scale(1.0) translate(-500 -445)">${markMono()}</g>`);
+}
+// macOS icon — Apple squircle with ~10% transparent margin (rounded-rect rx≈0.225·s
+// approximates the continuous-corner squircle; the PNG fallback for pre-macOS-26,
+// since flutter_launcher_icons does not round/inset macOS icons itself).
+// ponytail: rounded-rect ≈ squircle; swap for a true superellipse only if it reads wrong.
+function iconMacosSvg() {
+  const m=90, s=1000-2*m; // 820 within 1000 → ~9% margin each side
+  return svg('1000 1000', `<rect x="${m}" y="${m}" width="${s}" height="${s}" rx="${s*0.225}" fill="${BG}"/>
+    <g transform="translate(500 500) scale(0.92) translate(-500 -445)">${mark()}</g>`);
+}
+// Android 12 SPLASH icon — mark on a transparent 1152×1152 canvas sized to sit
+// inside the 768px circular mask (diagonal ≤ 768). Replaces the hand-made padded PNG.
+function iconA12Svg() {
+  return svg('1152 1152', `<g transform="translate(576 576) scale(1.05) translate(-500 -445)">${mark()}</g>`);
+}
+// Mark + SONORITY wordmark — README header only. Launcher/store icons stay mark-only.
 function iconTextSvg(round) {
   const content = `<rect width="1000" height="1000" fill="${BG}"/>
     <g transform="translate(0 -25)">${mark()}</g>
     <text x="500" y="895" text-anchor="middle" font-family="${FONT}" font-size="115"
       font-weight="500" letter-spacing="0.005em" fill="${INK}">SONORITY</text>`;
-  return `<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">${round
+  return svg('1000 1000', round
     ? `<clipPath id="r"><rect width="1000" height="1000" rx="224"/></clipPath><g clip-path="url(#r)">${content}</g>`
-    : content}</svg>`;
+    : content);
 }
-// Splash branding wordmark (SONORITY only). Unchanged.
+// SONORITY wordmark (Futura Medium, white glyphs on TRANSPARENT alpha). Single
+// source for the splash branding + the in-app appbar (srcIn-tinted) + marketing.
+// viewBox keeps ~87/68px vertical padding above/below the caps so the round S/O/R
+// tops are never clipped.
 function wordmarkSvg() {
-  return `<svg viewBox="0 0 1000 260" xmlns="http://www.w3.org/2000/svg">
-    <rect width="1000" height="260" fill="${BG}"/>
-    <text x="500" y="192" text-anchor="middle" font-family="${FONT}" font-size="150"
-      font-weight="500" letter-spacing="0.005em" fill="${INK}">SONORITY</text></svg>`;
+  return svg('1000 260', `<text x="500" y="192" text-anchor="middle" font-family="${FONT}" font-size="150"
+      font-weight="500" letter-spacing="0.005em" fill="${INK}">SONORITY</text>`);
+}
+// Android 12 branding — the same wordmark letterboxed on an 800×320 canvas (the OS
+// renders branding into a fixed 2.5:1 region; letterbox so it can't stretch it).
+function wordmarkA12Svg() {
+  return svg('800 320', `<text x="400" y="200" text-anchor="middle" font-family="${FONT}" font-size="120"
+      font-weight="500" letter-spacing="0.005em" fill="${INK}">SONORITY</text>`);
 }
 
-// Stage fills the shot window (SVGs scale via viewBox), so 512 and 1024
-// exports come out identical instead of the small one cropping the big render.
+// Icon Composer LAYERS (iOS/macOS glass-pane .icon). Each pane carries its OWN
+// tweeter/woofer holes as alpha cut-outs (so the glass material renders them as
+// gaps); the front layer stacks over the back layer, so the front pane occludes
+// the back panes — no separate holes layer (which would punch back-speaker holes
+// through the front). `layer-bg` is the solid backdrop the glass refracts. Same
+// scale 1.15 as the flat icon so the composition matches.
+// BOTH pane layers are plain WHITE OPAQUE shapes on purpose: all colour, opacity,
+// and glass/translucency tuning is done non-destructively in Icon Composer (the
+// grey of the back speakers is a Composer setting, not baked into the source).
+const layerT='translate(500 500) scale(1.15) translate(-500 -445)';
+function paneCut(cx,cy,h,id){
+  const w=h*0.74, r=h*0.16;
+  return `<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000">
+      <rect x="${cx-w/2}" y="${cy-h/2}" width="${w}" height="${h}" rx="${r}" fill="white"/>
+      <circle cx="${cx}" cy="${cy-h*0.235}" r="${h*0.085}" fill="black"/>
+      <circle cx="${cx}" cy="${cy+h*0.16}" r="${h*0.185}" fill="black"/>
+    </mask>
+    <rect x="${cx-w/2}" y="${cy-h/2}" width="${w}" height="${h}" rx="${r}" fill="${INK}" mask="url(#${id})"/>`;
+}
+function layerBgSvg()    { return svg('1000 1000', `<rect width="1000" height="1000" fill="${BG}"/>`); }
+function layerBackSvg()  { return svg('1000 1000', `<g transform="${layerT}">${paneCut(325,400,300,'bl')+paneCut(675,400,300,'br')}</g>`); }
+function layerFrontSvg() { return svg('1000 1000', `<g transform="${layerT}">${paneCut(500,460,360,'fr')}</g>`); }
+
+// Stage fills the shot window (SVGs scale via viewBox), so any window size exports
+// identically instead of the small render cropping the big one.
 const params = new URLSearchParams(location.search);
 const mode = params.get('mode') || 'icon';
 const round = params.has('round');
 const stage = document.getElementById('stage');
-if (round) document.documentElement.style.background = document.body.style.background = 'transparent';
-stage.innerHTML = (mode === 'wordmark') ? wordmarkSvg()
-  : (mode === 'iconfg') ? iconFgSvg()
-  : (mode === 'icontext') ? iconTextSvg(round) : iconSvg(round);
+const render = {
+  icon: () => iconSvg(round),
+  iconfg: () => iconFgSvg(),
+  iconmono: () => iconMonoSvg(),
+  'icon-macos': () => iconMacosSvg(),
+  'icon-a12': () => iconA12Svg(),
+  icontext: () => iconTextSvg(round),
+  wordmark: () => wordmarkSvg(),
+  'wordmark-a12': () => wordmarkA12Svg(),
+  'layer-bg': () => layerBgSvg(),
+  'layer-back': () => layerBackSvg(),
+  'layer-front': () => layerFrontSvg(),
+};
+stage.innerHTML = (render[mode] || render.icon)();
 stage.style.cssText = 'width:100vw;height:100vh';
 stage.firstElementChild.style.cssText = 'width:100vw;height:100vh';
 </script>

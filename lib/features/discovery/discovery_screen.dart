@@ -51,7 +51,7 @@ class DiscoveryScreen extends ConsumerWidget {
           Theme.of(context).colorScheme.onSurface,
           BlendMode.srcIn,
         ),
-        child: Image.asset('assets/brand/sonority_wordmark.png', height: 18),
+        child: Image.asset('assets/brand/sonority_wordmark.png', height: 20),
       ),
       onRefresh: state.value != null ? () => controller.scan() : null,
       actions: [
