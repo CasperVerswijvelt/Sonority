@@ -17,7 +17,6 @@ import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
 import 'package:sonority/data/sonos/soap_client.dart';
-import 'package:sonority/data/sonos/zone_topology.dart';
 
 import 'discover_util.dart';
 
@@ -89,45 +88,15 @@ Future<void> _setEnabled(String ip, bool on) => _soap.call(
 
 Future<void> main(List<String> argv) async {
   print('🔎 Discovery…');
-  final ipByUuid = <String, String>{};
-  final labelByUuid = <String, String>{};
-  String? anyIp;
-  for (final d in await discoverDevices()) {
-    if (d.ip == null) continue;
-    anyIp ??= d.ip;
-    ipByUuid[d.uuid] = d.ip!;
-    labelByUuid[d.uuid] = '${d.roomName} (${d.modelName})';
-  }
-  if (anyIp == null) {
+  final index = await discoverIndexed();
+  if (index.anyIp == null) {
     print('❌ Could not read any device description.');
     return;
   }
-
-  // Map uuid -> channel token(s) from any HT map or stereo-pair map.
-  final channelByUuid = <String, String>{};
-  final groups =
-      await ZoneTopologyClient(SonosSoapClient()).getZoneGroups(anyIp);
-  for (final g in groups) {
-    for (final m in g.members) {
-      for (final raw in [m.htSatChanMapSet, m.channelMapSet]) {
-        if (raw == null || raw.isEmpty) continue;
-        for (final part in raw.split(';')) {
-          final c = part.indexOf(':');
-          if (c < 0) continue;
-          channelByUuid[part.substring(0, c).trim()] = part.substring(c + 1).trim();
-        }
-      }
-    }
-  }
-
-  String? resolve(String roomOrUuid) {
-    if (ipByUuid.containsKey(roomOrUuid)) return roomOrUuid;
-    final hit = labelByUuid.entries.firstWhere(
-      (e) => e.value.toLowerCase().contains(roomOrUuid.toLowerCase()),
-      orElse: () => const MapEntry('', ''),
-    );
-    return hit.key.isEmpty ? null : hit.key;
-  }
+  final ipByUuid = index.ipByUuid;
+  final labelByUuid = index.labelByUuid;
+  final channelByUuid = index.channelByUuid;
+  final anyIp = index.anyIp!;
 
   // ---- write modes (reversible: enable flag only) ----
   final wantEnable = argv.contains('--enable');
@@ -135,7 +104,7 @@ Future<void> main(List<String> argv) async {
   if (wantEnable || wantDisable) {
     final idx = argv.indexOf(wantEnable ? '--enable' : '--disable');
     final target = (idx + 1 < argv.length) ? argv[idx + 1] : '';
-    final uuid = resolve(target);
+    final uuid = index.resolve(target);
     if (uuid == null) {
       print('❌ No speaker matching "$target".');
       return;

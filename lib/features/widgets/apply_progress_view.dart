@@ -15,7 +15,12 @@ import '../../data/sonos/apply_progress.dart';
 class ApplyProgressView extends StatelessWidget {
   final List<ApplyStep> steps;
 
-  const ApplyProgressView({super.key, required this.steps});
+  /// The op was aborted by the user. The aborted step still renders red (with
+  /// its "Aborted" reason), but the header stays neutral — an abort isn't a
+  /// "something went wrong".
+  final bool aborted;
+
+  const ApplyProgressView({super.key, required this.steps, this.aborted = false});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +28,7 @@ class ApplyProgressView extends StatelessWidget {
     if (steps.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    final failed = steps.any((s) => s.isFailed);
+    final failed = steps.any((s) => s.isFailed) && !aborted;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -53,6 +58,9 @@ class ApplyProgressView extends StatelessWidget {
                         i + 1 < steps.length && !steps[i + 1].isChild,
                     hasChildren: !steps[i].isChild &&
                         steps.any((s) => s.parentId == steps[i].id),
+                    hasFailedChild: !steps[i].isChild &&
+                        steps.any(
+                            (s) => s.parentId == steps[i].id && s.isFailed),
                   ),
               ],
             ),
@@ -73,11 +81,13 @@ class _TimelineRow extends StatelessWidget {
   final bool isLast;
   final bool nextIsParent;
   final bool hasChildren;
+  final bool hasFailedChild;
   const _TimelineRow(
       {required this.step,
       required this.isLast,
       required this.nextIsParent,
-      required this.hasChildren});
+      required this.hasChildren,
+      required this.hasFailedChild});
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +154,10 @@ class _TimelineRow extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (step.isFailed && !hasChildren)
+                  // Show the reason on the step itself unless a child already
+                  // carries it (a mid-phase failure lives on the failing
+                  // sub-step; an abort before any sub-step started stays here).
+                  if (step.isFailed && !hasFailedChild)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(step.detail ?? 'Failed.',
@@ -179,7 +192,7 @@ class _TimelineRow extends StatelessWidget {
                       child: Text(step.detail!,
                           style: theme.textTheme.bodySmall?.copyWith(
                               color: scheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w200)),
+                              fontWeight: FontWeight.w300)),
                     ),
                 ],
               ),

@@ -155,7 +155,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (s.hasVolume) 'volume',
       ].join(' + ');
       ph.note('restoring $what — ${dev!.typeLabel}');
-      await _settings.apply(ip, s);
+      final failed = await _settings.apply(ip, s);
+      if (failed > 0) {
+        ph.note('$failed setting(s) for ${dev.typeLabel} could not be applied');
+      }
     }
   }
 
@@ -229,9 +232,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         );
         tracker.done('bond');
         return sys;
-      } on OperationCancelled {
-        rethrow;
       } catch (e) {
+        // OperationCancelled lands here too — its toString is 'Aborted'.
         tracker.fail('bond', '$e');
         rethrow;
       }
@@ -297,18 +299,18 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       // Step 1 — scan. Reuse an in-flight app-launch discovery (also lets it
       // commit so its late completion can't clobber the applied state below);
       // otherwise run a fresh scan since a launch's earlier scan may be stale.
-      // (discover()/SSDP isn't interruptible, so scan-abort lands the instant
-      // discovery returns — the throwIfCancelled right after.)
+      // (discover()/SSDP isn't interruptible, so we race it against the token
+      // via [_untilCancelled]: an abort stops the UI waiting in ~250ms while the
+      // socket self-closes in the background — the throwIfCancelled right after
+      // turns that into a clean stop before any write.)
       tracker.start(_scanStepId);
+      final scanFuture =
+          state.isLoading ? future : scan().then((_) => state.value);
       SonosSystem? scanned;
       try {
-        if (state.isLoading) {
-          scanned = await future;
-        } else {
-          await scan();
-          scanned = state.value;
-        }
-      } catch (_) {/* handled below */}
+        scanned = await untilCancelled(scanFuture, cancel);
+      } catch (_) {/* aborted → rethrown by throwIfCancelled below; other errors
+                       → scanned stays null → handled below */}
       cancel.throwIfCancelled(); // aborted during the scan? stop before any write
       if (scanned == null) {
         tracker.fail(
@@ -346,6 +348,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       previous = scanned;
     } catch (_) {
       _activeOp = null;
+      // Abort during scan/pre-flight: mark the step that was running. No-op for
+      // the "not found" path (scan step already failed) and a confirm decline
+      // (no step active), so only a real abort attaches the reason.
+      tracker.failActive('Aborted');
       rethrow;
     }
 
@@ -383,9 +389,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // Restore captured EQ/volume last — bonding can reset EQ.
         await _restoreSettings(e, sys, ph);
         tracker.done(e.primaryUuid);
-      } on OperationCancelled {
-        rethrow;
       } catch (err) {
+        // OperationCancelled lands here too — its toString is 'Aborted'.
         tracker.fail(e.primaryUuid, '$err');
         rethrow;
       }
@@ -596,19 +601,25 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
       await _repo.setRoomName(ip: ip, name: name);
+      bool propagated(SonosSystem s) =>
+          s.allMembers.any((m) => m.uuid == device.uuid && m.zoneName == name);
       var system = await _pollUntil(
         previous: previous,
         ip: ip,
         attempts: 8,
-        until: (s) => s.allMembers.any((m) => m.uuid == device.uuid && m.zoneName == name),
+        until: propagated,
       );
-      // refresh() reuses the prior device index, so patch the renamed device so
-      // its roomName isn't stale until the next full scan.
-      final patched = {
-        for (final e in system.devicesByUuid.entries)
-          e.key: e.key == device.uuid ? e.value.copyWith(roomName: name) : e.value
-      };
-      system = SonosSystem(groups: system.groups, devicesByUuid: patched);
+      // Only assert the new name once the topology actually confirms it —
+      // otherwise return the real read rather than an optimistic name Sonos
+      // never took. refresh() reuses the prior device index, so patch the
+      // renamed device so its roomName isn't stale until the next full scan.
+      if (propagated(system)) {
+        final patched = {
+          for (final e in system.devicesByUuid.entries)
+            e.key: e.key == device.uuid ? e.value.copyWith(roomName: name) : e.value
+        };
+        system = SonosSystem(groups: system.groups, devicesByUuid: patched);
+      }
       return system;
     });
     state = result;
@@ -648,23 +659,26 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         await _repo.removeHtSatellites(
             soundbarIp: ip, uuids: uuids, cancel: _activeOp);
         ph.phase('settle', 'Wait for Sonos to settle');
-        final sys = await _pollUntil(
-          previous: previous,
-          ip: ip,
-          until: (s) {
-            final m = s.allMembers
-                .where((x) => x.uuid == soundbar.uuid)
-                .cast<ZoneGroupMember?>()
-                .firstOrNull;
-            if (m == null) return true;
-            return channels.every((c) => !m.channelAssignments.containsKey(c));
-          },
-        );
+        // The soundbar itself always survives an unbond; a null member here is
+        // the transient mid-reshuffle drop-out, NOT confirmation — keep polling.
+        bool rolesGone(SonosSystem s) {
+          final m = s.allMembers
+              .where((x) => x.uuid == soundbar.uuid)
+              .cast<ZoneGroupMember?>()
+              .firstOrNull;
+          if (m == null) return false;
+          return channels.every((c) => !m.channelAssignments.containsKey(c));
+        }
+
+        final sys = await _pollUntil(previous: previous, ip: ip, until: rolesGone);
+        // Sonos can 200-OK an unbond yet silently no-op — re-assert before done.
+        if (!rolesGone(sys)) {
+          throw Exception('Sonos did not remove the $label — try again.');
+        }
         tracker.done('remove');
         return sys;
-      } on OperationCancelled {
-        rethrow;
       } catch (e) {
+        // OperationCancelled lands here too — its toString is 'Aborted'.
         tracker.fail('remove', '$e');
         rethrow;
       }
@@ -741,9 +755,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         tracker.done('group');
         return system;
-      } on OperationCancelled {
-        rethrow;
       } catch (e) {
+        // OperationCancelled lands here too — its toString is 'Aborted'.
         tracker.fail('group', '$e');
         rethrow;
       }
@@ -816,9 +829,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         tracker.done('ungroup');
         return system;
-      } on OperationCancelled {
-        rethrow;
       } catch (e) {
+        // OperationCancelled lands here too — its toString is 'Aborted'.
         tracker.fail('ungroup', '$e');
         rethrow;
       }
