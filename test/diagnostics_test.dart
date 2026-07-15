@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
 import 'package:sonority/data/sonos/diagnostics_log.dart';
@@ -91,6 +93,25 @@ void main() {
       },
     );
     expect(topologyText(ht), isNot(contains('not in topology groups')));
+  });
+
+  test('inlineJsonPrefs inlines JSON string values as real nested JSON', () {
+    final out = inlineJsonPrefs({
+      'profiles': '[{"id":"1","name":"My setup"}]',
+      'pair_snapshot_X': '{"left":{"name":"Keuken"}}',
+      'plain': 'not json',
+      'count': 3,
+    });
+    // JSON strings become real structures (not escaped strings)...
+    expect(out['profiles'], isA<List<dynamic>>());
+    expect((out['profiles'] as List).first['name'], 'My setup');
+    expect(out['pair_snapshot_X'], isA<Map<String, dynamic>>());
+    expect((out['pair_snapshot_X'] as Map)['left']['name'], 'Keuken');
+    // ...while non-JSON strings and non-string values pass through unchanged.
+    expect(out['plain'], 'not json');
+    expect(out['count'], 3);
+    // The whole thing re-encodes without escaped-JSON-in-string.
+    expect(jsonEncode(out), isNot(contains(r'\"')));
   });
 
   test('DiagnosticsLog is a capped ring buffer, oldest dropped first', () {

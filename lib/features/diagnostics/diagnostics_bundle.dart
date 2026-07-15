@@ -213,8 +213,25 @@ String _deviceLine(SonosDevice d) {
 
 Future<String> _appStateJson() async {
   final prefs = await SharedPreferences.getInstance();
-  final map = {for (final k in prefs.getKeys()) k: prefs.get(k)};
-  return const JsonEncoder.withIndent('  ').convert(map);
+  final raw = {for (final k in prefs.getKeys()) k: prefs.get(k)};
+  return const JsonEncoder.withIndent('  ').convert(inlineJsonPrefs(raw));
+}
+
+/// SharedPreferences only stores strings, but the app stores most values as JSON
+/// (profiles, name snapshots). Inline any string that is itself valid JSON as
+/// real nested JSON so the dump is readable/parseable instead of a wall of
+/// escaped quotes; plain (non-JSON) strings and non-string prefs pass through.
+Map<String, dynamic> inlineJsonPrefs(Map<String, Object?> raw) => {
+      for (final e in raw.entries)
+        e.key: e.value is String ? _tryJsonDecode(e.value as String) : e.value,
+    };
+
+Object? _tryJsonDecode(String s) {
+  try {
+    return jsonDecode(s);
+  } catch (_) {
+    return s;
+  }
 }
 
 Future<String> _tryFetch(
