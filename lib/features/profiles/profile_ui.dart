@@ -265,9 +265,9 @@ class ProfileCard extends StatelessWidget {
   }
 }
 
-/// A badge row marking what captured settings a profile / entity carries, or
-/// null when it carries none. Shared by the profile card (aggregate) and the
-/// profile detail entity cards (per-entity).
+/// The captured-settings chips ("Audio settings" / "Volume"), or null when
+/// neither is set. Shared by the profile tile (aggregate) and the per-entity
+/// cards on the detail screen.
 Widget? settingsBadges({required bool audio, required bool volume}) {
   if (!audio && !volume) return null;
   return Wrap(
@@ -280,7 +280,7 @@ Widget? settingsBadges({required bool audio, required bool volume}) {
   );
 }
 
-/// Small pill marking a captured-settings kind (audio / volume).
+/// Small pill marking a captured setting (audio or volume).
 class SettingsBadge extends StatelessWidget {
   final IconData icon;
   final String label;

@@ -104,7 +104,8 @@ class EntitySnapshot {
         settings: settings ?? this.settings,
       );
 
-  /// Whether this entity captured any EQ / volume — drives the tile badges.
+  /// Whether this entity captured any audio settings / volume — drive the
+  /// per-entity chips on the detail screen (mirrors [Profile]'s aggregates).
   bool get hasAudioSettings =>
       settings.values.any((s) => s.hasAudioSettings);
   bool get hasVolume => settings.values.any((s) => s.hasVolume);
@@ -166,7 +167,6 @@ class Profile {
 
   /// Aggregated across entities — drive the badges on the profile tile.
   bool get hasAudioSettings => entities.any((e) => e.hasAudioSettings);
-
   bool get hasVolume => entities.any((e) => e.hasVolume);
 
   Profile copyWith({

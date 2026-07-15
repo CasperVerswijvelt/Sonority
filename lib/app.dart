@@ -78,7 +78,8 @@ final _router = GoRouter(
                   builder: (_, s) =>
                       ProfileDetailScreen(profileId: s.pathParameters['id']!),
                   // Nested so the stack is [overview, detail, resnapshot] —
-                  // Back returns to the detail page, declaratively (no push).
+                  // the detail screen pushes this and awaits the recaptured
+                  // entities it pops back (see ProfileDetailScreen._resnapshot).
                   routes: [
                     GoRoute(
                       path: 'resnapshot',

@@ -116,13 +116,14 @@ void main() {
     expect(back.entities.first.toJson().containsKey('settings'), isFalse);
   });
 
-  test('hasAudioSettings / hasVolume reflect audio-only vs volume-only', () {
+  test('per-entity settings flags reflect audio-only vs volume-only', () {
     final base = EntitySnapshot.fromMember(ZoneGroupMember(uuid: fl, zoneName: 'x'));
-    final audio = base.copyWith(settings: {fl: const SpeakerSettings(bass: 1)});
-    expect(audio.hasAudioSettings, isTrue);
-    expect(audio.hasVolume, isFalse);
-    final vol = base.copyWith(settings: {fl: const SpeakerSettings(volume: 10)});
-    expect(vol.hasAudioSettings, isFalse);
-    expect(vol.hasVolume, isTrue);
+    final audioOnly = base.copyWith(settings: {fl: const SpeakerSettings(bass: 1)});
+    expect(audioOnly.hasAudioSettings, isTrue);
+    expect(audioOnly.hasVolume, isFalse);
+    final volumeOnly =
+        base.copyWith(settings: {fl: const SpeakerSettings(volume: 10)});
+    expect(volumeOnly.hasAudioSettings, isFalse);
+    expect(volumeOnly.hasVolume, isTrue);
   });
 }

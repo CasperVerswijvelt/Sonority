@@ -11,9 +11,9 @@ import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_ui.dart';
 
-/// A profile's detail view. The captured content (entities) is read-only — it's
-/// only ever set when the profile is created from a snapshot. Here you can edit
-/// the profile name and review what each entity will restore.
+/// A profile's detail view and single save surface: edit the name/appearance,
+/// review what each captured entity will restore, and re-snapshot to replace the
+/// captured layout from the current setup. All edits are unsaved until Save.
 class ProfileDetailScreen extends ConsumerStatefulWidget {
   final String profileId;
   const ProfileDetailScreen({super.key, required this.profileId});
@@ -27,6 +27,10 @@ class _State extends ConsumerState<ProfileDetailScreen> {
   bool _seeded = false;
   late String _iconId;
   late int _color;
+
+  /// Working copy of the entities from a re-snapshot, awaiting Save. Null until
+  /// the user re-snapshots — the stored `profile.entities` is shown until then.
+  List<EntitySnapshot>? _pendingEntities;
 
   @override
   void dispose() {
@@ -65,27 +69,28 @@ class _State extends ConsumerState<ProfileDetailScreen> {
       _seeded = true;
     }
 
+    final entities = _pendingEntities ?? profile.entities;
     final name = _name.text.trim();
     final taken = isProfileNameTaken(profiles, name, exceptId: profile.id);
     final appearanceChanged =
         _iconId != profile.iconId || _color != profile.color;
     final nameChanged = name != profile.name;
-    final changed =
-        (nameChanged || appearanceChanged) && name.isNotEmpty && !taken;
+    final entitiesChanged = _pendingEntities != null;
+    final changed = (nameChanged || appearanceChanged || entitiesChanged) &&
+        name.isNotEmpty &&
+        !taken;
 
     return AppScaffold(
       title: 'Profile',
       actions: [
         IconButton(
           tooltip: 'Re-snapshot from current setup',
-          onPressed: system == null
-              ? null
-              : () => context.go('/profiles/edit/${profile.id}/resnapshot'),
+          onPressed: system == null ? null : () => _resnapshot(profile),
           icon: const Icon(Icons.cameraswitch),
         ),
       ],
-      // Save appears once the name OR the appearance (icon/colour) differs from
-      // what's stored.
+      // Save appears once the name, appearance (icon/colour), or a re-snapshot
+      // differs from what's stored.
       floatingActionButton: changed
           ? FloatingActionButton.extended(
               onPressed: () => _save(profile, name),
@@ -119,37 +124,65 @@ class _State extends ConsumerState<ProfileDetailScreen> {
           Gap.l,
           Text('Included', style: theme.textTheme.titleSmall),
           Text(
-            'Captured when the profile was created. Use the re-snapshot button '
-            '(top right) to recapture from your current setup.',
+            entitiesChanged
+                ? 'Recaptured from your current setup — press Save to keep it.'
+                : 'Captured when the profile was created. Use the re-snapshot '
+                    'button (top right) to recapture from your current setup.',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: entitiesChanged
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant,
             ),
           ),
           Gap.s,
           // Same cards as the system overview, fed a throwaway member built from
-          // the stored snapshot, with a "settings saved" footer and a tap
-          // through to the entity detail.
-          for (final (i, e) in profile.entities.indexed)
-            _entityCard(context, profile, i, e, system),
+          // the stored snapshot, with a "settings saved" footer. Tapping opens
+          // the entity detail — disabled while previewing an unsaved re-snapshot,
+          // since the detail route reads the stored profile by index.
+          for (final (i, e) in entities.indexed)
+            _entityCard(context, profile, i, e, system,
+                tappable: _pendingEntities == null),
         ],
       ),
     );
   }
 
+  /// Open the picker, and on return stash the recaptured entities as an unsaved
+  /// change (committed only when the user taps Save).
+  Future<void> _resnapshot(Profile profile) async {
+    final result = await context.push<List<EntitySnapshot>>(
+        '/profiles/edit/${profile.id}/resnapshot');
+    if (result != null && mounted) {
+      setState(() => _pendingEntities = result);
+    }
+  }
+
   Future<void> _save(Profile profile, String name) async {
-    final router = GoRouter.of(context);
-    await ref.read(profilesProvider.notifier).replace(
-        profile.copyWith(name: name, iconId: _iconId, color: _color));
-    router.go('/profiles');
+    final messenger = ScaffoldMessenger.of(context);
+    await ref.read(profilesProvider.notifier).replace(profile.copyWith(
+          name: name,
+          iconId: _iconId,
+          color: _color,
+          entities: _pendingEntities ?? profile.entities,
+        ));
+    if (!mounted) return;
+    // Stay on the page: clearing pending + the provider update make `changed`
+    // false, so the Save FAB hides itself.
+    setState(() => _pendingEntities = null);
+    messenger.showSnackBar(const SnackBar(content: Text('Profile saved')));
   }
 }
 
 /// One entity, rendered with the same card the system overview uses for its
 /// kind, built from the stored snapshot (`fromSnapshot`) instead of live
 /// topology, with a "settings saved" footer and a tap to the entity detail.
+/// [tappable] is false while previewing an unsaved re-snapshot (the detail route
+/// reads the stored profile, which doesn't yet have the pending entities).
 Widget _entityCard(BuildContext context, Profile profile, int index,
-    EntitySnapshot e, SonosSystem? system) {
-  void onTap() => context.go('/profiles/edit/${profile.id}/entity/$index');
+    EntitySnapshot e, SonosSystem? system, {required bool tappable}) {
+  final onTap = tappable
+      ? () => context.go('/profiles/edit/${profile.id}/entity/$index')
+      : null;
   final footer =
       settingsBadges(audio: e.hasAudioSettings, volume: e.hasVolume);
   final member = e.toMember();
