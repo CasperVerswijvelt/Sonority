@@ -8,7 +8,7 @@ import 'package:file_saver/file_saver.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../state/sonos_controller.dart';
-import '../widgets/app_scaffold.dart' show ScrolledUnderDivider;
+import '../widgets/sheet_scaffold.dart';
 import 'diagnostics_bundle.dart';
 
 const _devEmail = 'casperverswijveltdev@gmail.com';
@@ -20,16 +20,7 @@ enum _Action { email, share, save }
 /// Opens the diagnostics bottom sheet: a hide-nothing technical topology view
 /// plus a way to package it (+ raw data, logs) into a zip and escalate it.
 Future<void> showDiagnosticsSheet(BuildContext context) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (_) => const FractionallySizedBox(
-        heightFactor: 0.92,
-        child: _DiagnosticsSheet(),
-      ),
-    );
+    showAppSheet<void>(context, const _DiagnosticsSheet());
 
 class _DiagnosticsSheet extends ConsumerStatefulWidget {
   const _DiagnosticsSheet();
@@ -158,43 +149,27 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
     final theme = Theme.of(context);
     final system = ref.watch(sonosControllerProvider).value;
 
-    // ScrollNotificationObserver so the reused ScrolledUnderDivider under the
-    // header can react to the body's scroll — a modal sheet lives in the overlay
-    // and doesn't see the home Scaffold's observer.
-    return ScrollNotificationObserver(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.bug_report_outlined,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text('Diagnostics', style: theme.textTheme.titleLarge),
-              ],
-            ),
-          ),
-          const ScrolledUnderDivider(),
-          Expanded(
-            child: system == null
-                ? const Center(child: Text('No system discovered yet.'))
-                : Scrollbar(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: SelectableText(
-                        topologyText(system),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
+    return SheetScaffold(
+      icon: Icons.bug_report_outlined,
+      title: 'Diagnostics',
+      body: system == null
+          ? const Center(child: Text('No system discovered yet.'))
+          : Scrollbar(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SelectableText(
+                  topologyText(system),
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    height: 1.35,
                   ),
-          ),
+                ),
+              ),
+            ),
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           const Divider(height: 1),
           SwitchListTile(
             value: _includeLogs,
