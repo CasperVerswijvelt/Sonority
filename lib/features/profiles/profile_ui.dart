@@ -3,6 +3,7 @@ import 'package:flutter_sficon/flutter_sficon.dart';
 
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/channel_map.dart';
+import '../widgets/entity_icons.dart';
 import 'profile.dart';
 
 /// True if [name] (trimmed, case-insensitive) is already used by another
@@ -245,20 +246,12 @@ class ProfileCard extends StatelessWidget {
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
-                    if (profile.hasAudioSettings || profile.hasVolume) ...[
+                    if (settingsBadges(
+                            audio: profile.hasAudioSettings,
+                            volume: profile.hasVolume)
+                        case final badges?) ...[
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          if (profile.hasAudioSettings)
-                            const _Badge(
-                                icon: Icons.tune, label: 'Audio settings'),
-                          if (profile.hasVolume)
-                            const _Badge(
-                                icon: Icons.volume_up, label: 'Volume'),
-                        ],
-                      ),
+                      badges,
                     ],
                   ],
                 ),
@@ -272,11 +265,26 @@ class ProfileCard extends StatelessWidget {
   }
 }
 
-/// Small pill on the profile card marking what captured settings it carries.
-class _Badge extends StatelessWidget {
+/// A badge row marking what captured settings a profile / entity carries, or
+/// null when it carries none. Shared by the profile card (aggregate) and the
+/// profile detail entity cards (per-entity).
+Widget? settingsBadges({required bool audio, required bool volume}) {
+  if (!audio && !volume) return null;
+  return Wrap(
+    spacing: 6,
+    runSpacing: 6,
+    children: [
+      if (audio) const SettingsBadge(icon: Icons.tune, label: 'Audio settings'),
+      if (volume) const SettingsBadge(icon: Icons.volume_up, label: 'Volume'),
+    ],
+  );
+}
+
+/// Small pill marking a captured-settings kind (audio / volume).
+class SettingsBadge extends StatelessWidget {
   final IconData icon;
   final String label;
-  const _Badge({required this.icon, required this.label});
+  const SettingsBadge({super.key, required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -441,12 +449,15 @@ class _Swatch extends StatelessWidget {
   }
 }
 
-/// Icon for a profile entity, matching the system-overview iconography.
+/// Icon for a profile entity. Home theaters get the surround icon, standalone
+/// speakers the speaker icon, and the group kinds defer to the shared
+/// [groupKindIcon] so the profile and system-overview iconography can't drift.
+/// The kind is spelled out in the subtitle either way.
 IconData entityIcon(EntityKind kind) => switch (kind) {
       EntityKind.homeTheater => Icons.surround_sound,
-      EntityKind.stereoPair => Icons.speaker_group,
-      EntityKind.zone => Icons.groups_2,
-      EntityKind.custom => Icons.tune,
+      EntityKind.stereoPair => groupKindIcon(GroupKind.stereoPair),
+      EntityKind.zone => groupKindIcon(GroupKind.zone),
+      EntityKind.custom => groupKindIcon(GroupKind.custom),
       EntityKind.single => Icons.speaker,
     };
 
@@ -477,10 +488,8 @@ String entitySummary(EntitySnapshot e, SonosSystem? system) {
       return '${uuids.length} speakers: ${uuids.map(typeOf).join(', ')}';
 
     case EntityKind.custom:
-      final map = e.mapSet;
-      if (map == null) return 'Custom group';
-      final tmp =
-          ZoneGroupMember(uuid: e.primaryUuid, zoneName: '', channelMapSet: map);
+      if (e.mapSet == null) return 'Custom group';
+      final tmp = e.toMember();
       final ch = tmp.groupChannels.values.toList();
       final l = ch.where((c) => c == GroupChannel.left).length;
       final r = ch.where((c) => c == GroupChannel.right).length;

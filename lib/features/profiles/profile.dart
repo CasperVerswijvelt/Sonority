@@ -104,6 +104,22 @@ class EntitySnapshot {
         settings: settings ?? this.settings,
       );
 
+  /// Whether this entity captured any EQ / volume — drives the tile badges.
+  bool get hasAudioSettings =>
+      settings.values.any((s) => s.hasAudioSettings);
+  bool get hasVolume => settings.values.any((s) => s.hasVolume);
+
+  /// A throwaway [ZoneGroupMember] carrying the stored map string, so the shared
+  /// entity cards / [entitySummary] can reuse the model's parsing getters
+  /// against snapshot data. The single blessed place for this trick — HT maps go
+  /// in `htSatChanMapSet`, group maps in `channelMapSet`, a single has neither.
+  ZoneGroupMember toMember() => ZoneGroupMember(
+        uuid: primaryUuid,
+        zoneName: label,
+        htSatChanMapSet: kind == EntityKind.homeTheater ? mapSet : null,
+        channelMapSet: kind == EntityKind.homeTheater ? null : mapSet,
+      );
+
   /// A short label for the UI describing what settings are captured, or `''`
   /// when none — appended to [entitySummary] on the tiles.
   String get settingsSummary {
@@ -161,11 +177,9 @@ class Profile {
   });
 
   /// Aggregated across entities — drive the badges on the profile tile.
-  bool get hasAudioSettings =>
-      entities.any((e) => e.settings.values.any((s) => s.hasAudioSettings));
+  bool get hasAudioSettings => entities.any((e) => e.hasAudioSettings);
 
-  bool get hasVolume =>
-      entities.any((e) => e.settings.values.any((s) => s.hasVolume));
+  bool get hasVolume => entities.any((e) => e.hasVolume);
 
   Profile copyWith({
     String? name,

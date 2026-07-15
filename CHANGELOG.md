@@ -11,6 +11,9 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Added
+- Profiles: tap an entity in a profile to open a detail view — the same layout visualization as the system overview (home-theater diagram / per-speaker channel cards) plus a per-speaker breakdown of every saved audio setting and volume.
+
 ## [0.5.1] - 2026-07-15
 
 ### Changed

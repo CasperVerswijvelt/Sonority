@@ -17,6 +17,7 @@ import 'features/profiles/profile_widget.dart';
 import 'features/profiles/profiles_screen.dart';
 import 'features/profiles/profile_create_screen.dart';
 import 'features/profiles/profile_detail_screen.dart';
+import 'features/profiles/profile_entity_detail_screen.dart';
 import 'features/room/room_screen.dart';
 import 'features/group/group_flow.dart';
 import 'features/group/group_detail_screen.dart';
@@ -83,6 +84,13 @@ final _router = GoRouter(
                       path: 'resnapshot',
                       builder: (_, s) =>
                           ProfileCreateScreen(profileId: s.pathParameters['id']),
+                    ),
+                    GoRoute(
+                      path: 'entity/:index',
+                      builder: (_, s) => ProfileEntityDetailScreen(
+                        profileId: s.pathParameters['id']!,
+                        entityIndex: int.parse(s.pathParameters['index']!),
+                      ),
                     ),
                   ],
                 ),

@@ -474,7 +474,12 @@ pkill -x Sonority                          # quit (AppleScript quit gets cancell
 - ✅ **Config profiles** (`features/profiles/`) — bottom-tab page; a profile is a
   snapshot of current state trimmed to chosen entities (one HT / pair / unbonded
   room = one entity), with stored room names. Create-from-snapshot only (no config
-  builder); tiles **edit** + **apply (play)**. Apply does pre-flight resolution
+  builder); tiles **edit** + **apply (play)**. Tapping an entity in the detail view
+  opens a **read-only per-entity detail** (`profile_entity_detail_screen.dart`)
+  that mirrors the system-overview entity view — the HT `SpeakerDiagram` / group
+  `MemberChannelCard`s, driven from the stored `mapSet` via a throwaway
+  `ZoneGroupMember` (same trick as `entitySummary`) — plus a per-speaker
+  breakdown of the captured settings (`SpeakerSettings.describe()`). Apply does pre-flight resolution
   (missing/conflicting speakers), frees conflicts, re-bonds via the diff-based
   `_applyHtTarget` (no-op if unchanged, else add only what's missing), restores
   names, and reports per-step progress. Sub-on-stereo-pair is out (hardware-rejected).

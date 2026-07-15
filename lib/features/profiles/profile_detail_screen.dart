@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/entity_cards.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_ui.dart';
@@ -124,22 +126,11 @@ class _State extends ConsumerState<ProfileDetailScreen> {
             ),
           ),
           Gap.s,
-          for (final e in profile.entities) ...[
-            Card(
-              margin: EdgeInsets.zero,
-              child: ListTile(
-                leading: Icon(entityIcon(e.kind)),
-                titleAlignment: ListTileTitleAlignment.center,
-                title: Text(e.label),
-                subtitle: Text(
-                  e.settingsSummary.isEmpty
-                      ? entitySummary(e, system)
-                      : '${entitySummary(e, system)}\n${e.settingsSummary}',
-                ),
-              ),
-            ),
-            Gap.s,
-          ],
+          // Same cards as the system overview, fed a throwaway member built from
+          // the stored snapshot, with a "settings saved" footer and a tap
+          // through to the entity detail.
+          for (final (i, e) in profile.entities.indexed)
+            _entityCard(context, profile, i, e, system),
         ],
       ),
     );
@@ -151,4 +142,30 @@ class _State extends ConsumerState<ProfileDetailScreen> {
         profile.copyWith(name: name, iconId: _iconId, color: _color));
     router.go('/profiles');
   }
+}
+
+/// One entity, rendered with the same card the system overview uses for its
+/// kind, built from the stored snapshot (`fromSnapshot`) instead of live
+/// topology, with a "settings saved" footer and a tap to the entity detail.
+Widget _entityCard(BuildContext context, Profile profile, int index,
+    EntitySnapshot e, SonosSystem? system) {
+  void onTap() => context.go('/profiles/edit/${profile.id}/entity/$index');
+  final footer =
+      settingsBadges(audio: e.hasAudioSettings, volume: e.hasVolume);
+  final member = e.toMember();
+  return switch (e.kind) {
+    EntityKind.homeTheater => TheaterEntityCard(
+        model: TheaterCardModel.fromSnapshot(system, member),
+        onTap: onTap,
+        footer: footer),
+    EntityKind.single => SingleEntityCard(
+        model: SingleCardModel.fromSnapshot(system, member),
+        onTap: onTap,
+        footer: footer),
+    EntityKind.stereoPair || EntityKind.zone || EntityKind.custom =>
+      GroupEntityCard(
+          model: GroupCardModel.fromSnapshot(system, member),
+          onTap: onTap,
+          footer: footer),
+  };
 }

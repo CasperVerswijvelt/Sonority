@@ -6,10 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
-import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/app_scaffold.dart';
-import '../widgets/diagram_labels.dart';
-import '../widgets/pill_chip.dart';
+import '../widgets/entity_cards.dart';
 import '../widgets/version_badge.dart';
 
 /// Entry screen: auto-scans the LAN on launch and presents the system, leading
@@ -118,7 +116,10 @@ class _SystemView extends ConsumerWidget {
               'No soundbar found. Dedicated fronts need an Arc, Beam, Ray, '
               'Playbar or Playbase.',
             ),
-          ...theaters.map((m) => _TheaterCard(system: system, member: m)),
+          ...theaters.map((m) => TheaterEntityCard(
+                model: TheaterCardModel.fromMember(system, m),
+                onTap: () => context.push('/theater/${m.uuid}'),
+              )),
           Gap.l,
           // The "+" lives in the header; the flow itself explains if there
           // aren't two free speakers to bond.
@@ -131,41 +132,18 @@ class _SystemView extends ConsumerWidget {
           if (groups.isEmpty)
             const _EmptySectionCard('No speaker groups yet')
           else
-            ...groups.map((m) => _GroupCard(system: system, group: m)),
+            ...groups.map((m) => GroupEntityCard(
+                  model: GroupCardModel.fromMember(system, m),
+                  onTap: () => context.push('/group/${m.uuid}'),
+                )),
           // Single speaker rooms — hidden entirely when there are none.
           if (singleRooms.isNotEmpty) ...[
             Gap.l,
             _SectionHeader('Single speaker rooms', Icons.meeting_room_outlined),
-            ...singleRooms.map((m) {
-              final device = system.device(m.uuid);
-              final unreachable = device != null && !device.reachable;
-              final scheme = Theme.of(context).colorScheme;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  titleAlignment: ListTileTitleAlignment.center,
-                  onTap: unreachable
-                      ? null
-                      : () => context.push('/room/${m.uuid}'),
-                  leading: Icon(
-                    unreachable
-                        ? Icons.warning_amber_rounded
-                        : Icons.speaker_outlined,
-                    color: unreachable ? scheme.error : null,
-                  ),
-                  title: Text(m.zoneName),
-                  subtitle: Text(
-                    unreachable
-                        ? unreachableSpeakerHint
-                        : (device?.typeLabel ?? ''),
-                    style: unreachable ? TextStyle(color: scheme.error) : null,
-                  ),
-                  trailing: unreachable
-                      ? null
-                      : const Icon(Icons.chevron_right),
-                ),
-              );
-            }),
+            ...singleRooms.map((m) => SingleEntityCard(
+                  model: SingleCardModel.fromMember(system, m),
+                  onTap: () => context.push('/room/${m.uuid}'),
+                )),
           ],
           // Other devices: unbonded Subs are shown so they're visible (they're
           // Invisible members with no room), but not tappable — there's nothing
@@ -188,143 +166,6 @@ class _SystemView extends ConsumerWidget {
         ],
       ),
     );
-  }
-}
-
-/// A bonded speaker group (stereo pair / zone / custom) in the overview. Taps
-/// through to the group detail screen (per-speaker channels + separate).
-class _GroupCard extends StatelessWidget {
-  final SonosSystem system;
-  final ZoneGroupMember group;
-  const _GroupCard({required this.system, required this.group});
-
-  @override
-  Widget build(BuildContext context) {
-    final memberUuids = group.groupChannels.keys.toList();
-    final types = memberUuids
-        .map((u) => system.device(u)?.typeLabel)
-        .whereType<String>()
-        .toList();
-    final subtitle = [
-      groupKindLabel(group.groupKind),
-      '${memberUuids.length} speakers',
-      if (types.isNotEmpty) types.join(', '),
-      if (group.subUuid != null) 'Sub',
-    ].join(' · ');
-    final icon = switch (group.groupKind) {
-      GroupKind.stereoPair => Icons.speaker_group,
-      GroupKind.custom => Icons.tune,
-      _ => Icons.groups_2,
-    };
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        titleAlignment: ListTileTitleAlignment.center,
-        onTap: () => context.push('/group/${group.uuid}'),
-        leading: Icon(icon),
-        title: Text(group.zoneName),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
-      ),
-    );
-  }
-}
-
-class _TheaterCard extends StatelessWidget {
-  final SonosSystem system;
-  final ZoneGroupMember member;
-  const _TheaterCard({required this.system, required this.member});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final device = system.device(member.uuid);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () => context.push('/theater/${member.uuid}'),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 26,
-                  backgroundColor: scheme.primaryContainer,
-                  child: Icon(
-                    Icons.surround_sound,
-                    color: scheme.onPrimaryContainer,
-                  ),
-                ),
-                Gap.m,
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        member.zoneName,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      Text(
-                        device?.modelName ?? 'Soundbar',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      Gap.s,
-                      _GroupChips(system: system, member: member),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Small chips on a home-theater card showing which extra-speaker groups are
-/// bonded (Fronts / Surrounds / Sub) with their speaker names.
-class _GroupChips extends StatelessWidget {
-  final SonosSystem system;
-  final ZoneGroupMember member;
-  const _GroupChips({required this.system, required this.member});
-
-  static const _groups = [
-    (
-      'Fronts',
-      Icons.speaker,
-      [SonosChannel.leftFront, SonosChannel.rightFront],
-    ),
-    (
-      'Surrounds',
-      Icons.surround_sound,
-      [SonosChannel.leftRear, SonosChannel.rightRear],
-    ),
-    ('Subwoofer', Icons.graphic_eq, [SonosChannel.sub]),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final chips = <Widget>[];
-    for (final (label, icon, channels) in _groups) {
-      if (channels.any((c) => hasChannel(member, c))) {
-        chips.add(PillChip(icon: icon, text: label, color: scheme.primary));
-      }
-    }
-    if (chips.isEmpty) {
-      chips.add(PillChip(
-        icon: Icons.info_outline,
-        text: 'No extra speakers',
-        color: scheme.onSurfaceVariant,
-      ));
-    }
-    return Wrap(spacing: 6, runSpacing: 6, children: chips);
   }
 }
 

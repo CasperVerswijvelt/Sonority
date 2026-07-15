@@ -33,6 +33,34 @@ const eqTypes = [
   'HeightChannelLevel',
 ];
 
+/// EQType → human label (Sonos-app terms) for read-only display of a captured
+/// [SpeakerSettings]. Tokens absent here fall back to the raw token.
+const _eqLabels = {
+  'NightMode': 'Night sound',
+  'DialogLevel': 'Speech enhancement',
+  'SubGain': 'Sub level',
+  'SubEnable': 'Sub',
+  'SubPolarity': 'Sub phase',
+  'SubCrossover': 'Sub crossover',
+  'SurroundLevel': 'Surround level (TV)',
+  'SurroundEnable': 'Surround',
+  'SurroundMode': 'Surround mode',
+  'MusicSurroundLevel': 'Surround level (music)',
+  'AudioDelay': 'Audio delay (lip sync)',
+  'AudioDelayLeftRear': 'Surround distance L',
+  'AudioDelayRightRear': 'Surround distance R',
+  'HeightChannelLevel': 'Height level',
+};
+
+/// EQType tokens whose value is a boolean toggle (0/1) — shown as On/Off. Every
+/// other token is a numeric level shown as-is.
+const _eqBoolTokens = {
+  'NightMode',
+  'SubEnable',
+  'SurroundEnable',
+  'SubPolarity',
+};
+
 /// A snapshot of one speaker's audio settings, read from the `RenderingControl`
 /// service. Every field is nullable / possibly absent: it means "not captured"
 /// (the profile toggle was off) OR "this speaker doesn't support it" (e.g. a
@@ -72,6 +100,35 @@ class SpeakerSettings {
   bool get hasVolume => volume != null || mute != null;
 
   bool get isEmpty => !hasAudioSettings && !hasVolume;
+
+  /// Human-readable (label, value) rows for read-only display of what this
+  /// snapshot captured, in a stable order. Bass/treble/loudness first, then the
+  /// EQ tokens in [eqTypes] order, then volume/mute.
+  ///
+  /// ponytail: per-token value semantics are approximate — bass/treble/gains are
+  /// signed levels, a few tokens are 0/1 toggles ([_eqBoolTokens]), the rest are
+  /// shown as raw ints. This is display-only; captured values are written back
+  /// verbatim, never derived from these labels.
+  List<({String label, String value})> describe() {
+    String signed(int v) => v > 0 ? '+$v' : '$v';
+    String onOff(bool b) => b ? 'On' : 'Off';
+    final rows = <({String label, String value})>[
+      if (bass != null) (label: 'Bass', value: signed(bass!)),
+      if (treble != null) (label: 'Treble', value: signed(treble!)),
+      if (loudness != null) (label: 'Loudness', value: onOff(loudness!)),
+    ];
+    for (final token in eqTypes) {
+      final v = eq[token];
+      if (v == null) continue;
+      rows.add((
+        label: _eqLabels[token] ?? token,
+        value: _eqBoolTokens.contains(token) ? onOff(v != 0) : '$v',
+      ));
+    }
+    if (volume != null) rows.add((label: 'Volume', value: '$volume%'));
+    if (mute != null) rows.add((label: 'Muted', value: onOff(mute!)));
+    return rows;
+  }
 
   /// Serializes only the non-null/non-empty fields, so an EQ-only capture
   /// doesn't store bogus volume keys and old profiles round-trip cleanly.

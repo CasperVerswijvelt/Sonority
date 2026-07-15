@@ -10,7 +10,7 @@ import '../widgets/bonding_progress_screen.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/destructive_button.dart';
-import '../widgets/pill_chip.dart';
+import '../widgets/member_channel_card.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
 
@@ -55,7 +55,7 @@ class GroupDetailScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(20),
               children: [
                 for (final e in group.groupChannels.entries) ...[
-                  _MemberCard(
+                  MemberChannelCard(
                     icon: Icons.speaker,
                     type: system.device(e.key)?.typeLabel ?? 'Speaker',
                     channel: groupChannelShort(e.value),
@@ -63,7 +63,7 @@ class GroupDetailScreen extends ConsumerWidget {
                   Gap.s,
                 ],
                 if (group.subUuid != null) ...[
-                  _MemberCard(
+                  MemberChannelCard(
                     icon: Icons.graphic_eq,
                     type: system.device(group.subUuid!)?.typeLabel ?? 'Sub',
                     channel: 'Sub',
@@ -115,47 +115,5 @@ class GroupDetailScreen extends ConsumerWidget {
     );
     // The group is gone now — return to the overview.
     if (outcome == BondingOutcome.success && context.mounted) context.pop();
-  }
-}
-
-/// One speaker in the group: an icon, the speaker type as the title (the room
-/// name is absorbed into the group name, so the type is the useful label), and
-/// its channel as a pill chip beneath.
-class _MemberCard extends StatelessWidget {
-  final IconData icon;
-  final String type;
-  final String channel;
-  const _MemberCard(
-      {required this.icon, required this.type, required this.channel});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: scheme.primaryContainer,
-              child: Icon(icon, color: scheme.onPrimaryContainer),
-            ),
-            Gap.m,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(type, style: theme.textTheme.titleMedium),
-                  Gap.s,
-                  PillChip(icon: icon, text: channel, color: scheme.primary),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
