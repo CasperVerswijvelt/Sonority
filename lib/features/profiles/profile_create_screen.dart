@@ -6,7 +6,6 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
-import '../widgets/confirm_dialog.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_ui.dart';
@@ -14,11 +13,11 @@ import 'profile_ui.dart';
 /// Captures a profile from a live snapshot: pick which of the current entities
 /// (home theaters / stereo pairs / rooms) to include, name it, save.
 ///
-/// Two modes: when [profileId] is null this creates a new profile; when set it
-/// **re-snapshots** an existing one — overwriting its captured layout with the
-/// current setup, keeping the same profile (id). Re-snapshot pre-fills the name,
-/// pre-selects the entities that were originally in the profile, and gates the
-/// save behind a confirm dialog since the old layout is lost.
+/// Two modes: when [profileId] is null this creates a new profile (name it +
+/// save). When set it **re-snapshots** an existing one: it drops the name/
+/// appearance editor, pre-selects the entities originally in the profile, and on
+/// confirm hands the recaptured entities back to the detail screen (via
+/// `Navigator.pop`) as an unsaved change — the detail screen's Save commits it.
 class ProfileCreateScreen extends ConsumerStatefulWidget {
   final String? profileId;
   const ProfileCreateScreen({super.key, this.profileId});
@@ -91,7 +90,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
 
     if (system == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(isResnapshot ? 'Update profile' : 'New profile')),
+        appBar: AppBar(title: Text(isResnapshot ? 'Re-snapshot' : 'New profile')),
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(32),
@@ -116,37 +115,98 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     final canSave = name.isNotEmpty && !taken && anyIncluded && !_saving;
 
     return AppScaffold(
-      title: isResnapshot ? 'Update profile' : 'New profile',
+      title: isResnapshot ? 'Re-snapshot' : 'New profile',
       bottomOverlay: _BottomButtonBar(
         label: _saving
             ? 'Reading settings…'
             : isResnapshot
-                ? 'Update profile'
+                ? 'Use snapshot'
                 : 'Create profile',
         onPressed: canSave ? () => _save(name, existing) : null,
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
-          if (existing != null) ...[
+          if (isResnapshot) ...[
+            // Non-destructive: nothing is written until the user saves on the
+            // profile screen, so this is a light note, not a warning.
             Card(
               margin: EdgeInsets.zero,
-              color: theme.colorScheme.errorContainer,
+              color: theme.colorScheme.surfaceContainerHighest,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.warning_amber_rounded,
-                        color: theme.colorScheme.onErrorContainer),
+                    Icon(Icons.info_outline,
+                        size: 20, color: theme.colorScheme.onSurfaceVariant),
                     Gap.s,
                     Expanded(
                       child: Text(
-                        'This replaces everything captured in '
-                        '“${existing.name}”. The previously saved layout '
-                        'will be lost.',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onErrorContainer,
+                        'Recapture your current setup, then review and save it '
+                        'on the profile screen.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Gap.l,
+          ] else
+            // Name + appearance are edited on the profile screen for an existing
+            // profile; only create-new needs them here.
+            Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Tap the swatch to pick the icon + colour (kept off the main
+                  // flow so the include list stays the focus of the page).
+                  AppearanceButton(
+                      iconId: _iconId, color: _color, onTap: _editAppearance),
+                  Gap.s,
+                  Expanded(
+                    child: TextField(
+                      controller: _name,
+                      onChanged: (_) => setState(() {}),
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        labelText: 'Profile name',
+                        border: const OutlineInputBorder(),
+                        errorText:
+                            taken ? 'A profile with this name exists' : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Only the create flow needs the "what applying does" primer; on
+          // re-snapshot the profile already exists and the detail screen owns
+          // the review.
+          if (!isResnapshot) ...[
+            Card(
+              margin: EdgeInsets.zero,
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 20, color: theme.colorScheme.onSurfaceVariant),
+                    Gap.s,
+                    Expanded(
+                      child: Text(
+                        'Applying a profile later rebuilds these speakers into this '
+                        'layout. Any speaker that’s part of a different setup at that '
+                        'time is removed from it first — which can dissolve another '
+                        'stereo pair or zone and free its other speakers.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -156,56 +216,6 @@ class _State extends ConsumerState<ProfileCreateScreen> {
             ),
             Gap.l,
           ],
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Tap the swatch to pick the icon + colour (kept off the main flow
-              // so the include list stays the focus of the page).
-              AppearanceButton(
-                  iconId: _iconId, color: _color, onTap: _editAppearance),
-              Gap.s,
-              Expanded(
-                child: TextField(
-                  controller: _name,
-                  onChanged: (_) => setState(() {}),
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    labelText: 'Profile name',
-                    border: const OutlineInputBorder(),
-                    errorText: taken ? 'A profile with this name exists' : null,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Gap.l,
-          Card(
-            margin: EdgeInsets.zero,
-            color: theme.colorScheme.surfaceContainerHighest,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.info_outline,
-                      size: 20, color: theme.colorScheme.onSurfaceVariant),
-                  Gap.s,
-                  Expanded(
-                    child: Text(
-                      'Applying a profile later rebuilds these speakers into this '
-                      'layout. Any speaker that’s part of a different setup at that '
-                      'time is removed from it first — which can dissolve another '
-                      'stereo pair or zone and free its other speakers.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Gap.l,
           Text('Include', style: theme.textTheme.titleSmall),
           Text(
             'Pick which of your current home theaters, pairs and '
@@ -281,23 +291,8 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     final router = GoRouter.of(context);
     final notifier = ref.read(profilesProvider.notifier);
 
-    if (existing != null) {
-      // Re-snapshot: gate the overwrite behind an explicit confirm before we
-      // do the (potentially slow) settings read. Not destructive-tinted — it
-      // replaces saved data, not the live speakers.
-      final ok = await confirmDialog(
-        context,
-        title: 'Replace “${existing.name}”?',
-        message: 'The previously captured layout will be permanently replaced '
-            'with your current setup.',
-        confirmLabel: 'Replace',
-        destructive: false,
-      );
-      if (!ok) return;
-    }
-
     // Reading settings is several SOAP calls per speaker — show progress and
-    // enrich the snapshots before saving.
+    // enrich the snapshots before returning/saving them.
     if (_saveAudio || _saveVolume) {
       setState(() => _saving = true);
       try {
@@ -308,16 +303,18 @@ class _State extends ConsumerState<ProfileCreateScreen> {
         if (mounted) setState(() => _saving = false);
       }
     }
+    if (!mounted) return;
 
     if (existing != null) {
-      await notifier.replace(existing.copyWith(
-          name: name, entities: chosen, iconId: _iconId, color: _color));
+      // Re-snapshot: hand the recaptured entities back to the profile screen as
+      // an unsaved change — it commits them on Save, no overwrite here.
+      router.pop(chosen);
     } else {
       final id = DateTime.now().microsecondsSinceEpoch.toString();
       await notifier.add(Profile(
           id: id, name: name, entities: chosen, iconId: _iconId, color: _color));
+      router.go('/profiles');
     }
-    router.go('/profiles');
   }
 }
 

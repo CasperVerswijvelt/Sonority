@@ -104,17 +104,11 @@ class EntitySnapshot {
         settings: settings ?? this.settings,
       );
 
-  /// A short label for the UI describing what settings are captured, or `''`
-  /// when none — appended to [entitySummary] on the tiles.
-  String get settingsSummary {
-    final vals = settings.values;
-    final audio = vals.any((s) => s.hasAudioSettings);
-    final vol = vals.any((s) => s.hasVolume);
-    if (audio && vol) return 'Audio settings + volume saved';
-    if (audio) return 'Audio settings saved';
-    if (vol) return 'Volume saved';
-    return '';
-  }
+  /// Whether this entity captured any audio settings / volume — drive the
+  /// per-entity chips on the detail screen (mirrors [Profile]'s aggregates).
+  bool get hasAudioSettings =>
+      settings.values.any((s) => s.hasAudioSettings);
+  bool get hasVolume => settings.values.any((s) => s.hasVolume);
 
   Map<String, dynamic> toJson() => {
         'kind': kind.name,
@@ -161,11 +155,8 @@ class Profile {
   });
 
   /// Aggregated across entities — drive the badges on the profile tile.
-  bool get hasAudioSettings =>
-      entities.any((e) => e.settings.values.any((s) => s.hasAudioSettings));
-
-  bool get hasVolume =>
-      entities.any((e) => e.settings.values.any((s) => s.hasVolume));
+  bool get hasAudioSettings => entities.any((e) => e.hasAudioSettings);
+  bool get hasVolume => entities.any((e) => e.hasVolume);
 
   Profile copyWith({
     String? name,
