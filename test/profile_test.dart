@@ -89,7 +89,8 @@ void main() {
     expect(s.loudness, isTrue);
     expect(s.volume, 25);
     expect(s.eq, {'NightMode': 1, 'AudioDelay': 2});
-    expect(back.entities.first.settingsSummary, 'Audio settings + volume saved');
+    expect(back.entities.first.hasAudioSettings, isTrue);
+    expect(back.entities.first.hasVolume, isTrue);
     expect(back.hasAudioSettings, isTrue);
     expect(back.hasVolume, isTrue);
   });
@@ -109,17 +110,19 @@ void main() {
     };
     final back = Profile.fromJson(legacy);
     expect(back.entities.first.settings, isEmpty);
-    expect(back.entities.first.settingsSummary, '');
+    expect(back.entities.first.hasAudioSettings, isFalse);
+    expect(back.entities.first.hasVolume, isFalse);
     // Omitted from JSON when empty.
     expect(back.entities.first.toJson().containsKey('settings'), isFalse);
   });
 
-  test('settingsSummary reflects audio-only vs volume-only', () {
+  test('hasAudioSettings / hasVolume reflect audio-only vs volume-only', () {
     final base = EntitySnapshot.fromMember(ZoneGroupMember(uuid: fl, zoneName: 'x'));
-    expect(base.copyWith(settings: {fl: const SpeakerSettings(bass: 1)}).settingsSummary,
-        'Audio settings saved');
-    expect(
-        base.copyWith(settings: {fl: const SpeakerSettings(volume: 10)}).settingsSummary,
-        'Volume saved');
+    final audio = base.copyWith(settings: {fl: const SpeakerSettings(bass: 1)});
+    expect(audio.hasAudioSettings, isTrue);
+    expect(audio.hasVolume, isFalse);
+    final vol = base.copyWith(settings: {fl: const SpeakerSettings(volume: 10)});
+    expect(vol.hasAudioSettings, isFalse);
+    expect(vol.hasVolume, isTrue);
   });
 }

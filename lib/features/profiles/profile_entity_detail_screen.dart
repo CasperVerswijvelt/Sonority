@@ -72,8 +72,7 @@ class ProfileEntityDetailScreen extends ConsumerWidget {
         ];
 
       case EntityKind.homeTheater:
-        final m = ZoneGroupMember(
-            uuid: e.primaryUuid, zoneName: '', htSatChanMapSet: e.mapSet);
+        final m = e.toMember();
         return [
           SpeakerDiagram(
             soundbarLabel: typeOf(e.primaryUuid),
@@ -94,8 +93,7 @@ class ProfileEntityDetailScreen extends ConsumerWidget {
       case EntityKind.stereoPair:
       case EntityKind.zone:
       case EntityKind.custom:
-        final m = ZoneGroupMember(
-            uuid: e.primaryUuid, zoneName: '', channelMapSet: e.mapSet);
+        final m = e.toMember();
         return [
           for (final entry in m.groupChannels.entries) ...[
             MemberChannelCard(
@@ -159,15 +157,13 @@ class ProfileEntityDetailScreen extends ConsumerWidget {
       case EntityKind.stereoPair:
       case EntityKind.zone:
       case EntityKind.custom:
-        final m = ZoneGroupMember(
-            uuid: e.primaryUuid, zoneName: '', channelMapSet: e.mapSet);
+        final m = e.toMember();
         if (uuid == m.subUuid) return 'Sub';
         final ch = m.groupChannels[uuid];
         return ch == null ? null : groupChannelShort(ch);
       case EntityKind.homeTheater:
         if (uuid == e.primaryUuid) return 'Soundbar';
-        final m = ZoneGroupMember(
-            uuid: e.primaryUuid, zoneName: '', htSatChanMapSet: e.mapSet);
+        final m = e.toMember();
         final channels = m.channelAssignments.entries
             .where((a) => a.value == uuid)
             .map((a) => a.key)

@@ -120,18 +120,6 @@ class EntitySnapshot {
         channelMapSet: kind == EntityKind.homeTheater ? null : mapSet,
       );
 
-  /// A short label for the UI describing what settings are captured, or `''`
-  /// when none — appended to [entitySummary] on the tiles.
-  String get settingsSummary {
-    final vals = settings.values;
-    final audio = vals.any((s) => s.hasAudioSettings);
-    final vol = vals.any((s) => s.hasVolume);
-    if (audio && vol) return 'Audio settings + volume saved';
-    if (audio) return 'Audio settings saved';
-    if (vol) return 'Volume saved';
-    return '';
-  }
-
   Map<String, dynamic> toJson() => {
         'kind': kind.name,
         'primaryUuid': primaryUuid,

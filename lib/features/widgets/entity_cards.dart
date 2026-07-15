@@ -116,7 +116,11 @@ class SingleCardModel {
           SonosSystem? system, ZoneGroupMember member) =>
       SingleCardModel(
         title: member.zoneName,
-        typeLabel: system?.device(member.uuid)?.typeLabel ?? '',
+        // The device may not be on the LAN (a profile snapshots a config that
+        // isn't necessarily live), so fall back to a generic label rather than
+        // an empty subtitle.
+        typeLabel:
+            system?.device(member.uuid)?.typeLabel ?? 'Standalone speaker',
         reachable: true,
       );
 }

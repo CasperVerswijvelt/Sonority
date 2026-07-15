@@ -72,6 +72,12 @@ void main() {
       expect(SingleCardModel.fromSnapshot(null, member).reachable, isTrue);
     });
 
+    test('fromSnapshot falls back to a label when the device is not on the LAN',
+        () {
+      expect(SingleCardModel.fromSnapshot(null, member).typeLabel,
+          'Standalone speaker');
+    });
+
     test('fromMember honours the live device reachability', () {
       expect(
           SingleCardModel.fromMember(unreachableSystem, member).reachable, isFalse);
