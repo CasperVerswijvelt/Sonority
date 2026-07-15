@@ -155,11 +155,8 @@ class Profile {
   });
 
   /// Aggregated across entities — drive the badges on the profile tile.
-  bool get hasAudioSettings =>
-      entities.any((e) => e.settings.values.any((s) => s.hasAudioSettings));
-
-  bool get hasVolume =>
-      entities.any((e) => e.settings.values.any((s) => s.hasVolume));
+  bool get hasAudioSettings => entities.any((e) => e.hasAudioSettings);
+  bool get hasVolume => entities.any((e) => e.hasVolume);
 
   Profile copyWith({
     String? name,
