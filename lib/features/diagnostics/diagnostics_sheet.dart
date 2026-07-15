@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -154,11 +156,13 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
       title: 'Diagnostics',
       body: system == null
           ? const Center(child: Text('No system discovered yet.'))
-          : Scrollbar(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+          : SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                width: double.infinity,
                 child: SelectableText(
                   topologyText(system),
+                  selectionWidthStyle: ui.BoxWidthStyle.tight,
                   style: const TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 11,
