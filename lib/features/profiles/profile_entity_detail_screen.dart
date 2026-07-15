@@ -9,7 +9,6 @@ import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/member_channel_card.dart';
-import '../widgets/speaker_diagram.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
 
@@ -72,23 +71,7 @@ class ProfileEntityDetailScreen extends ConsumerWidget {
         ];
 
       case EntityKind.homeTheater:
-        final m = e.toMember();
-        return [
-          SpeakerDiagram(
-            soundbarLabel: typeOf(e.primaryUuid),
-            frontLeftLabel: typeForChannel(
-                system, m, SonosChannel.leftFront,
-                names: e.names),
-            frontRightLabel: typeForChannel(
-                system, m, SonosChannel.rightFront,
-                names: e.names),
-            rearLeftLabel: typeForChannel(system, m, SonosChannel.leftRear,
-                names: e.names),
-            rearRightLabel: typeForChannel(system, m, SonosChannel.rightRear,
-                names: e.names),
-            subCount: m.subUuids.length,
-          ),
-        ];
+        return [htDiagramForMember(system, e.toMember(), names: e.names)];
 
       case EntityKind.stereoPair:
       case EntityKind.zone:

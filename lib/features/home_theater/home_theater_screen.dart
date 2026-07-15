@@ -14,7 +14,6 @@ import '../widgets/destructive_button.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
-import '../widgets/speaker_diagram.dart';
 import '../widgets/trueplay_control.dart';
 
 /// Shows one home theater's current layout and the add/remove-fronts actions.
@@ -204,26 +203,7 @@ class _Content extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        SpeakerDiagram(
-          soundbarLabel: device.typeLabel,
-          frontLeftLabel: typeForChannel(
-            system,
-            member,
-            SonosChannel.leftFront,
-          ),
-          frontRightLabel: typeForChannel(
-            system,
-            member,
-            SonosChannel.rightFront,
-          ),
-          rearLeftLabel: typeForChannel(system, member, SonosChannel.leftRear),
-          rearRightLabel: typeForChannel(
-            system,
-            member,
-            SonosChannel.rightRear,
-          ),
-          subCount: member.subUuids.length,
-        ),
+        htDiagramForMember(system, member),
         Gap.l,
         FilledButton.icon(
           onPressed: onConfigure,
