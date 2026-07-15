@@ -83,7 +83,7 @@ Future<void> showVersionSheet(BuildContext context, PackageInfo info) {
           final md = snap.data;
           if (md == null) return const SizedBox.shrink();
           return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _ChangelogView(parseChangelog(md)),
           );
         },
@@ -91,7 +91,7 @@ Future<void> showVersionSheet(BuildContext context, PackageInfo info) {
       footer: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
           child: SizedBox(
             width: double.infinity,
             child: FilledButton.tonalIcon(

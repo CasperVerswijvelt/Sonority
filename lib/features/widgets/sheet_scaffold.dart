@@ -46,7 +46,7 @@ class SheetScaffold extends StatelessWidget {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Row(
               children: [
                 if (icon != null) ...[

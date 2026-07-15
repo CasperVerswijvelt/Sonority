@@ -156,7 +156,7 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
           ? const Center(child: Text('No system discovered yet.'))
           : Scrollbar(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: SelectableText(
                   topologyText(system),
                   style: const TextStyle(
@@ -192,7 +192,7 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
             dense: true,
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
             child: Text(
               'Always included: topology (room names, IPs, MACs, models), raw '
               'device descriptions, and your saved profiles/room names.',
@@ -204,7 +204,7 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
               child: Row(
                 children: [
                   Expanded(
