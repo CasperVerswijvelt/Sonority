@@ -132,7 +132,7 @@ class _State extends ConsumerState<ProfileDetailScreen> {
                   : theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          Gap.s,
+          Gap.m,
           for (final e in entities) ...[
             Card(
               margin: EdgeInsets.zero,
