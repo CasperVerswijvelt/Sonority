@@ -156,25 +156,24 @@ String topologyText(SonosSystem system) {
     final g = system.groups[gi];
     b.writeln('\nGroup ${gi + 1}  (coordinator ${g.coordinatorUuid})');
     for (final m in g.members) {
-      final d = system.devicesByUuid[m.uuid];
       b.writeln(
         '  ${m.invisible ? '○' : '●'} ${m.zoneName}'
         '${m.invisible ? '  [hidden]' : ''}',
       );
       b.writeln('      uuid: ${m.uuid}');
-      if (d != null) b.writeln('      ${_deviceLine(d)}');
-      if (m.htSatChanMapSet?.isNotEmpty ?? false) {
-        b.writeln('      HTSatChanMapSet: ${m.htSatChanMapSet}');
+      final d = system.devicesByUuid[m.uuid];
+      if (d != null) {
+        for (final line in _deviceLines(d)) {
+          b.writeln('      $line');
+        }
       }
-      if (m.channelMapSet?.isNotEmpty ?? false) {
-        b.writeln(
-          '      ChannelMapSet: ${m.channelMapSet}  (${m.groupKind.name})',
-        );
-      }
+      _writeMap(b, 'HTSatChanMapSet', m.htSatChanMapSet);
+      _writeMap(b, 'ChannelMapSet', m.channelMapSet,
+          note: m.isGroup ? m.groupKind.name : null);
       for (final s in m.satellites) {
         b.writeln(
-          '      └ satellite ${s.zoneName}  ${s.uuid}  '
-          '[${s.channels.map((c) => c.token).join(',')}]  ip ${s.ip ?? '?'}',
+          '      └ [${s.channels.map((c) => c.token).join(',')}] ${s.uuid}'
+          ' · ${s.ip ?? '?'}',
         );
       }
     }
@@ -195,18 +194,37 @@ String topologyText(SonosSystem system) {
   if (orphans.isNotEmpty) {
     b.writeln('\nDevices not in topology groups:');
     for (final d in orphans) {
-      b.writeln('  - ${d.roomName}  ${d.uuid}\n      ${_deviceLine(d)}');
+      b.writeln('  - ${d.roomName}  ${d.uuid}');
+      for (final line in _deviceLines(d)) {
+        b.writeln('      $line');
+      }
     }
   }
   return b.toString();
 }
 
-String _deviceLine(SonosDevice d) {
+/// Per-device detail split across short lines (kept narrow so the on-screen
+/// monospace view doesn't wrap mid-token).
+List<String> _deviceLines(SonosDevice d) {
   final model =
       '${d.modelName}${d.modelNumber != null ? ' [${d.modelNumber}]' : ''}';
-  return 'model: $model   ip: ${d.ip ?? '?'}   mac: ${d.mac ?? '?'}   '
-      'serial: ${d.serial ?? '?'}   sw: ${d.softwareVersion ?? '?'}   '
-      'hw: ${d.hardwareVersion ?? '?'}${d.reachable ? '' : '   (UNREACHABLE)'}';
+  return [
+    '$model${d.reachable ? '' : '   (UNREACHABLE)'}',
+    'ip ${d.ip ?? '?'}   mac ${d.mac ?? '?'}',
+    'serial ${d.serial ?? '?'}',
+    'sw ${d.softwareVersion ?? '?'}   hw ${d.hardwareVersion ?? '?'}',
+  ];
+}
+
+/// Writes a channel-map set one `UUID:tokens` entry per line — far more legible
+/// than the raw single-line `;`-joined blob.
+void _writeMap(StringBuffer b, String label, String? map, {String? note}) {
+  if (map == null || map.isEmpty) return;
+  b.writeln('      $label:${note != null ? '  ($note)' : ''}');
+  for (final entry in map.split(';')) {
+    if (entry.trim().isEmpty) continue;
+    b.writeln('        $entry');
+  }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

@@ -68,7 +68,10 @@ void main() {
     expect(text, contains('[hidden]'));
     expect(text, contains('192.168.1.10'));
     expect(text, contains('AA:BB:CC:00:00:01'));
-    expect(text, contains('L:LF,LF;R:RF,RF'));
+    // The channel map is broken one entry per line (not the joined blob).
+    expect(text, contains('L:LF,LF'));
+    expect(text, contains('R:RF,RF'));
+    expect(text, isNot(contains('L:LF,LF;R:RF,RF')));
   });
 
   test('topologyText does not mislabel a bonded HT satellite as an orphan', () {
