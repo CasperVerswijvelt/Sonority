@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
+import '../diagnostics/diagnostics_sheet.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/entity_cards.dart';
 import '../widgets/version_badge.dart';
@@ -54,6 +55,11 @@ class DiscoveryScreen extends ConsumerWidget {
       onRefresh: state.value != null ? () => controller.scan() : null,
       actions: [
         const VersionBadge(),
+        IconButton(
+          tooltip: 'Diagnostics',
+          onPressed: () => showDiagnosticsSheet(context),
+          icon: const Icon(Icons.bug_report_outlined),
+        ),
         // Only when there's a discovered system to refresh; the error state
         // uses its own CTA button to scan.
         if (state.value != null)

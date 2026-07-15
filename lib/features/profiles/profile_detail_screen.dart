@@ -134,7 +134,7 @@ class _State extends ConsumerState<ProfileDetailScreen> {
                   : theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          Gap.s,
+          Gap.m,
           // Same cards as the system overview, fed a throwaway member built from
           // the stored snapshot, with a "settings saved" footer. Tapping opens
           // the entity detail — disabled while previewing an unsaved re-snapshot,

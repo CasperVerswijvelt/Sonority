@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
+
+import 'diagnostics_log.dart';
 
 /// Minimal SOAP client for the Sonos local UPnP API (port 1400).
 ///
@@ -26,19 +30,28 @@ class SonosSoapClient {
     final uri = Uri.parse('http://$ip:$port$controlPath');
     final body = buildEnvelope(serviceType: serviceType, action: action, args: args);
 
-    final res = await _http.post(
-      uri,
-      headers: {
-        'Content-Type': 'text/xml; charset="utf-8"',
-        'SOAPACTION': '"$serviceType#$action"',
-        // Sonos players are unreliable with HTTP keep-alive: a pooled socket the
-        // player has already closed makes the next request hang until timeout
-        // (very visible when firing many calls in a row, like the LED blink).
-        // Closing per request avoids reusing a dead connection.
-        'Connection': 'close',
-      },
-      body: body,
-    ).timeout(timeout);
+    final http.Response res;
+    try {
+      res = await _http.post(
+        uri,
+        headers: {
+          'Content-Type': 'text/xml; charset="utf-8"',
+          'SOAPACTION': '"$serviceType#$action"',
+          // Sonos players are unreliable with HTTP keep-alive: a pooled socket the
+          // player has already closed makes the next request hang until timeout
+          // (very visible when firing many calls in a row, like the LED blink).
+          // Closing per request avoids reusing a dead connection.
+          'Connection': 'close',
+        },
+        body: body,
+      ).timeout(timeout);
+    } on TimeoutException {
+      // Recorded for the diagnostics bundle: outside a bonding op these are just
+      // thrown and lost. (In a bonding op a timeout is expected/benign — the
+      // write still lands — but capturing it here is harmless.)
+      DiagnosticsLog.add('SOAP $action @ $ip timed out after ${timeout.inSeconds}s');
+      rethrow;
+    }
 
     if (res.statusCode != 200) {
       // A fault body is usually XML, but a truncated/empty/non-XML error body
@@ -46,7 +59,7 @@ class SonosSoapClient {
       final doc = _tryParse(res.body);
       final fault = doc?.findAllElements('faultstring');
       final code = doc?.findAllElements('errorCode');
-      throw SonosSoapException(
+      final ex = SonosSoapException(
         action,
         statusCode: res.statusCode,
         faultCode: (code == null || code.isEmpty) ? null : code.first.innerText,
@@ -54,11 +67,14 @@ class SonosSoapClient {
             ? res.reasonPhrase
             : fault.first.innerText,
       );
+      DiagnosticsLog.add('SOAP fault @ $ip: $ex');
+      throw ex;
     }
 
     final doc = XmlDocument.parse(res.body);
     final bodies = doc.findAllElements('Body', namespace: '*');
     if (bodies.isEmpty) {
+      DiagnosticsLog.add('SOAP $action @ $ip: missing SOAP Body in response');
       throw SonosSoapException(action, faultString: 'Missing SOAP Body in response');
     }
     return bodies.first;

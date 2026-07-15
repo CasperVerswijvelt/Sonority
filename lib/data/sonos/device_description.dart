@@ -21,6 +21,19 @@ class DeviceDescriptionClient {
     return _parse(res.body, ip: uri.host);
   }
 
+  /// Returns the raw `device_description.xml` body verbatim — for the diagnostics
+  /// bundle, which wants the full document (capability flags, min-app-version
+  /// gates, household id, …) that [_parse] deliberately ignores.
+  Future<String> fetchRaw(String locationUrl) async {
+    final res = await _http
+        .get(Uri.parse(locationUrl))
+        .timeout(const Duration(seconds: 5));
+    if (res.statusCode != 200) {
+      throw Exception('device_description.xml ${res.statusCode} from $locationUrl');
+    }
+    return res.body;
+  }
+
   SonosDevice _parse(String xml, {required String ip}) {
     final doc = XmlDocument.parse(xml);
     final device = doc.findAllElements('device').first;
@@ -39,6 +52,10 @@ class DeviceDescriptionClient {
       modelName: text('modelName') ?? 'Sonos',
       modelNumber: text('modelNumber'),
       ip: ip,
+      mac: text('MACAddress'),
+      serial: text('serialNum'),
+      softwareVersion: text('softwareVersion') ?? text('displayVersion'),
+      hardwareVersion: text('hardwareVersion'),
     );
   }
 }
