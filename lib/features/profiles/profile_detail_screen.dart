@@ -173,32 +173,19 @@ class _State extends ConsumerState<ProfileDetailScreen> {
   }
 }
 
-/// One entity, rendered with the same card the system overview uses for its
-/// kind, built from the stored snapshot (`fromSnapshot`) instead of live
-/// topology, with a "settings saved" footer and a tap to the entity detail.
-/// [tappable] is false while previewing an unsaved re-snapshot (the detail route
-/// reads the stored profile, which doesn't yet have the pending entities).
+/// One entity as a compact tile (every kind — the profile list is uniform,
+/// unlike the overview's rich HT card), built from the stored snapshot with a
+/// "settings saved" footer and a tap to the entity detail. [tappable] is false
+/// while previewing an unsaved re-snapshot (the detail route reads the stored
+/// profile, which doesn't yet have the pending entities).
 Widget _entityCard(BuildContext context, Profile profile, int index,
     EntitySnapshot e, SonosSystem? system, {required bool tappable}) {
   final onTap = tappable
       ? () => context.go('/profiles/edit/${profile.id}/entity/$index')
       : null;
-  final footer =
-      settingsBadges(audio: e.hasAudioSettings, volume: e.hasVolume);
-  final member = e.toMember();
-  return switch (e.kind) {
-    EntityKind.homeTheater => TheaterEntityCard(
-        model: TheaterCardModel.fromSnapshot(system, member),
-        onTap: onTap,
-        footer: footer),
-    EntityKind.single => SingleEntityCard(
-        model: SingleCardModel.fromSnapshot(system, member),
-        onTap: onTap,
-        footer: footer),
-    EntityKind.stereoPair || EntityKind.zone || EntityKind.custom =>
-      GroupEntityCard(
-          model: GroupCardModel.fromSnapshot(system, member),
-          onTap: onTap,
-          footer: footer),
-  };
+  return EntityCard(
+    model: EntityCardModel.fromSnapshot(system, e.toMember()),
+    onTap: onTap,
+    footer: settingsBadges(audio: e.hasAudioSettings, volume: e.hasVolume),
+  );
 }

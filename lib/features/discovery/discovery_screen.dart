@@ -138,16 +138,16 @@ class _SystemView extends ConsumerWidget {
           if (groups.isEmpty)
             const _EmptySectionCard('No speaker groups yet')
           else
-            ...groups.map((m) => GroupEntityCard(
-                  model: GroupCardModel.fromMember(system, m),
+            ...groups.map((m) => EntityCard(
+                  model: EntityCardModel.fromMember(system, m),
                   onTap: () => context.push('/group/${m.uuid}'),
                 )),
           // Single speaker rooms — hidden entirely when there are none.
           if (singleRooms.isNotEmpty) ...[
             Gap.l,
             _SectionHeader('Single speaker rooms', Icons.meeting_room_outlined),
-            ...singleRooms.map((m) => SingleEntityCard(
-                  model: SingleCardModel.fromMember(system, m),
+            ...singleRooms.map((m) => EntityCard(
+                  model: EntityCardModel.fromMember(system, m),
                   onTap: () => context.push('/room/${m.uuid}'),
                 )),
           ],

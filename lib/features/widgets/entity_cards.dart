@@ -55,74 +55,76 @@ class TheaterCardModel {
       );
 }
 
-/// A bonded speaker group (stereo pair / zone / custom).
-class GroupCardModel {
-  final String title;
+/// A compact tile for any entity kind — used by the overview (groups & singles)
+/// and by the profile detail (all kinds, including a compact home theater). The
+/// rich avatar HT card ([TheaterEntityCard]) is separate and overview-only, so
+/// its composition still renders as chips there; here a home theater's
+/// composition is a text subtitle instead.
+class EntityCardModel {
   final IconData icon;
+  final String title;
   final String subtitle;
 
-  const GroupCardModel(
-      {required this.title, required this.icon, required this.subtitle});
-
-  factory GroupCardModel.fromMember(
-          SonosSystem system, ZoneGroupMember member) =>
-      _build(system, member);
-  factory GroupCardModel.fromSnapshot(
-          SonosSystem? system, ZoneGroupMember member) =>
-      _build(system, member);
-
-  static GroupCardModel _build(SonosSystem? system, ZoneGroupMember m) {
-    final memberUuids = m.groupChannels.keys.toList();
-    final types = memberUuids
-        .map((u) => system?.device(u)?.typeLabel)
-        .whereType<String>()
-        .toList();
-    return GroupCardModel(
-      title: m.zoneName,
-      icon: groupKindIcon(m.groupKind),
-      subtitle: [
-        groupKindLabel(m.groupKind),
-        '${memberUuids.length} speakers',
-        if (types.isNotEmpty) types.join(', '),
-        if (m.subUuid != null) 'Sub',
-      ].join(' · '),
-    );
-  }
-}
-
-/// A single standalone speaker room.
-class SingleCardModel {
-  final String title;
-  final String typeLabel;
-
-  /// Whether the speaker is currently usable. Always true for a snapshot (a
-  /// stored profile entity is always openable regardless of live reachability).
+  /// Whether the speaker is currently usable — only a live single can be false;
+  /// snapshots and HT/group tiles are always openable.
   final bool reachable;
 
-  const SingleCardModel(
-      {required this.title, required this.typeLabel, required this.reachable});
+  const EntityCardModel({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.reachable = true,
+  });
 
-  factory SingleCardModel.fromMember(
-      SonosSystem system, ZoneGroupMember member) {
-    final d = system.device(member.uuid);
-    return SingleCardModel(
-      title: member.zoneName,
-      typeLabel: d?.typeLabel ?? '',
-      reachable: d == null || d.reachable,
-    );
+  factory EntityCardModel.fromMember(SonosSystem system, ZoneGroupMember m) {
+    final d = system.device(m.uuid);
+    return _build(system, m, reachable: d == null || d.reachable);
   }
 
-  factory SingleCardModel.fromSnapshot(
-          SonosSystem? system, ZoneGroupMember member) =>
-      SingleCardModel(
-        title: member.zoneName,
-        // The device may not be on the LAN (a profile snapshots a config that
-        // isn't necessarily live), so fall back to a generic label rather than
-        // an empty subtitle.
-        typeLabel:
-            system?.device(member.uuid)?.typeLabel ?? 'Standalone speaker',
-        reachable: true,
+  factory EntityCardModel.fromSnapshot(SonosSystem? system, ZoneGroupMember m) =>
+      _build(system, m, reachable: true);
+
+  static EntityCardModel _build(SonosSystem? system, ZoneGroupMember m,
+      {required bool reachable}) {
+    if (m.isHomeTheater) {
+      final type = system?.device(m.uuid)?.typeLabel ?? 'Soundbar';
+      final features = [
+        if (hasChannel(m, SonosChannel.leftFront) ||
+            hasChannel(m, SonosChannel.rightFront))
+          'Fronts',
+        if (hasChannel(m, SonosChannel.leftRear) ||
+            hasChannel(m, SonosChannel.rightRear))
+          'Surrounds',
+        if (hasChannel(m, SonosChannel.sub)) 'Subwoofer',
+      ];
+      return EntityCardModel(
+        icon: Icons.surround_sound,
+        title: m.zoneName,
+        subtitle: [type, ...features].join(' · '),
       );
+    }
+    if (m.isGroup) {
+      return EntityCardModel(
+        icon: groupKindIcon(m.groupKind),
+        title: m.zoneName,
+        // No per-speaker type list — tap through for speaker details.
+        subtitle: [
+          groupKindLabel(m.groupKind),
+          '${m.groupChannels.length} speakers',
+          if (m.subUuid != null) 'Sub',
+        ].join(' · '),
+      );
+    }
+    return EntityCardModel(
+      icon: Icons.speaker_outlined,
+      title: m.zoneName,
+      // The device may not be on the LAN (a profile snapshots a config that
+      // isn't necessarily live), so fall back to a generic label rather than an
+      // empty subtitle.
+      subtitle: system?.device(m.uuid)?.typeLabel ?? 'Standalone speaker',
+      reachable: reachable,
+    );
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -194,53 +196,29 @@ class TheaterEntityCard extends StatelessWidget {
   }
 }
 
-/// A bonded speaker group (stereo pair / zone / custom): kind + members + Sub.
-class GroupEntityCard extends StatelessWidget {
-  final GroupCardModel model;
+/// A compact tile for any [EntityCardModel] — the overview's group/single cards
+/// and every profile detail tile. [footer] (e.g. saved-settings chips) stacks
+/// under the subtitle; [onTap] adds a chevron. An unreachable single is flagged
+/// and made non-tappable regardless of the passed [onTap].
+class EntityCard extends StatelessWidget {
+  final EntityCardModel model;
   final VoidCallback? onTap;
   final Widget? footer;
-  const GroupEntityCard(
-      {super.key, required this.model, this.onTap, this.footer});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        titleAlignment: ListTileTitleAlignment.center,
-        onTap: onTap,
-        leading: Icon(model.icon),
-        title: Text(model.title),
-        subtitle: _subtitle(Text(model.subtitle), footer),
-        isThreeLine: footer != null,
-        trailing: onTap == null ? null : const Icon(Icons.chevron_right),
-      ),
-    );
-  }
-}
-
-/// A single standalone speaker room. Unreachable speakers are flagged and made
-/// non-tappable regardless of the passed [onTap].
-class SingleEntityCard extends StatelessWidget {
-  final SingleCardModel model;
-  final VoidCallback? onTap;
-  final Widget? footer;
-  const SingleEntityCard(
-      {super.key, required this.model, this.onTap, this.footer});
+  const EntityCard({super.key, required this.model, this.onTap, this.footer});
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final unreachable = !model.reachable;
     final tap = unreachable ? null : onTap;
-    final text = unreachable ? unreachableSpeakerHint : model.typeLabel;
+    final text = unreachable ? unreachableSpeakerHint : model.subtitle;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         titleAlignment: ListTileTitleAlignment.center,
         onTap: tap,
         leading: Icon(
-          unreachable ? Icons.warning_amber_rounded : Icons.speaker_outlined,
+          unreachable ? Icons.warning_amber_rounded : model.icon,
           color: unreachable ? scheme.error : null,
         ),
         title: Text(model.title),
