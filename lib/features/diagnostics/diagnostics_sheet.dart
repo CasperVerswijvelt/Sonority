@@ -183,6 +183,9 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
               'SOAP faults, bond retries, discovery, errors (logs.txt)',
             ),
             dense: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero,
+            ),
           ),
           SwitchListTile(
             value: _includeNetwork,
@@ -194,6 +197,9 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
               "This device's network interface addresses (network.txt)",
             ),
             dense: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero,
+            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
