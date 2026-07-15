@@ -5,11 +5,13 @@ import 'package:sonority/features/widgets/entity_cards.dart';
 
 void main() {
   // The rich HT card (overview only) keeps its composition chips.
-  group('TheaterCardModel.fromSnapshot', () {
-    test('reads chip presence from the HT map; soundbar falls back sans system',
+  group('TheaterCardModel.fromMember', () {
+    final emptySystem = const SonosSystem(groups: [], devicesByUuid: {});
+
+    test('reads chip presence from the HT map; soundbar falls back sans device',
         () {
-      final model = TheaterCardModel.fromSnapshot(
-        null,
+      final model = TheaterCardModel.fromMember(
+        emptySystem,
         ZoneGroupMember(
           uuid: 'BAR',
           zoneName: 'Living Room',
@@ -24,8 +26,8 @@ void main() {
     });
 
     test('fronts-only HT has no surrounds/sub', () {
-      final model = TheaterCardModel.fromSnapshot(
-        null,
+      final model = TheaterCardModel.fromMember(
+        emptySystem,
         ZoneGroupMember(
             uuid: 'BAR', zoneName: 'LR', htSatChanMapSet: 'BAR:CC;L:LF;R:RF'),
       );

@@ -74,7 +74,6 @@ class HomeTheaterScreen extends ConsumerWidget {
           : _Content(
               system: system!,
               member: member,
-              device: device,
               bonded: bonded,
               onRemoveGroup: (channels, label) => _confirmRemoveGroup(
                 context,
@@ -164,7 +163,6 @@ const _htGroups = [
 class _Content extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember member;
-  final SonosDevice device;
   final List<SonosDevice> bonded;
   final void Function(Set<SonosChannel> channels, String label) onRemoveGroup;
   final VoidCallback onConfigure;
@@ -172,7 +170,6 @@ class _Content extends StatelessWidget {
   const _Content({
     required this.system,
     required this.member,
-    required this.device,
     required this.bonded,
     required this.onRemoveGroup,
     required this.onConfigure,

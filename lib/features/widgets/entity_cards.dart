@@ -36,17 +36,11 @@ class TheaterCardModel {
     required this.hasSub,
   });
 
-  factory TheaterCardModel.fromMember(
-          SonosSystem system, ZoneGroupMember member) =>
-      _build(system, member);
-  factory TheaterCardModel.fromSnapshot(
-          SonosSystem? system, ZoneGroupMember member) =>
-      _build(system, member);
-
-  static TheaterCardModel _build(SonosSystem? system, ZoneGroupMember m) =>
+  // Overview-only (the rich HT card), so a single live-member factory suffices.
+  factory TheaterCardModel.fromMember(SonosSystem system, ZoneGroupMember m) =>
       TheaterCardModel(
         title: m.zoneName,
-        soundbarLabel: system?.device(m.uuid)?.modelName ?? 'Soundbar',
+        soundbarLabel: system.device(m.uuid)?.modelName ?? 'Soundbar',
         hasFronts: hasChannel(m, SonosChannel.leftFront) ||
             hasChannel(m, SonosChannel.rightFront),
         hasSurrounds: hasChannel(m, SonosChannel.leftRear) ||
