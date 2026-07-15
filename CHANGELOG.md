@@ -11,6 +11,9 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Changed
+- iOS: carry the multicast entitlement so on-device SSDP discovery works over multicast (the unicast subnet sweep is kept as a fallback).
+
 ## [0.5.1] - 2026-07-15
 
 ### Changed

@@ -34,6 +34,28 @@ Open `ios/Runner.xcworkspace` and `macos/Runner.xcworkspace`:
 3. `ITSAppUsesNonExemptEncryption=false` is already in both `Info.plist`s, so
    uploads won't prompt for export compliance.
 
+### 2b. Multicast entitlement (iOS discovery)
+
+SSDP discovery multicasts `M-SEARCH` to `239.255.255.250:1900`; on physical
+iPhones that send is silently dropped unless the app carries the **restricted**
+`com.apple.developer.networking.multicast` entitlement. (A unicast /24 sweep in
+`ssdp_discovery_io.dart` is kept as a fallback regardless. macOS needs nothing —
+the capability isn't applicable there.)
+
+- ✅ **Done:** entitlement **requested** from Apple (developer.apple.com →
+  "Multicast Networking Entitlement Request", discovery `239.255.255.250:1900`);
+  the key is in `ios/Runner/Runner.entitlements`.
+- ⏳ **After Apple grants it:**
+  1. Identifiers → `be.casperverswijvelt.sonority` → enable **Multicast
+     Networking** → Save. (Main app only — **not** the `…ProfileWidget` App ID.)
+  2. Regenerate the shared profile so it carries the entitlement:
+     `bundle exec fastlane ios certificates`. Otherwise CI's readonly `match`
+     pulls a stale profile and signing/upload fails.
+  3. Only then merge / cut a signed build. **A signed iOS build before the grant
+     fails signing** ("provisioning profile doesn't include the … multicast
+     entitlement") — local `Archive` / `fastlane ios beta` and the CI
+     `ios-testflight` lane; the `ios-unsigned` job is unaffected.
+
 ### 3. Create the app records
 
 App Store Connect → **Apps → +** → New App, for the bundle id
