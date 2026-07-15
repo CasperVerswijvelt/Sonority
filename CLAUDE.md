@@ -414,25 +414,25 @@ Run on the same Wi-Fi as the Sonos system:
 - Emulators/simulators usually can't reach the LAN's SSDP multicast (this Android
   AVD happens to). Use a **physical device** for real discovery.
 
-### Autonomous macOS UI testing (agents: verify UI work yourself)
-The macOS app IS the mobile layout (fixed 420-wide portrait window), so it's the
-proxy for iOS UI work — and unlike simulators it reaches the real LAN Sonos system.
-`tool/macos_ui.swift` screenshots and drives the window:
+### Autonomous Android UI testing (agents: verify UI work yourself)
+Android is the proxy for UI work here: `adb` drives + screenshots the device over
+USB/TCP, so it keeps working when the host Mac screen locks (which kills macOS
+`screencapture`/Screen Recording TCC — why we don't use the macOS window). Android is
+portrait-only too, and a physical Android device on the same Wi-Fi reaches the real
+LAN Sonos system.
 ```
-~/fvm/versions/3.44.6/bin/flutter build macos --debug
-open build/macos/Build/Products/Debug/Sonority.app   # wait ~5s for discovery
-swift tool/macos_ui.swift shot [out.png]   # capture window → /tmp/sonority.png
-swift tool/macos_ui.swift click <x> <y>    # window-relative POINTS (top-left origin,
-                                           #   incl. title bar); PNG is 2x Retina →
-                                           #   divide image px by 2
-swift tool/macos_ui.swift type <text> | key <return|tab|esc|...> | list
-pkill -x Sonority                          # quit (AppleScript quit gets cancelled)
+~/fvm/versions/3.44.6/bin/flutter install                 # build+install debug to the device
+adb shell monkey -p be.casperverswijvelt.sonority -c android.intent.category.LAUNCHER 1   # launch
+adb exec-out screencap -p > /tmp/sonority.png             # capture screen (1:1 pixels)
+adb shell input tap <x> <y>                               # tap — coords are screen PIXELS from the PNG
+adb shell input text 'Hello'                              # type (use %s for spaces)
+adb shell input keyevent KEYCODE_ENTER|KEYCODE_BACK|KEYCODE_TAB
+adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 ```
-- Read the PNG to see the UI; iterate build → launch → shot → click → shot.
-- Needs **Screen Recording + Accessibility** TCC for the host app — already granted
-  to Terminal (if claude runs under another host app, grant it there too).
-  `click`/`type` auto-activate the app first (NSRunningApplication.activate() is
-  ignored on macOS 14+; the script shells to AppleScript `activate`, which works).
+- Read the PNG to see the UI; iterate install → launch → shot → tap → shot. Coords are
+  raw device pixels straight off the PNG (no Retina halving).
+- Multiple devices connected → target one with `adb -s <serial>` (from `adb devices`).
+- Keep the screen awake during a session: `adb shell svc power stayon true`.
 - **Safety:** navigation + screenshots are fine autonomously; anything that fires a
   live Sonos write (apply/bond/separate/rename) still needs explicit user confirm —
   it's the user's real living-room system.
