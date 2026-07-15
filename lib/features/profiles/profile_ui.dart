@@ -245,20 +245,12 @@ class ProfileCard extends StatelessWidget {
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
-                    if (profile.hasAudioSettings || profile.hasVolume) ...[
+                    if (settingsBadges(
+                            audio: profile.hasAudioSettings,
+                            volume: profile.hasVolume)
+                        case final badges?) ...[
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          if (profile.hasAudioSettings)
-                            const _Badge(
-                                icon: Icons.tune, label: 'Audio settings'),
-                          if (profile.hasVolume)
-                            const _Badge(
-                                icon: Icons.volume_up, label: 'Volume'),
-                        ],
-                      ),
+                      badges,
                     ],
                   ],
                 ),
@@ -272,11 +264,26 @@ class ProfileCard extends StatelessWidget {
   }
 }
 
-/// Small pill on the profile card marking what captured settings it carries.
-class _Badge extends StatelessWidget {
+/// The captured-settings chips ("Audio settings" / "Volume"), or null when
+/// neither is set. Shared by the profile tile (aggregate) and the per-entity
+/// cards on the detail screen.
+Widget? settingsBadges({required bool audio, required bool volume}) {
+  if (!audio && !volume) return null;
+  return Wrap(
+    spacing: 6,
+    runSpacing: 6,
+    children: [
+      if (audio) const SettingsBadge(icon: Icons.tune, label: 'Audio settings'),
+      if (volume) const SettingsBadge(icon: Icons.volume_up, label: 'Volume'),
+    ],
+  );
+}
+
+/// Small pill marking a captured setting (audio or volume).
+class SettingsBadge extends StatelessWidget {
   final IconData icon;
   final String label;
-  const _Badge({required this.icon, required this.label});
+  const SettingsBadge({super.key, required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {

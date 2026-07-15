@@ -140,10 +140,17 @@ class _State extends ConsumerState<ProfileDetailScreen> {
                 leading: Icon(entityIcon(e.kind)),
                 titleAlignment: ListTileTitleAlignment.center,
                 title: Text(e.label),
-                subtitle: Text(
-                  e.settingsSummary.isEmpty
-                      ? entitySummary(e, system)
-                      : '${entitySummary(e, system)}\n${e.settingsSummary}',
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(entitySummary(e, system)),
+                    if (settingsBadges(
+                            audio: e.hasAudioSettings, volume: e.hasVolume)
+                        case final badges?) ...[
+                      const SizedBox(height: 6),
+                      badges,
+                    ],
+                  ],
                 ),
               ),
             ),
