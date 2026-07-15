@@ -485,6 +485,27 @@ pkill -x Sonority                          # quit (AppleScript quit gets cancell
   ⚠️ action names/EQType tokens assumed standard-UPnP — **verify with
   `tool/eq_probe.dart` on hardware** before shipping.
 - ✅ **Room renaming** from the room / HT detail pages (`renameRoom` + `rename_dialog`).
+- ✅ **Diagnostics** (`features/diagnostics/`) — a bug-icon app-bar action opens a
+  modal bottom sheet with a hide-nothing technical topology view (invisible
+  members, IP/MAC/serial/firmware, raw channel maps — reads `system.groups[].members`
+  unfiltered + `devicesByUuid`, and the new `SonosDevice.mac/serial/software/
+  hardwareVersion` parsed in `device_description.dart`). Packages a **structured
+  zip** (`diagnostics_bundle.dart`): README, `parsed_topology.json`,
+  `topology.txt`, fresh `raw_topology.xml` (`ZoneTopologyClient.getRawState`),
+  raw `device_descriptions/*.xml` (`DeviceDescriptionClient.fetchRaw`),
+  `app_state.json` (all app SharedPreferences), plus optional `logs.txt` +
+  `network.txt` toggles (both default on). Shares via `share_plus`, a prefilled
+  developer email (`flutter_email_sender`, iOS/Android/macOS), or save-to-disk
+  via a native save dialog on every platform (`file_saver`; macOS needs the
+  `files.user-selected.read-write` sandbox entitlement — self-granted, no Apple
+  request). Collection is
+  **read-only** (re-fetch of GetZoneGroupState + descriptions, no writes). Logs
+  come from an app-wide ring buffer `DiagnosticsLog` (SOAP faults in
+  `soap_client.dart`, discovery method/counts, bond retries mirrored from the
+  per-op log, uncaught errors from `main.dart`) — separate from the per-op
+  `operationLogProvider` that still scopes the progress screen's log view. The
+  `dart:io` bits (OS/network/temp-file) sit behind a `diagnostics_platform.dart`
+  conditional-import barrel so the demo web build still compiles.
 - ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
   all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't
   expose for unofficial fronts. Measurement stays iOS-only (out of scope).

@@ -13,7 +13,13 @@ class ZoneTopologyClient {
   static const _control = '/ZoneGroupTopology/Control';
 
   /// Query any reachable player [ip]; it returns the whole system's topology.
-  Future<List<ZoneGroup>> getZoneGroups(String ip) async {
+  Future<List<ZoneGroup>> getZoneGroups(String ip) async =>
+      parseZoneGroupState(await getRawState(ip));
+
+  /// The raw, unescaped inner `<ZoneGroupState>` XML — the double-decoded
+  /// topology document, for the diagnostics bundle (and reused by
+  /// [getZoneGroups]). Returns `''` if the response carries no state element.
+  Future<String> getRawState(String ip) async {
     final body = await _soap.call(
       ip: ip,
       controlPath: _control,
@@ -24,13 +30,12 @@ class ZoneTopologyClient {
     // The response carries the topology as an escaped XML string inside
     // <ZoneGroupState>. innerText unescapes it; parse again.
     final stateEls = body.findAllElements('ZoneGroupState');
-    if (stateEls.isEmpty) return const [];
-    final inner = stateEls.first.innerText;
-    return parseZoneGroupState(inner);
+    return stateEls.isEmpty ? '' : stateEls.first.innerText;
   }
 
   /// Parses the inner `<ZoneGroupState>` XML into groups. Public for testing.
   static List<ZoneGroup> parseZoneGroupState(String xml) {
+    if (xml.isEmpty) return const [];
     final doc = XmlDocument.parse(xml);
     final groups = <ZoneGroup>[];
 

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'diagnostics_log.dart';
+
 /// Discovers Sonos players on the local network via SSDP.
 ///
 /// Sonos uses SSDP (not mDNS). We send an `M-SEARCH` UDP datagram to the
@@ -56,7 +58,14 @@ class SsdpDiscovery {
     } finally {
       socket?.close();
     }
-    if (locations.isEmpty) return _scanSubnet();
+    if (locations.isEmpty) {
+      DiagnosticsLog.add(
+          'discovery: SSDP multicast found none — falling back to unicast /24 sweep');
+      final swept = await _scanSubnet();
+      DiagnosticsLog.add('discovery: unicast sweep found ${swept.length}');
+      return swept;
+    }
+    DiagnosticsLog.add('discovery: SSDP multicast found ${locations.length}');
     return locations;
   }
 

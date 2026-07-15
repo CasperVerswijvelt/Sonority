@@ -58,6 +58,7 @@ WHAT YOU CAN DO
 • Config profiles — snapshot your whole layout and rebuild it in one tap after moving speakers around. Each profile gets its own icon and colour, and can also capture and restore per-speaker audio settings (bass, treble, loudness, night sound, speech enhancement, sub and surround levels, lip-sync) and, optionally, volume.
 • Apply a profile without opening the app — from a home-screen widget (small, medium or large) or a long-press on the app icon.
 • Rename rooms, identify which physical speaker is which by blinking its status light (or a short chime on iPhone/iPad), and toggle a speaker’s room-calibration tuning.
+• Diagnostics — a technical, hide-nothing view of your system when something isn’t working, which you can share with support or email to the developer to get help.
 
 Every change is made over your local network, is shown to you before it’s applied, and is fully reversible from within the app.
 
@@ -84,6 +85,7 @@ Sonority is an independent app and is not affiliated with, authorized, maintaine
 • Profiles can now capture and restore per-speaker audio settings and volume
 • Rename rooms; toggle room-calibration tuning
 • Dedicated front speakers on a soundbar (a single Amp works too)
+• Diagnostics: a technical system view you can share for help when something’s wrong
 ```
 
 ## Support / marketing URLs

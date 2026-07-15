@@ -1,13 +1,27 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'data/sonos/diagnostics_log.dart';
 import 'demo/demo_mode.dart';
 import 'features/profiles/profile_widget.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // Capture uncaught errors into the rolling diagnostics log so they land in a
+  // shared bundle. Keep the default console/redscreen behaviour intact.
+  final priorOnError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    DiagnosticsLog.add('FlutterError: ${details.exceptionAsString()}');
+    priorOnError?.call(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    DiagnosticsLog.add('Uncaught: $error');
+    return false; // not handled — let the platform log it too.
+  };
   // Single portrait layout everywhere (no landscape to design for).
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

@@ -5,6 +5,7 @@ import '../data/models/sonos_models.dart';
 import '../data/sonos/apply_progress.dart';
 import '../data/sonos/cancellation.dart';
 import '../data/sonos/channel_map.dart';
+import '../data/sonos/diagnostics_log.dart';
 import '../data/sonos/front_layout.dart' as front_layout;
 import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
@@ -68,7 +69,10 @@ final operationLogProvider =
 final identifyServiceProvider = Provider<IdentifyServiceClient>((ref) {
   final service = IdentifyServiceClient(
     null,
-    kDebugMode ? (m) => debugPrint('[identify] $m') : null,
+    (m) {
+      if (kDebugMode) debugPrint('[identify] $m');
+      DiagnosticsLog.add('[identify] $m');
+    },
   );
   ref.onDispose(service.dispose);
   return service;
@@ -80,7 +84,10 @@ final identifyServiceProvider = Provider<IdentifyServiceClient>((ref) {
 final ledIdentifyProvider = Provider<LedIdentifyClient>((ref) {
   return LedIdentifyClient(
     null,
-    kDebugMode ? (m) => debugPrint('[led] $m') : null,
+    (m) {
+      if (kDebugMode) debugPrint('[led] $m');
+      DiagnosticsLog.add('[led] $m');
+    },
   );
 });
 
@@ -901,7 +908,12 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   ApplyProgress _newTracker(List<ApplyStep> steps) => ApplyProgress(
         steps,
         onChange: ref.read(applyProgressProvider.notifier).set,
-        onLog: ref.read(operationLogProvider.notifier).add,
+        onLog: (line) {
+          // The per-op log drives the progress screen (cleared each op); the
+          // app-wide DiagnosticsLog keeps a rolling copy for the bundle.
+          ref.read(operationLogProvider.notifier).add(line);
+          DiagnosticsLog.add(line);
+        },
       );
 
   /// Phase emitters bound to one parent (entity) step, so call sites don't
