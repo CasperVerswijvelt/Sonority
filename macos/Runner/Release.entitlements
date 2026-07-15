@@ -8,5 +8,9 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<!-- Diagnostics "Save" button — write the zip to the location the user picks
+	     in the save panel (file_saver → NSSavePanel). -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
 </dict>
 </plist>

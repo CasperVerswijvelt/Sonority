@@ -3,11 +3,13 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'sheet_scaffold.dart';
+
 const _repoUrl = 'https://github.com/CasperVerswijvelt/Sonority';
 
 /// Muted `v<version>` label for an app-bar `actions:` slot. Reads the built
 /// package version at runtime so it tracks pubspec automatically. Tapping it
-/// opens a dialog with the full version, the changelog and a GitHub link.
+/// opens a bottom sheet with the changelog and a GitHub link.
 class VersionBadge extends StatelessWidget {
   const VersionBadge({super.key});
 
@@ -25,7 +27,7 @@ class VersionBadge extends StatelessWidget {
           child: Center(
             child: _VersionPill(
               'v${info.version}',
-              onTap: () => showVersionDialog(context, info),
+              onTap: () => showVersionSheet(context, info),
             ),
           ),
         );
@@ -34,7 +36,8 @@ class VersionBadge extends StatelessWidget {
   }
 }
 
-/// The muted rounded pill, shared by the app-bar badge and the dialog header.
+/// The muted rounded pill, shared by the app-bar badge and the changelog
+/// sheet's header (where it shows the full `v<version>-<build>` label).
 class _VersionPill extends StatelessWidget {
   const _VersionPill(this.text, {this.onTap});
   final String text;
@@ -65,52 +68,44 @@ class _VersionPill extends StatelessWidget {
   }
 }
 
-/// Version + changelog dialog opened by tapping the [VersionBadge].
-Future<void> showVersionDialog(BuildContext context, PackageInfo info) {
-  return showDialog<void>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text('Sonority'),
-          _VersionPill(fullVersionLabel(info)),
-        ],
+/// Changelog sheet opened by tapping the [VersionBadge]. Uses the same
+/// modal-sheet chrome (drag handle + scroll-under divider) as the diagnostics
+/// sheet via [SheetScaffold].
+Future<void> showVersionSheet(BuildContext context, PackageInfo info) {
+  return showAppSheet<void>(
+    context,
+    SheetScaffold(
+      title: 'Changelog',
+      trailing: _VersionPill(fullVersionLabel(info)),
+      body: FutureBuilder<String>(
+        future: rootBundle.loadString('CHANGELOG.md'),
+        builder: (ctx, snap) {
+          final md = snap.data;
+          if (md == null) return const SizedBox.shrink();
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _ChangelogView(parseChangelog(md)),
+          );
+        },
       ),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Flexible(
-              child: FutureBuilder<String>(
-                future: rootBundle.loadString('CHANGELOG.md'),
-                builder: (ctx, snap) {
-                  final md = snap.data;
-                  if (md == null) return const SizedBox.shrink();
-                  return SingleChildScrollView(
-                    child: _ChangelogView(parseChangelog(md)),
-                  );
-                },
+      footer: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () => launchUrl(
+                Uri.parse(_repoUrl),
+                mode: LaunchMode.externalApplication,
               ),
+              style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('GitHub'),
             ),
-          ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => launchUrl(
-            Uri.parse(_repoUrl),
-            mode: LaunchMode.externalApplication,
-          ),
-          child: const Text('GitHub'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Close'),
-        ),
-      ],
     ),
   );
 }

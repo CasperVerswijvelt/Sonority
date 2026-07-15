@@ -49,6 +49,17 @@ dependencies:
   # Home-screen widget bridge (shared data + tap handling). Native widget UI is
   # per-platform; see docs/WIDGETS-SETUP.md. profile_widget.dart.
   home_widget: ^0.9.2+1
+  # Diagnostics bundle (features/diagnostics/): OS share sheet (share_plus),
+  # prefilled developer email with the zip attached (flutter_email_sender —
+  # mailto: can't attach, so this is the only option), save-to-disk via a native
+  # dialog on every platform (file_saver), plus zipping (archive) and a temp dir
+  # to stage the zip (path_provider). archive + path_provider were already
+  # transitive; promoted here so we can import them directly.
+  share_plus: ^11.0.0
+  flutter_email_sender: ^10.0.1
+  file_saver: ^0.4.0
+  archive: ^4.0.9
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

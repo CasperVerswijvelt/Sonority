@@ -10,6 +10,7 @@ import 'cancellation.dart';
 import 'channel_map.dart' show ChannelMap;
 import 'device_description.dart';
 import 'device_properties.dart';
+import 'diagnostics_log.dart';
 import 'room_calibration.dart';
 import 'soap_client.dart';
 import 'ssdp_discovery.dart';
@@ -59,6 +60,7 @@ class SonosRepository {
           // and recovered topology-only later. Log so it's diagnosable.
           developer.log('device_description fetch failed for $loc: $e',
               name: 'sonority.discover');
+          DiagnosticsLog.add('discovery: device_description fetch failed for $loc: $e');
           return null;
         }
       }),
@@ -86,6 +88,9 @@ class SonosRepository {
     if (groups == null) {
       throw Exception('Could not read the Sonos topology from any player: $lastErr');
     }
+    DiagnosticsLog.add(
+        'discovery: ${found.length} device(s) described, topology has '
+        '${groups.expand((g) => g.members).length} member(s) in ${groups.length} group(s)');
 
     // Topology is authoritative; SSDP and the per-device description fetch are
     // both lossy. Re-fetch any visible member we don't yet have a description
@@ -124,6 +129,16 @@ class SonosRepository {
 
     return SonosSystem(groups: groups, devicesByUuid: devicesByUuid);
   }
+
+  /// Raw, double-decoded `GetZoneGroupState` XML from the player at [ip] — for
+  /// the diagnostics bundle. Reuses the topology client so the bundle builder
+  /// doesn't re-instantiate SOAP plumbing.
+  Future<String> rawTopology(String ip) => _topology.getRawState(ip);
+
+  /// Raw `device_description.xml` body from the player at [ip] — for the
+  /// diagnostics bundle. Uses the well-known Sonos description path.
+  Future<String> rawDeviceDescription(String ip) =>
+      _descriptions.fetchRaw('http://$ip:${SonosSoapClient.port}/xml/device_description.xml');
 
   /// Re-read topology from a known device IP (cheaper than full discovery).
   Future<SonosSystem> refresh(SonosSystem previous, String ip) async {
@@ -190,7 +205,7 @@ class SonosRepository {
         // coordinator (401) will never converge — surface it immediately instead
         // of retrying for ~160s and masking it as "channels never joined".
         if (e.faultCode != '800') rethrow;
-        onNote?.call('attempt $attempt: write error 800, re-asserting');
+        onNote?.call('attempt $attempt: write error 800 (mid-reshuffle), re-asserting');
       } catch (e) {
         // Bonding is eventually-consistent (confirmed on hardware): a write can
         // partially apply then settle, or return a transient UPnPError (e.g. 800
@@ -198,13 +213,13 @@ class SonosRepository {
         // channels bonded. Re-asserting the SAME map then converges (took ~4
         // tries on a real Beam rebuild). So treat ANY write error as "go verify",
         // and only fail if the topology never reaches the target.
-        onNote?.call('attempt $attempt: write error, re-asserting');
+        onNote?.call('attempt $attempt: write error ($e), re-asserting');
       }
       await interruptibleDelay(_bondSettle, cancel);
       try {
         system = system == null ? await discover() : await refresh(system, ip);
-      } catch (_) {
-        onNote?.call('attempt $attempt: topology read failed, retrying');
+      } catch (e) {
+        onNote?.call('attempt $attempt: topology read failed ($e), retrying');
         continue;
       }
       final member = system.allMembers

@@ -224,7 +224,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          Gap.s,
+          Gap.m,
           for (final e in _entities) ...[
             _SelectableEntityCard(
               entity: e,
@@ -243,7 +243,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          Gap.s,
+          Gap.m,
           Card(
             margin: EdgeInsets.zero,
             child: Column(

@@ -49,6 +49,14 @@ class SonosDevice {
   final String? modelNumber; // e.g. "S27"
   final String? ip;
 
+  /// Extra identity/firmware fields from device_description.xml, surfaced only
+  /// in the diagnostics view + bundle (never used for logic). Nullable because a
+  /// topology-only device (unreachable description) won't have them.
+  final String? mac;
+  final String? serial;
+  final String? softwareVersion;
+  final String? hardwareVersion;
+
   /// False when we couldn't read this player's device_description.xml: it's
   /// present in the authoritative topology but its model/capabilities are
   /// unknown, so the UI surfaces it disabled with a warning rather than
@@ -61,6 +69,10 @@ class SonosDevice {
     required this.modelName,
     this.modelNumber,
     this.ip,
+    this.mac,
+    this.serial,
+    this.softwareVersion,
+    this.hardwareVersion,
     this.reachable = true,
   });
 
@@ -102,6 +114,10 @@ class SonosDevice {
         modelName: modelName,
         modelNumber: modelNumber,
         ip: ip ?? this.ip,
+        mac: mac,
+        serial: serial,
+        softwareVersion: softwareVersion,
+        hardwareVersion: hardwareVersion,
         reachable: reachable,
       );
 

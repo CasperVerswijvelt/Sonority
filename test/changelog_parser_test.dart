@@ -64,7 +64,7 @@ void main() {
     expect(fullVersionLabel(info('0.5', '50008')), 'v0.5 (50008)');
   });
 
-  testWidgets('version dialog shows version+build and the bundled changelog',
+  testWidgets('changelog sheet shows the header, version pill and changelog',
       (tester) async {
     final info = PackageInfo(
       appName: 'Sonority',
@@ -75,13 +75,14 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: Builder(
         builder: (ctx) => TextButton(
-          onPressed: () => showVersionDialog(ctx, info),
+          onPressed: () => showVersionSheet(ctx, info),
           child: const Text('open'),
         ),
       ),
     ));
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+    expect(find.text('Changelog'), findsOneWidget);
     expect(find.text('v0.5.0-8'), findsOneWidget);
     // Real CHANGELOG.md asset loaded and parsed. Match the header shape, not a
     // literal version/date — those change on every release cut.
