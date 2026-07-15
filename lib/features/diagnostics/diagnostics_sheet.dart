@@ -202,7 +202,7 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             child: Text(
               'Always included: topology (room names, IPs, MACs, models), raw '
               'device descriptions, and your saved profiles/room names.',
