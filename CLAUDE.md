@@ -121,7 +121,7 @@ lib/
   features/        discovery / home_theater / front_surrounds (full HT setup) /
                      group (unified Stereo/Zone/Custom) / profiles / room / widgets
   app.dart, main.dart — go_router StatefulShellRoute (System|Profiles tabs), ProviderScope
-tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, zone_probe, lr_audiotest, eq_probe, capture_shots, gen_assets.sh (icon/wordmark/splash pipeline)
+tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, zone_probe, lr_audiotest, eq_probe, capture_shots, gen_assets.sh (icon/wordmark/splash pipeline), gen_site (docs/ landing page)
 ```
 Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
 `shared_preferences` → Flutter). The pure recipes live in `front_layout.dart` /
@@ -388,6 +388,11 @@ Run on the same Wi-Fi as the Sonos system:
   framed Play/App Store graphic from `design/store.html` in the same run (§2–3 of
   `docs/MARKETING-ASSETS.md`); `--no-capture` re-frames existing shots, `--no-build`
   reuses `build/web`.
+- `tool/gen_site.dart` — no hardware: generates the GitHub Pages landing page
+  `docs/index.html` from `tool/site_template.html`, reusing the tagline from
+  `pubspec.yaml` + the four `SHOTS` captions from `design/store.html` (no
+  copy-pasted text; screenshots/badges/logo reused in place from `docs/`). Re-run
+  and commit after copy changes.
 - `tool/gen_assets.sh` — regenerates ALL app-icon / wordmark / splash / Icon-Composer
   layer assets from the **single source `design/export.html`** (one `?mode=` each,
   rendered headless), then runs `flutter_launcher_icons` + `flutter_native_splash`
