@@ -161,13 +161,16 @@ class TheaterEntityCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Match the compact EntityCard's ListTile defaults so the
+                      // two cards read consistently: title bodyLarge, subtitle
+                      // bodyMedium/onSurfaceVariant.
                       Text(model.title,
-                          style: Theme.of(context).textTheme.titleMedium),
+                          style: Theme.of(context).textTheme.bodyLarge),
                       Text(
                         model.soundbarLabel,
                         style: Theme.of(context)
                             .textTheme
-                            .bodySmall
+                            .bodyMedium
                             ?.copyWith(color: scheme.onSurfaceVariant),
                       ),
                       Gap.s,
