@@ -39,7 +39,15 @@ void main() {
   final row = template.substring(rowStart + '<!--ROW-->'.length, rowEnd);
 
   final rows = shots.map((m) {
-    final src = m.group(1)!.replaceFirst('shots/', 'screenshots/');
+    // Screenshots live in Git LFS; GitHub Pages serves the LFS *pointer*, not
+    // the image, so point at the media endpoint that resolves LFS instead.
+    final src = m
+        .group(1)!
+        .replaceFirst(
+          'shots/',
+          'https://media.githubusercontent.com/media/'
+              'CasperVerswijvelt/Sonority/main/docs/screenshots/',
+        );
     return row
         .replaceAll('{{SHOT}}', src)
         .replaceAll('{{HEAD}}', m.group(2)!)
