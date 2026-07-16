@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 
 import 'app_scaffold.dart' show ScrolledUnderDivider;
 
-/// Opens [child] as the app's standard modal bottom sheet (drag handle, over the
-/// tab shell). Pair with [SheetScaffold] for the header + divider + bottom
-/// handling. Shared by every app sheet so they present identically.
+/// Opens [child] as the app's standard modal bottom sheet, over the tab shell.
+/// Pair with [SheetScaffold] for the header + divider + bottom handling. Shared
+/// by every app sheet so they present identically.
+///
+/// No visible drag handle — the explicit close button in [SheetScaffold]'s
+/// header is the discoverable way out, and drag-to-dismiss still works
+/// (`enableDrag` defaults to true, independent of the hidden handle), so the two
+/// don't compete for the same top strip.
 Future<T?> showSheet<T>(BuildContext context, Widget child) =>
     showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      showDragHandle: true,
+      showDragHandle: false,
       // Present over the tab shell's NavigationBar so the sheet is a full modal.
       useRootNavigator: true,
       builder: (_) => child,
@@ -32,7 +37,8 @@ class _SheetHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
+      // Extra top gap since there's no drag handle above the header now.
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
       child: Row(
         children: [
           if (icon != null) ...[

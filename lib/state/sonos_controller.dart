@@ -6,6 +6,7 @@ import '../data/sonos/apply_progress.dart';
 import '../data/sonos/cancellation.dart';
 import '../data/sonos/channel_map.dart';
 import '../data/sonos/diagnostics_log.dart';
+import '../data/sonos/friendly_error.dart';
 import '../data/sonos/front_layout.dart' as front_layout;
 import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
@@ -241,7 +242,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         return sys;
       } catch (e) {
         // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail('bond', '$e');
+        tracker.fail('bond', friendlyError(e));
         rethrow;
       }
     });
@@ -398,7 +399,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         tracker.done(e.primaryUuid);
       } catch (err) {
         // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail(e.primaryUuid, '$err');
+        tracker.fail(e.primaryUuid, friendlyError(err));
         rethrow;
       }
     }
@@ -685,7 +686,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         return sys;
       } catch (e) {
         // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail('remove', '$e');
+        tracker.fail('remove', friendlyError(e));
         rethrow;
       }
     });
@@ -763,7 +764,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         return system;
       } catch (e) {
         // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail('group', '$e');
+        tracker.fail('group', friendlyError(e));
         rethrow;
       }
     });
@@ -837,7 +838,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         return system;
       } catch (e) {
         // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail('ungroup', '$e');
+        tracker.fail('ungroup', friendlyError(e));
         rethrow;
       }
     });

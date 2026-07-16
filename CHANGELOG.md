@@ -16,12 +16,15 @@ section into the GitHub Release notes regardless of the build suffix
 - Diagnostics: a new screen (bug icon, top-right) shows a hide-nothing technical view of your system — including hidden speakers, IPs, MAC addresses and firmware — and can package it, the raw topology, raw device info, your saved profiles and app logs into a zip to share via the system share sheet, email straight to the developer, or save to disk. App logs and phone network info are optional toggles.
 
 ### Changed
-- The speaker-group, single-room, and profile-entity detail views are now modal bottom sheets (sized to their content, capped just below the app bar, with a drag handle + explicit close button, and a pinned "Separate" for groups) instead of full pushed pages — cutting a level off the navigation on both tabs. The home-theater detail stays a full page (it's content-heavy and launches the configure flow).
+- The speaker-group, single-room, and profile-entity detail views are now modal bottom sheets (sized to their content, capped just below the app bar, with an explicit close button, and a pinned "Separate" for groups) instead of full pushed pages — cutting a level off the navigation on both tabs. The home-theater detail stays a full page (it's content-heavy and launches the configure flow).
 - Settings (Trueplay, a profile's saved per-speaker settings) now render as a flat, divider-led section of full-width rows rather than cards, so they read distinctly from the speaker/content cards above them. A single-room sheet is now titled like the others ("Room") with the speaker shown as a card.
 - Diagnostics: home-theater blocks in the topology view no longer print each satellite twice — the satellite's IP is now folded into its `HTSatChanMapSet` line instead of repeating the UUID and channel on a separate line.
 - Profile editing is now a single save surface: the profile screen keeps you on the page after saving (with a toast) instead of jumping back to the list, and re-snapshot no longer instantly overwrites — it recaptures the current setup as an unsaved change you review and commit with Save (dropping the confirmation dialog, the duplicate name/appearance editor, and the apply primer from the re-snapshot screen). Captured-settings now show as "Audio settings"/"Volume" chips on each speaker card instead of a text line.
 - The version/changelog viewer (tap the version chip) now opens as a bottom sheet matching the new Diagnostics screen.
 - Renamed the home-theater "Remove all extra speakers" button to "Separate" (with a "Separate home theater?" confirmation), consistent with the speaker-groups wording.
+- Detail sheets no longer show a drag handle — the explicit close button is the way out (drag-to-dismiss still works).
+- The home-theater "Configure home theater" button now uses a settings-cog icon instead of the sliders/EQ glyph, which is reserved for the audio/Trueplay controls.
+- When a bonding step fails, the progress screen now shows a plain-English reason (e.g. "Sonos is busy rearranging speakers right now") for the errors we recognize, instead of a raw exception string; the full technical detail is still available in the raw log view.
 
 ## [0.5.1] - 2026-07-15
 

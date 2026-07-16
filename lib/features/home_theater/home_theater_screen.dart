@@ -220,7 +220,10 @@ class _Content extends StatelessWidget {
               Gap.l,
               FilledButton.icon(
                 onPressed: onConfigure,
-                icon: const Icon(Icons.tune),
+                // A settings cog reads as "configure this layout"; the sliders
+                // glyph (Icons.tune) is reserved for the audio/Trueplay surfaces
+                // so a layout action never looks like EQ (which we don't do).
+                icon: const Icon(Icons.settings),
                 label: const Text('Configure home theater'),
               ),
               Gap.l,
