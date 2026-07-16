@@ -15,6 +15,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Diagnostics: a new screen (bug icon, top-right) shows a hide-nothing technical view of your system — including hidden speakers, IPs, MAC addresses and firmware — and can package it, the raw topology, raw device info, your saved profiles and app logs into a zip to share via the system share sheet, email straight to the developer, or save to disk. App logs and phone network info are optional toggles.
 
 ### Changed
+- The bonding progress screen's Done button is now colored by result — green when the operation succeeded, red when it failed or was aborted.
 - Diagnostics: home-theater blocks in the topology view no longer print each satellite twice — the satellite's IP is now folded into its `HTSatChanMapSet` line instead of repeating the UUID and channel on a separate line.
 - Profile editing is now a single save surface: the profile screen keeps you on the page after saving (with a toast) instead of jumping back to the list, and re-snapshot no longer instantly overwrites — it recaptures the current setup as an unsaved change you review and commit with Save (dropping the confirmation dialog, the duplicate name/appearance editor, and the apply primer from the re-snapshot screen). Captured-settings now show as "Audio settings"/"Volume" chips on each speaker card instead of a text line.
 - The version/changelog viewer (tap the version chip) now opens as a bottom sheet matching the new Diagnostics screen.

@@ -235,7 +235,8 @@ class _BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final Widget child;
     if (!finished) {
       // Same shape as the Done button, but red.
@@ -246,10 +247,19 @@ class _BottomBar extends StatelessWidget {
         child: Text(aborting ? 'Aborting…' : 'Abort'),
       );
     } else {
+      // Color Done by result: green on success, red/error on failure (or abort).
+      // Green is shared with the timeline's success nodes (successGreen).
+      final doneColor = failed ? scheme.error : successGreen(theme);
       child = Row(
         children: [
           Expanded(
-            child: FilledButton(onPressed: onDone, child: const Text('Done')),
+            child: FilledButton(
+              onPressed: onDone,
+              style: FilledButton.styleFrom(
+                  backgroundColor: doneColor,
+                  foregroundColor: failed ? scheme.onError : Colors.white),
+              child: const Text('Done'),
+            ),
           ),
           if (failed) ...[
             Gap.s,
