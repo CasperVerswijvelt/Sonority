@@ -7,6 +7,8 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../diagnostics/diagnostics_sheet.dart';
+import '../group/group_detail_screen.dart';
+import '../room/room_screen.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/entity_cards.dart';
 import '../widgets/version_badge.dart';
@@ -140,7 +142,7 @@ class _SystemView extends ConsumerWidget {
           else
             ...groups.map((m) => EntityCard(
                   model: EntityCardModel.fromMember(system, m),
-                  onTap: () => context.push('/group/${m.uuid}'),
+                  onTap: () => showGroupSheet(context, m.uuid),
                 )),
           // Single speaker rooms — hidden entirely when there are none.
           if (singleRooms.isNotEmpty) ...[
@@ -148,7 +150,7 @@ class _SystemView extends ConsumerWidget {
             _SectionHeader('Single speaker rooms', Icons.meeting_room_outlined),
             ...singleRooms.map((m) => EntityCard(
                   model: EntityCardModel.fromMember(system, m),
-                  onTap: () => context.push('/room/${m.uuid}'),
+                  onTap: () => showRoomSheet(context, m.uuid),
                 )),
           ],
           // Other devices: unbonded Subs are shown so they're visible (they're

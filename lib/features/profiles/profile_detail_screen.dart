@@ -9,6 +9,7 @@ import '../widgets/app_scaffold.dart';
 import '../widgets/entity_cards.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
+import 'profile_entity_detail_screen.dart';
 import 'profile_ui.dart';
 
 /// A profile's detail view and single save surface: edit the name/appearance,
@@ -137,11 +138,9 @@ class _State extends ConsumerState<ProfileDetailScreen> {
           Gap.m,
           // Same cards as the system overview, fed a throwaway member built from
           // the stored snapshot, with a "settings saved" footer. Tapping opens
-          // the entity detail — disabled while previewing an unsaved re-snapshot,
-          // since the detail route reads the stored profile by index.
-          for (final (i, e) in entities.indexed)
-            _entityCard(context, profile, i, e, system,
-                tappable: _pendingEntities == null),
+          // the entity detail sheet (fed the snapshot directly, so it works for a
+          // pending re-snapshot entity too).
+          for (final e in entities) _entityCard(context, e, system),
         ],
       ),
     );
@@ -175,17 +174,12 @@ class _State extends ConsumerState<ProfileDetailScreen> {
 
 /// One entity as a compact tile (every kind — the profile list is uniform,
 /// unlike the overview's rich HT card), built from the stored snapshot with a
-/// "settings saved" footer and a tap to the entity detail. [tappable] is false
-/// while previewing an unsaved re-snapshot (the detail route reads the stored
-/// profile, which doesn't yet have the pending entities).
-Widget _entityCard(BuildContext context, Profile profile, int index,
-    EntitySnapshot e, SonosSystem? system, {required bool tappable}) {
-  final onTap = tappable
-      ? () => context.go('/profiles/edit/${profile.id}/entity/$index')
-      : null;
+/// "settings saved" footer and a tap that opens the entity detail sheet.
+Widget _entityCard(
+    BuildContext context, EntitySnapshot e, SonosSystem? system) {
   return EntityCard(
     model: EntityCardModel.fromSnapshot(system, e.toMember()),
-    onTap: onTap,
+    onTap: () => showEntitySheet(context, e, system),
     footer: settingsBadges(audio: e.hasAudioSettings, volume: e.hasVolume),
   );
 }

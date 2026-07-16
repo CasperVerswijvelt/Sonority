@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
-import '../../state/trueplay_controller.dart';
 import '../widgets/busy_view.dart';
-import '../widgets/app_scaffold.dart';
-import '../widgets/refresh_icon_button.dart';
+import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
+import '../widgets/sheet_scaffold.dart';
 import '../widgets/trueplay_control.dart';
 
-/// Detail page for a standalone room or a stereo pair. Currently hosts the
-/// Trueplay control (kept off the main list to avoid clutter).
-class RoomScreen extends ConsumerWidget {
+/// Opens a standalone room (or stereo pair) as a modal sheet. Currently hosts the
+/// Trueplay control (kept off the main list to avoid clutter) plus rename.
+Future<void> showRoomSheet(BuildContext context, String uuid) =>
+    showContentSheet<void>(context, _RoomSheet(uuid: uuid));
+
+class _RoomSheet extends ConsumerWidget {
   final String uuid;
-  const RoomScreen({super.key, required this.uuid});
+  const _RoomSheet({required this.uuid});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,64 +27,56 @@ class RoomScreen extends ConsumerWidget {
         .cast<ZoneGroupMember?>()
         .firstOrNull;
 
-    // A stereo pair acts on both speakers; a standalone room on just itself.
-    final devices = <SonosDevice>[
-      if (system != null && member != null)
-        if (member.isStereoPair)
-          ...member.stereoPairUuids.map(system.device).whereType<SonosDevice>()
-        else if (system.device(uuid) != null)
-          system.device(uuid)!,
-    ];
-    final models = devices.map((d) => d.typeLabel).toSet().join(' + ');
+    if (member == null) {
+      return const ContentSheetScaffold(
+        title: 'Room',
+        body: Padding(padding: EdgeInsets.all(24), child: MissingRoomView()),
+      );
+    }
 
-    return AppScaffold(
-      title: member?.zoneName ?? 'Room',
-      subtitle: member == null ? null : (models.isEmpty ? 'Speaker' : models),
-      actions: [
-        if (member != null)
-          IconButton(
-            icon: const Icon(Icons.drive_file_rename_outline),
-            tooltip: 'Rename room',
-            onPressed: () => _rename(context, ref, system, member),
-          ),
-        RefreshIconButton(
-          onRefresh: () async {
-            await ref.read(sonosControllerProvider.notifier).refresh();
-            if (devices.isNotEmpty) {
-              await ref.read(trueplayControllerProvider.notifier).load(devices);
-            }
-          },
-        ),
-      ],
-      body: member == null
-          ? const MissingRoomView()
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                TrueplayControl(devices: devices),
-              ],
+    // Single standalone speaker (stereo pairs are groups → the group sheet).
+    final device = system!.device(uuid);
+    final devices = [if (device != null) device];
+
+    return ContentSheetScaffold(
+      title: member.zoneName,
+      subtitle: 'Room',
+      trailing: device == null
+          ? null
+          : IconButton(
+              icon: const Icon(Icons.drive_file_rename_outline),
+              tooltip: 'Rename room',
+              onPressed: () => _rename(context, ref, device, member.zoneName),
             ),
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        child: Column(
+          children: [
+            // The speaker itself — a standalone speaker has no channel, so no
+            // chip (parallels the group sheet's per-speaker cards).
+            if (device != null) ...[
+              MemberChannelCard(icon: Icons.speaker, type: device.typeLabel),
+              Gap.s,
+            ],
+            TrueplayControl(devices: devices),
+          ],
+        ),
+      ),
     );
   }
+}
 
-  Future<void> _rename(
-    BuildContext context,
-    WidgetRef ref,
-    SonosSystem? system,
-    ZoneGroupMember member,
-  ) async {
-    final device = system?.device(member.uuid);
-    if (device == null) return;
-    final name = await showRenameDialog(context, member.zoneName);
-    if (name == null || !context.mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await ref
-          .read(sonosControllerProvider.notifier)
-          .renameRoom(device: device, name: name);
-      messenger.showSnackBar(SnackBar(content: Text('Renamed to “$name”.')));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
-    }
+Future<void> _rename(BuildContext context, WidgetRef ref, SonosDevice device,
+    String current) async {
+  final name = await showRenameDialog(context, current);
+  if (name == null || !context.mounted) return;
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await ref
+        .read(sonosControllerProvider.notifier)
+        .renameRoom(device: device, name: name);
+    messenger.showSnackBar(SnackBar(content: Text('Renamed to “$name”.')));
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
   }
 }

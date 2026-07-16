@@ -1,166 +1,152 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/channel_map.dart';
-import '../../state/sonos_controller.dart';
-import '../widgets/app_scaffold.dart';
-import '../widgets/busy_view.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/member_channel_card.dart';
+import '../widgets/sheet_scaffold.dart';
 import 'profile.dart';
-import 'profile_controller.dart';
 
-/// Read-only detail for one entity within a profile. Mirrors the matching
-/// system-overview detail (HT diagram / per-speaker channel cards) but is driven
-/// entirely from the stored snapshot, then lists the per-speaker saved settings.
-class ProfileEntityDetailScreen extends ConsumerWidget {
-  final String profileId;
-  final int entityIndex;
-  const ProfileEntityDetailScreen(
-      {super.key, required this.profileId, required this.entityIndex});
+/// Opens a read-only detail sheet for one entity within a profile. Mirrors the
+/// matching system-overview detail (HT diagram / per-speaker channel cards) but
+/// is driven entirely from the stored snapshot, then lists the per-speaker saved
+/// settings. Takes the [entity] directly (no route/index), so it works for an
+/// unsaved re-snapshot entity too.
+Future<void> showEntitySheet(
+        BuildContext context, EntitySnapshot entity, SonosSystem? system) =>
+    showContentSheet<void>(context, _EntitySheet(entity: entity, system: system));
+
+class _EntitySheet extends StatelessWidget {
+  final EntitySnapshot entity;
+  final SonosSystem? system;
+  const _EntitySheet({required this.entity, required this.system});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref
-        .watch(profilesProvider)
-        .value
-        ?.where((p) => p.id == profileId)
-        .cast<Profile?>()
-        .firstOrNull;
-    final system = ref.watch(sonosControllerProvider).value;
-
-    final e = (profile != null && entityIndex < profile.entities.length)
-        ? profile.entities[entityIndex]
-        : null;
-    if (e == null) {
-      return const AppScaffold(title: 'Entity', body: MissingRoomView());
-    }
-
+  Widget build(BuildContext context) {
+    final e = entity;
     // Same fallback pattern as entitySummary: prefer the live device type, fall
     // back to the captured room name, then a generic label.
     String typeOf(String uuid) =>
         system?.device(uuid)?.typeLabel ?? e.names[uuid] ?? 'Speaker';
 
-    return AppScaffold(
+    return ContentSheetScaffold(
       title: e.label,
       subtitle: e.kindLabel,
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          ..._layout(context, e, system, typeOf),
-          Gap.l,
-          ..._savedSettings(context, e, typeOf),
-        ],
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ..._layout(e, system, typeOf),
+            Gap.l,
+            ..._savedSettings(context, e, typeOf),
+          ],
+        ),
       ),
     );
   }
+}
 
-  /// The layout visualization for the entity, matching its system-overview view.
-  List<Widget> _layout(BuildContext context, EntitySnapshot e,
-      SonosSystem? system, String Function(String) typeOf) {
-    switch (e.kind) {
-      case EntityKind.single:
-        return [
+/// The layout visualization for the entity, matching its system-overview view.
+List<Widget> _layout(
+    EntitySnapshot e, SonosSystem? system, String Function(String) typeOf) {
+  switch (e.kind) {
+    case EntityKind.single:
+      // A standalone speaker has no channel — type only, no chip.
+      return [
+        MemberChannelCard(icon: Icons.speaker, type: typeOf(e.primaryUuid)),
+      ];
+
+    case EntityKind.homeTheater:
+      return [htDiagramForMember(system, e.toMember(), names: e.names)];
+
+    case EntityKind.stereoPair:
+    case EntityKind.zone:
+    case EntityKind.custom:
+      final m = e.toMember();
+      return [
+        for (final entry in m.groupChannels.entries) ...[
           MemberChannelCard(
             icon: Icons.speaker,
-            type: typeOf(e.primaryUuid),
-            channel: 'Standalone',
-          ),
-        ];
-
-      case EntityKind.homeTheater:
-        return [htDiagramForMember(system, e.toMember(), names: e.names)];
-
-      case EntityKind.stereoPair:
-      case EntityKind.zone:
-      case EntityKind.custom:
-        final m = e.toMember();
-        return [
-          for (final entry in m.groupChannels.entries) ...[
-            MemberChannelCard(
-              icon: Icons.speaker,
-              type: typeOf(entry.key),
-              channel: groupChannelShort(entry.value),
-            ),
-            Gap.s,
-          ],
-          if (m.subUuid != null)
-            MemberChannelCard(
-              icon: Icons.graphic_eq,
-              type: typeOf(m.subUuid!),
-              channel: 'Sub',
-            ),
-        ];
-    }
-  }
-
-  /// The per-speaker saved-settings section. Settings are stored per speaker
-  /// UUID; for a home theater the whole-entity audio settings ride the
-  /// coordinator (soundbar), while satellites typically capture only volume.
-  List<Widget> _savedSettings(
-      BuildContext context, EntitySnapshot e, String Function(String) typeOf) {
-    final theme = Theme.of(context);
-    final muted = theme.textTheme.bodyMedium
-        ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
-
-    // Ordered UUIDs, primary first (map order), filtered to those that captured
-    // something. Same format for HT and group maps.
-    final ordered = e.kind == EntityKind.single
-        ? [e.primaryUuid]
-        : ChannelMap.parse(e.mapSet ?? '').entries.map((x) => x.uuid).toList();
-    final withSettings = ordered
-        .where((u) => !(e.settings[u]?.isEmpty ?? true))
-        .toList();
-
-    return [
-      Text('Saved settings', style: theme.textTheme.titleSmall),
-      Gap.s,
-      if (withSettings.isEmpty)
-        Text('No speaker settings saved in this profile.', style: muted)
-      else
-        for (final uuid in withSettings) ...[
-          _SettingsCard(
-            title: typeOf(uuid),
-            role: _roleLabel(e, uuid),
-            rows: e.settings[uuid]!.describe(),
+            type: typeOf(entry.key),
+            channel: groupChannelShort(entry.value),
           ),
           Gap.s,
         ],
-    ];
+        if (m.subUuid != null)
+          MemberChannelCard(
+            icon: Icons.graphic_eq,
+            type: typeOf(m.subUuid!),
+            channel: 'Sub',
+          ),
+      ];
   }
+}
 
-  /// Short role of [uuid] within the entity, for the settings-card subtitle.
-  String? _roleLabel(EntitySnapshot e, String uuid) {
-    if (e.mapSet == null) return null;
-    switch (e.kind) {
-      case EntityKind.single:
-        return null;
-      case EntityKind.stereoPair:
-      case EntityKind.zone:
-      case EntityKind.custom:
-        final m = e.toMember();
-        if (uuid == m.subUuid) return 'Sub';
-        final ch = m.groupChannels[uuid];
-        return ch == null ? null : groupChannelShort(ch);
-      case EntityKind.homeTheater:
-        if (uuid == e.primaryUuid) return 'Soundbar';
-        final m = e.toMember();
-        final channels = m.channelAssignments.entries
-            .where((a) => a.value == uuid)
-            .map((a) => a.key)
-            .toSet();
-        final parts = <String>[
-          if (channels.contains(SonosChannel.leftFront) ||
-              channels.contains(SonosChannel.rightFront))
-            'Front',
-          if (channels.contains(SonosChannel.leftRear)) 'Surround L',
-          if (channels.contains(SonosChannel.rightRear)) 'Surround R',
-          if (channels.contains(SonosChannel.sub)) 'Sub',
-        ];
-        return parts.isEmpty ? null : parts.join(' · ');
-    }
+/// The per-speaker saved-settings section. Settings are stored per speaker UUID;
+/// for a home theater the whole-entity audio settings ride the coordinator
+/// (soundbar), while satellites typically capture only volume.
+List<Widget> _savedSettings(
+    BuildContext context, EntitySnapshot e, String Function(String) typeOf) {
+  final theme = Theme.of(context);
+  final muted = theme.textTheme.bodyMedium
+      ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+
+  // Ordered UUIDs, primary first (map order), filtered to those that captured
+  // something. Same format for HT and group maps.
+  final ordered = e.kind == EntityKind.single
+      ? [e.primaryUuid]
+      : ChannelMap.parse(e.mapSet ?? '').entries.map((x) => x.uuid).toList();
+  final withSettings =
+      ordered.where((u) => !(e.settings[u]?.isEmpty ?? true)).toList();
+
+  return [
+    Text('Saved settings', style: theme.textTheme.titleSmall),
+    Gap.s,
+    if (withSettings.isEmpty)
+      Text('No speaker settings saved in this profile.', style: muted)
+    else
+      for (final uuid in withSettings) ...[
+        _SettingsCard(
+          title: typeOf(uuid),
+          role: _roleLabel(e, uuid),
+          rows: e.settings[uuid]!.describe(),
+        ),
+        Gap.s,
+      ],
+  ];
+}
+
+/// Short role of [uuid] within the entity, for the settings-card subtitle.
+String? _roleLabel(EntitySnapshot e, String uuid) {
+  if (e.mapSet == null) return null;
+  switch (e.kind) {
+    case EntityKind.single:
+      return null;
+    case EntityKind.stereoPair:
+    case EntityKind.zone:
+    case EntityKind.custom:
+      final m = e.toMember();
+      if (uuid == m.subUuid) return 'Sub';
+      final ch = m.groupChannels[uuid];
+      return ch == null ? null : groupChannelShort(ch);
+    case EntityKind.homeTheater:
+      if (uuid == e.primaryUuid) return 'Soundbar';
+      final m = e.toMember();
+      final channels = m.channelAssignments.entries
+          .where((a) => a.value == uuid)
+          .map((a) => a.key)
+          .toSet();
+      final parts = <String>[
+        if (channels.contains(SonosChannel.leftFront) ||
+            channels.contains(SonosChannel.rightFront))
+          'Front',
+        if (channels.contains(SonosChannel.leftRear)) 'Surround L',
+        if (channels.contains(SonosChannel.rightRear)) 'Surround R',
+        if (channels.contains(SonosChannel.sub)) 'Sub',
+      ];
+      return parts.isEmpty ? null : parts.join(' · ');
   }
 }
 

@@ -5,22 +5,21 @@ import 'pill_chip.dart';
 
 /// One speaker in a bonded group / home theater: an icon, the speaker type as
 /// the title (the room name is absorbed into the entity name, so the type is the
-/// useful label), and its channel/role as a pill chip beneath. Shared by the
-/// live group detail screen and the profile entity detail screen.
+/// useful label), and — when it has one — its channel/role as a pill chip
+/// beneath. A standalone speaker has no channel, so [channel] is omitted and no
+/// chip shows. Shared by the group + room + profile entity sheets.
 class MemberChannelCard extends StatelessWidget {
   final IconData icon;
   final String type;
-  final String channel;
+  final String? channel;
   const MemberChannelCard(
-      {super.key,
-      required this.icon,
-      required this.type,
-      required this.channel});
+      {super.key, required this.icon, required this.type, this.channel});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final channel = this.channel;
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -37,8 +36,10 @@ class MemberChannelCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(type, style: theme.textTheme.titleMedium),
-                  Gap.s,
-                  PillChip(icon: icon, text: channel, color: scheme.primary),
+                  if (channel != null) ...[
+                    Gap.s,
+                    PillChip(icon: icon, text: channel, color: scheme.primary),
+                  ],
                 ],
               ),
             ),
