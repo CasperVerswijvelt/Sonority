@@ -60,7 +60,6 @@ class _RoomSheet extends ConsumerWidget {
             ),
           // Settings: a flat, sectioned Trueplay row, not another card.
           SettingsSection(children: [TrueplayControl(devices: devices)]),
-          const SizedBox(height: 8),
         ],
       ),
     );

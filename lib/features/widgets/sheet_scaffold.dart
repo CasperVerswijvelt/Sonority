@@ -156,16 +156,26 @@ class ContentSheetScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // SafeArea(bottom) keeps the content clear of the gesture bar, and the
+    // trailing gap gives it breathing room — handled here so callers (footer or
+    // not) don't each hand-roll bottom padding.
     return ScrollNotificationObserver(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _SheetHeader(
-              title: title, subtitle: subtitle, icon: icon, trailing: trailing),
-          const ScrolledUnderDivider(),
-          Flexible(child: SingleChildScrollView(child: body)),
-          if (footer != null) footer!,
-        ],
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _SheetHeader(
+                title: title,
+                subtitle: subtitle,
+                icon: icon,
+                trailing: trailing),
+            const ScrolledUnderDivider(),
+            Flexible(child: SingleChildScrollView(child: body)),
+            if (footer != null) footer!,
+            const SizedBox(height: 12),
+          ],
+        ),
       ),
     );
   }

@@ -47,7 +47,6 @@ class _EntitySheet extends StatelessWidget {
           ),
           // Settings: a flat, sectioned per-speaker breakdown, not cards.
           _savedSettings(context, e, typeOf),
-          const SizedBox(height: 8),
         ],
       ),
     );

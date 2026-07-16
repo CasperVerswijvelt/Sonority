@@ -69,15 +69,12 @@ class _GroupSheet extends ConsumerWidget {
           ],
         ),
       ),
-      footer: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-          child: DestructiveButton(
-            icon: Icons.link_off,
-            label: 'Separate',
-            onPressed: () => _confirmSeparate(context, ref, group),
-          ),
+      footer: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+        child: DestructiveButton(
+          icon: Icons.link_off,
+          label: 'Separate',
+          onPressed: () => _confirmSeparate(context, ref, group),
         ),
       ),
     );
