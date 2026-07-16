@@ -11,6 +11,7 @@ import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/identify_controls.dart';
+import '../widgets/info_note.dart';
 import '../widgets/speaker_diagram.dart';
 import '../widgets/speaker_side_card.dart';
 
@@ -632,26 +633,11 @@ class _Review extends StatelessWidget {
           subCount: subCount,
         ),
         Gap.m,
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline,
-                    color: Theme.of(context).colorScheme.primary),
-                Gap.m,
-                Expanded(
-                  child: Text(
-                    'The chosen speakers become hidden satellites of the '
-                    'soundbar (which stays the center channel). Bonding runs in '
-                    'steps and can take a little while; Trueplay may need '
-                    're-tuning afterward. You can change this anytime.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        const InfoNote(
+          'The chosen speakers become hidden satellites of the soundbar (which '
+          'stays the center channel). Bonding runs in steps and can take a '
+          'little while; Trueplay may need re-tuning afterward. You can change '
+          'this anytime.',
         ),
       ],
     );

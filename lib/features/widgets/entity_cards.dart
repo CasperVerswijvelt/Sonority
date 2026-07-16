@@ -134,9 +134,7 @@ class EntityCardModel {
 class TheaterEntityCard extends StatelessWidget {
   final TheaterCardModel model;
   final VoidCallback? onTap;
-  final Widget? footer;
-  const TheaterEntityCard(
-      {super.key, required this.model, this.onTap, this.footer});
+  const TheaterEntityCard({super.key, required this.model, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +178,6 @@ class TheaterEntityCard extends StatelessWidget {
                         hasSurrounds: model.hasSurrounds,
                         hasSub: model.hasSub,
                       ),
-                      if (footer != null) ...[Gap.s, footer!],
                     ],
                   ),
                 ),

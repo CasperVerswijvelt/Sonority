@@ -146,9 +146,12 @@ class _SpeakerIdentifyButtonState extends ConsumerState<SpeakerIdentifyButton>
       identifyButtons(widget.device, chime: widget.allowChime);
 }
 
-/// A [SpeakerIdentifyButton] for [device], or null when there's no reachable
-/// device to identify — so a card can pass it straight to a `trailing` slot.
+/// A [SpeakerIdentifyButton] for [device], or null when there's nothing to
+/// identify — so a card can pass it straight to a `trailing` slot. Requires an
+/// IP: a device with no address can't be identified, and the "no address" error
+/// toast would be occluded behind the detail sheet anyway (the root
+/// ScaffoldMessenger renders below the modal route), so just omit the button.
 Widget? speakerIdentifyButton(SonosDevice? device, {bool allowChime = false}) =>
-    device == null
+    (device == null || device.ip == null)
         ? null
         : SpeakerIdentifyButton(device: device, allowChime: allowChime);

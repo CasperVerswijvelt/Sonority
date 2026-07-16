@@ -499,7 +499,8 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   opens a **read-only per-entity detail** (`profile_entity_detail_screen.dart`)
   that mirrors the system-overview entity view — the HT `SpeakerDiagram` / group
   `MemberChannelCard`s, driven from the stored `mapSet` via a throwaway
-  `ZoneGroupMember` (same trick as `entitySummary`) — plus a per-speaker
+  `ZoneGroupMember` (`EntitySnapshot.toMember`, same trick the shared
+  `EntityCardModel.fromSnapshot` uses) — plus a per-speaker
   breakdown of the captured settings (`SpeakerSettings.describe()`). Apply does pre-flight resolution
   (missing/conflicting speakers), frees conflicts, re-bonds via the diff-based
   `_applyHtTarget` (no-op if unchanged, else add only what's missing), restores
@@ -616,7 +617,7 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   entity name (a satellite/hidden half just echoes the HT/pair name), so showing
   it is noise. Inside a bonded entity we therefore show the speaker **type**
   (`SonosDevice.typeLabel` — "Beam (Gen 2)", "Play:1", "Sub") via
-  `typeForChannel` / `entitySummary`. The **name** only matters for the entity as
+  `typeForChannel` / the shared `EntityCardModel`. The **name** only matters for the entity as
   a whole (the HT / pair) and for individual standalone speakers — that's where
   rename and the room-name labels live.
 - Commit only when asked; end commit messages with the Co-Authored-By trailer.
