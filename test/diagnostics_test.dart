@@ -98,6 +98,62 @@ void main() {
     expect(topologyText(ht), isNot(contains('not in topology groups')));
   });
 
+  test('topologyText folds an HT satellite IP into its map line (no └ dup)', () {
+    final ht = SonosSystem(
+      groups: const [
+        ZoneGroup(coordinatorUuid: 'BAR', members: [
+          ZoneGroupMember(
+            uuid: 'BAR',
+            zoneName: 'Living',
+            htSatChanMapSet: 'BAR:CC;SAT:LR',
+            satellites: [
+              SonosSatellite(
+                  uuid: 'SAT',
+                  zoneName: 'Living',
+                  channels: [SonosChannel.leftRear],
+                  ip: '192.168.1.50'),
+            ],
+          ),
+        ]),
+      ],
+      devicesByUuid: {
+        'BAR': const SonosDevice(uuid: 'BAR', roomName: 'Living', modelName: 'Sonos Beam'),
+      },
+    );
+    final text = topologyText(ht);
+    // Satellite IP is appended to its map row...
+    expect(text, contains('SAT:LR · 192.168.1.50'));
+    // ...the coordinator's own CC row stays plain (its IP is in its device block)...
+    expect(text, isNot(contains('BAR:CC ·')));
+    // ...and no residual └ line for a map-covered satellite.
+    expect(text, isNot(contains('└')));
+  });
+
+  test('topologyText keeps a residual └ line for a satellite absent from the map', () {
+    final ht = SonosSystem(
+      groups: const [
+        ZoneGroup(coordinatorUuid: 'BAR', members: [
+          ZoneGroupMember(
+            uuid: 'BAR',
+            zoneName: 'Living',
+            htSatChanMapSet: 'BAR:CC',
+            satellites: [
+              SonosSatellite(
+                  uuid: 'GHOST',
+                  zoneName: 'Living',
+                  channels: [SonosChannel.rightRear],
+                  ip: '192.168.1.51'),
+            ],
+          ),
+        ]),
+      ],
+      devicesByUuid: {
+        'BAR': const SonosDevice(uuid: 'BAR', roomName: 'Living', modelName: 'Sonos Beam'),
+      },
+    );
+    expect(topologyText(ht), contains('└ [RR] GHOST · 192.168.1.51'));
+  });
+
   test('inlineJsonPrefs inlines JSON string values as real nested JSON', () {
     final out = inlineJsonPrefs({
       'profiles': '[{"id":"1","name":"My setup"}]',
