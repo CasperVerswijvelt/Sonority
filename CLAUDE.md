@@ -474,7 +474,11 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 - ✅ Dedicated front surrounds (add with guided flow + Identify; remove), incl. a
   single **Sonos Amp** driving passive fronts (`AMP:LF,RF`; exclusive selection).
 - ✅ Identify a speaker by **blinking its status LED** (`led_identify.dart`, default,
-  all platforms incl. macOS) with the audio chime as a mobile-only long-press extra.
+  all platforms incl. macOS) with the audio chime as a mobile-only extra. Offered
+  in the pick-a-speaker flows AND per-speaker in the room / group detail sheets
+  (`SpeakerIdentifyButton`); chime is gated to standalone speakers via
+  `SonosSystem.isStandalone` (a bonded member blinks only — a chime plays the
+  whole bond).
 - ✅ **Speaker groups** (`features/group/group_flow.dart`, `zone_layout.dart`) —
   one unified "Group speakers" page (Stereo / Zone / Custom segmented control)
   over a single `AddBondedZones` path: stereo pair (L/R), full-range zone (2–16),
