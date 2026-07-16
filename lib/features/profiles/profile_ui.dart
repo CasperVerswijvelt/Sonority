@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_sficon/flutter_sficon.dart';
 
-import '../../data/models/sonos_models.dart';
-import '../../data/sonos/channel_map.dart';
-import '../widgets/entity_icons.dart';
 import 'profile.dart';
 
 /// True if [name] (trimmed, case-insensitive) is already used by another
@@ -449,86 +446,3 @@ class _Swatch extends StatelessWidget {
   }
 }
 
-/// Icon for a profile entity. Home theaters get the surround icon, standalone
-/// speakers the speaker icon, and the group kinds defer to the shared
-/// [groupKindIcon] so the profile and system-overview iconography can't drift.
-/// The kind is spelled out in the subtitle either way.
-IconData entityIcon(EntityKind kind) => switch (kind) {
-      EntityKind.homeTheater => Icons.surround_sound,
-      EntityKind.stereoPair => groupKindIcon(GroupKind.stereoPair),
-      EntityKind.zone => groupKindIcon(GroupKind.zone),
-      EntityKind.custom => groupKindIcon(GroupKind.custom),
-      EntityKind.single => Icons.speaker,
-    };
-
-/// A short human description of what an entity snapshot bonds, by speaker TYPE
-/// (the room names just echo the entity name, so the type is the useful detail).
-/// Resolves types against the live [system]; falls back to the captured room
-/// name only when the device isn't currently present.
-///
-/// - HT: `Fronts: One SL, One SL · Surrounds: Play:1, Play:1 · Subwoofer: Sub`
-/// - Pair: `Play:1 + Play:1`
-/// - Single: the type (or "Standalone speaker").
-String entitySummary(EntitySnapshot e, SonosSystem? system) {
-  String typeOf(String uuid) =>
-      system?.device(uuid)?.typeLabel ?? e.names[uuid] ?? 'Speaker';
-
-  switch (e.kind) {
-    case EntityKind.single:
-      return system?.device(e.primaryUuid)?.typeLabel ?? 'Standalone speaker';
-
-    case EntityKind.stereoPair:
-      final uuids = e.involvedUuids.toList();
-      if (uuids.length < 2) return 'Stereo pair';
-      return '${typeOf(uuids[0])} + ${typeOf(uuids[1])}';
-
-    case EntityKind.zone:
-      final uuids = e.involvedUuids.toList();
-      if (uuids.length < 2) return 'Zone';
-      return '${uuids.length} speakers: ${uuids.map(typeOf).join(', ')}';
-
-    case EntityKind.custom:
-      if (e.mapSet == null) return 'Custom group';
-      final tmp = e.toMember();
-      final ch = tmp.groupChannels.values.toList();
-      final l = ch.where((c) => c == GroupChannel.left).length;
-      final r = ch.where((c) => c == GroupChannel.right).length;
-      final b = ch.where((c) => c == GroupChannel.both).length;
-      final parts = [
-        if (l > 0) 'L:$l',
-        if (r > 0) 'R:$r',
-        if (b > 0) 'Both:$b',
-      ];
-      return '${ch.length} speakers · ${parts.join(' ')}'
-          '${tmp.subUuid != null ? ' · Sub' : ''}';
-
-    case EntityKind.homeTheater:
-      final map = e.mapSet;
-      if (map == null) return e.kindLabel;
-      final fronts = <String>[], surrounds = <String>[], sub = <String>[];
-      final fSeen = <String>{}, sSeen = <String>{}, wSeen = <String>{};
-      // Skip the first entry (the soundbar primary / CC). One type per distinct
-      // speaker (an Amp on both fronts shows once; two Play:1 surrounds show
-      // twice — "Play:1, Play:1").
-      for (final entry in ChannelMap.parse(map).entries.skip(1)) {
-        for (final ch in entry.channels) {
-          switch (ch) {
-            case SonosChannel.leftFront || SonosChannel.rightFront:
-              if (fSeen.add(entry.uuid)) fronts.add(typeOf(entry.uuid));
-            case SonosChannel.leftRear || SonosChannel.rightRear:
-              if (sSeen.add(entry.uuid)) surrounds.add(typeOf(entry.uuid));
-            case SonosChannel.sub:
-              if (wSeen.add(entry.uuid)) sub.add(typeOf(entry.uuid));
-            case SonosChannel.center:
-              break;
-          }
-        }
-      }
-      final parts = <String>[
-        if (fronts.isNotEmpty) 'Fronts: ${fronts.join(', ')}',
-        if (surrounds.isNotEmpty) 'Surrounds: ${surrounds.join(', ')}',
-        if (sub.isNotEmpty) 'Subwoofer: ${sub.join(', ')}',
-      ];
-      return parts.isEmpty ? 'Soundbar only' : parts.join(' · ');
-  }
-}

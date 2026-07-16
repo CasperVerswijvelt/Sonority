@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/entity_cards.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_ui.dart';
@@ -37,9 +38,9 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   String _iconId = kDefaultProfileIcon;
   int _color = 0;
 
-  void _seed(SonosSystem system, Profile? existing) {
+  void _seed(SonosSystem system, Profile? existing, List<Profile> profiles) {
     if (_seeded) return;
-    _name.text = existing?.name ?? 'My setup';
+    _name.text = existing?.name ?? _defaultName(profiles);
     _iconId = existing?.iconId ?? kDefaultProfileIcon;
     _color = existing?.color ?? 0;
     // Re-snapshot pre-selects the entities that were originally in the profile.
@@ -55,6 +56,17 @@ class _State extends ConsumerState<ProfileCreateScreen> {
           : e.involvedUuids.any(originalUuids.contains);
     }
     _seeded = true;
+  }
+
+  /// A helpful default that isn't already taken ("My setup", then "My setup 2",
+  /// …) so New profile doesn't open on a name-collision error.
+  String _defaultName(List<Profile> profiles) {
+    const base = 'My setup';
+    if (!isProfileNameTaken(profiles, base)) return base;
+    for (var i = 2;; i++) {
+      final candidate = '$base $i';
+      if (!isProfileNameTaken(profiles, candidate)) return candidate;
+    }
   }
 
   @override
@@ -107,7 +119,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     if (isResnapshot && existing == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    _seed(system, existing);
+    _seed(system, existing, profiles);
 
     final name = _name.text.trim();
     final taken = isProfileNameTaken(profiles, name, exceptId: widget.profileId);
@@ -333,15 +345,17 @@ class _SelectableEntityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Compact summary, matching the profile detail / overview tiles.
+    final model = EntityCardModel.fromSnapshot(system, entity.toMember());
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: CheckboxListTile(
         value: included,
         onChanged: (v) => onChanged(v ?? false),
-        secondary: Icon(entityIcon(entity.kind)),
+        secondary: Icon(model.icon),
         title: Text(entity.label),
-        subtitle: Text(entitySummary(entity, system)),
+        subtitle: Text(model.subtitle),
       ),
     );
   }
