@@ -3,10 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/entity_cards.dart';
+import '../widgets/section_header.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
+import 'profile_entity_detail_screen.dart';
 import 'profile_ui.dart';
 
 /// A profile's detail view and single save surface: edit the name/appearance,
@@ -120,7 +124,7 @@ class _State extends ConsumerState<ProfileDetailScreen> {
             ],
           ),
           Gap.l,
-          Text('Included', style: theme.textTheme.titleSmall),
+          const SectionHeader('Included'),
           Text(
             entitiesChanged
                 ? 'Recaptured from your current setup — press Save to keep it.'
@@ -133,29 +137,11 @@ class _State extends ConsumerState<ProfileDetailScreen> {
             ),
           ),
           Gap.m,
-          for (final e in entities) ...[
-            Card(
-              margin: EdgeInsets.zero,
-              child: ListTile(
-                leading: Icon(entityIcon(e.kind)),
-                titleAlignment: ListTileTitleAlignment.center,
-                title: Text(e.label),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(entitySummary(e, system)),
-                    if (settingsBadges(
-                            audio: e.hasAudioSettings, volume: e.hasVolume)
-                        case final badges?) ...[
-                      const SizedBox(height: 6),
-                      badges,
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            Gap.s,
-          ],
+          // Same cards as the system overview, fed a throwaway member built from
+          // the stored snapshot, with a "settings saved" footer. Tapping opens
+          // the entity detail sheet (fed the snapshot directly, so it works for a
+          // pending re-snapshot entity too).
+          for (final e in entities) _entityCard(context, e, system),
         ],
       ),
     );
@@ -185,4 +171,16 @@ class _State extends ConsumerState<ProfileDetailScreen> {
     setState(() => _pendingEntities = null);
     messenger.showSnackBar(const SnackBar(content: Text('Profile saved')));
   }
+}
+
+/// One entity as a compact tile (every kind — the profile list is uniform,
+/// unlike the overview's rich HT card), built from the stored snapshot with a
+/// "settings saved" footer and a tap that opens the entity detail sheet.
+Widget _entityCard(
+    BuildContext context, EntitySnapshot e, SonosSystem? system) {
+  return EntityCard(
+    model: EntityCardModel.fromSnapshot(system, e.toMember()),
+    onTap: () => showEntitySheet(context, e, system),
+    footer: settingsBadges(audio: e.hasAudioSettings, volume: e.hasVolume),
+  );
 }

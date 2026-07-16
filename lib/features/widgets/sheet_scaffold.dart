@@ -1,70 +1,147 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
 import 'app_scaffold.dart' show ScrolledUnderDivider;
 
-/// Opens [child] as the app's standard tall modal bottom sheet (drag handle,
-/// ~92% height, safe-area aware). Pair with [SheetScaffold] for the header +
-/// scroll-under divider chrome. Shared by the diagnostics + version/changelog
-/// sheets so they present identically.
-Future<T?> showAppSheet<T>(BuildContext context, Widget child) =>
+/// Opens [child] as the app's standard modal bottom sheet, over the tab shell.
+/// Pair with [SheetScaffold] for the header + divider + bottom handling. Shared
+/// by every app sheet so they present identically.
+///
+/// No visible drag handle — the explicit close button in [SheetScaffold]'s
+/// header is the discoverable way out, and drag-to-dismiss still works
+/// (`enableDrag` defaults to true, independent of the hidden handle), so the two
+/// don't compete for the same top strip.
+Future<T?> showSheet<T>(BuildContext context, Widget child) =>
     showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      showDragHandle: true,
+      showDragHandle: false,
       // Present over the tab shell's NavigationBar so the sheet is a full modal.
       useRootNavigator: true,
-      builder: (_) => FractionallySizedBox(heightFactor: 0.92, child: child),
+      builder: (_) => child,
     );
 
-/// A modal-sheet body: a header row (optional leading [icon], [title], optional
-/// [trailing]) over a [ScrolledUnderDivider] that fades in as [body] scrolls
-/// under it, then the scrollable [body] filling the rest, and an optional
-/// pinned [footer]. The [body] should be its own scroll view.
+/// The shared sheet header: optional leading [icon], a [title] (+ optional
+/// [subtitle]), an optional [trailing] action, and always an explicit close
+/// button on the right.
+class _SheetHeader extends StatelessWidget {
+  const _SheetHeader(
+      {required this.title, this.subtitle, this.icon, this.trailing});
+
+  final String title;
+  final String? subtitle;
+  final IconData? icon;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      // Reserve breathing room at the top since there's no drag handle above
+      // the header to provide it.
+      padding: const EdgeInsets.fromLTRB(16, 28, 8, 8),
+      child: Row(
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title, style: theme.textTheme.titleLarge),
+                if (subtitle != null)
+                  Text(subtitle!, style: theme.mutedText),
+              ],
+            ),
+          ),
+          if (trailing != null) trailing!,
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: 'Close',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The body of an app modal sheet: a header (icon/title/subtitle/trailing +
+/// close), a scroll-under divider, the [body], and an optional pinned [footer].
+///
+/// Height stops one app-bar height below the top of the space available to it —
+/// a meaningful, dismiss-friendly strip (you see the app bar of the screen
+/// behind) rather than an arbitrary fraction. Measured with a [LayoutBuilder]
+/// (the real available height, already minus the safe area / window chrome)
+/// because `MediaQuery.size` on macOS includes the window title bar and overshot.
+///
+/// [fill] = true → the sheet FILLS that cap; [body] must be its own scroll view
+/// (long lists: diagnostics, changelog). [fill] = false (default) → the sheet is
+/// sized to its CONTENT up to the cap, and [body] is plain content this wraps in
+/// a scroll view (detail sheets: speaker, group, profile entity).
+///
+/// Bottom safe-area + a small breathing gap are handled here, so callers (footer
+/// or not) don't hand-roll bottom padding.
 class SheetScaffold extends StatelessWidget {
   const SheetScaffold({
     super.key,
     required this.title,
     required this.body,
+    this.subtitle,
     this.icon,
     this.trailing,
     this.footer,
+    this.fill = false,
   });
 
   final String title;
+  final String? subtitle;
   final IconData? icon;
   final Widget? trailing;
   final Widget body;
   final Widget? footer;
+  final bool fill;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    // A modal sheet lives in the overlay and doesn't see the home Scaffold's
-    // ScrollNotificationObserver, so provide our own for ScrolledUnderDivider.
-    return ScrollNotificationObserver(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxHeight = (constraints.maxHeight - kToolbarHeight - 1)
+            .clamp(0.0, constraints.maxHeight);
+        // A modal sheet lives in the overlay and doesn't see the home Scaffold's
+        // ScrollNotificationObserver, so provide our own for ScrolledUnderDivider.
+        final content = ScrollNotificationObserver(
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
               children: [
-                if (icon != null) ...[
-                  Icon(icon, color: theme.colorScheme.primary),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(title, style: theme.textTheme.titleLarge),
-                ),
-                if (trailing != null) trailing!,
+                _SheetHeader(
+                    title: title,
+                    subtitle: subtitle,
+                    icon: icon,
+                    trailing: trailing),
+                const ScrolledUnderDivider(),
+                if (fill)
+                  Expanded(child: body)
+                else
+                  Flexible(child: SingleChildScrollView(child: body)),
+                if (footer != null) footer!,
+                const SizedBox(height: 12),
               ],
             ),
           ),
-          const ScrolledUnderDivider(),
-          Expanded(child: body),
-          if (footer != null) footer!,
-        ],
-      ),
+        );
+        return fill
+            ? SizedBox(height: maxHeight, child: content)
+            : ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeight),
+                child: content);
+      },
     );
   }
 }

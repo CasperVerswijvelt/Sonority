@@ -81,11 +81,14 @@ mixin IdentifyMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       });
 
   /// The standard lightbulb (+ mobile chime) controls for [device], wired to
-  /// this mixin's actions and busy state.
-  Widget identifyButtons(SonosDevice device) => IdentifyButtons(
+  /// this mixin's actions and busy state. Pass `chime: false` for a bonded
+  /// speaker: a satellite / group member can't play the chime on its own (and a
+  /// coordinator's chime plays the whole bond), so only the LED blink applies.
+  Widget identifyButtons(SonosDevice device, {bool chime = true}) =>
+      IdentifyButtons(
         busy: _identifyingUuid == device.uuid,
         onBlink: () => identify(device),
-        onChime: onChime == null ? null : () => onChime!(device),
+        onChime: (chime && onChime != null) ? () => onChime!(device) : null,
       );
 
   /// Shared scaffolding: guard on a missing IP, mark busy, show a status
@@ -119,3 +122,36 @@ mixin IdentifyMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     }
   }
 }
+
+/// A self-contained per-speaker identify control (LED blink + optional chime)
+/// for the detail views that show a single speaker card outside the
+/// pick-a-speaker flows — the room / group detail sheets. Wraps [IdentifyButtons]
+/// with its own busy state via [IdentifyMixin], so a card can drop it in as a
+/// `trailing` widget. Pass [allowChime] = false for a bonded speaker (LED only).
+class SpeakerIdentifyButton extends ConsumerStatefulWidget {
+  final SonosDevice device;
+  final bool allowChime;
+  const SpeakerIdentifyButton(
+      {super.key, required this.device, this.allowChime = false});
+
+  @override
+  ConsumerState<SpeakerIdentifyButton> createState() =>
+      _SpeakerIdentifyButtonState();
+}
+
+class _SpeakerIdentifyButtonState extends ConsumerState<SpeakerIdentifyButton>
+    with IdentifyMixin {
+  @override
+  Widget build(BuildContext context) =>
+      identifyButtons(widget.device, chime: widget.allowChime);
+}
+
+/// A [SpeakerIdentifyButton] for [device], or null when there's nothing to
+/// identify — so a card can pass it straight to a `trailing` slot. Requires an
+/// IP: a device with no address can't be identified, and the "no address" error
+/// toast would be occluded behind the detail sheet anyway (the root
+/// ScaffoldMessenger renders below the modal route), so just omit the button.
+Widget? speakerIdentifyButton(SonosDevice? device, {bool allowChime = false}) =>
+    (device == null || device.ip == null)
+        ? null
+        : SpeakerIdentifyButton(device: device, allowChime: allowChime);

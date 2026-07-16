@@ -437,6 +437,12 @@ class SonosSystem {
 
   SonosDevice? device(String uuid) => devicesByUuid[uuid];
 
+  /// Whether [uuid] plays audio on its own — i.e. it isn't bonded into a home
+  /// theater or speaker group. Only a standalone speaker can be identified with
+  /// the audio chime; a bonded satellite / group member (and a coordinator,
+  /// whose chime would play the whole bond) can only blink its LED.
+  bool isStandalone(String uuid) => !_bondedUuids.contains(uuid);
+
   /// The coordinator/primary UUID that currently owns [uuid] as a bonded member
   /// — an HT satellite, a stereo-pair half, or any zone/custom group member — or
   /// null if [uuid] is standalone. The single source of truth for "is this

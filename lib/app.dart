@@ -17,9 +17,7 @@ import 'features/profiles/profile_widget.dart';
 import 'features/profiles/profiles_screen.dart';
 import 'features/profiles/profile_create_screen.dart';
 import 'features/profiles/profile_detail_screen.dart';
-import 'features/room/room_screen.dart';
 import 'features/group/group_flow.dart';
-import 'features/group/group_detail_screen.dart';
 
 /// Root navigator key — lets an out-of-app launch (app shortcut / widget) reach
 /// a BuildContext to run the apply flow even when no widget context is handy.
@@ -42,15 +40,8 @@ final _router = GoRouter(
           routes: [
             GoRoute(path: '/', builder: (_, __) => const DiscoveryScreen()),
             GoRoute(path: '/group', builder: (_, __) => const GroupFlow()),
-            GoRoute(
-              path: '/group/:uuid',
-              builder: (_, s) =>
-                  GroupDetailScreen(uuid: s.pathParameters['uuid']!),
-            ),
-            GoRoute(
-              path: '/room/:uuid',
-              builder: (_, s) => RoomScreen(uuid: s.pathParameters['uuid']!),
-            ),
+            // Group + room detail are modal sheets (see showGroupSheet /
+            // showRoomSheet), not routes.
             GoRoute(
               path: '/theater/:uuid',
               builder: (_, s) =>
@@ -79,6 +70,8 @@ final _router = GoRouter(
                   // Nested so the stack is [overview, detail, resnapshot] —
                   // the detail screen pushes this and awaits the recaptured
                   // entities it pops back (see ProfileDetailScreen._resnapshot).
+                  // (The per-entity detail is a modal sheet — showEntitySheet —
+                  // not a route.)
                   routes: [
                     GoRoute(
                       path: 'resnapshot',

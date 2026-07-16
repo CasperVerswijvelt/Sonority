@@ -6,6 +6,7 @@ import '../data/sonos/apply_progress.dart';
 import '../data/sonos/cancellation.dart';
 import '../data/sonos/channel_map.dart';
 import '../data/sonos/diagnostics_log.dart';
+import '../data/sonos/friendly_error.dart';
 import '../data/sonos/front_layout.dart' as front_layout;
 import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
@@ -129,11 +130,25 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     if (sys == null || (!audio && !volume)) return entities;
     final out = <EntitySnapshot>[];
     for (final e in entities) {
+      // The extended EQ bundle (sub/surround/night/speech/height) only applies
+      // in a home theater or when a sub is bonded; a plain speaker still answers
+      // those GetEQ calls with meaningless defaults, so skip them there (a
+      // soundbar always gets them — a bare bar has night/speech/height).
+      final entityHtOrSub =
+          e.kind == EntityKind.homeTheater || e.toMember().subUuid != null;
       final map = <String, SpeakerSettings>{};
       for (final uuid in e.involvedUuids) {
-        final ip = sys.device(uuid)?.ip;
+        final dev = sys.device(uuid);
+        final ip = dev?.ip;
         if (ip == null) continue;
-        final s = await _settings.read(ip, audio: audio, volume: volume);
+        // In an HT only the coordinator (soundbar) carries the audio bundle; the
+        // satellites reject every EQ read with UPnPError 803, so skip their audio
+        // reads entirely rather than fire ~17 calls that all fault.
+        final isHtSatellite =
+            e.kind == EntityKind.homeTheater && uuid != e.primaryUuid;
+        final extendedEq = entityHtOrSub || (dev?.isSoundbar ?? false);
+        final s = await _settings.read(ip,
+            audio: audio && !isHtSatellite, volume: volume, extendedEq: extendedEq);
         if (!s.isEmpty) map[uuid] = s;
       }
       out.add(map.isEmpty ? e : e.copyWith(settings: map));
@@ -241,7 +256,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         return sys;
       } catch (e) {
         // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail('bond', '$e');
+        tracker.fail('bond', friendlyError(e));
         rethrow;
       }
     });
@@ -398,7 +413,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         tracker.done(e.primaryUuid);
       } catch (err) {
         // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail(e.primaryUuid, '$err');
+        tracker.fail(e.primaryUuid, friendlyError(err));
         rethrow;
       }
     }
@@ -685,7 +700,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         return sys;
       } catch (e) {
         // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail('remove', '$e');
+        tracker.fail('remove', friendlyError(e));
         rethrow;
       }
     });
@@ -763,7 +778,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         return system;
       } catch (e) {
         // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail('group', '$e');
+        tracker.fail('group', friendlyError(e));
         rethrow;
       }
     });
@@ -808,14 +823,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       try {
         // 1. A bond can't be dissolved while the coordinator is a non-coordinator
         //    member of a larger playback group — detach into its own group first.
-        if (coord.ip != null && !_isStandalone(previous, coord.uuid)) {
+        if (coord.ip != null && !_isOwnGroupCoordinator(previous, coord.uuid)) {
           ph.phase('detach', 'Detach from playback group');
           await _repo.detachFromGroup(coord.ip!);
           await _pollUntil(
             previous: previous,
             ip: coord.ip,
             attempts: 6,
-            until: (s) => _isStandalone(s, coord.uuid),
+            until: (s) => _isOwnGroupCoordinator(s, coord.uuid),
           );
         }
         // 2. Dissolve (SeparateStereoPair on the live map) + restore names.
@@ -837,15 +852,18 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         return system;
       } catch (e) {
         // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail('ungroup', '$e');
+        tracker.fail('ungroup', friendlyError(e));
         rethrow;
       }
     });
     _commit(result, previous);
   }
 
-  /// True when [uuid] is its own playback-group coordinator (standalone group).
-  bool _isStandalone(SonosSystem system, String uuid) {
+  /// True when [uuid] is its own playback-group coordinator (a standalone
+  /// playback group). NB: this is about playback grouping, NOT bonding — it is
+  /// unrelated to `SonosSystem.isStandalone` (which means "not bonded into an
+  /// HT/group").
+  bool _isOwnGroupCoordinator(SonosSystem system, String uuid) {
     for (final g in system.groups) {
       if (g.members.any((m) => m.uuid == uuid)) {
         return g.coordinatorUuid == uuid;

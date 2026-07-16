@@ -197,9 +197,7 @@ class _RawLogViewState extends ConsumerState<_RawLogView> {
     });
     if (lines.isEmpty) {
       return Center(
-        child: Text('No log output yet.',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        child: Text('No log output yet.', style: theme.mutedText),
       );
     }
     return Scrollbar(

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/theme.dart';
 import 'sheet_scaffold.dart';
 
 const _repoUrl = 'https://github.com/CasperVerswijvelt/Sonority';
@@ -48,9 +49,9 @@ class _VersionPill extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Material(
       color: scheme.onSurface.withValues(alpha: 0.06),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(kCardRadius),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(kCardRadius),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -72,9 +73,10 @@ class _VersionPill extends StatelessWidget {
 /// modal-sheet chrome (drag handle + scroll-under divider) as the diagnostics
 /// sheet via [SheetScaffold].
 Future<void> showVersionSheet(BuildContext context, PackageInfo info) {
-  return showAppSheet<void>(
+  return showSheet<void>(
     context,
     SheetScaffold(
+      fill: true,
       title: 'Changelog',
       trailing: _VersionPill(fullVersionLabel(info)),
       body: FutureBuilder<String>(
@@ -88,21 +90,18 @@ Future<void> showVersionSheet(BuildContext context, PackageInfo info) {
           );
         },
       ),
-      footer: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton.tonalIcon(
-              onPressed: () => launchUrl(
-                Uri.parse(_repoUrl),
-                mode: LaunchMode.externalApplication,
-              ),
-              style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('GitHub'),
+      footer: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+        child: SizedBox(
+          width: double.infinity,
+          child: FilledButton.tonalIcon(
+            onPressed: () => launchUrl(
+              Uri.parse(_repoUrl),
+              mode: LaunchMode.externalApplication,
             ),
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('GitHub'),
           ),
         ),
       ),

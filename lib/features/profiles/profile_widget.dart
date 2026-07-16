@@ -270,7 +270,7 @@ class _WidgetConfigScreenState extends State<_WidgetConfigScreen> {
                           ),
                           for (final p in list)
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.only(bottom: kCardGap),
                               child: ProfileCard(
                                 profile: p,
                                 selected: _checked.contains(p.id),

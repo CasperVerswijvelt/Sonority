@@ -6,6 +6,9 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/entity_cards.dart';
+import '../widgets/info_note.dart';
+import '../widgets/section_header.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_ui.dart';
@@ -37,11 +40,15 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   String _iconId = kDefaultProfileIcon;
   int _color = 0;
 
-  void _seed(SonosSystem system, Profile? existing) {
+  void _seed(SonosSystem system, Profile? existing, List<Profile> profiles) {
     if (_seeded) return;
-    _name.text = existing?.name ?? 'My setup';
+    _name.text = existing?.name ?? _defaultName(profiles);
     _iconId = existing?.iconId ?? kDefaultProfileIcon;
     _color = existing?.color ?? 0;
+    // Re-snapshot: default the settings toggles to what the profile already
+    // captured, so recapturing doesn't silently drop its saved EQ/volume.
+    _saveAudio = existing?.hasAudioSettings ?? false;
+    _saveVolume = existing?.hasVolume ?? false;
     // Re-snapshot pre-selects the entities that were originally in the profile.
     // Match by involved UUIDs, not primaryUuid — current live bonding may differ
     // from what the profile stored, which is the whole point of re-snapshotting.
@@ -55,6 +62,17 @@ class _State extends ConsumerState<ProfileCreateScreen> {
           : e.involvedUuids.any(originalUuids.contains);
     }
     _seeded = true;
+  }
+
+  /// A helpful default that isn't already taken ("My setup", then "My setup 2",
+  /// …) so New profile doesn't open on a name-collision error.
+  String _defaultName(List<Profile> profiles) {
+    const base = 'My setup';
+    if (!isProfileNameTaken(profiles, base)) return base;
+    for (var i = 2;; i++) {
+      final candidate = '$base $i';
+      if (!isProfileNameTaken(profiles, candidate)) return candidate;
+    }
   }
 
   @override
@@ -77,7 +95,6 @@ class _State extends ConsumerState<ProfileCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final system = ref.watch(sonosControllerProvider).value;
     final profiles = ref.watch(profilesProvider).value ?? const [];
     final isResnapshot = widget.profileId != null;
@@ -107,7 +124,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     if (isResnapshot && existing == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    _seed(system, existing);
+    _seed(system, existing, profiles);
 
     final name = _name.text.trim();
     final taken = isProfileNameTaken(profiles, name, exceptId: widget.profileId);
@@ -130,29 +147,9 @@ class _State extends ConsumerState<ProfileCreateScreen> {
           if (isResnapshot) ...[
             // Non-destructive: nothing is written until the user saves on the
             // profile screen, so this is a light note, not a warning.
-            Card(
-              margin: EdgeInsets.zero,
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.info_outline,
-                        size: 20, color: theme.colorScheme.onSurfaceVariant),
-                    Gap.s,
-                    Expanded(
-                      child: Text(
-                        'Recapture your current setup, then review and save it '
-                        'on the profile screen.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            const InfoNote(
+              'Recapture your current setup, then review and save it '
+              'on the profile screen.',
             ),
             Gap.l,
           ] else
@@ -188,43 +185,19 @@ class _State extends ConsumerState<ProfileCreateScreen> {
           // re-snapshot the profile already exists and the detail screen owns
           // the review.
           if (!isResnapshot) ...[
-            Card(
-              margin: EdgeInsets.zero,
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.info_outline,
-                        size: 20, color: theme.colorScheme.onSurfaceVariant),
-                    Gap.s,
-                    Expanded(
-                      child: Text(
-                        'Applying a profile later rebuilds these speakers into this '
-                        'layout. Any speaker that’s part of a different setup at that '
-                        'time is removed from it first — which can dissolve another '
-                        'stereo pair or zone and free its other speakers.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            const InfoNote(
+              'Applying a profile later rebuilds these speakers into this '
+              'layout. Any speaker that’s part of a different setup at that '
+              'time is removed from it first — which can dissolve another '
+              'stereo pair or zone and free its other speakers.',
             ),
             Gap.l,
           ],
-          Text('Include', style: theme.textTheme.titleSmall),
-          Text(
-            'Pick which of your current home theaters, pairs and '
-            'rooms to capture in this profile.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          const SectionHeader(
+            'Include',
+            helper: 'Pick which of your current home theaters, pairs and '
+                'rooms to capture in this profile.',
           ),
-          Gap.m,
           for (final e in _entities) ...[
             _SelectableEntityCard(
               entity: e,
@@ -235,15 +208,11 @@ class _State extends ConsumerState<ProfileCreateScreen> {
             Gap.s,
           ],
           Gap.l,
-          Text('Speaker settings', style: theme.textTheme.titleSmall),
-          Text(
-            'Optionally snapshot each speaker’s current settings and restore '
-            'them when this profile is applied.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          const SectionHeader(
+            'Speaker settings',
+            helper: 'Optionally snapshot each speaker’s current settings and '
+                'restore them when this profile is applied.',
           ),
-          Gap.m,
           Card(
             margin: EdgeInsets.zero,
             child: Column(
@@ -333,15 +302,17 @@ class _SelectableEntityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Compact summary, matching the profile detail / overview tiles.
+    final model = EntityCardModel.fromSnapshot(system, entity.toMember());
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: CheckboxListTile(
         value: included,
         onChanged: (v) => onChanged(v ?? false),
-        secondary: Icon(entityIcon(entity.kind)),
+        secondary: Icon(model.icon),
         title: Text(entity.label),
-        subtitle: Text(entitySummary(entity, system)),
+        subtitle: Text(model.subtitle),
       ),
     );
   }
