@@ -81,18 +81,6 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     super.dispose();
   }
 
-  /// Icon + colour picker in a dialog (keeps the create page uncluttered).
-  Future<void> _editAppearance() async {
-    final result =
-        await showAppearanceDialog(context, iconId: _iconId, color: _color);
-    if (result != null) {
-      setState(() {
-        _iconId = result.$1;
-        _color = result.$2;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final system = ref.watch(sonosControllerProvider).value;
@@ -157,28 +145,16 @@ class _State extends ConsumerState<ProfileCreateScreen> {
             // profile; only create-new needs them here.
             Padding(
               padding: const EdgeInsets.only(bottom: 24),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Tap the swatch to pick the icon + colour (kept off the main
-                  // flow so the include list stays the focus of the page).
-                  AppearanceButton(
-                      iconId: _iconId, color: _color, onTap: _editAppearance),
-                  Gap.s,
-                  Expanded(
-                    child: TextField(
-                      controller: _name,
-                      onChanged: (_) => setState(() {}),
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: InputDecoration(
-                        labelText: 'Profile name',
-                        border: const OutlineInputBorder(),
-                        errorText:
-                            taken ? 'A profile with this name exists' : null,
-                      ),
-                    ),
-                  ),
-                ],
+              child: ProfileNameField(
+                controller: _name,
+                iconId: _iconId,
+                color: _color,
+                nameTaken: taken,
+                onChanged: () => setState(() {}),
+                onAppearanceChanged: (icon, color) => setState(() {
+                  _iconId = icon;
+                  _color = color;
+                }),
               ),
             ),
           // Only the create flow needs the "what applying does" primer; on

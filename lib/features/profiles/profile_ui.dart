@@ -172,6 +172,65 @@ class AppearanceButton extends StatelessWidget {
   }
 }
 
+/// The name row shared by the create and detail screens: the appearance swatch
+/// (tap to edit icon/colour) beside the "Profile name" field. Owns the
+/// appearance dialog so callers just react to the picked (iconId, color) via
+/// [onAppearanceChanged]. The field pins [VisualDensity.standard] so its box
+/// stays 56 = the swatch — desktop's compact density would otherwise shrink it
+/// and knock the swatch off-centre (and make it jump when the error grows the
+/// field). [onChanged] fires on every keystroke so the parent can recompute
+/// [nameTaken].
+class ProfileNameField extends StatelessWidget {
+  final TextEditingController controller;
+  final String iconId;
+  final int color;
+  final bool nameTaken;
+  final VoidCallback onChanged;
+  final void Function(String iconId, int color) onAppearanceChanged;
+
+  const ProfileNameField({
+    super.key,
+    required this.controller,
+    required this.iconId,
+    required this.color,
+    required this.nameTaken,
+    required this.onChanged,
+    required this.onAppearanceChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppearanceButton(
+          iconId: iconId,
+          color: color,
+          onTap: () async {
+            final result =
+                await showAppearanceDialog(context, iconId: iconId, color: color);
+            if (result != null) onAppearanceChanged(result.$1, result.$2);
+          },
+        ),
+        Gap.s,
+        Expanded(
+          child: TextField(
+            controller: controller,
+            onChanged: (_) => onChanged(),
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              labelText: 'Profile name',
+              border: const OutlineInputBorder(),
+              errorText: nameTaken ? 'A profile with this name exists' : null,
+              visualDensity: VisualDensity.standard,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// The profile card used in the Profiles overview and the widget picker — the
 /// same card everywhere. [trailing] swaps the actions (Apply + menu on the
 /// overview, a selection indicator in the picker); [selected] highlights it.
