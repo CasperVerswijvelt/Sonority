@@ -17,6 +17,7 @@ section into the GitHub Release notes regardless of the build suffix
 ### Changed
 - Profile editing is now a single save surface: the profile screen keeps you on the page after saving (with a toast) instead of jumping back to the list, and re-snapshot no longer instantly overwrites — it recaptures the current setup as an unsaved change you review and commit with Save (dropping the confirmation dialog, the duplicate name/appearance editor, and the apply primer from the re-snapshot screen). Captured-settings now show as "Audio settings"/"Volume" chips on each speaker card instead of a text line.
 - The version/changelog viewer (tap the version chip) now opens as a bottom sheet matching the new Diagnostics screen.
+- Renamed the home-theater "Remove all extra speakers" button to "Separate" (with a "Separate home theater?" confirmation), consistent with the speaker-groups wording.
 
 ## [0.5.1] - 2026-07-15
 
