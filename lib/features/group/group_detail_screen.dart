@@ -16,7 +16,7 @@ import '../widgets/sheet_scaffold.dart';
 /// the group kind, one card per member speaker (type + channel), a rename action,
 /// and a pinned Separate. Opened by tapping a group on the discovery overview.
 Future<void> showGroupSheet(BuildContext context, String uuid) =>
-    showContentSheet<void>(context, _GroupSheet(uuid: uuid));
+    showSheet<void>(context, _GroupSheet(uuid: uuid));
 
 class _GroupSheet extends ConsumerWidget {
   final String uuid;
@@ -31,14 +31,14 @@ class _GroupSheet extends ConsumerWidget {
         .firstOrNull;
 
     if (system == null || group == null || !group.isGroup) {
-      return const ContentSheetScaffold(
+      return const SheetScaffold(
         title: 'Speaker group',
         body: Padding(padding: EdgeInsets.all(24), child: MissingRoomView()),
       );
     }
 
     final device = system.device(group.uuid);
-    return ContentSheetScaffold(
+    return SheetScaffold(
       title: group.zoneName,
       subtitle: groupKindLabel(group.groupKind),
       trailing: device == null

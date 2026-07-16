@@ -13,7 +13,7 @@ import '../widgets/trueplay_control.dart';
 /// Opens a standalone room (or stereo pair) as a modal sheet. Currently hosts the
 /// Trueplay control (kept off the main list to avoid clutter) plus rename.
 Future<void> showRoomSheet(BuildContext context, String uuid) =>
-    showContentSheet<void>(context, _RoomSheet(uuid: uuid));
+    showSheet<void>(context, _RoomSheet(uuid: uuid));
 
 class _RoomSheet extends ConsumerWidget {
   final String uuid;
@@ -28,7 +28,7 @@ class _RoomSheet extends ConsumerWidget {
         .firstOrNull;
 
     if (member == null) {
-      return const ContentSheetScaffold(
+      return const SheetScaffold(
         title: 'Room',
         body: Padding(padding: EdgeInsets.all(24), child: MissingRoomView()),
       );
@@ -38,7 +38,7 @@ class _RoomSheet extends ConsumerWidget {
     final device = system!.device(uuid);
     final devices = [if (device != null) device];
 
-    return ContentSheetScaffold(
+    return SheetScaffold(
       title: member.zoneName,
       subtitle: 'Room',
       trailing: device == null

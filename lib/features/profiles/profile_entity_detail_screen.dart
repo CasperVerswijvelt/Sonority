@@ -16,7 +16,7 @@ import 'profile.dart';
 /// unsaved re-snapshot entity too.
 Future<void> showEntitySheet(
         BuildContext context, EntitySnapshot entity, SonosSystem? system) =>
-    showContentSheet<void>(context, _EntitySheet(entity: entity, system: system));
+    showSheet<void>(context, _EntitySheet(entity: entity, system: system));
 
 class _EntitySheet extends StatelessWidget {
   final EntitySnapshot entity;
@@ -31,7 +31,7 @@ class _EntitySheet extends StatelessWidget {
     String typeOf(String uuid) =>
         system?.device(uuid)?.typeLabel ?? e.names[uuid] ?? 'Speaker';
 
-    return ContentSheetScaffold(
+    return SheetScaffold(
       title: e.label,
       subtitle: e.kindLabel,
       body: Column(

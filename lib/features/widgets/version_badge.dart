@@ -72,9 +72,10 @@ class _VersionPill extends StatelessWidget {
 /// modal-sheet chrome (drag handle + scroll-under divider) as the diagnostics
 /// sheet via [SheetScaffold].
 Future<void> showVersionSheet(BuildContext context, PackageInfo info) {
-  return showAppSheet<void>(
+  return showSheet<void>(
     context,
     SheetScaffold(
+      fill: true,
       title: 'Changelog',
       trailing: _VersionPill(fullVersionLabel(info)),
       body: FutureBuilder<String>(
@@ -88,21 +89,18 @@ Future<void> showVersionSheet(BuildContext context, PackageInfo info) {
           );
         },
       ),
-      footer: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton.tonalIcon(
-              onPressed: () => launchUrl(
-                Uri.parse(_repoUrl),
-                mode: LaunchMode.externalApplication,
-              ),
-              style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('GitHub'),
+      footer: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+        child: SizedBox(
+          width: double.infinity,
+          child: FilledButton.tonalIcon(
+            onPressed: () => launchUrl(
+              Uri.parse(_repoUrl),
+              mode: LaunchMode.externalApplication,
             ),
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('GitHub'),
           ),
         ),
       ),
