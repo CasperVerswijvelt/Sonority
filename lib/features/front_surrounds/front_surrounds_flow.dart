@@ -11,6 +11,7 @@ import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/identify_controls.dart';
+import '../widgets/info_note.dart';
 import '../widgets/speaker_diagram.dart';
 import '../widgets/speaker_side_card.dart';
 
@@ -121,6 +122,11 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           if (system.device(id) case final d?) d,
     ];
 
+    // Chime only for a standalone speaker; an already-bonded pick (a current
+    // satellite shown pre-selected) can only blink its LED.
+    Widget idControls(SonosDevice d) =>
+        identifyButtons(d, chime: system.isStandalone(d.uuid));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Set up home theater'),
@@ -155,13 +161,13 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     candidates: avail(_fronts),
                     selected: _fronts,
                     onToggle: _toggleFront,
-                    identifyControls: identifyButtons,
+                    identifyControls: idControls,
                   ),
                   if (_ampMode) ...[
                     Gap.m,
                     _AmpWiringNote(
                       amp: system.device(_fronts.first),
-                      identifyControls: identifyButtons,
+                      identifyControls: idControls,
                     ),
                   ] else if (_fronts.length == 2) ...[
                     Gap.m,
@@ -172,7 +178,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                       rightLabel: 'RIGHT',
                       onSwap: () => setState(
                           () => _fronts.setAll(0, [_fronts[1], _fronts[0]])),
-                      identifyControls: identifyButtons,
+                      identifyControls: idControls,
                     ),
                   ],
                 ],
@@ -193,7 +199,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     candidates: avail(_surrounds),
                     selected: _surrounds,
                     onToggle: _toggleSurround,
-                    identifyControls: identifyButtons,
+                    identifyControls: idControls,
                     allowAmp: false,
                   ),
                   if (_surrounds.length == 2) ...[
@@ -205,7 +211,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                       rightLabel: 'REAR RIGHT',
                       onSwap: () => setState(() =>
                           _surrounds.setAll(0, [_surrounds[1], _surrounds[0]])),
-                      identifyControls: identifyButtons,
+                      identifyControls: idControls,
                     ),
                   ],
                 ],
@@ -220,7 +226,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                 subs: freeSubs,
                 selected: _subs,
                 onToggle: _toggleSub,
-                identifyControls: identifyButtons,
+                identifyControls: idControls,
               ),
             ),
             Step(
@@ -627,26 +633,11 @@ class _Review extends StatelessWidget {
           subCount: subCount,
         ),
         Gap.m,
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline,
-                    color: Theme.of(context).colorScheme.primary),
-                Gap.m,
-                Expanded(
-                  child: Text(
-                    'The chosen speakers become hidden satellites of the '
-                    'soundbar (which stays the center channel). Bonding runs in '
-                    'steps and can take a little while; Trueplay may need '
-                    're-tuning afterward. You can change this anytime.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        const InfoNote(
+          'The chosen speakers become hidden satellites of the soundbar (which '
+          'stays the center channel). Bonding runs in steps and can take a '
+          'little while; Trueplay may need re-tuning afterward. You can change '
+          'this anytime.',
         ),
       ],
     );

@@ -22,7 +22,7 @@ enum _Action { email, share, save }
 /// Opens the diagnostics bottom sheet: a hide-nothing technical topology view
 /// plus a way to package it (+ raw data, logs) into a zip and escalate it.
 Future<void> showDiagnosticsSheet(BuildContext context) =>
-    showAppSheet<void>(context, const _DiagnosticsSheet());
+    showSheet<void>(context, const _DiagnosticsSheet());
 
 class _DiagnosticsSheet extends ConsumerStatefulWidget {
   const _DiagnosticsSheet();
@@ -152,6 +152,7 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
     final system = ref.watch(sonosControllerProvider).value;
 
     return SheetScaffold(
+      fill: true,
       icon: Icons.bug_report_outlined,
       title: 'Diagnostics',
       body: system == null
@@ -211,10 +212,8 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
               ),
             ),
           ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
               child: Row(
                 children: [
                   Expanded(
@@ -277,7 +276,6 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
                 ],
               ),
             ),
-          ),
         ],
       ),
     );

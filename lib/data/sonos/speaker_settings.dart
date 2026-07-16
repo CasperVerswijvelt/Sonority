@@ -33,12 +33,43 @@ const eqTypes = [
   'HeightChannelLevel',
 ];
 
+/// EQType → human label (Sonos-app terms) for read-only display of a captured
+/// [SpeakerSettings]. Tokens absent here fall back to the raw token.
+const _eqLabels = {
+  'NightMode': 'Night sound',
+  'DialogLevel': 'Speech enhancement',
+  'SubGain': 'Sub level',
+  'SubEnable': 'Sub',
+  'SubPolarity': 'Sub phase',
+  'SubCrossover': 'Sub crossover',
+  'SurroundLevel': 'Surround level (TV)',
+  'SurroundEnable': 'Surround',
+  'SurroundMode': 'Surround mode',
+  'MusicSurroundLevel': 'Surround level (music)',
+  'AudioDelay': 'Audio delay (lip sync)',
+  'AudioDelayLeftRear': 'Surround distance L',
+  'AudioDelayRightRear': 'Surround distance R',
+  'HeightChannelLevel': 'Height level',
+};
+
+/// EQType tokens whose value is a boolean toggle (0/1) — shown as On/Off. Every
+/// other token is a numeric level shown as-is (except `SubPolarity`, a 0/1 sub
+/// *phase* rendered as 0°/180° — see [SpeakerSettings.describe]).
+const _eqBoolTokens = {
+  'NightMode',
+  'SubEnable',
+  'SurroundEnable',
+};
+
 /// A snapshot of one speaker's audio settings, read from the `RenderingControl`
 /// service. Every field is nullable / possibly absent: it means "not captured"
-/// (the profile toggle was off) OR "this speaker doesn't support it" (e.g. a
-/// plain Play:1 answers no surround/sub tokens; HT satellites reject EQ reads
-/// entirely with UPnPError 803). Reading and applying are both best-effort per
-/// field — one setting faulting never sinks the rest.
+/// (the profile toggle was off, or the [eqTypes] bundle was skipped for a plain
+/// speaker — see [SpeakerSettingsClient.read]'s `extendedEq`) OR "this speaker
+/// doesn't support it" (HT satellites reject EQ reads entirely with UPnPError
+/// 803). Note a plain Play:1 / One *does* answer the sub/surround/height GetEQ
+/// calls, just with meaningless defaults — which is why we gate them by role
+/// rather than by whether the call faults. Reading and applying are both
+/// best-effort per field — one setting faulting never sinks the rest.
 ///
 /// [bass]/[treble]/[loudness] have dedicated SOAP actions; every other sound
 /// setting rides the generic `GetEQ`/`SetEQ` pair and lives in [eq] keyed by
@@ -72,6 +103,40 @@ class SpeakerSettings {
   bool get hasVolume => volume != null || mute != null;
 
   bool get isEmpty => !hasAudioSettings && !hasVolume;
+
+  /// Human-readable (label, value) rows for read-only display of what this
+  /// snapshot captured, in a stable order. Bass/treble/loudness first, then the
+  /// EQ tokens in [eqTypes] order, then volume/mute.
+  ///
+  /// ponytail: per-token value semantics are approximate — bass/treble/gains are
+  /// signed levels, a few tokens are 0/1 toggles ([_eqBoolTokens]), the rest are
+  /// shown as raw ints. This is display-only; captured values are written back
+  /// verbatim, never derived from these labels.
+  List<({String label, String value})> describe() {
+    String signed(int v) => v > 0 ? '+$v' : '$v';
+    String onOff(bool b) => b ? 'On' : 'Off';
+    final rows = <({String label, String value})>[
+      if (bass != null) (label: 'Bass', value: signed(bass!)),
+      if (treble != null) (label: 'Treble', value: signed(treble!)),
+      if (loudness != null) (label: 'Loudness', value: onOff(loudness!)),
+    ];
+    for (final token in eqTypes) {
+      final v = eq[token];
+      if (v == null) continue;
+      final String value;
+      if (token == 'SubPolarity') {
+        value = v == 0 ? '0°' : '180°'; // sub phase, not an on/off toggle
+      } else if (_eqBoolTokens.contains(token)) {
+        value = onOff(v != 0);
+      } else {
+        value = '$v';
+      }
+      rows.add((label: _eqLabels[token] ?? token, value: value));
+    }
+    if (volume != null) rows.add((label: 'Volume', value: '$volume%'));
+    if (mute != null) rows.add((label: 'Muted', value: onOff(mute!)));
+    return rows;
+  }
 
   /// Serializes only the non-null/non-empty fields, so an EQ-only capture
   /// doesn't store bogus volume keys and old profiles round-trip cleanly.
@@ -107,13 +172,19 @@ class SpeakerSettingsClient {
   static const _control = '/MediaRenderer/RenderingControl/Control';
 
   /// Reads a settings snapshot for the speaker at [ip]. [audio] captures the
-  /// audio-settings bundle (bass/treble/loudness + every [eqTypes] token the
-  /// speaker answers); [volume] captures volume/mute. The two are independent
-  /// toggles.
+  /// audio-settings bundle; [volume] captures volume/mute (independent toggles).
+  ///
+  /// [extendedEq] gates the [eqTypes] bundle (night sound, speech, sub, surround,
+  /// height, lip-sync). Those are only physically meaningful on a soundbar / in a
+  /// home theater / when a sub is bonded — every other speaker (a plain Play:1 /
+  /// One in a zone or pair) still *answers* GetEQ for them with harmless defaults
+  /// (SubGain 0, SubEnable On, …), which is just noise to capture and show. So
+  /// callers pass `extendedEq: false` for plain speakers and only bass / treble /
+  /// loudness (the universally-meaningful controls) are read.
   Future<SpeakerSettings> read(String ip,
-      {bool audio = true, bool volume = false}) async {
+      {bool audio = true, bool volume = false, bool extendedEq = true}) async {
     final eqValues = <String, int>{};
-    if (audio) {
+    if (audio && extendedEq) {
       for (final t in eqTypes) {
         final v = await _readInt(ip, 'GetEQ', 'CurrentValue',
             extra: {'EQType': t});

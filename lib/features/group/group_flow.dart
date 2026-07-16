@@ -75,6 +75,10 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
         system.zoneableSpeakers.where((d) => d.reachable).toList();
     final subs = system.bondableSubs.where((d) => d.reachable).toList();
     final scheme = Theme.of(context).colorScheme;
+    // Candidates here are all standalone, so chime applies; gate per-device
+    // anyway so the rule stays consistent with the HT flow.
+    Widget idControls(SonosDevice d) =>
+        identifyButtons(d, chime: system.isStandalone(d.uuid));
 
     return Scaffold(
       // No scroll-under elevation: the steps tuck behind the segmented-control
@@ -151,7 +155,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                                 setState(() => _channels[u] = c),
                             onSwap: () => setState(() => _selected
                                 .setAll(0, [_selected[1], _selected[0]])),
-                            identifyControls: identifyButtons,
+                            identifyControls: idControls,
                           ),
                         ),
                         Step(
@@ -387,7 +391,7 @@ class _CandidateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: kCardGap),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: enabled ? onToggle : null,
@@ -457,10 +461,7 @@ class _SubStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(context)
-        .textTheme
-        .bodySmall
-        ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
+    final muted = Theme.of(context).mutedText;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -513,8 +514,7 @@ class _ReviewStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final muted = theme.textTheme.bodySmall
-        ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final muted = theme.mutedText;
     final kind = switch (mode) {
       _Mode.stereo => 'Stereo pair',
       _Mode.zone => 'Zone (${selected.length} speakers)',

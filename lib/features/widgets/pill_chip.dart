@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 /// A small rounded pill: an icon + label tinted [color], on a faint tint of the
 /// same color. Used on cards to tag a bonded group's role (Fronts / Surrounds /
 /// Sub) or a group member's channel (L / R / L+R).
@@ -20,7 +22,7 @@ class PillChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(kCardRadius),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

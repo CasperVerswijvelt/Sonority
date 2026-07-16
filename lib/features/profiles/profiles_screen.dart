@@ -49,7 +49,7 @@ class ProfilesScreen extends ConsumerWidget {
                   key: ValueKey(p.id),
                   index: i,
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(bottom: kCardGap),
                     child: ProfileCard(
                       profile: p,
                       onTap: () => context.go('/profiles/edit/${p.id}'),

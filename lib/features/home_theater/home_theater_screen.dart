@@ -14,7 +14,8 @@ import '../widgets/destructive_button.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
-import '../widgets/speaker_diagram.dart';
+import '../widgets/section_header.dart';
+import '../widgets/settings_section.dart';
 import '../widgets/trueplay_control.dart';
 
 /// Shows one home theater's current layout and the add/remove-fronts actions.
@@ -75,7 +76,6 @@ class HomeTheaterScreen extends ConsumerWidget {
           : _Content(
               system: system!,
               member: member,
-              device: device,
               bonded: bonded,
               onRemoveGroup: (channels, label, {bool separateAll = false}) =>
                   _confirmRemoveGroup(
@@ -171,7 +171,6 @@ const _htGroups = [
 class _Content extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember member;
-  final SonosDevice device;
   final List<SonosDevice> bonded;
   final void Function(Set<SonosChannel> channels, String label,
       {bool separateAll}) onRemoveGroup;
@@ -180,7 +179,6 @@ class _Content extends StatelessWidget {
   const _Content({
     required this.system,
     required this.member,
-    required this.device,
     required this.bonded,
     required this.onRemoveGroup,
     required this.onConfigure,
@@ -208,82 +206,81 @@ class _Content extends StatelessWidget {
       for (final g in _htGroups)
         if (g.channels.any((c) => hasChannel(member, c))) g,
     ];
+    // Edge-to-edge list so the Trueplay settings section can be full-bleed
+    // (flat, sectioned — a setting, not another content card); content blocks
+    // carry their own horizontal padding.
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(vertical: 20),
       children: [
-        SpeakerDiagram(
-          soundbarLabel: device.typeLabel,
-          frontLeftLabel: typeForChannel(
-            system,
-            member,
-            SonosChannel.leftFront,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              htDiagramForMember(system, member),
+              Gap.l,
+              FilledButton.icon(
+                onPressed: onConfigure,
+                // A settings cog reads as "configure this layout"; the sliders
+                // glyph (Icons.tune) is reserved for the audio/Trueplay surfaces
+                // so a layout action never looks like EQ (which we don't do).
+                icon: const Icon(Icons.settings),
+                label: const Text('Configure home theater'),
+              ),
+              Gap.l,
+              const SectionHeader('Bonded speakers'),
+              if (present.isEmpty)
+                Text(
+                  'Just the soundbar — no fronts, surrounds or sub bonded yet. '
+                  'Tap “Configure home theater” to add some.',
+                  style: theme.mutedText,
+                )
+              else
+                for (final g in present) ...[
+                  _GroupCard(
+                    group: g,
+                    models: _models(g.channels),
+                    onRemove: () => onRemoveGroup(g.channels, g.label),
+                  ),
+                  Gap.s,
+                ],
+            ],
           ),
-          frontRightLabel: typeForChannel(
-            system,
-            member,
-            SonosChannel.rightFront,
-          ),
-          rearLeftLabel: typeForChannel(system, member, SonosChannel.leftRear),
-          rearRightLabel: typeForChannel(
-            system,
-            member,
-            SonosChannel.rightRear,
-          ),
-          subCount: member.subUuids.length,
         ),
-        Gap.l,
-        FilledButton.icon(
-          onPressed: onConfigure,
-          icon: const Icon(Icons.tune),
-          label: const Text('Configure home theater'),
-        ),
-        Gap.l,
-        Text('Bonded speakers', style: theme.textTheme.titleSmall),
-        Gap.s,
-        if (present.isEmpty)
-          Text(
-            'Just the soundbar — no fronts, surrounds or sub bonded yet. '
-            'Tap “Configure home theater” to add some.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          )
-        else
-          for (final g in present) ...[
-            _GroupCard(
-              group: g,
-              models: _models(g.channels),
-              onRemove: () => onRemoveGroup(g.channels, g.label),
-            ),
-            Gap.s,
-          ],
         Gap.m,
-        TrueplayControl(devices: bonded),
-        if (member.hasDedicatedFronts) ...[
-          Gap.s,
-          Text(
-            'Trueplay can’t be measured from Android — tune in the Sonos app '
-            '(iOS): the home theater, and the fronts separately as a stereo '
-            'pair. Heads-up: Sonos often clears a tuning when speakers are '
-            'bonded/unbonded, so you may see “Not tuned” after changing the '
-            'layout and have to redo it. Sonority only toggles a stored tuning.',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+        SettingsSection(children: [TrueplayControl(devices: bonded)]),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (member.hasDedicatedFronts) ...[
+                Gap.s,
+                Text(
+                  'Trueplay can only be measured from the Sonos app on iOS — '
+                  'tune the home theater, and the fronts separately as a stereo '
+                  'pair. Heads-up: Sonos often clears a tuning when speakers are '
+                  'bonded/unbonded, so you may see “Not tuned” after changing the '
+                  'layout and have to redo it. Sonority only toggles a stored '
+                  'tuning.',
+                  style: theme.mutedText,
+                ),
+              ],
+              if (present.isNotEmpty) ...[
+                Gap.l,
+                DestructiveButton(
+                  icon: Icons.link_off,
+                  label: 'Separate',
+                  onPressed: () => onRemoveGroup(
+                    {for (final g in present) ...g.channels},
+                    'all extra speakers',
+                    separateAll: true,
+                  ),
+                ),
+              ],
+            ],
           ),
-        ],
-        if (present.isNotEmpty) ...[
-          Gap.l,
-          DestructiveButton(
-            icon: Icons.link_off,
-            label: 'Separate',
-            onPressed: () => onRemoveGroup(
-              {for (final g in present) ...g.channels},
-              'all extra speakers',
-              separateAll: true,
-            ),
-          ),
-        ],
+        ),
       ],
     );
   }

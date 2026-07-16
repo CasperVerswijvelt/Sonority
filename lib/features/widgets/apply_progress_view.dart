@@ -40,19 +40,19 @@ class ApplyProgressView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+          padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),
           child: Text(
             failed
                 ? 'Something went wrong — see the step below.'
                 : 'Bonding can take ~15–20s per step while Sonos applies and '
                     're-reads the layout.',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.mutedText,
           ),
         ),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 28, 20, 16),
+            padding:
+                const EdgeInsets.fromLTRB(kPageGutter, 28, kPageGutter, 16),
             child: Column(
               children: [
                 for (var i = 0; i < steps.length; i++)

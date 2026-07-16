@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_sficon/flutter_sficon.dart';
 
-import '../../data/models/sonos_models.dart';
-import '../../data/sonos/channel_map.dart';
+import '../../core/theme.dart';
 import 'profile.dart';
 
 /// True if [name] (trimmed, case-insensitive) is already used by another
@@ -119,11 +118,10 @@ ProfileTonal profileTonal(int colorIndex, Brightness brightness) {
   );
 }
 
-/// Corner radius of the tonal chips/tiles. Fixed (not size-relative) so it reads
-/// consistent everywhere; mirrored by the iOS Swift widget and the Android
-/// native tile, which also compute glyph/label sizes from the tile's short edge
-/// (`clamp(0.30·s, 18, 40)` / `clamp(0.12·s, 11, 15)`).
-const double tileRadius = 20;
+// Tonal chips/tiles use the shared [kCardRadius] so their corner reads
+// consistent with the app's cards; mirrored by the iOS Swift widget and the
+// Android native tile, which also compute glyph/label sizes from the tile's
+// short edge (`clamp(0.30·s, 18, 40)` / `clamp(0.12·s, 11, 15)`).
 
 Color _mix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
 
@@ -159,14 +157,14 @@ class AppearanceButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = profileTonal(color, Theme.of(context).brightness);
     return InkWell(
-      borderRadius: BorderRadius.circular(tileRadius),
+      borderRadius: BorderRadius.circular(kCardRadius),
       onTap: onTap,
       child: Container(
         width: 56,
         height: 56,
         decoration: BoxDecoration(
           color: t.card,
-          borderRadius: BorderRadius.circular(tileRadius),
+          borderRadius: BorderRadius.circular(kCardRadius),
         ),
         child: Center(child: profileGlyph(iconId, size: 26, color: t.icon)),
       ),
@@ -210,11 +208,11 @@ class ProfileCard extends StatelessWidget {
           : null,
       shape: selected
           ? RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(kCardRadius),
               side: BorderSide(color: scheme.primary, width: 1.5))
           : null,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(kCardRadius),
         onTap: onTap,
         child: Padding(
           padding: EdgeInsets.fromLTRB(16, 16, trailing == null ? 16 : 8, 16),
@@ -226,7 +224,7 @@ class ProfileCard extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                     color: tonal.card,
-                    borderRadius: BorderRadius.circular(tileRadius)),
+                    borderRadius: BorderRadius.circular(kCardRadius)),
                 child: Center(
                     child: profileGlyph(profile.iconId,
                         size: 22, color: tonal.icon)),
@@ -242,8 +240,7 @@ class ProfileCard extends StatelessWidget {
                       summary.isEmpty ? 'No entities' : summary,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant),
+                      style: theme.mutedText,
                     ),
                     if (settingsBadges(
                             audio: profile.hasAudioSettings,
@@ -448,85 +445,3 @@ class _Swatch extends StatelessWidget {
   }
 }
 
-/// Icon for a profile entity, matching the system-overview iconography.
-IconData entityIcon(EntityKind kind) => switch (kind) {
-      EntityKind.homeTheater => Icons.surround_sound,
-      EntityKind.stereoPair => Icons.speaker_group,
-      EntityKind.zone => Icons.groups_2,
-      EntityKind.custom => Icons.tune,
-      EntityKind.single => Icons.speaker,
-    };
-
-/// A short human description of what an entity snapshot bonds, by speaker TYPE
-/// (the room names just echo the entity name, so the type is the useful detail).
-/// Resolves types against the live [system]; falls back to the captured room
-/// name only when the device isn't currently present.
-///
-/// - HT: `Fronts: One SL, One SL · Surrounds: Play:1, Play:1 · Subwoofer: Sub`
-/// - Pair: `Play:1 + Play:1`
-/// - Single: the type (or "Standalone speaker").
-String entitySummary(EntitySnapshot e, SonosSystem? system) {
-  String typeOf(String uuid) =>
-      system?.device(uuid)?.typeLabel ?? e.names[uuid] ?? 'Speaker';
-
-  switch (e.kind) {
-    case EntityKind.single:
-      return system?.device(e.primaryUuid)?.typeLabel ?? 'Standalone speaker';
-
-    case EntityKind.stereoPair:
-      final uuids = e.involvedUuids.toList();
-      if (uuids.length < 2) return 'Stereo pair';
-      return '${typeOf(uuids[0])} + ${typeOf(uuids[1])}';
-
-    case EntityKind.zone:
-      final uuids = e.involvedUuids.toList();
-      if (uuids.length < 2) return 'Zone';
-      return '${uuids.length} speakers: ${uuids.map(typeOf).join(', ')}';
-
-    case EntityKind.custom:
-      final map = e.mapSet;
-      if (map == null) return 'Custom group';
-      final tmp =
-          ZoneGroupMember(uuid: e.primaryUuid, zoneName: '', channelMapSet: map);
-      final ch = tmp.groupChannels.values.toList();
-      final l = ch.where((c) => c == GroupChannel.left).length;
-      final r = ch.where((c) => c == GroupChannel.right).length;
-      final b = ch.where((c) => c == GroupChannel.both).length;
-      final parts = [
-        if (l > 0) 'L:$l',
-        if (r > 0) 'R:$r',
-        if (b > 0) 'Both:$b',
-      ];
-      return '${ch.length} speakers · ${parts.join(' ')}'
-          '${tmp.subUuid != null ? ' · Sub' : ''}';
-
-    case EntityKind.homeTheater:
-      final map = e.mapSet;
-      if (map == null) return e.kindLabel;
-      final fronts = <String>[], surrounds = <String>[], sub = <String>[];
-      final fSeen = <String>{}, sSeen = <String>{}, wSeen = <String>{};
-      // Skip the first entry (the soundbar primary / CC). One type per distinct
-      // speaker (an Amp on both fronts shows once; two Play:1 surrounds show
-      // twice — "Play:1, Play:1").
-      for (final entry in ChannelMap.parse(map).entries.skip(1)) {
-        for (final ch in entry.channels) {
-          switch (ch) {
-            case SonosChannel.leftFront || SonosChannel.rightFront:
-              if (fSeen.add(entry.uuid)) fronts.add(typeOf(entry.uuid));
-            case SonosChannel.leftRear || SonosChannel.rightRear:
-              if (sSeen.add(entry.uuid)) surrounds.add(typeOf(entry.uuid));
-            case SonosChannel.sub:
-              if (wSeen.add(entry.uuid)) sub.add(typeOf(entry.uuid));
-            case SonosChannel.center:
-              break;
-          }
-        }
-      }
-      final parts = <String>[
-        if (fronts.isNotEmpty) 'Fronts: ${fronts.join(', ')}',
-        if (surrounds.isNotEmpty) 'Surrounds: ${surrounds.join(', ')}',
-        if (sub.isNotEmpty) 'Subwoofer: ${sub.join(', ')}',
-      ];
-      return parts.isEmpty ? 'Soundbar only' : parts.join(' · ');
-  }
-}

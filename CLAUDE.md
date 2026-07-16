@@ -251,6 +251,23 @@ Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
     a `finally` (self-reverting, like the chime's volume save/restore).
 - **`RenderingControl` service** (`/MediaRenderer/RenderingControl/Control`):
   - `GetVolume`/`SetVolume`/`GetMute`/`SetMute` (used by the identify chime).
+  - **EQ per-model support is NOT discoverable from the SCPD (hardware-confirmed,
+    Beam vs Play:1):** the `RenderingControl1.xml` `A_ARG_TYPE_EQType` state
+    variable is a **free-form string with no `allowedValueList`**, and the SCPD is
+    **byte-identical** across models — so you cannot ask a speaker which `GetEQ`
+    tokens it supports. Worse, the runtime call doesn't tell you either: a plain
+    **Play:1 / One answers `GetEQ` for the sub/height tokens with harmless
+    defaults** (`SubGain 0`, `SubEnable On`, `SubCrossover 0`, `HeightChannelLevel
+    0`) instead of faulting (it DOES fault on the surround/night/speech tokens, so
+    those self-exclude). Net: neither the SCPD nor a fault distinguishes a real
+    setting from firmware noise on small speakers. So `SonosController.
+    captureSettings` gates the **extended EQ bundle** (everything past bass/treble/
+    loudness — the `eqTypes` list) **by role, not by probing**: read it only when
+    the entity is a home theater, has a bonded sub, or the device `isSoundbar`;
+    every other speaker captures **bass/treble/loudness only** (`speaker_settings.
+    dart` `read(..., extendedEq:)`). Those three ARE universal/meaningful on any
+    speaker. This keeps a zone/pair of plain speakers from storing (and showing,
+    and re-writing on apply) irrelevant sub/height rows.
   - **Trueplay / room calibration** (`room_calibration.dart`): per-speaker,
     confirmed via the device SCPD — `GetRoomCalibrationStatus(InstanceID)` →
     `RoomCalibrationEnabled` + `RoomCalibrationAvailable`; `SetRoomCalibrationStatus
@@ -457,7 +474,11 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 - ✅ Dedicated front surrounds (add with guided flow + Identify; remove), incl. a
   single **Sonos Amp** driving passive fronts (`AMP:LF,RF`; exclusive selection).
 - ✅ Identify a speaker by **blinking its status LED** (`led_identify.dart`, default,
-  all platforms incl. macOS) with the audio chime as a mobile-only long-press extra.
+  all platforms incl. macOS) with the audio chime as a mobile-only extra. Offered
+  in the pick-a-speaker flows AND per-speaker in the room / group detail sheets
+  (`SpeakerIdentifyButton`); chime is gated to standalone speakers via
+  `SonosSystem.isStandalone` (a bonded member blinks only — a chime plays the
+  whole bond).
 - ✅ **Speaker groups** (`features/group/group_flow.dart`, `zone_layout.dart`) —
   one unified "Group speakers" page (Stereo / Zone / Custom segmented control)
   over a single `AddBondedZones` path: stereo pair (L/R), full-range zone (2–16),
@@ -474,7 +495,13 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 - ✅ **Config profiles** (`features/profiles/`) — bottom-tab page; a profile is a
   snapshot of current state trimmed to chosen entities (one HT / pair / unbonded
   room = one entity), with stored room names. Create-from-snapshot only (no config
-  builder); tiles **edit** + **apply (play)**. Apply does pre-flight resolution
+  builder); tiles **edit** + **apply (play)**. Tapping an entity in the detail view
+  opens a **read-only per-entity detail** (`profile_entity_detail_screen.dart`)
+  that mirrors the system-overview entity view — the HT `SpeakerDiagram` / group
+  `MemberChannelCard`s, driven from the stored `mapSet` via a throwaway
+  `ZoneGroupMember` (`EntitySnapshot.toMember`, same trick the shared
+  `EntityCardModel.fromSnapshot` uses) — plus a per-speaker
+  breakdown of the captured settings (`SpeakerSettings.describe()`). Apply does pre-flight resolution
   (missing/conflicting speakers), frees conflicts, re-bonds via the diff-based
   `_applyHtTarget` (no-op if unchanged, else add only what's missing), restores
   names, and reports per-step progress. Sub-on-stereo-pair is out (hardware-rejected).
@@ -590,7 +617,7 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   entity name (a satellite/hidden half just echoes the HT/pair name), so showing
   it is noise. Inside a bonded entity we therefore show the speaker **type**
   (`SonosDevice.typeLabel` — "Beam (Gen 2)", "Play:1", "Sub") via
-  `typeForChannel` / `entitySummary`. The **name** only matters for the entity as
+  `typeForChannel` / the shared `EntityCardModel`. The **name** only matters for the entity as
   a whole (the HT / pair) and for individual standalone speakers — that's where
   rename and the room-name labels live.
 - Commit only when asked; end commit messages with the Co-Authored-By trailer.
