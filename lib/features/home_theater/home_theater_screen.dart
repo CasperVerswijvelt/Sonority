@@ -75,13 +75,15 @@ class HomeTheaterScreen extends ConsumerWidget {
               system: system!,
               member: member,
               bonded: bonded,
-              onRemoveGroup: (channels, label) => _confirmRemoveGroup(
+              onRemoveGroup: (channels, label, {bool separateAll = false}) =>
+                  _confirmRemoveGroup(
                 context,
                 ref,
                 member,
                 device,
                 channels,
                 label,
+                separateAll: separateAll,
               ),
               onConfigure: () => context.push('/theater/$soundbarUuid/fronts'),
             ),
@@ -113,15 +115,19 @@ class HomeTheaterScreen extends ConsumerWidget {
     ZoneGroupMember member,
     SonosDevice device,
     Set<SonosChannel> channels,
-    String label,
-  ) async {
+    String label, {
+    bool separateAll = false,
+  }) async {
     final ok = await confirmDialog(
       context,
       icon: Icons.link_off,
-      title: 'Remove $label?',
-      message: 'These speakers will be un-bonded and become standalone rooms '
-          'again. The rest of your home theater stays as it is.',
-      confirmLabel: 'Remove',
+      title: separateAll ? 'Separate home theater?' : 'Remove $label?',
+      message: separateAll
+          ? 'All extra speakers will be un-bonded and become standalone rooms '
+              'again, leaving just the soundbar.'
+          : 'These speakers will be un-bonded and become standalone rooms '
+              'again. The rest of your home theater stays as it is.',
+      confirmLabel: separateAll ? 'Separate' : 'Remove',
     );
     if (!ok || !context.mounted) return;
 
@@ -129,7 +135,7 @@ class HomeTheaterScreen extends ConsumerWidget {
     // No success toast — the progress screen already showed the outcome.
     await showBondingProgress(
       context,
-      title: 'Remove $label',
+      title: separateAll ? 'Separate home theater' : 'Remove $label',
       run: () => controller.removeHtRoles(
         soundbar: member,
         soundbarDevice: device,
@@ -164,7 +170,8 @@ class _Content extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember member;
   final List<SonosDevice> bonded;
-  final void Function(Set<SonosChannel> channels, String label) onRemoveGroup;
+  final void Function(Set<SonosChannel> channels, String label,
+      {bool separateAll}) onRemoveGroup;
   final VoidCallback onConfigure;
 
   const _Content({
@@ -246,10 +253,11 @@ class _Content extends StatelessWidget {
           Gap.l,
           DestructiveButton(
             icon: Icons.link_off,
-            label: 'Remove all extra speakers',
+            label: 'Separate',
             onPressed: () => onRemoveGroup(
               {for (final g in present) ...g.channels},
               'all extra speakers',
+              separateAll: true,
             ),
           ),
         ],
