@@ -118,6 +118,10 @@ class _State extends ConsumerState<ProfileDetailScreen> {
                     labelText: 'Profile name',
                     border: const OutlineInputBorder(),
                     errorText: taken ? 'A profile with this name exists' : null,
+                    // Pin to standard density so the field box stays 56 (= the
+                    // 56 swatch) on desktop's compact density; keeps the swatch
+                    // centered on the box and unmoved when the error grows it.
+                    visualDensity: VisualDensity.standard,
                   ),
                 ),
               ),

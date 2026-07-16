@@ -30,6 +30,9 @@ section into the GitHub Release notes regardless of the build suffix
 - Profiles that save audio settings no longer capture irrelevant sub/surround/height values for plain speakers (e.g. a Play:1 or One in a zone) — that extended bundle is now saved only for soundbars, home theaters, or groups with a bonded sub; plain speakers keep bass, treble and loudness.
 - Tightened visual consistency across screens: shared section headers, info notes and a single muted-text style, plus unified card radius, page gutters and card spacing.
 
+### Fixed
+- Profile name field: the appearance swatch now stays vertically centered on the field (and no longer jumps when the "name exists" error appears) on desktop, where the compact input density had made the field shorter than the swatch.
+
 ## [0.5.1] - 2026-07-15
 
 ### Changed
