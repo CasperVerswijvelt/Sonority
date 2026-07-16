@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
+import '../widgets/settings_section.dart';
 import '../widgets/sheet_scaffold.dart';
 import '../widgets/trueplay_control.dart';
 
@@ -48,19 +48,20 @@ class _RoomSheet extends ConsumerWidget {
               tooltip: 'Rename room',
               onPressed: () => _rename(context, ref, device, member.zoneName),
             ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-        child: Column(
-          children: [
-            // The speaker itself — a standalone speaker has no channel, so no
-            // chip (parallels the group sheet's per-speaker cards).
-            if (device != null) ...[
-              MemberChannelCard(icon: Icons.speaker, type: device.typeLabel),
-              Gap.s,
-            ],
-            TrueplayControl(devices: devices),
-          ],
-        ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Content: the speaker itself — a standalone speaker has no channel,
+          // so no chip (parallels the group sheet's per-speaker cards).
+          if (device != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+              child: MemberChannelCard(icon: Icons.speaker, type: device.typeLabel),
+            ),
+          // Settings: a flat, sectioned Trueplay row, not another card.
+          SettingsSection(children: [TrueplayControl(devices: devices)]),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }

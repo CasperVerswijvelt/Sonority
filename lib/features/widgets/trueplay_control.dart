@@ -21,14 +21,10 @@ class TrueplayControl extends ConsumerStatefulWidget {
   /// tunes native speakers). Shows an explanation instead of a toggle.
   final String? unsupportedReason;
 
-  /// Compact = a dense tile for lists; otherwise a full card for detail screens.
-  final bool compact;
-
   const TrueplayControl({
     super.key,
     required this.devices,
     this.unsupportedReason,
-    this.compact = false,
   });
 
   @override
@@ -130,6 +126,8 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     );
   }
 
+  // A flat, full-width tile (no card) — it's a setting, so it reads distinctly
+  // from the content cards above it (paired with a SettingsSection divider).
   Widget _frame(
     BuildContext context, {
     required IconData icon,
@@ -138,17 +136,12 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     required String subtitle,
     required Widget? trailing,
   }) {
-    final tile = ListTile(
-      contentPadding: widget.compact
-          ? const EdgeInsets.symmetric(horizontal: 8)
-          : const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      dense: widget.compact,
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Icon(icon, color: iconColor),
       title: const Text('Trueplay'),
       subtitle: Text(subtitle),
       trailing: trailing,
     );
-    if (widget.compact) return tile;
-    return Card(child: tile);
   }
 }

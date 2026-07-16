@@ -14,6 +14,7 @@ import '../widgets/destructive_button.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
+import '../widgets/settings_section.dart';
 import '../widgets/trueplay_control.dart';
 
 /// Shows one home theater's current layout and the add/remove-fronts actions.
@@ -204,63 +205,83 @@ class _Content extends StatelessWidget {
       for (final g in _htGroups)
         if (g.channels.any((c) => hasChannel(member, c))) g,
     ];
+    // Edge-to-edge list so the Trueplay settings section can be full-bleed
+    // (flat, sectioned — a setting, not another content card); content blocks
+    // carry their own horizontal padding.
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(vertical: 20),
       children: [
-        htDiagramForMember(system, member),
-        Gap.l,
-        FilledButton.icon(
-          onPressed: onConfigure,
-          icon: const Icon(Icons.tune),
-          label: const Text('Configure home theater'),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              htDiagramForMember(system, member),
+              Gap.l,
+              FilledButton.icon(
+                onPressed: onConfigure,
+                icon: const Icon(Icons.tune),
+                label: const Text('Configure home theater'),
+              ),
+              Gap.l,
+              Text('Bonded speakers', style: theme.textTheme.titleSmall),
+              Gap.s,
+              if (present.isEmpty)
+                Text(
+                  'Just the soundbar — no fronts, surrounds or sub bonded yet. '
+                  'Tap “Configure home theater” to add some.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                for (final g in present) ...[
+                  _GroupCard(
+                    group: g,
+                    models: _models(g.channels),
+                    onRemove: () => onRemoveGroup(g.channels, g.label),
+                  ),
+                  Gap.s,
+                ],
+            ],
+          ),
         ),
-        Gap.l,
-        Text('Bonded speakers', style: theme.textTheme.titleSmall),
-        Gap.s,
-        if (present.isEmpty)
-          Text(
-            'Just the soundbar — no fronts, surrounds or sub bonded yet. '
-            'Tap “Configure home theater” to add some.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          )
-        else
-          for (final g in present) ...[
-            _GroupCard(
-              group: g,
-              models: _models(g.channels),
-              onRemove: () => onRemoveGroup(g.channels, g.label),
-            ),
-            Gap.s,
-          ],
         Gap.m,
-        TrueplayControl(devices: bonded),
-        if (member.hasDedicatedFronts) ...[
-          Gap.s,
-          Text(
-            'Trueplay can’t be measured from Android — tune in the Sonos app '
-            '(iOS): the home theater, and the fronts separately as a stereo '
-            'pair. Heads-up: Sonos often clears a tuning when speakers are '
-            'bonded/unbonded, so you may see “Not tuned” after changing the '
-            'layout and have to redo it. Sonority only toggles a stored tuning.',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+        SettingsSection(children: [TrueplayControl(devices: bonded)]),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (member.hasDedicatedFronts) ...[
+                Gap.s,
+                Text(
+                  'Trueplay can’t be measured from Android — tune in the Sonos '
+                  'app (iOS): the home theater, and the fronts separately as a '
+                  'stereo pair. Heads-up: Sonos often clears a tuning when '
+                  'speakers are bonded/unbonded, so you may see “Not tuned” '
+                  'after changing the layout and have to redo it. Sonority only '
+                  'toggles a stored tuning.',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              if (present.isNotEmpty) ...[
+                Gap.l,
+                DestructiveButton(
+                  icon: Icons.link_off,
+                  label: 'Separate',
+                  onPressed: () => onRemoveGroup(
+                    {for (final g in present) ...g.channels},
+                    'all extra speakers',
+                    separateAll: true,
+                  ),
+                ),
+              ],
+            ],
           ),
-        ],
-        if (present.isNotEmpty) ...[
-          Gap.l,
-          DestructiveButton(
-            icon: Icons.link_off,
-            label: 'Separate',
-            onPressed: () => onRemoveGroup(
-              {for (final g in present) ...g.channels},
-              'all extra speakers',
-              separateAll: true,
-            ),
-          ),
-        ],
+        ),
       ],
     );
   }

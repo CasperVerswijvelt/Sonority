@@ -5,6 +5,7 @@ import '../../data/models/sonos_models.dart';
 import '../../data/sonos/channel_map.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/member_channel_card.dart';
+import '../widgets/settings_section.dart';
 import '../widgets/sheet_scaffold.dart';
 import 'profile.dart';
 
@@ -33,16 +34,21 @@ class _EntitySheet extends StatelessWidget {
     return ContentSheetScaffold(
       title: e.label,
       subtitle: e.kindLabel,
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ..._layout(e, system, typeOf),
-            Gap.l,
-            ..._savedSettings(context, e, typeOf),
-          ],
-        ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Content: the layout (diagram / per-speaker cards).
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: _layout(e, system, typeOf),
+            ),
+          ),
+          // Settings: a flat, sectioned per-speaker breakdown, not cards.
+          _savedSettings(context, e, typeOf),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }
@@ -84,10 +90,11 @@ List<Widget> _layout(
   }
 }
 
-/// The per-speaker saved-settings section. Settings are stored per speaker UUID;
-/// for a home theater the whole-entity audio settings ride the coordinator
-/// (soundbar), while satellites typically capture only volume.
-List<Widget> _savedSettings(
+/// The per-speaker saved-settings section — a flat, divider-led block (settings,
+/// not content cards). Settings are stored per speaker UUID; for a home theater
+/// the whole-entity audio settings ride the coordinator (soundbar), while
+/// satellites typically capture only volume.
+Widget _savedSettings(
     BuildContext context, EntitySnapshot e, String Function(String) typeOf) {
   final theme = Theme.of(context);
   final muted = theme.textTheme.bodyMedium
@@ -101,21 +108,24 @@ List<Widget> _savedSettings(
   final withSettings =
       ordered.where((u) => !(e.settings[u]?.isEmpty ?? true)).toList();
 
-  return [
-    Text('Saved settings', style: theme.textTheme.titleSmall),
-    Gap.s,
-    if (withSettings.isEmpty)
-      Text('No speaker settings saved in this profile.', style: muted)
-    else
-      for (final uuid in withSettings) ...[
-        _SettingsCard(
-          title: typeOf(uuid),
-          role: _roleLabel(e, uuid),
-          rows: e.settings[uuid]!.describe(),
-        ),
-        Gap.s,
-      ],
-  ];
+  if (withSettings.isEmpty) {
+    return SettingsSection(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        child: Text('No speaker settings saved in this profile.', style: muted),
+      ),
+    ]);
+  }
+  return SettingsSection(children: [
+    for (var i = 0; i < withSettings.length; i++) ...[
+      if (i > 0) const Divider(height: 1),
+      _SettingsBlock(
+        title: typeOf(withSettings[i]),
+        role: _roleLabel(e, withSettings[i]),
+        rows: e.settings[withSettings[i]]!.describe(),
+      ),
+    ],
+  ]);
 }
 
 /// Short role of [uuid] within the entity, for the settings-card subtitle.
@@ -150,48 +160,46 @@ String? _roleLabel(EntitySnapshot e, String uuid) {
   }
 }
 
-/// One speaker's captured settings: type + role header, then label/value rows.
-class _SettingsCard extends StatelessWidget {
+/// One speaker's captured settings as a flat block: type + role header, then
+/// label/value rows. No card — it lives inside a [SettingsSection].
+class _SettingsBlock extends StatelessWidget {
   final String title;
   final String? role;
   final List<({String label, String value})> rows;
-  const _SettingsCard(
+  const _SettingsBlock(
       {required this.title, required this.role, required this.rows});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: theme.textTheme.titleMedium),
-            if (role != null)
-              Text(role!,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant)),
-            Gap.s,
-            for (final r in rows)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(r.label,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(color: scheme.onSurfaceVariant)),
-                    Text(r.value,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)),
-                  ],
-                ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: theme.textTheme.titleMedium),
+          if (role != null)
+            Text(role!,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant)),
+          Gap.s,
+          for (final r in rows)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(r.label,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: scheme.onSurfaceVariant)),
+                  Text(r.value,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                ],
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
