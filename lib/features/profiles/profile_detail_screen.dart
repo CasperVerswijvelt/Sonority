@@ -40,17 +40,6 @@ class _State extends ConsumerState<ProfileDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _editAppearance() async {
-    final result =
-        await showAppearanceDialog(context, iconId: _iconId, color: _color);
-    if (result != null) {
-      setState(() {
-        _iconId = result.$1;
-        _color = result.$2;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -103,29 +92,16 @@ class _State extends ConsumerState<ProfileDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppearanceButton(
-                  iconId: _iconId, color: _color, onTap: _editAppearance),
-              Gap.s,
-              Expanded(
-                child: TextField(
-                  controller: _name,
-                  onChanged: (_) => setState(() {}),
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    labelText: 'Profile name',
-                    border: const OutlineInputBorder(),
-                    errorText: taken ? 'A profile with this name exists' : null,
-                    // Pin to standard density so the field box stays 56 (= the
-                    // 56 swatch) on desktop's compact density; keeps the swatch
-                    // centered on the box and unmoved when the error grows it.
-                    visualDensity: VisualDensity.standard,
-                  ),
-                ),
-              ),
-            ],
+          ProfileNameField(
+            controller: _name,
+            iconId: _iconId,
+            color: _color,
+            nameTaken: taken,
+            onChanged: () => setState(() {}),
+            onAppearanceChanged: (icon, color) => setState(() {
+              _iconId = icon;
+              _color = color;
+            }),
           ),
           Gap.l,
           const SectionHeader('Included'),
