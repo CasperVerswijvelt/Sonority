@@ -111,8 +111,12 @@ Widget _savedSettings(
   if (withSettings.isEmpty) {
     return SettingsSection(children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-        child: Text('No speaker settings saved in this profile.', style: muted),
+        padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+        child: Text(
+          'No speaker settings saved in this profile.',
+          textAlign: TextAlign.center,
+          style: muted,
+        ),
       ),
     ]);
   }

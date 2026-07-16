@@ -256,13 +256,13 @@ class _Content extends StatelessWidget {
               if (member.hasDedicatedFronts) ...[
                 Gap.s,
                 Text(
-                  'Trueplay can’t be measured from Android — tune in the Sonos '
-                  'app (iOS): the home theater, and the fronts separately as a '
-                  'stereo pair. Heads-up: Sonos often clears a tuning when '
-                  'speakers are bonded/unbonded, so you may see “Not tuned” '
-                  'after changing the layout and have to redo it. Sonority only '
-                  'toggles a stored tuning.',
-                  style: theme.textTheme.labelSmall?.copyWith(
+                  'Trueplay can only be measured from the Sonos app on iOS — '
+                  'tune the home theater, and the fronts separately as a stereo '
+                  'pair. Heads-up: Sonos often clears a tuning when speakers are '
+                  'bonded/unbonded, so you may see “Not tuned” after changing the '
+                  'layout and have to redo it. Sonority only toggles a stored '
+                  'tuning.',
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
