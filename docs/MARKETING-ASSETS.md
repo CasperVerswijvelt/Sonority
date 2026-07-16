@@ -31,6 +31,12 @@ When features ship, update all four in one pass, cross-checking `CHANGELOG.md`:
 3. `design/store.html` — the `SHOTS` captions + the feature/tablet blurbs.
 4. `README.md` screenshot alt text.
 
+The landing page (`docs/index.html`, served by GitHub Pages) is **generated** —
+`dart run tool/gen_site.dart` reuses the tagline from `pubspec.yaml` and the four
+`SHOTS` captions from `design/store.html` (no text is copy-pasted), filling
+`tool/site_template.html`. Re-run it after changing either source, and commit the
+regenerated `docs/index.html`.
+
 ## 2. Screenshots — the four canonical screens
 
 Sonority markets four screens: **overview**, **home-theater detail**,
