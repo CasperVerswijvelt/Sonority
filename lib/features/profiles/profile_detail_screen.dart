@@ -7,6 +7,7 @@ import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/entity_cards.dart';
+import '../widgets/section_header.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_entity_detail_screen.dart';
@@ -123,7 +124,7 @@ class _State extends ConsumerState<ProfileDetailScreen> {
             ],
           ),
           Gap.l,
-          Text('Included', style: theme.textTheme.titleSmall),
+          const SectionHeader('Included'),
           Text(
             entitiesChanged
                 ? 'Recaptured from your current setup — press Save to keep it.'

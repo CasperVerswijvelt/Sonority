@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 /// A simple top-down room diagram showing the soundbar and the currently
 /// assigned channels around it. Purely illustrative — communicates layout at a
 /// glance rather than the dense settings lists of other tools.
@@ -35,7 +37,7 @@ class SpeakerDiagram extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: scheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(kCardRadius),
           border: Border.all(color: scheme.outlineVariant),
         ),
         padding: const EdgeInsets.all(16),

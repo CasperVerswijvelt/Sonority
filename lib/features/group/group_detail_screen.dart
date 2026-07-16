@@ -8,6 +8,7 @@ import '../widgets/bonding_progress_screen.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/destructive_button.dart';
+import '../widgets/identify_controls.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
 import '../widgets/sheet_scaffold.dart';
@@ -49,7 +50,7 @@ class _GroupSheet extends ConsumerWidget {
               onPressed: () => _rename(context, ref, device, group.zoneName),
             ),
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        padding: const EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 20),
         child: Column(
           children: [
             for (final e in group.groupChannels.entries) ...[
@@ -57,6 +58,8 @@ class _GroupSheet extends ConsumerWidget {
                 icon: Icons.speaker,
                 type: system.device(e.key)?.typeLabel ?? 'Speaker',
                 channel: groupChannelShort(e.value),
+                // Bonded member → LED only (chiming one plays the whole group).
+                trailing: speakerIdentifyButton(system.device(e.key)),
               ),
               Gap.s,
             ],
@@ -65,12 +68,13 @@ class _GroupSheet extends ConsumerWidget {
                 icon: Icons.graphic_eq,
                 type: system.device(group.subUuid!)?.typeLabel ?? 'Sub',
                 channel: 'Sub',
+                trailing: speakerIdentifyButton(system.device(group.subUuid!)),
               ),
           ],
         ),
       ),
       footer: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+        padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),
         child: DestructiveButton(
           icon: Icons.link_off,
           label: 'Separate',

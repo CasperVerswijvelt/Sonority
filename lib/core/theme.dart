@@ -132,7 +132,7 @@ class AppTheme {
         elevation: 0,
         color: scheme.surfaceContainerHigh,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(kCardRadius),
           side: BorderSide(color: scheme.outlineVariant),
         ),
         margin: EdgeInsets.zero,
@@ -153,10 +153,10 @@ class AppTheme {
         ),
       ),
       listTileTheme: const ListTileThemeData(
-        // Match the card radius (20) so a tile's hover/tap ink follows the card
+        // Match the card radius so a tile's hover/tap ink follows the card
         // outline instead of a tighter, more-rounded corner inside it.
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(20))),
+            borderRadius: BorderRadius.all(Radius.circular(kCardRadius))),
       ),
     );
   }
@@ -187,10 +187,33 @@ class AppTheme {
   }
 }
 
-/// Shared spacing scale.
+/// Shared corner radius for cards / tiles / tinted panels — the single source
+/// so the value can't drift across `cardTheme`, tiles and ad-hoc `circular(20)`.
+const double kCardRadius = 20;
+
+/// The app's standard page/sheet horizontal gutter — the value screens pad
+/// their content by, matching a card's internal padding for a shared rhythm.
+const double kPageGutter = 16;
+
+/// Vertical gap between stacked cards in a list (applied as a card `margin` /
+/// bottom padding, so it's a `double` rather than a [Gap] SizedBox).
+const double kCardGap = 12;
+
+/// Shared spacing scale (each a square [SizedBox], so it works as height OR
+/// width).
 class Gap {
   static const xs = SizedBox(height: 4, width: 4);
   static const s = SizedBox(height: 8, width: 8);
   static const m = SizedBox(height: 16, width: 16);
   static const l = SizedBox(height: 24, width: 24);
+}
+
+/// Named text styles shared across the UI, so a recurring style is declared
+/// once instead of re-`copyWith`-ing it at every call site.
+extension AppTextStyles on ThemeData {
+  /// The muted helper/caption style: small body text in the muted
+  /// on-surface-variant colour. The most-repeated inline style in the app
+  /// (helper paragraphs, subtitles, empty/hint lines).
+  TextStyle? get mutedText =>
+      textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant);
 }

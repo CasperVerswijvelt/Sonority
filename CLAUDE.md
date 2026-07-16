@@ -251,6 +251,23 @@ Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
     a `finally` (self-reverting, like the chime's volume save/restore).
 - **`RenderingControl` service** (`/MediaRenderer/RenderingControl/Control`):
   - `GetVolume`/`SetVolume`/`GetMute`/`SetMute` (used by the identify chime).
+  - **EQ per-model support is NOT discoverable from the SCPD (hardware-confirmed,
+    Beam vs Play:1):** the `RenderingControl1.xml` `A_ARG_TYPE_EQType` state
+    variable is a **free-form string with no `allowedValueList`**, and the SCPD is
+    **byte-identical** across models — so you cannot ask a speaker which `GetEQ`
+    tokens it supports. Worse, the runtime call doesn't tell you either: a plain
+    **Play:1 / One answers `GetEQ` for the sub/height tokens with harmless
+    defaults** (`SubGain 0`, `SubEnable On`, `SubCrossover 0`, `HeightChannelLevel
+    0`) instead of faulting (it DOES fault on the surround/night/speech tokens, so
+    those self-exclude). Net: neither the SCPD nor a fault distinguishes a real
+    setting from firmware noise on small speakers. So `SonosController.
+    captureSettings` gates the **extended EQ bundle** (everything past bass/treble/
+    loudness — the `eqTypes` list) **by role, not by probing**: read it only when
+    the entity is a home theater, has a bonded sub, or the device `isSoundbar`;
+    every other speaker captures **bass/treble/loudness only** (`speaker_settings.
+    dart` `read(..., extendedEq:)`). Those three ARE universal/meaningful on any
+    speaker. This keeps a zone/pair of plain speakers from storing (and showing,
+    and re-writing on apply) irrelevant sub/height rows.
   - **Trueplay / room calibration** (`room_calibration.dart`): per-speaker,
     confirmed via the device SCPD — `GetRoomCalibrationStatus(InstanceID)` →
     `RoomCalibrationEnabled` + `RoomCalibrationAvailable`; `SetRoomCalibrationStatus

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/room_calibration.dart';
 import '../../state/trueplay_controller.dart';
@@ -137,7 +138,8 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     required Widget? trailing,
   }) {
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: kPageGutter, vertical: 4),
       leading: Icon(icon, color: iconColor),
       title: const Text('Trueplay'),
       subtitle: Text(subtitle),

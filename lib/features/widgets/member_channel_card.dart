@@ -12,8 +12,16 @@ class MemberChannelCard extends StatelessWidget {
   final IconData icon;
   final String type;
   final String? channel;
+
+  /// Optional trailing widget (e.g. a `SpeakerIdentifyButton`) shown at the end
+  /// of the row. Omitted in read-only contexts like the profile-entity snapshot.
+  final Widget? trailing;
   const MemberChannelCard(
-      {super.key, required this.icon, required this.type, this.channel});
+      {super.key,
+      required this.icon,
+      required this.type,
+      this.channel,
+      this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +51,7 @@ class MemberChannelCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (trailing != null) trailing!,
           ],
         ),
       ),

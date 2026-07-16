@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/busy_view.dart';
+import '../widgets/identify_controls.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
 import '../widgets/settings_section.dart';
@@ -55,8 +57,13 @@ class _RoomSheet extends ConsumerWidget {
           // so no chip (parallels the group sheet's per-speaker cards).
           if (device != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-              child: MemberChannelCard(icon: Icons.speaker, type: device.typeLabel),
+              padding: const EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 16),
+              child: MemberChannelCard(
+                icon: Icons.speaker,
+                type: device.typeLabel,
+                // Standalone speaker → both LED blink and the chime apply.
+                trailing: speakerIdentifyButton(device, allowChime: true),
+              ),
             ),
           // Settings: a flat, sectioned Trueplay row, not another card.
           SettingsSection(children: [TrueplayControl(devices: devices)]),

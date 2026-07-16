@@ -14,6 +14,7 @@ import '../widgets/destructive_button.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
+import '../widgets/section_header.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/trueplay_control.dart';
 
@@ -212,7 +213,7 @@ class _Content extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 20),
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -227,15 +228,12 @@ class _Content extends StatelessWidget {
                 label: const Text('Configure home theater'),
               ),
               Gap.l,
-              Text('Bonded speakers', style: theme.textTheme.titleSmall),
-              Gap.s,
+              const SectionHeader('Bonded speakers'),
               if (present.isEmpty)
                 Text(
                   'Just the soundbar — no fronts, surrounds or sub bonded yet. '
                   'Tap “Configure home theater” to add some.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                  style: theme.mutedText,
                 )
               else
                 for (final g in present) ...[
@@ -252,7 +250,7 @@ class _Content extends StatelessWidget {
         Gap.m,
         SettingsSection(children: [TrueplayControl(devices: bonded)]),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -265,9 +263,7 @@ class _Content extends StatelessWidget {
                   'bonded/unbonded, so you may see “Not tuned” after changing the '
                   'layout and have to redo it. Sonority only toggles a stored '
                   'tuning.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                  style: theme.mutedText,
                 ),
               ],
               if (present.isNotEmpty) ...[

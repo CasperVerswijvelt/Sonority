@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_sficon/flutter_sficon.dart';
 
+import '../../core/theme.dart';
 import 'profile.dart';
 
 /// True if [name] (trimmed, case-insensitive) is already used by another
@@ -117,11 +118,10 @@ ProfileTonal profileTonal(int colorIndex, Brightness brightness) {
   );
 }
 
-/// Corner radius of the tonal chips/tiles. Fixed (not size-relative) so it reads
-/// consistent everywhere; mirrored by the iOS Swift widget and the Android
-/// native tile, which also compute glyph/label sizes from the tile's short edge
-/// (`clamp(0.30·s, 18, 40)` / `clamp(0.12·s, 11, 15)`).
-const double tileRadius = 20;
+// Tonal chips/tiles use the shared [kCardRadius] so their corner reads
+// consistent with the app's cards; mirrored by the iOS Swift widget and the
+// Android native tile, which also compute glyph/label sizes from the tile's
+// short edge (`clamp(0.30·s, 18, 40)` / `clamp(0.12·s, 11, 15)`).
 
 Color _mix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
 
@@ -157,14 +157,14 @@ class AppearanceButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = profileTonal(color, Theme.of(context).brightness);
     return InkWell(
-      borderRadius: BorderRadius.circular(tileRadius),
+      borderRadius: BorderRadius.circular(kCardRadius),
       onTap: onTap,
       child: Container(
         width: 56,
         height: 56,
         decoration: BoxDecoration(
           color: t.card,
-          borderRadius: BorderRadius.circular(tileRadius),
+          borderRadius: BorderRadius.circular(kCardRadius),
         ),
         child: Center(child: profileGlyph(iconId, size: 26, color: t.icon)),
       ),
@@ -208,11 +208,11 @@ class ProfileCard extends StatelessWidget {
           : null,
       shape: selected
           ? RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(kCardRadius),
               side: BorderSide(color: scheme.primary, width: 1.5))
           : null,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(kCardRadius),
         onTap: onTap,
         child: Padding(
           padding: EdgeInsets.fromLTRB(16, 16, trailing == null ? 16 : 8, 16),
@@ -224,7 +224,7 @@ class ProfileCard extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                     color: tonal.card,
-                    borderRadius: BorderRadius.circular(tileRadius)),
+                    borderRadius: BorderRadius.circular(kCardRadius)),
                 child: Center(
                     child: profileGlyph(profile.iconId,
                         size: 22, color: tonal.icon)),
@@ -240,8 +240,7 @@ class ProfileCard extends StatelessWidget {
                       summary.isEmpty ? 'No entities' : summary,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant),
+                      style: theme.mutedText,
                     ),
                     if (settingsBadges(
                             audio: profile.hasAudioSettings,

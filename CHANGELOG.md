@@ -13,6 +13,7 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Added
 - Profiles: tap an entity in a profile to open a detail view — the same layout visualization as the system overview (home-theater diagram / per-speaker channel cards) plus a per-speaker breakdown of every saved audio setting and volume.
+- Identify a speaker (blink its LED, plus a test chime on iOS/Android for standalone speakers) directly from the room and speaker-group detail sheets — a bonded speaker shows LED-only, since a chime would play the whole bond.
 - Diagnostics: a new screen (bug icon, top-right) shows a hide-nothing technical view of your system — including hidden speakers, IPs, MAC addresses and firmware — and can package it, the raw topology, raw device info, your saved profiles and app logs into a zip to share via the system share sheet, email straight to the developer, or save to disk. App logs and phone network info are optional toggles.
 
 ### Changed
@@ -25,6 +26,8 @@ section into the GitHub Release notes regardless of the build suffix
 - Detail sheets no longer show a drag handle — the explicit close button is the way out (drag-to-dismiss still works).
 - The home-theater "Configure home theater" button now uses a settings-cog icon instead of the sliders/EQ glyph, which is reserved for the audio/Trueplay controls.
 - When a bonding step fails, the progress screen now shows a plain-English reason (e.g. "Sonos is busy rearranging speakers right now") for the errors we recognize, instead of a raw exception string; the full technical detail is still available in the raw log view.
+- Profiles that save audio settings no longer capture irrelevant sub/surround/height values for plain speakers (e.g. a Play:1 or One in a zone) — that extended bundle is now saved only for soundbars, home theaters, or groups with a bonded sub; plain speakers keep bass, treble and loudness.
+- Tightened visual consistency across screens: shared section headers, info notes and a single muted-text style, plus unified card radius, page gutters and card spacing.
 
 ## [0.5.1] - 2026-07-15
 

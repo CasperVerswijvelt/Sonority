@@ -142,10 +142,10 @@ class TheaterEntityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: kCardGap),
       child: Card(
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(kCardRadius),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -211,7 +211,7 @@ class EntityCard extends StatelessWidget {
     final tap = unreachable ? null : onTap;
     final text = unreachable ? unreachableSpeakerHint : model.subtitle;
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: kCardGap),
       child: ListTile(
         titleAlignment: ListTileTitleAlignment.center,
         onTap: tap,

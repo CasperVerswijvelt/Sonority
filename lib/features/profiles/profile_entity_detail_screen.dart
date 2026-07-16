@@ -39,7 +39,7 @@ class _EntitySheet extends StatelessWidget {
         children: [
           // Content: the layout (diagram / per-speaker cards).
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+            padding: const EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: _layout(e, system, typeOf),
@@ -110,7 +110,7 @@ Widget _savedSettings(
   if (withSettings.isEmpty) {
     return SettingsSection(children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+        padding: const EdgeInsets.fromLTRB(kPageGutter, 28, kPageGutter, 28),
         child: Text(
           'No speaker settings saved in this profile.',
           textAlign: TextAlign.center,
@@ -177,7 +177,7 @@ class _SettingsBlock extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      padding: const EdgeInsets.fromLTRB(kPageGutter, 12, kPageGutter, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

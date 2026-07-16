@@ -121,6 +121,11 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           if (system.device(id) case final d?) d,
     ];
 
+    // Chime only for a standalone speaker; an already-bonded pick (a current
+    // satellite shown pre-selected) can only blink its LED.
+    Widget idControls(SonosDevice d) =>
+        identifyButtons(d, chime: system.isStandalone(d.uuid));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Set up home theater'),
@@ -155,13 +160,13 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     candidates: avail(_fronts),
                     selected: _fronts,
                     onToggle: _toggleFront,
-                    identifyControls: identifyButtons,
+                    identifyControls: idControls,
                   ),
                   if (_ampMode) ...[
                     Gap.m,
                     _AmpWiringNote(
                       amp: system.device(_fronts.first),
-                      identifyControls: identifyButtons,
+                      identifyControls: idControls,
                     ),
                   ] else if (_fronts.length == 2) ...[
                     Gap.m,
@@ -172,7 +177,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                       rightLabel: 'RIGHT',
                       onSwap: () => setState(
                           () => _fronts.setAll(0, [_fronts[1], _fronts[0]])),
-                      identifyControls: identifyButtons,
+                      identifyControls: idControls,
                     ),
                   ],
                 ],
@@ -193,7 +198,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     candidates: avail(_surrounds),
                     selected: _surrounds,
                     onToggle: _toggleSurround,
-                    identifyControls: identifyButtons,
+                    identifyControls: idControls,
                     allowAmp: false,
                   ),
                   if (_surrounds.length == 2) ...[
@@ -205,7 +210,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                       rightLabel: 'REAR RIGHT',
                       onSwap: () => setState(() =>
                           _surrounds.setAll(0, [_surrounds[1], _surrounds[0]])),
-                      identifyControls: identifyButtons,
+                      identifyControls: idControls,
                     ),
                   ],
                 ],
@@ -220,7 +225,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                 subs: freeSubs,
                 selected: _subs,
                 onToggle: _toggleSub,
-                identifyControls: identifyButtons,
+                identifyControls: idControls,
               ),
             ),
             Step(

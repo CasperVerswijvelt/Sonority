@@ -63,10 +63,13 @@ const _eqBoolTokens = {
 
 /// A snapshot of one speaker's audio settings, read from the `RenderingControl`
 /// service. Every field is nullable / possibly absent: it means "not captured"
-/// (the profile toggle was off) OR "this speaker doesn't support it" (e.g. a
-/// plain Play:1 answers no surround/sub tokens; HT satellites reject EQ reads
-/// entirely with UPnPError 803). Reading and applying are both best-effort per
-/// field — one setting faulting never sinks the rest.
+/// (the profile toggle was off, or the [eqTypes] bundle was skipped for a plain
+/// speaker — see [SpeakerSettingsClient.read]'s `extendedEq`) OR "this speaker
+/// doesn't support it" (HT satellites reject EQ reads entirely with UPnPError
+/// 803). Note a plain Play:1 / One *does* answer the sub/surround/height GetEQ
+/// calls, just with meaningless defaults — which is why we gate them by role
+/// rather than by whether the call faults. Reading and applying are both
+/// best-effort per field — one setting faulting never sinks the rest.
 ///
 /// [bass]/[treble]/[loudness] have dedicated SOAP actions; every other sound
 /// setting rides the generic `GetEQ`/`SetEQ` pair and lives in [eq] keyed by
@@ -164,13 +167,19 @@ class SpeakerSettingsClient {
   static const _control = '/MediaRenderer/RenderingControl/Control';
 
   /// Reads a settings snapshot for the speaker at [ip]. [audio] captures the
-  /// audio-settings bundle (bass/treble/loudness + every [eqTypes] token the
-  /// speaker answers); [volume] captures volume/mute. The two are independent
-  /// toggles.
+  /// audio-settings bundle; [volume] captures volume/mute (independent toggles).
+  ///
+  /// [extendedEq] gates the [eqTypes] bundle (night sound, speech, sub, surround,
+  /// height, lip-sync). Those are only physically meaningful on a soundbar / in a
+  /// home theater / when a sub is bonded — every other speaker (a plain Play:1 /
+  /// One in a zone or pair) still *answers* GetEQ for them with harmless defaults
+  /// (SubGain 0, SubEnable On, …), which is just noise to capture and show. So
+  /// callers pass `extendedEq: false` for plain speakers and only bass / treble /
+  /// loudness (the universally-meaningful controls) are read.
   Future<SpeakerSettings> read(String ip,
-      {bool audio = true, bool volume = false}) async {
+      {bool audio = true, bool volume = false, bool extendedEq = true}) async {
     final eqValues = <String, int>{};
-    if (audio) {
+    if (audio && extendedEq) {
       for (final t in eqTypes) {
         final v = await _readInt(ip, 'GetEQ', 'CurrentValue',
             extra: {'EQType': t});

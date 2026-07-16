@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/theme.dart';
 import 'sheet_scaffold.dart';
 
 const _repoUrl = 'https://github.com/CasperVerswijvelt/Sonority';
@@ -48,9 +49,9 @@ class _VersionPill extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Material(
       color: scheme.onSurface.withValues(alpha: 0.06),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(kCardRadius),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(kCardRadius),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),

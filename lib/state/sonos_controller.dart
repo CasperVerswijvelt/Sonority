@@ -130,11 +130,20 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     if (sys == null || (!audio && !volume)) return entities;
     final out = <EntitySnapshot>[];
     for (final e in entities) {
+      // The extended EQ bundle (sub/surround/night/speech/height) only applies
+      // in a home theater or when a sub is bonded; a plain speaker still answers
+      // those GetEQ calls with meaningless defaults, so skip them there (a
+      // soundbar always gets them — a bare bar has night/speech/height).
+      final entityHtOrSub =
+          e.kind == EntityKind.homeTheater || e.toMember().subUuid != null;
       final map = <String, SpeakerSettings>{};
       for (final uuid in e.involvedUuids) {
-        final ip = sys.device(uuid)?.ip;
+        final dev = sys.device(uuid);
+        final ip = dev?.ip;
         if (ip == null) continue;
-        final s = await _settings.read(ip, audio: audio, volume: volume);
+        final extendedEq = entityHtOrSub || (dev?.isSoundbar ?? false);
+        final s = await _settings.read(ip,
+            audio: audio, volume: volume, extendedEq: extendedEq);
         if (!s.isEmpty) map[uuid] = s;
       }
       out.add(map.isEmpty ? e : e.copyWith(settings: map));

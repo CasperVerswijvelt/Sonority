@@ -11,6 +11,7 @@ import '../group/group_detail_screen.dart';
 import '../room/room_screen.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/entity_cards.dart';
+import '../widgets/section_header.dart';
 import '../widgets/version_badge.dart';
 
 /// Entry screen: auto-scans the LAN on launch and presents the system, leading
@@ -118,7 +119,7 @@ class _SystemView extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SectionHeader('Home theaters', Icons.theaters_outlined),
+          SectionHeader('Home theaters', icon: Icons.theaters_outlined),
           if (theaters.isEmpty)
             const _EmptyHint(
               'No soundbar found. Dedicated fronts need an Arc, Beam, Ray, '
@@ -131,9 +132,9 @@ class _SystemView extends ConsumerWidget {
           Gap.l,
           // The "+" lives in the header; the flow itself explains if there
           // aren't two free speakers to bond.
-          _SectionHeader(
+          SectionHeader(
             'Speaker groups',
-            Icons.speaker_group_outlined,
+            icon: Icons.speaker_group_outlined,
             onAdd: () => context.push('/group'),
             addTooltip: 'Group speakers',
           ),
@@ -147,7 +148,8 @@ class _SystemView extends ConsumerWidget {
           // Single speaker rooms — hidden entirely when there are none.
           if (singleRooms.isNotEmpty) ...[
             Gap.l,
-            _SectionHeader('Single speaker rooms', Icons.meeting_room_outlined),
+            SectionHeader('Single speaker rooms',
+                icon: Icons.meeting_room_outlined),
             ...singleRooms.map((m) => EntityCard(
                   model: EntityCardModel.fromMember(system, m),
                   onTap: () => showRoomSheet(context, m.uuid),
@@ -159,11 +161,11 @@ class _SystemView extends ConsumerWidget {
           // HT setup flow.
           if (system.bondableSubs.isNotEmpty) ...[
             Gap.l,
-            _SectionHeader('Other devices', Icons.devices_other_outlined),
+            SectionHeader('Other devices', icon: Icons.devices_other_outlined),
           ],
           ...system.bondableSubs.map(
             (sub) => Card(
-              margin: const EdgeInsets.only(bottom: 12),
+              margin: const EdgeInsets.only(bottom: kCardGap),
               child: ListTile(
                 leading: const Icon(Icons.graphic_eq),
                 title: const Text('Subwoofer'),
@@ -171,52 +173,6 @@ class _SystemView extends ConsumerWidget {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-
-  /// When set, a small right-aligned "+" button that triggers this (e.g. create
-  /// a stereo pair / zone).
-  final VoidCallback? onAdd;
-  final String? addTooltip;
-  const _SectionHeader(this.title, this.icon, {this.onAdd, this.addTooltip});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: scheme.onSurfaceVariant),
-          Gap.s,
-          Expanded(
-            child: Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ),
-          if (onAdd != null)
-            IconButton.outlined(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add),
-              tooltip: addTooltip,
-              iconSize: 20,
-              visualDensity: VisualDensity.compact,
-              style: IconButton.styleFrom(
-                shape: const CircleBorder(),
-                side: BorderSide(color: scheme.outlineVariant),
-                foregroundColor: scheme.onSurfaceVariant,
-              ),
-            ),
         ],
       ),
     );
@@ -233,10 +189,9 @@ class _EmptySectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Card(
       color: Colors.transparent,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: kCardGap),
       child: SizedBox(
         width: double.infinity,
         child: Padding(
@@ -244,9 +199,7 @@ class _EmptySectionCard extends StatelessWidget {
           child: Text(
             text,
             textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            style: Theme.of(context).mutedText,
           ),
         ),
       ),
@@ -259,12 +212,10 @@ class _EmptyHint extends StatelessWidget {
   const _EmptyHint(this.text);
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.only(bottom: kCardGap),
     child: Text(
       text,
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
+      style: Theme.of(context).mutedText,
     ),
   );
 }

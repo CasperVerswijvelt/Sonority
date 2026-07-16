@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
 import 'app_scaffold.dart' show ScrolledUnderDivider;
 
 /// Opens [child] as the app's standard modal bottom sheet, over the tab shell.
@@ -37,8 +38,9 @@ class _SheetHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      // Extra top gap since there's no drag handle above the header now.
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+      // Reserve breathing room at the top since there's no drag handle above
+      // the header to provide it.
+      padding: const EdgeInsets.fromLTRB(16, 28, 8, 8),
       child: Row(
         children: [
           if (icon != null) ...[
@@ -52,9 +54,7 @@ class _SheetHeader extends StatelessWidget {
               children: [
                 Text(title, style: theme.textTheme.titleLarge),
                 if (subtitle != null)
-                  Text(subtitle!,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  Text(subtitle!, style: theme.mutedText),
               ],
             ),
           ),
