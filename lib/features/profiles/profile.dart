@@ -111,9 +111,10 @@ class EntitySnapshot {
   bool get hasVolume => settings.values.any((s) => s.hasVolume);
 
   /// A throwaway [ZoneGroupMember] carrying the stored map string, so the shared
-  /// entity cards / [entitySummary] can reuse the model's parsing getters
-  /// against snapshot data. The single blessed place for this trick — HT maps go
-  /// in `htSatChanMapSet`, group maps in `channelMapSet`, a single has neither.
+  /// entity cards (`EntityCardModel`) and the entity detail sheet can reuse the
+  /// model's parsing getters against snapshot data. The single blessed place for
+  /// this trick — HT maps go in `htSatChanMapSet`, group maps in `channelMapSet`,
+  /// a single has neither.
   ZoneGroupMember toMember() => ZoneGroupMember(
         uuid: primaryUuid,
         zoneName: label,

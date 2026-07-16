@@ -26,8 +26,8 @@ class _EntitySheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final e = entity;
-    // Same fallback pattern as entitySummary: prefer the live device type, fall
-    // back to the captured room name, then a generic label.
+    // Prefer the live device type, fall back to the captured room name, then a
+    // generic label (same fallback the entity cards use).
     String typeOf(String uuid) =>
         system?.device(uuid)?.typeLabel ?? e.names[uuid] ?? 'Speaker';
 

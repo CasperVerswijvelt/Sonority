@@ -43,6 +43,10 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     _name.text = existing?.name ?? _defaultName(profiles);
     _iconId = existing?.iconId ?? kDefaultProfileIcon;
     _color = existing?.color ?? 0;
+    // Re-snapshot: default the settings toggles to what the profile already
+    // captured, so recapturing doesn't silently drop its saved EQ/volume.
+    _saveAudio = existing?.hasAudioSettings ?? false;
+    _saveVolume = existing?.hasVolume ?? false;
     // Re-snapshot pre-selects the entities that were originally in the profile.
     // Match by involved UUIDs, not primaryUuid — current live bonding may differ
     // from what the profile stored, which is the whole point of re-snapshotting.
