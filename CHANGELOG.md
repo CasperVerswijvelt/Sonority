@@ -11,6 +11,8 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-17
+
 ### Added
 - Profiles: tap an entity in a profile to open a detail view — the same layout visualization as the system overview (home-theater diagram / per-speaker channel cards) plus a per-speaker breakdown of every saved audio setting and volume.
 - Identify a speaker (blink its LED, plus a test chime on iOS/Android for standalone speakers) directly from the room and speaker-group detail sheets — a bonded speaker shows LED-only, since a chime would play the whole bond.
