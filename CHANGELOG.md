@@ -17,6 +17,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Diagnostics: a new screen (bug icon, top-right) shows a hide-nothing technical view of your system — including hidden speakers, IPs, MAC addresses and firmware — and can package it, the raw topology, raw device info, your saved profiles and app logs into a zip to share via the system share sheet, email straight to the developer, or save to disk. App logs and phone network info are optional toggles.
 
 ### Changed
+- The bonding progress screen's Done button is now colored by result — green when the operation succeeded, red when it failed or was aborted.
 - The speaker-group, single-room, and profile-entity detail views are now modal bottom sheets (sized to their content, capped just below the app bar, with an explicit close button, and a pinned "Separate" for groups) instead of full pushed pages — cutting a level off the navigation on both tabs. The home-theater detail stays a full page (it's content-heavy and launches the configure flow).
 - Settings (Trueplay, a profile's saved per-speaker settings) now render as a flat, divider-led section of full-width rows rather than cards, so they read distinctly from the speaker/content cards above them. A single-room sheet is now titled like the others ("Room") with the speaker shown as a card.
 - Diagnostics: home-theater blocks in the topology view no longer print each satellite twice — the satellite's IP is now folded into its `HTSatChanMapSet` line instead of repeating the UUID and channel on a separate line.

@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../data/sonos/apply_progress.dart';
 
+/// The green used for succeeded steps (and the Done button once an op finishes).
+/// Shared so the button and the timeline nodes never drift apart.
+Color successGreen(ThemeData theme) => theme.brightness == Brightness.dark
+    ? Colors.green.shade400
+    : Colors.green.shade600;
+
 /// Renders the live [ApplyStep] list of a multi-step bonding operation as a
 /// minimal vertical timeline: a bare checkmark for done steps, a colored
 /// pulsing dot for the active step, a grey dot for to-do steps, and a thin
@@ -220,9 +226,7 @@ class _Node extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final pendingColor = scheme.onSurfaceVariant.withValues(alpha: 0.5);
-    final green = theme.brightness == Brightness.dark
-        ? Colors.green.shade400
-        : Colors.green.shade600;
+    final green = successGreen(theme);
     if (small) {
       return switch (step.status) {
         ApplyStatus.done => _dot(green, 6),
