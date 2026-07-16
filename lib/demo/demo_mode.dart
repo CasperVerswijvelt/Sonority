@@ -75,9 +75,20 @@ class _DemoSonosRepository extends SonosRepository {
   Future<SonosSystem> refresh(SonosSystem previous, String ip) async =>
       demoSystem;
 
+  // Bonding dedicated fronts makes Sonos invalidate Trueplay across the whole
+  // HT set (every member drops to available=0) and we can't restore it — so the
+  // Living-Room HT honestly reads "not tuned". Standalone rooms keep a real
+  // tuning so the read/toggle feature is still demoable on the room detail.
+  static final _bondedFrontsIps = {
+    '192.0.2.10', // Arc coordinator
+    for (final s in _htSatellites) s.ip,
+  };
+
   @override
   Future<RoomCalibration> roomCalibration(String ip) async =>
-      const RoomCalibration(available: true, enabled: true);
+      _bondedFrontsIps.contains(ip)
+          ? const RoomCalibration(available: false, enabled: false)
+          : const RoomCalibration(available: true, enabled: true);
 
   @override
   Future<void> setRoomCalibration(String ip, bool on) async {}
