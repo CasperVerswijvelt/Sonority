@@ -53,12 +53,12 @@ const _eqLabels = {
 };
 
 /// EQType tokens whose value is a boolean toggle (0/1) — shown as On/Off. Every
-/// other token is a numeric level shown as-is.
+/// other token is a numeric level shown as-is (except `SubPolarity`, a 0/1 sub
+/// *phase* rendered as 0°/180° — see [SpeakerSettings.describe]).
 const _eqBoolTokens = {
   'NightMode',
   'SubEnable',
   'SurroundEnable',
-  'SubPolarity',
 };
 
 /// A snapshot of one speaker's audio settings, read from the `RenderingControl`
@@ -123,10 +123,15 @@ class SpeakerSettings {
     for (final token in eqTypes) {
       final v = eq[token];
       if (v == null) continue;
-      rows.add((
-        label: _eqLabels[token] ?? token,
-        value: _eqBoolTokens.contains(token) ? onOff(v != 0) : '$v',
-      ));
+      final String value;
+      if (token == 'SubPolarity') {
+        value = v == 0 ? '0°' : '180°'; // sub phase, not an on/off toggle
+      } else if (_eqBoolTokens.contains(token)) {
+        value = onOff(v != 0);
+      } else {
+        value = '$v';
+      }
+      rows.add((label: _eqLabels[token] ?? token, value: value));
     }
     if (volume != null) rows.add((label: 'Volume', value: '$volume%'));
     if (mute != null) rows.add((label: 'Muted', value: onOff(mute!)));

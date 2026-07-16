@@ -42,11 +42,22 @@ void main() {
           ['Night sound', 'Surround level (TV)']);
     });
 
-    test('unknown token falls back to the raw token as label', () {
-      final rows = const SpeakerSettings(eq: {'NightMode': 1}).describe();
-      // eqTypes-driven, so an unmapped-but-listed token still resolves; verify
-      // the label map covers every eqTypes entry (no raw tokens leak through).
-      expect(rows.single.label, 'Night sound');
+    test('every eqTypes token resolves to a human label (no raw token leaks)', () {
+      final rows =
+          SpeakerSettings(eq: {for (final t in eqTypes) t: 0}).describe();
+      expect(rows.length, eqTypes.length);
+      for (final r in rows) {
+        expect(eqTypes.contains(r.label), isFalse,
+            reason: 'raw token leaked as a label: ${r.label}');
+      }
+    });
+
+    test('SubPolarity renders as a sub phase (0°/180°), not On/Off', () {
+      String phase(int v) => (SpeakerSettings(eq: {'SubPolarity': v}).describe())
+          .single
+          .value;
+      expect(phase(0), '0°');
+      expect(phase(1), '180°');
     });
 
     test('volume as percent and mute as On/Off', () {
