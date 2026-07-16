@@ -10,14 +10,15 @@ import 'pill_chip.dart';
 // -----------------------------------------------------------------------------
 // View models
 //
-// The cards render one of these, never a domain `ZoneGroupMember` directly. Each
-// model is built either from a LIVE member (`fromMember`, system guaranteed) or
-// from a SNAPSHOT member (`fromSnapshot`, system may be null) — the throwaway
-// member the profile builds via `EntitySnapshot.toMember()`. Only the fields a
-// card actually shows live here, so the snapshot path can't accidentally surface
-// live-only state (`reachable`, `satellites`, `ip`, …): the snapshot factory sets
-// `reachable = true` (a stored config is always "openable"), fixing the case
-// where a momentarily-offline speaker used to disable the profile tile.
+// The cards render one of these, never a domain `ZoneGroupMember` directly, so a
+// card can't accidentally surface live-only state (`satellites`, `ip`, …) — only
+// the fields it shows live here. `TheaterCardModel` (the overview's rich HT card)
+// is live-only. `EntityCardModel` (the compact tile) is built either from a LIVE
+// member (`fromMember`, system guaranteed) or from a SNAPSHOT member
+// (`fromSnapshot`, system may be null — the throwaway member the profile builds
+// via `EntitySnapshot.toMember()`); the snapshot factory forces `reachable = true`
+// (a stored config is always "openable"), fixing the case where a
+// momentarily-offline speaker used to disable the profile tile.
 // -----------------------------------------------------------------------------
 
 /// A home theater: soundbar model + which extra-speaker groups are bonded.
