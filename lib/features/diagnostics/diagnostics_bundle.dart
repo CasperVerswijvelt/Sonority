@@ -167,10 +167,21 @@ String topologyText(SonosSystem system) {
           b.writeln('      $line');
         }
       }
-      _writeMap(b, 'HTSatChanMapSet', m.htSatChanMapSet);
+      // Fold each satellite's IP into its HTSatChanMapSet line so the UUID +
+      // channel aren't printed twice (the map is the only home a satellite has —
+      // it's a <Satellite> child, not its own member/device block).
+      final satIps = {for (final s in m.satellites) s.uuid: s.ip};
+      _writeMap(b, 'HTSatChanMapSet', m.htSatChanMapSet, ips: satIps);
       _writeMap(b, 'ChannelMapSet', m.channelMapSet,
           note: m.isGroup ? m.groupKind.name : null);
+      // Lossless residual: surface any <Satellite> the raw map didn't list (a
+      // raw-vs-parsed mismatch a diagnostics dump must not hide). Normally none.
+      final mapUuids = {
+        for (final e in (m.htSatChanMapSet ?? '').split(';'))
+          if (e.isNotEmpty) e.split(':').first,
+      };
       for (final s in m.satellites) {
+        if (mapUuids.contains(s.uuid)) continue;
         b.writeln(
           '      └ [${s.channels.map((c) => c.token).join(',')}] ${s.uuid}'
           ' · ${s.ip ?? '?'}',
@@ -217,13 +228,16 @@ List<String> _deviceLines(SonosDevice d) {
 }
 
 /// Writes a channel-map set one `UUID:tokens` entry per line — far more legible
-/// than the raw single-line `;`-joined blob.
-void _writeMap(StringBuffer b, String label, String? map, {String? note}) {
+/// than the raw single-line `;`-joined blob. When [ips] is given, appends ` · IP`
+/// to any entry whose UUID is in the map (used to fold HT satellite IPs in).
+void _writeMap(StringBuffer b, String label, String? map,
+    {String? note, Map<String, String?>? ips}) {
   if (map == null || map.isEmpty) return;
   b.writeln('      $label:${note != null ? '  ($note)' : ''}');
   for (final entry in map.split(';')) {
     if (entry.trim().isEmpty) continue;
-    b.writeln('        $entry');
+    final ip = ips?[entry.split(':').first];
+    b.writeln('        $entry${ip != null ? ' · $ip' : ''}');
   }
 }
 
