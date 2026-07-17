@@ -7,8 +7,9 @@
 //   (b) ADDITIVE: remove ONE satellite (the sub), then AddHTSatellite the full
 //                 target (a superset, drops nobody) WITHOUT stripping the rest.
 //                 Does the sub re-bond while fronts/rears stay put?
-//   (c) CHANGE  : swap two surround UUIDs (LR↔RR). diffHtLayout flags both as
-//                 toRemove → remove both, then AddHTSatellite the swapped target.
+//   (c) CHANGE  : swap two surround UUIDs (LR↔RR). Both stay in the target on a
+//                 new channel, so diffHtLayout removes NEITHER (a move reassigns
+//                 in place); AddHTSatellite the swapped target and re-assert.
 //                 Does it converge?
 //
 // ⚠️  WITH --confirm THIS MUTATES YOUR REAL HOME THEATER and Sonos will
@@ -110,7 +111,8 @@ Future<void> main(List<String> argv) async {
       );
       final diff = diffHtLayout(current: bar, target: swapped);
       print('\n(c) CHANGE: swap LR↔RR. diff.toRemove=${diff.toRemove} '
-          '(expect both surrounds). Removing them, then AddHTSatellite swapped…');
+          '(expect NONE — movers stay bonded and reassign in place). '
+          'Removing them (if any), then AddHTSatellite swapped…');
       await props.removeHtSatellites(barIp, diff.toRemove);
       await _settleLong();
       final r = await _bondVerify(props, topology, barDevice, swapped);

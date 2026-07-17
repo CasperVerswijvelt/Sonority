@@ -40,14 +40,25 @@ void main() {
     expect(d.toRemove, {sub});
   });
 
-  test('swap (LR↔RR): both surrounds must be removed first', () {
+  test('swap (LR↔RR): movers stay bonded — nothing removed, not a no-op', () {
     final d = diffHtLayout(
       current: bar(full),
-      // lr now on RR, rr now on LR — each moved channel.
+      // lr now on RR, rr now on LR — each moved channel but stays in the map,
+      // so AddHTSatellite reassigns in place (no RemoveHTSatellite needed).
       target: target('$beam:CC;$fl:LF;$fr:RF;$rr:LR;$lr:RR;$sub:SW'),
     );
     expect(d.isNoOp, isFalse);
-    expect(d.toRemove, {lr, rr});
+    expect(d.toRemove, isEmpty);
+  });
+
+  test('front↔surround swap: movers stay bonded — nothing removed', () {
+    final d = diffHtLayout(
+      current: bar(full),
+      // fr↔lr exchange channels; both remain in the target on a new channel.
+      target: target('$beam:CC;$fl:LF;$lr:RF;$fr:LR;$rr:RR;$sub:SW'),
+    );
+    expect(d.isNoOp, isFalse);
+    expect(d.toRemove, isEmpty);
   });
 
   test('replace (different speaker on a channel): old one removed', () {
