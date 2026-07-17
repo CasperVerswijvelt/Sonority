@@ -12,6 +12,7 @@ section into the GitHub Release notes regardless of the build suffix
 ## [Unreleased]
 
 ### Changed
+- Reconfiguring a home theater (e.g. swapping which speakers are fronts vs surrounds) no longer unbonds speakers that are only moving to a different channel — they're reassigned in place, so the setup no longer briefly drops to one speaker per side. The progress screen shows a single calm "Applying…" step (Sonos can still take up to a minute to settle) instead of a scary per-attempt retry log.
 - Identify chime is now a repeated percussive ping (sharp attack, bright harmonics) instead of a soft two-tone sine — it's far easier to tell which speaker it's coming from by ear.
 
 ## [0.6.0] - 2026-07-17
