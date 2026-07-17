@@ -160,11 +160,23 @@ Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
     fine (confirmed on hardware, `tool/diff_apply_spike.dart`). So
     `SonosController._applyHtTarget` diffs current-vs-target
     (`front_layout.diffHtLayout`): **no-op when unchanged** (zero writes — the
-    common re-apply case), else `RemoveHTSatellite` ONLY the satellites that
-    move/leave, then additively `bondAndVerify` the target. This is both faster
-    and *more reliable* than the old strip-to-bare path — adding only the missing
-    satellite(s) converges in ~1 attempt, whereas a full rebuild-from-bare is the
-    flaky case that needs many re-asserts. **A whole layout is applied in ONE
+    common re-apply case), else `RemoveHTSatellite` ONLY the satellites the target
+    **drops entirely** (a genuine *leave* — a removed sub, or a speaker replaced by
+    a different one), then additively `bondAndVerify` the target. This is both
+    faster and *more reliable* than the old strip-to-bare path — adding only the
+    missing satellite(s) converges in ~1 attempt, whereas a full rebuild-from-bare
+    is the flaky case that needs many re-asserts.
+    **A moved satellite is NOT removed first — it reassigns in place.** A speaker
+    that merely changes channel (e.g. a fronts↔surrounds swap) stays in the target
+    map, so it's never *dropped* and `AddHTSatellite` reassigns it — no strip.
+    Hardware A/B/C-tested (`tool/reassign_spike.dart` in git history; the check now
+    lives in `tool/diff_apply_spike.dart` case c): stripping the movers first
+    (remove-both, or remove-one) bought **no** reliability over re-asserting
+    directly — a swap 800s mid-reshuffle and re-asserts several times *either way*
+    (the retries are Sonos-inherent, not ours) — and only guaranteed the alarming
+    "one speaker per side" in-between state. So `diffHtLayout.toRemove` is
+    leaves-only; the bond phase shows one steady "Applying…" note with the
+    per-attempt churn routed to the op log (`ph.log`), not the timeline. **A whole layout is applied in ONE
     `bondAndVerify`, never staged.** A/B-tested on a real Beam (single vs
     surrounds-then-fronts, 3 trials each): single-call rebuilt the full 5.1 from
     bare in a steady **6 re-asserts** every time; **staging was worse** (each
