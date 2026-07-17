@@ -11,6 +11,10 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Changed
+- GitHub Pages landing page now deploys automatically on each release tag (via an LFS-aware Actions workflow) and shows the current app version; the page is generated in CI rather than committed.
+- Internal cleanup: deduplicated shared widgets/helpers and removed dead code; the Sonos engine is now fully decoupled from Flutter (persistence via an injected storage port). No user-facing behaviour change.
+
 ## [0.6.0] - 2026-07-17
 
 ### Added

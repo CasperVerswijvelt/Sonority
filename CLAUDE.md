@@ -44,7 +44,12 @@ duplicate the app because we only **read the live values at snapshot and write
 them back on apply** — there are **no EQ/volume editing sliders** in Sonority
 (that WOULD duplicate the app). Keep it that way: capture+restore only, never
 standalone editing. (`speaker_settings.dart`, two per-profile toggles — EQ, and
-volume separately since restoring volume is surprising.) The EQ bundle =
+volume separately since restoring volume is surprising, so it's opt-in.) **Volume
+capture is a wanted feature, not scope creep** — the motivating use case is a
+"night mode" profile: snapshot the whole HT with the volume turned down (and
+whatever EQ tweaks suit late-night listening), then re-apply the normal profile
+in one tap next day. That's a genuine capture+restore capability with no Sonos-app
+equivalent; keep it opt-in and capture-only (never a volume slider). The EQ bundle =
 bass/treble/loudness + every `GetEQ`/`SetEQ` token (the shared `eqTypes` list;
 all Beam-confirmed): NightMode, DialogLevel, SubGain/SubEnable/SubPolarity/
 SubCrossover, SurroundLevel/SurroundEnable/SurroundMode/MusicSurroundLevel,
@@ -114,8 +119,11 @@ lib/
                        flat list, `parentId` nests phase sub-steps under entities)
                      identify_service (chime)
                      speaker_settings (RenderingControl EQ/volume read+apply for profiles)
+                     key_value_store (KeyValueStore port + in-memory default — durable
+                       zone/pair name snapshots; keeps the engine Flutter-free)
                      sonos_repository (orchestrates; bondAndVerify write+retry;
-                       removeHtSatellites; freeSpeaker; setRoomName; + shared_preferences ⇒ Flutter dep)
+                       removeHtSatellites; freeSpeaker; setRoomName; persists name
+                       snapshots via an injected KeyValueStore — no direct Flutter dep)
   state/           sonos_controller.dart — AsyncNotifier<SonosSystem?>; applyHomeTheaterLayout,
                      applyProfile, _applyHtTarget (diff-based), renameRoom; applyProgressProvider
   features/        discovery / home_theater / front_surrounds (full HT setup) /
@@ -123,9 +131,12 @@ lib/
   app.dart, main.dart — go_router StatefulShellRoute (System|Profiles tabs), ProviderScope
 tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, zone_probe, lr_audiotest, eq_probe, capture_shots, gen_assets.sh (icon/wordmark/splash pipeline), gen_site (docs/ landing page)
 ```
-Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
-`shared_preferences` → Flutter). The pure recipes live in `front_layout.dart` /
-`zone_layout.dart` for exactly this reason.
+Note: the engine is fully Flutter-free — `sonos_repository.dart` persists its
+zone/pair name snapshots through an injected `KeyValueStore` port
+(`key_value_store.dart`; the app supplies a `shared_preferences`-backed adapter in
+`state/shared_preferences_store.dart`, tests/CLI get an in-memory default), so no
+`lib/data/sonos/` file imports Flutter. CLI tools still build on the pure recipes
+(`front_layout.dart` / `zone_layout.dart`) rather than the orchestrator.
 
 ## Sonos local API — the knowledge that matters
 
@@ -389,10 +400,13 @@ Run on the same Wi-Fi as the Sonos system:
   `docs/MARKETING-ASSETS.md`); `--no-capture` re-frames existing shots, `--no-build`
   reuses `build/web`.
 - `tool/gen_site.dart` — no hardware: generates the GitHub Pages landing page
-  `docs/index.html` from `tool/site_template.html`, reusing the tagline from
-  `pubspec.yaml` + the four `SHOTS` captions from `design/store.html` (no
-  copy-pasted text; screenshots/badges/logo reused in place from `docs/`). Re-run
-  and commit after copy changes.
+  `docs/index.html` from `tool/site_template.html`, reusing the tagline + version
+  from `pubspec.yaml` + the four `SHOTS` captions from `design/store.html` (no
+  copy-pasted text; screenshots/badges/logo reused in place from `docs/`, relative
+  paths). The `.github/workflows/pages.yml` workflow runs it and deploys on every
+  `v*` tag (checkout with `lfs: true` so the LFS screenshots resolve), so
+  `docs/index.html` is **not committed** (gitignored) — run locally only to
+  preview. One-time: set repo Settings → Pages → Source = "GitHub Actions".
 - `tool/gen_assets.sh` — regenerates ALL app-icon / wordmark / splash / Icon-Composer
   layer assets from the **single source `design/export.html`** (one `?mode=` each,
   rendered headless), then runs `flutter_launcher_icons` + `flutter_native_splash`

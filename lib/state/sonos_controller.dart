@@ -15,9 +15,10 @@ import '../data/sonos/speaker_settings.dart';
 import '../features/profiles/profile.dart';
 import '../features/profiles/profile_controller.dart'
     show EntityIssue, preflightProfile;
+import 'shared_preferences_store.dart';
 
-final sonosRepositoryProvider =
-    Provider<SonosRepository>((ref) => SonosRepository());
+final sonosRepositoryProvider = Provider<SonosRepository>(
+    (ref) => SonosRepository(store: SharedPreferencesKeyValueStore()));
 
 /// Phase emitters for one parent (entity) step — built by
 /// `SonosController._phases`, consumed by the apply helpers so each phase
@@ -545,12 +546,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // Confirmed on hardware (tool/diff_apply_spike.dart) that additive
         // AddHTSatellite holds without stripping, and is more reliable than a
         // full rebuild-from-bare since it only bonds what's actually missing.
-        final cur = sys.allMembers
-            .where((m) => m.uuid == bar!.uuid)
-            .cast<ZoneGroupMember?>()
-            .firstOrNull;
+        final cur = sys.memberByUuid(bar!.uuid);
         sys = await _applyHtTarget(
-          bar: bar!,
+          bar: bar,
           current: cur ?? ZoneGroupMember(uuid: bar.uuid, zoneName: e.label),
           target: fullTarget,
           sys: sys,
@@ -683,10 +681,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // The soundbar itself always survives an unbond; a null member here is
         // the transient mid-reshuffle drop-out, NOT confirmation — keep polling.
         bool rolesGone(SonosSystem s) {
-          final m = s.allMembers
-              .where((x) => x.uuid == soundbar.uuid)
-              .cast<ZoneGroupMember?>()
-              .firstOrNull;
+          final m = s.memberByUuid(soundbar.uuid);
           if (m == null) return false;
           return channels.every((c) => !m.channelAssignments.containsKey(c));
         }
@@ -876,10 +871,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// are exactly [involved].
   bool _isGroupFormed(
       SonosSystem system, String coordUuid, List<String> involved) {
-    final m = system.allMembers
-        .where((x) => x.uuid == coordUuid)
-        .cast<ZoneGroupMember?>()
-        .firstOrNull;
+    final m = system.memberByUuid(coordUuid);
     if (m == null || !m.isGroup) return false;
     final have = m.channelMapUuids.toSet();
     final want = involved.toSet();

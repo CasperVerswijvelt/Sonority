@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import '../../data/sonos/apply_progress.dart';
+import 'busy_spinner.dart';
 
 /// The green used for succeeded steps (and the Done button once an op finishes).
 /// Shared so the button and the timeline nodes never drift apart.
@@ -175,11 +176,7 @@ class _TimelineRow extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 4),
                       child: Row(
                         children: [
-                          const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2)),
+                          const BusySpinner(size: 14),
                           Gap.s,
                           Expanded(
                             child: Text(step.detail ?? 'Working…',

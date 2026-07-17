@@ -8,8 +8,8 @@ import '../widgets/bonding_progress_screen.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/destructive_button.dart';
+import '../widgets/diagram_labels.dart';
 import '../widgets/identify_controls.dart';
-import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
 import '../widgets/sheet_scaffold.dart';
 
@@ -26,10 +26,7 @@ class _GroupSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final system = ref.watch(sonosControllerProvider).value;
-    final group = system?.allMembers
-        .where((m) => m.uuid == uuid)
-        .cast<ZoneGroupMember?>()
-        .firstOrNull;
+    final group = system?.memberByUuid(uuid);
 
     if (system == null || group == null || !group.isGroup) {
       return const SheetScaffold(
@@ -52,25 +49,12 @@ class _GroupSheet extends ConsumerWidget {
       body: Padding(
         padding: const EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 20),
         child: Column(
-          children: [
-            for (final e in group.groupChannels.entries) ...[
-              MemberChannelCard(
-                icon: Icons.speaker,
-                type: system.device(e.key)?.typeLabel ?? 'Speaker',
-                channel: groupChannelShort(e.value),
-                // Bonded member → LED only (chiming one plays the whole group).
-                trailing: speakerIdentifyButton(system.device(e.key)),
-              ),
-              Gap.s,
-            ],
-            if (group.subUuid != null)
-              MemberChannelCard(
-                icon: Icons.graphic_eq,
-                type: system.device(group.subUuid!)?.typeLabel ?? 'Sub',
-                channel: 'Sub',
-                trailing: speakerIdentifyButton(system.device(group.subUuid!)),
-              ),
-          ],
+          // Bonded member → LED only (chiming one plays the whole group).
+          children: groupMemberCards(
+            group,
+            typeOf: (uuid) => system.device(uuid)?.typeLabel ?? 'Speaker',
+            trailing: (uuid) => speakerIdentifyButton(system.device(uuid)),
+          ),
         ),
       ),
       footer: Padding(

@@ -70,10 +70,11 @@ class EntitySnapshot {
 
   String get kindLabel => switch (kind) {
         EntityKind.homeTheater => 'Home theater',
-        EntityKind.stereoPair => 'Stereo pair',
-        EntityKind.zone => 'Zone',
-        EntityKind.custom => 'Custom group',
         EntityKind.single => 'Speaker',
+        // Reuse the group labels so the strings live in one place.
+        EntityKind.stereoPair => groupKindLabel(GroupKind.stereoPair),
+        EntityKind.zone => groupKindLabel(GroupKind.zone),
+        EntityKind.custom => groupKindLabel(GroupKind.custom),
       };
 
   /// Every UUID this entity bonds — used for pre-flight resolution + conflict

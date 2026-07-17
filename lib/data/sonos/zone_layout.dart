@@ -25,6 +25,13 @@ String groupChannelShort(GroupChannel c) => switch (c) {
       GroupChannel.both => 'L+R',
     };
 
+/// Full channel label for group summaries: `Left` / `Right` / `Both`.
+String groupChannelLabel(GroupChannel c) => switch (c) {
+      GroupChannel.left => 'Left',
+      GroupChannel.right => 'Right',
+      GroupChannel.both => 'Both',
+    };
+
 /// Builds the `ChannelMapSet` for `AddBondedZones`. The first member is the
 /// coordinator (the room that stays visible); an optional [subUuid] is appended
 /// as `SW`. e.g. `A:LF,LF;B:RF,RF;SUB:SW` (stereo pair + sub).

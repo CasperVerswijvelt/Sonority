@@ -16,8 +16,6 @@ class RoomCalibration {
 
   /// Trueplay is only audibly in effect when a tuning exists AND is switched on.
   bool get active => available && enabled;
-
-  static const unknown = RoomCalibration(available: false, enabled: false);
 }
 
 /// Reads and toggles room calibration on a single speaker. Toggling is

@@ -32,10 +32,12 @@ When features ship, update all four in one pass, cross-checking `CHANGELOG.md`:
 4. `README.md` screenshot alt text.
 
 The landing page (`docs/index.html`, served by GitHub Pages) is **generated** —
-`dart run tool/gen_site.dart` reuses the tagline from `pubspec.yaml` and the four
-`SHOTS` captions from `design/store.html` (no text is copy-pasted), filling
-`tool/site_template.html`. Re-run it after changing either source, and commit the
-regenerated `docs/index.html`.
+`dart run tool/gen_site.dart` reuses the tagline + version from `pubspec.yaml` and
+the four `SHOTS` captions from `design/store.html` (no text is copy-pasted),
+filling `tool/site_template.html`. It's built and deployed automatically by
+`.github/workflows/pages.yml` on every `v*` tag, so `docs/index.html` is **not
+committed** (gitignored) — run the tool locally only to preview after changing a
+source. (One-time repo setup: Settings → Pages → Source = "GitHub Actions".)
 
 ## 2. Screenshots — the four canonical screens
 

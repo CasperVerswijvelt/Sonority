@@ -1,0 +1,56 @@
+name: Pages
+
+# Builds the GitHub Pages landing page and deploys it on every version tag, so
+# the published site (and the version string it shows) always matches the latest
+# release. Checkout uses LFS so the screenshots (tracked in Git LFS) resolve to
+# real images instead of pointer files — that's what lets the page use plain
+# relative <img> paths. docs/index.html is generated here, NOT committed; edit
+# tool/site_template.html and re-run tool/gen_site.dart locally to preview.
+#
+# One-time setup: repo Settings → Pages → Source = "GitHub Actions".
+#
+# Third-party actions are pinned to a commit SHA (trailing # vX.Y.Z is the
+# human-readable version), matching .github/workflows/release.yml.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer tag supersedes an in-flight run.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.44.6'
+
+jobs:
+  deploy:
+    name: Build & deploy landing page
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          lfs: true
+      # Reuses the release composite (Flutter includes Dart); gen_site is pure
+      # dart:io so this only needs the SDK on PATH.
+      - uses: ./.github/actions/setup-flutter
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - name: Generate docs/index.html
+        run: dart run tool/gen_site.dart
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: docs
+      - id: deploy
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

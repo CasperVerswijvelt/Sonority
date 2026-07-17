@@ -29,10 +29,7 @@ class HomeTheaterScreen extends ConsumerWidget {
     final controller = ref.read(sonosControllerProvider.notifier);
     final system = state.value;
 
-    final member = system?.allMembers
-        .where((m) => m.uuid == soundbarUuid)
-        .cast<ZoneGroupMember?>()
-        .firstOrNull;
+    final member = system?.memberByUuid(soundbarUuid);
     final device = system?.device(soundbarUuid);
 
     // Bonded native members (bar + fronts + rears + sub); Amp fronts excluded.

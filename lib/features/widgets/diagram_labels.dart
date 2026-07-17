@@ -1,4 +1,8 @@
+import 'package:flutter/material.dart';
+
+import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
+import 'member_channel_card.dart';
 import 'speaker_diagram.dart';
 
 /// Speaker TYPE for a bonded channel (e.g. "Play:1", "Sub (Gen 1/2)"), or null
@@ -40,3 +44,34 @@ SpeakerDiagram htDiagramForMember(SonosSystem? system, ZoneGroupMember member,
           typeForChannel(system, member, SonosChannel.rightRear, names: names),
       subCount: member.subUuids.length,
     );
+
+/// The per-member channel cards for a bonded speaker group (stereo pair / zone /
+/// custom): one card per member (type + L/R/Both), then the sub if present, each
+/// followed by a [Gap.s]. Shared by the group detail sheet and the profile entity
+/// detail so the "render a group's members" wiring lives once. [typeOf] maps a
+/// UUID to its display type (live device type, snapshot-name fallback, …);
+/// [trailing] is an optional per-speaker widget (e.g. an identify button —
+/// omitted in read-only views).
+List<Widget> groupMemberCards(
+  ZoneGroupMember member, {
+  required String Function(String uuid) typeOf,
+  Widget? Function(String uuid)? trailing,
+}) =>
+    [
+      for (final e in member.groupChannels.entries) ...[
+        MemberChannelCard(
+          icon: Icons.speaker,
+          type: typeOf(e.key),
+          channel: groupChannelShort(e.value),
+          trailing: trailing?.call(e.key),
+        ),
+        Gap.s,
+      ],
+      if (member.subUuid != null)
+        MemberChannelCard(
+          icon: Icons.graphic_eq,
+          type: typeOf(member.subUuid!),
+          channel: 'Sub',
+          trailing: trailing?.call(member.subUuid!),
+        ),
+    ];
