@@ -24,4 +24,29 @@ void main() {
     expect(wav.length, 44 + dataSize, reason: 'header + declared data size');
     expect(bd.getUint32(4, Endian.little), 36 + dataSize, reason: 'RIFF size');
   });
+
+  test('has a sharp onset transient (loud within ~10ms of the first pluck)', () {
+    // Localizability depends on a sharp attack: the sound must reach near-peak
+    // amplitude almost immediately, not ramp up slowly like the old sine chime.
+    final wav = generateChimeWav();
+    final bd = ByteData.sublistView(wav);
+    final samples = <int>[];
+    for (var off = 44; off + 1 < wav.length; off += 2) {
+      samples.add(bd.getInt16(off, Endian.little));
+    }
+
+    const leadSilence = 6615; // must match tone_generator.dart
+    const onsetWindow = 441; // ~10ms
+    var peak = 0, onsetPeak = 0;
+    for (var i = 0; i < samples.length; i++) {
+      final a = samples[i].abs();
+      if (a > peak) peak = a;
+      if (i >= leadSilence && i < leadSilence + onsetWindow && a > onsetPeak) {
+        onsetPeak = a;
+      }
+    }
+    expect(peak, greaterThan(0));
+    expect(onsetPeak, greaterThan(peak * 0.5),
+        reason: 'reaches >50% of peak within ~10ms — a sharp attack');
+  });
 }
