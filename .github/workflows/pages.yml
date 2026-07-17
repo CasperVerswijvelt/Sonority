@@ -29,9 +29,6 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
-env:
-  FLUTTER_VERSION: '3.44.6'
-
 jobs:
   deploy:
     name: Build & deploy landing page
@@ -43,11 +40,9 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           lfs: true
-      # Reuses the release composite (Flutter includes Dart); gen_site is pure
-      # dart:io so this only needs the SDK on PATH.
-      - uses: ./.github/actions/setup-flutter
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+      # gen_site.dart is pure dart:io (no package imports) — only the Dart SDK
+      # is needed, not Flutter or `pub get`.
+      - uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
       - name: Generate docs/index.html
         run: dart run tool/gen_site.dart
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
