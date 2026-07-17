@@ -156,6 +156,12 @@ class ApplyProgress {
     if (id != null) note(id, detail);
   }
 
+  /// Log-only progress line: appends technical per-attempt detail (e.g.
+  /// "attempt 3: RF not bonded yet") to the raw log WITHOUT touching the
+  /// visible timeline, so a long-running phase can show one calm steady
+  /// subtitle while the log keeps the full retry history for diagnostics.
+  void logActive(String line) => onLog?.call('    $line');
+
   void _closeActiveChildOf(String parentId, ApplyStatus status,
       [String? detail]) {
     final id = _activeChildId;

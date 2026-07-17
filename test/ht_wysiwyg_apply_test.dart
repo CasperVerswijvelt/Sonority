@@ -61,6 +61,23 @@ void main() {
     expect(d.isNoOp, isFalse);
   });
 
+  test('swap fronts↔surrounds: movers stay bonded, nothing removed', () {
+    final d = apply(
+      bar('$beam:CC;$fl:LF;$fr:RF;$lr:LR;$rr:RR;$sub:SW'),
+      {
+        // fr and lr exchange roles; both remain bonded on a new channel, so the
+        // apply reassigns in place rather than stripping them first.
+        SonosChannel.leftFront: fl,
+        SonosChannel.rightFront: lr,
+        SonosChannel.leftRear: fr,
+        SonosChannel.rightRear: rr,
+      },
+      subs: [sub],
+    );
+    expect(d.toRemove, isEmpty);
+    expect(d.isNoOp, isFalse);
+  });
+
   test('unchanged selection is a zero-write no-op', () {
     final d = apply(
       bar('$beam:CC;$fl:LF;$fr:RF;$sub:SW'),

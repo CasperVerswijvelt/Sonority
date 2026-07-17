@@ -76,9 +76,18 @@ class HtDiff {
   /// nothing to write at all.
   final bool isNoOp;
 
-  /// Satellite UUIDs bonded now whose channel assignment differs from [target]
-  /// (dropped, moved, or replaced). These must be `RemoveHTSatellite`'d before
-  /// the additive bond — `AddHTSatellite` 800s on a map that would drop them.
+  /// Satellite UUIDs bonded now that the target no longer keeps at all — a
+  /// genuine LEAVE (a dropped sub, or a speaker replaced by a different one).
+  /// These must be `RemoveHTSatellite`'d first — `AddHTSatellite` 800s on a map
+  /// that would drop a still-bonded speaker.
+  ///
+  /// A satellite that merely MOVES channel (stays in the target on a different
+  /// channel, e.g. a fronts↔surrounds swap) is deliberately NOT here: it's left
+  /// bonded and `AddHTSatellite` reassigns it in place. Removing movers first is
+  /// what forced the "one speaker per side" in-between state, and it bought no
+  /// reliability — a swap 800s mid-reshuffle and re-asserts several times either
+  /// way (hardware-tested, `tool/diff_apply_spike.dart` case c), so we skip the
+  /// strip and let the re-assert converge on the full target.
   final Set<String> toRemove;
 
   /// The target map to bond, unchanged — `bondAndVerify` adds whatever's missing.
@@ -123,15 +132,18 @@ HtDiff diffHtLayout({
     if (set.isNotEmpty) (tgt[e.uuid] ??= <SonosChannel>{}).addAll(set);
   }
 
-  // A satellite bonded now must go first if target doesn't keep it on the exact
-  // same channel set (dropped / moved / replaced).
+  // Only satellites the target drops entirely must be RemoveHTSatellite'd first
+  // (a genuine leave — the case AddHTSatellite 800s on). A satellite that stays
+  // in the target on a different channel is left bonded and reassigned in place.
   final toRemove = <String>{
     for (final e in cur.entries)
-      if (!_sameChannels(tgt[e.key], e.value)) e.key,
+      if (!tgt.containsKey(e.key)) e.key,
   };
 
-  // No removals AND target adds no new satellites ⇒ identical layout.
-  final isNoOp = toRemove.isEmpty && tgt.length == cur.length;
+  // Identical layout ⇒ no-op: same satellites, each on the exact same channels.
+  // (A pure move has an empty toRemove but is NOT a no-op — it still writes.)
+  final isNoOp = cur.length == tgt.length &&
+      cur.entries.every((e) => _sameChannels(tgt[e.key], e.value));
 
   return HtDiff(isNoOp: isNoOp, toRemove: toRemove, target: target);
 }

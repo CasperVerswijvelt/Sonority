@@ -27,6 +27,7 @@ typedef Phases = ({
   void Function(List<(String, String)>) seed,
   void Function(String id, String label) phase,
   void Function(String) note,
+  void Function(String) log,
   void Function({String? detail}) skipPhase,
 });
 
@@ -586,18 +587,25 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       return sys;
     }
     if (diff.toRemove.isNotEmpty) {
-      ph.phase('remove', 'Remove ${diff.toRemove.length} changed speakers');
+      // Only genuine leaves reach here (a dropped sub / a replaced speaker) —
+      // a speaker that merely moves channel stays bonded and reassigns in place.
+      ph.phase('remove', 'Remove ${diff.toRemove.length} speakers no longer used');
       await _repo.removeHtSatellites(
           soundbarIp: bar.ip!, uuids: diff.toRemove, cancel: _activeOp);
       ph.note('waiting for Sonos to settle');
       sys = await _settleRead(sys, bar.ip!);
     }
     ph.phase('bond', bondLabel);
+    // One calm, steady subtitle for the whole (re-)assert loop; the per-attempt
+    // retry churn stays in the log (ph.log) rather than flickering the timeline
+    // — a swap 800s and re-asserts several times, which reads as alarming
+    // otherwise even though it's normal Sonos settling.
+    ph.note('Applying — Sonos can take up to a minute to settle.');
     return _repo.bondAndVerify(
         coordinator: bar,
         target: target,
         previous: sys,
-        onNote: ph.note,
+        onNote: ph.log,
         cancel: _activeOp);
   }
 
@@ -946,6 +954,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             [for (final (id, label) in subs) ('$parentId/$id', label)]),
         phase: (id, label) => t.startSub(parentId, '$parentId/$id', label),
         note: t.noteActive,
+        log: t.logActive,
         skipPhase: t.skipSub,
       );
 
