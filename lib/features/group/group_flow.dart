@@ -247,15 +247,10 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
 
   Future<void> _create(SonosSystem system) async {
     final members = <({SonosDevice device, GroupChannel channel})>[];
-    for (var i = 0; i < _selected.length; i++) {
-      final d = system.device(_selected[i]);
+    for (final r in _resolveChannels(_mode, _selected, _channels)) {
+      final d = system.device(r.uuid);
       if (d == null) continue;
-      final channel = switch (_mode) {
-        _Mode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
-        _Mode.zone => GroupChannel.both,
-        _Mode.custom => _channels[_selected[i]] ?? GroupChannel.both,
-      };
-      members.add((device: d, channel: channel));
+      members.add((device: d, channel: r.channel));
     }
     if (members.length < 2) return;
     final sub = _subUuid == null ? null : system.device(_subUuid!);
@@ -280,6 +275,23 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     }
   }
 }
+
+/// Each selected speaker's channel for [mode], in selection order. Stereo derives
+/// L/R from order; zone is always full-range; custom reads the per-speaker map.
+/// The single source of truth for both the review summary and the actual bond.
+List<({String uuid, GroupChannel channel})> _resolveChannels(
+        _Mode mode, List<String> selected, Map<String, GroupChannel> channels) =>
+    [
+      for (var i = 0; i < selected.length; i++)
+        (
+          uuid: selected[i],
+          channel: switch (mode) {
+            _Mode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
+            _Mode.zone => GroupChannel.both,
+            _Mode.custom => channels[selected[i]] ?? GroupChannel.both,
+          },
+        ),
+    ];
 
 /// Step 1 — pick speakers, with per-mode assignment.
 class _SelectStep extends StatelessWidget {
@@ -520,19 +532,10 @@ class _ReviewStep extends StatelessWidget {
       _Mode.zone => 'Zone (${selected.length} speakers)',
       _Mode.custom => 'Custom group (${selected.length} speakers)',
     };
-    final lines = <String>[];
-    for (var i = 0; i < selected.length; i++) {
-      final ch = switch (mode) {
-        _Mode.stereo => i == 0 ? 'Left' : 'Right',
-        _Mode.zone => 'Both',
-        _Mode.custom => switch (channels[selected[i]] ?? GroupChannel.both) {
-            GroupChannel.left => 'Left',
-            GroupChannel.right => 'Right',
-            GroupChannel.both => 'Both',
-          },
-      };
-      lines.add('${_room(selected[i])} — $ch');
-    }
+    final lines = [
+      for (final r in _resolveChannels(mode, selected, channels))
+        '${_room(r.uuid)} — ${groupChannelLabel(r.channel)}',
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

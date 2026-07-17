@@ -1,8 +1,11 @@
 // Generates docs/index.html (the GitHub Pages landing page) from the marketing
 // copy that already lives in the repo — no text is duplicated:
 //   * tagline   <- pubspec.yaml `description:`
+//   * version   <- pubspec.yaml `version:` (build suffix stripped)
 //   * captions  <- design/store.html `SHOTS` array (the store-graphic source)
-// Screenshots/badges/logo are reused in place from docs/. Run after copy changes:
+// Screenshots/badges/logo are reused in place from docs/. The Pages workflow
+// runs this on every tag (so the deployed version is always current), and the
+// output is NOT committed — run it locally only to preview:
 //   dart run tool/gen_site.dart
 import 'dart:io';
 
@@ -10,11 +13,21 @@ void main() {
   final root = Directory.current.path;
   String read(String p) => File('$root/$p').readAsStringSync();
 
+  final pubspec = read('pubspec.yaml');
   final tagline = RegExp(r'^description:\s*"(.*)"', multiLine: true)
-      .firstMatch(read('pubspec.yaml'))
+      .firstMatch(pubspec)
       ?.group(1);
   if (tagline == null || tagline.isEmpty) {
     stderr.writeln('gen_site: could not read description: from pubspec.yaml');
+    exit(1);
+  }
+
+  // `version: X.Y.Z+build` → `X.Y.Z` (the build counter isn't user-facing).
+  final version = RegExp(r'^version:\s*([0-9]+\.[0-9]+\.[0-9]+)', multiLine: true)
+      .firstMatch(pubspec)
+      ?.group(1);
+  if (version == null) {
+    stderr.writeln('gen_site: could not read version: from pubspec.yaml');
     exit(1);
   }
 
@@ -39,26 +52,20 @@ void main() {
   final row = template.substring(rowStart + '<!--ROW-->'.length, rowEnd);
 
   final rows = shots.map((m) {
-    // Screenshots live in Git LFS; GitHub Pages serves the LFS *pointer*, not
-    // the image, so point at the media endpoint that resolves LFS instead.
-    final src = m
-        .group(1)!
-        .replaceFirst(
-          'shots/',
-          'https://media.githubusercontent.com/media/'
-              'CasperVerswijvelt/Sonority/main/docs/screenshots/',
-        );
+    // Relative to docs/: the Pages workflow checks out with LFS, so the real
+    // screenshot blobs are deployed and plain relative paths resolve.
+    final src = m.group(1)!.replaceFirst('shots/', 'screenshots/');
     return row
         .replaceAll('{{SHOT}}', src)
         .replaceAll('{{HEAD}}', m.group(2)!)
         .replaceAll('{{SUB}}', m.group(3)!);
   }).join();
 
-  final html = template
-      .substring(0, rowStart)
-      .replaceAll('{{TAGLINE}}', tagline) +
+  String fill(String s) =>
+      s.replaceAll('{{TAGLINE}}', tagline).replaceAll('{{VERSION}}', version);
+  final html = fill(template.substring(0, rowStart)) +
       rows +
-      template.substring(rowEnd + '<!--/ROW-->'.length);
+      fill(template.substring(rowEnd + '<!--/ROW-->'.length));
 
   File('$root/docs/index.html').writeAsStringSync(html);
   stdout.writeln('wrote docs/index.html (${shots.length} sections)');

@@ -69,23 +69,7 @@ List<Widget> _layout(
     case EntityKind.stereoPair:
     case EntityKind.zone:
     case EntityKind.custom:
-      final m = e.toMember();
-      return [
-        for (final entry in m.groupChannels.entries) ...[
-          MemberChannelCard(
-            icon: Icons.speaker,
-            type: typeOf(entry.key),
-            channel: groupChannelShort(entry.value),
-          ),
-          Gap.s,
-        ],
-        if (m.subUuid != null)
-          MemberChannelCard(
-            icon: Icons.graphic_eq,
-            type: typeOf(m.subUuid!),
-            channel: 'Sub',
-          ),
-      ];
+      return groupMemberCards(e.toMember(), typeOf: typeOf);
   }
 }
 

@@ -1,10 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
+import '../../data/sonos/front_layout.dart' as front_layout;
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
@@ -73,10 +73,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     final member = ref
         .read(sonosControllerProvider)
         .value
-        ?.allMembers
-        .where((m) => m.uuid == widget.soundbarUuid)
-        .cast<ZoneGroupMember?>()
-        .firstOrNull;
+        ?.memberByUuid(widget.soundbarUuid);
     if (member == null) return;
     final seed = seedHtRoles(member);
     _fronts.addAll(seed.fronts);
@@ -88,10 +85,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   @override
   Widget build(BuildContext context) {
     final system = ref.watch(sonosControllerProvider).value;
-    final member = system?.allMembers
-        .where((m) => m.uuid == widget.soundbarUuid)
-        .cast<ZoneGroupMember?>()
-        .firstOrNull;
+    final member = system?.memberByUuid(widget.soundbarUuid);
     final soundbar = system?.device(widget.soundbarUuid);
 
     if (system == null || member == null || soundbar == null) {
@@ -253,22 +247,19 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
 
   /// The selection differs from what's currently bonded — the only case worth
   /// applying (an unchanged layout is a zero-write no-op, so we disable Apply for
-  /// it). Compares fronts/surrounds channel→uuid and the sub set to the live map.
+  /// it). Reuses the engine diff so "worth applying" matches exactly what the
+  /// controller will write on Apply (same target build + no-op check).
   bool _differs(SonosSystem system, ZoneGroupMember member) {
-    final desired = {
-      for (final e in _additions(system).entries) e.key: e.value.uuid,
-    };
-    final current = {
-      for (final c in const [
-        SonosChannel.leftFront,
-        SonosChannel.rightFront,
-        SonosChannel.leftRear,
-        SonosChannel.rightRear,
-      ])
-        if (member.channelAssignments[c] case final u?) c: u,
-    };
-    if (!mapEquals(desired, current)) return true;
-    return !setEquals(_subs.toSet(), member.subUuids.toSet());
+    final device = system.device(member.uuid);
+    if (device == null) return false;
+    final target = front_layout.buildLayoutMap(
+      soundbar: member,
+      soundbarDevice: device,
+      desired: {for (final e in _additions(system).entries) e.key: e.value.uuid},
+      subUuids: _subs,
+      preserveExisting: false,
+    );
+    return !front_layout.diffHtLayout(current: member, target: target).isNoOp;
   }
 
   void _toggleFront(SonosDevice d) => setState(() {

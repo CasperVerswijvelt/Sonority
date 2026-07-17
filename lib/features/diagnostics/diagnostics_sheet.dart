@@ -10,6 +10,7 @@ import 'package:file_saver/file_saver.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../state/sonos_controller.dart';
+import '../widgets/busy_spinner.dart';
 import '../widgets/sheet_scaffold.dart';
 import 'diagnostics_bundle.dart';
 
@@ -105,13 +106,8 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
   }
 
   /// Spinner on the button whose action is running, else its normal icon.
-  Widget _busyIcon(_Action which, IconData icon) => _busy == which
-      ? const SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        )
-      : Icon(icon);
+  Widget _busyIcon(_Action which, IconData icon) =>
+      _busy == which ? const BusySpinner() : Icon(icon);
 
   Future<void> _email(String path) => FlutterEmailSender.send(
     Email(

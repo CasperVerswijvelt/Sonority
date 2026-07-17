@@ -2,8 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../models/sonos_models.dart';
 import 'av_transport.dart';
 import 'cancellation.dart';
@@ -11,6 +9,7 @@ import 'channel_map.dart' show ChannelMap;
 import 'device_description.dart';
 import 'device_properties.dart';
 import 'diagnostics_log.dart';
+import 'key_value_store.dart';
 import 'room_calibration.dart';
 import 'soap_client.dart';
 import 'ssdp_discovery.dart';
@@ -28,6 +27,7 @@ class SonosRepository {
   final DevicePropertiesClient _deviceProps;
   final RoomCalibrationClient _calibration;
   final AvTransportClient _avTransport;
+  final KeyValueStore _store;
 
   SonosRepository({
     SsdpDiscovery? ssdp,
@@ -36,12 +36,14 @@ class SonosRepository {
     DevicePropertiesClient? deviceProps,
     RoomCalibrationClient? calibration,
     AvTransportClient? avTransport,
+    KeyValueStore? store,
   })  : _ssdp = ssdp ?? SsdpDiscovery(),
         _descriptions = descriptions ?? DeviceDescriptionClient(),
         _topology = topology ?? ZoneTopologyClient(SonosSoapClient()),
         _deviceProps = deviceProps ?? DevicePropertiesClient(SonosSoapClient()),
         _calibration = calibration ?? RoomCalibrationClient(SonosSoapClient()),
-        _avTransport = avTransport ?? AvTransportClient(SonosSoapClient());
+        _avTransport = avTransport ?? AvTransportClient(SonosSoapClient()),
+        _store = store ?? InMemoryKeyValueStore();
 
   /// Full discovery: find players, read their descriptions, then read the
   /// system topology from any one of them.
@@ -222,10 +224,7 @@ class SonosRepository {
         onNote?.call('attempt $attempt: topology read failed ($e), retrying');
         continue;
       }
-      final member = system.allMembers
-          .where((m) => m.uuid == coordinator.uuid)
-          .cast<ZoneGroupMember?>()
-          .firstOrNull;
+      final member = system.memberByUuid(coordinator.uuid);
       missing = [
         for (final e in wanted.entries)
           if (!(member?.uuidsForChannel(e.key).toSet() ?? const <String>{})
@@ -388,8 +387,7 @@ class SonosRepository {
   }
 
   Future<void> _saveZoneSnapshot(Map<String, ZoneAttributes> attrs) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
+    await _store.setString(
       _zoneKey(attrs.keys),
       jsonEncode({
         for (final e in attrs.entries)
@@ -404,8 +402,7 @@ class SonosRepository {
 
   Future<Map<String, ZoneAttributes>?> _loadZoneSnapshot(
       List<String> uuids) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_zoneKey(uuids));
+    final raw = await _store.getString(_zoneKey(uuids));
     if (raw == null) return null;
     final m = jsonDecode(raw) as Map<String, dynamic>;
     return {

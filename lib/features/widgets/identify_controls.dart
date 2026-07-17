@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/identify_service.dart';
 import '../../state/sonos_controller.dart';
+import 'busy_spinner.dart';
 
 /// The standard "identify this speaker" controls: a lightbulb button that blinks
 /// the status LED (works on every platform), and — when [onChime] is non-null
@@ -29,10 +30,7 @@ class IdentifyButtons extends StatelessWidget {
           tooltip: 'Blink the light',
           onPressed: busy ? null : onBlink,
           icon: busy
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2))
+              ? const BusySpinner()
               : const Icon(Icons.lightbulb_outline),
         ),
         if (onChime != null)

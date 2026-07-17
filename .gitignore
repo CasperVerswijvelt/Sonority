@@ -13,6 +13,10 @@ fastlane/Preview.html
 fastlane/test_output/
 **/.fastlane/
 
+# Generated GitHub Pages landing page — built fresh in CI on each tag
+# (tool/gen_site.dart). Edit tool/site_template.html, not this file.
+/docs/index.html
+
 # Miscellaneous
 *.class
 *.log

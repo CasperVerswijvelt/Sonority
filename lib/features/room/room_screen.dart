@@ -24,10 +24,7 @@ class _RoomSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final system = ref.watch(sonosControllerProvider).value;
-    final member = system?.allMembers
-        .where((m) => m.uuid == uuid)
-        .cast<ZoneGroupMember?>()
-        .firstOrNull;
+    final member = system?.memberByUuid(uuid);
 
     if (member == null) {
       return const SheetScaffold(
