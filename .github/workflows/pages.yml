@@ -23,10 +23,11 @@ permissions:
   pages: write
   id-token: write
 
-# One deploy at a time; a newer tag supersedes an in-flight run.
+# One deploy at a time; let an in-flight production deploy finish rather than
+# cancel it (GitHub's recommended setting for Pages).
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   FLUTTER_VERSION: '3.44.6'
