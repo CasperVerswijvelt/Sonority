@@ -11,6 +11,9 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Added
+- Diagnostics bundle now includes `speaker_settings.json` — a read-only per-speaker snapshot of EQ / volume / mute (RenderingControl), to help debug "configured but silent" reports (e.g. a muted or zero-volume bonded speaker).
+
 ### Changed
 - GitHub Pages landing page now deploys automatically on each release tag (via an LFS-aware Actions workflow) and shows the current app version; the page is generated in CI rather than committed.
 - Internal cleanup: deduplicated shared widgets/helpers and removed dead code; the Sonos engine is now fully decoupled from Flutter (persistence via an injected storage port). No user-facing behaviour change.
