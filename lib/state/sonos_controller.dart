@@ -1,21 +1,33 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/l10n.dart';
 import '../data/models/sonos_models.dart';
 import '../data/sonos/apply_progress.dart';
 import '../data/sonos/cancellation.dart';
 import '../data/sonos/channel_map.dart';
 import '../data/sonos/diagnostics_log.dart';
-import '../data/sonos/friendly_error.dart';
 import '../data/sonos/front_layout.dart' as front_layout;
 import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
 import '../data/sonos/sonos_repository.dart';
+import '../data/sonos/sonority_error.dart';
 import '../data/sonos/speaker_settings.dart';
 import '../features/profiles/profile.dart';
 import '../features/profiles/profile_controller.dart'
     show EntityIssue, preflightProfile;
+import 'localized_error.dart';
 import 'shared_preferences_store.dart';
+
+/// Localized name for an entity kind — used in progress step labels. The
+/// `kindLabel` getter on [EntitySnapshot] is the widget-side equivalent.
+String _kindLabel(AppLocalizations l10n, EntityKind kind) => switch (kind) {
+      EntityKind.homeTheater => l10n.entityKindHomeTheater,
+      EntityKind.stereoPair => l10n.entityKindStereoPair,
+      EntityKind.zone => l10n.entityKindZone,
+      EntityKind.custom => l10n.entityKindCustom,
+      EntityKind.single => l10n.entityKindSpeaker,
+    };
 
 final sonosRepositoryProvider = Provider<SonosRepository>(
     (ref) => SonosRepository(store: SharedPreferencesKeyValueStore()));
@@ -164,24 +176,25 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   Future<void> _restoreSettings(
       EntitySnapshot e, SonosSystem sys, Phases ph) async {
     if (e.settings.isEmpty) return;
-    ph.phase('settings', 'Restore settings');
+    final l10n = appL10n();
+    ph.phase('settings', l10n.stepRestoreSettings);
     for (final entry in e.settings.entries) {
       _activeOp?.throwIfCancelled();
       final dev = sys.device(entry.key);
       final ip = dev?.ip;
       if (ip == null) {
-        ph.note('skipping settings for ${entry.key} — not on the network');
+        ph.note(l10n.stepSkippingSettingsOffline);
         continue;
       }
       final s = entry.value;
       final what = [
-        if (s.hasAudioSettings) 'audio settings',
-        if (s.hasVolume) 'volume',
+        if (s.hasAudioSettings) l10n.stepAudioSettings,
+        if (s.hasVolume) l10n.stepVolume,
       ].join(' + ');
-      ph.note('restoring $what — ${dev!.typeLabel}');
+      ph.note(l10n.stepRestoring(what, dev!.typeLabel));
       final failed = await _settings.apply(ip, s);
       if (failed > 0) {
-        ph.note('$failed setting(s) for ${dev.typeLabel} could not be applied');
+        ph.note(l10n.stepSettingsFailed(failed, dev.typeLabel));
       }
     }
   }
@@ -236,8 +249,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       preserveExisting: false,
     );
 
+    final l10n = appL10n();
     final tracker = _newTracker(
-        [const ApplyStep(id: 'bond', label: 'Set up home theater')]);
+        [ApplyStep(id: 'bond', label: l10n.stepSetUpHomeTheater)]);
     _activeOp = CancellationToken();
 
     final previous = state.value;
@@ -245,7 +259,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final result = await AsyncValue.guard(() async {
       tracker.start('bond');
       final ph = _phases(tracker, 'bond');
-      ph.seed([('bond', 'Bond ${target.entries.length - 1} speakers')]);
+      ph.seed([('bond', l10n.stepBondNSpeakers(target.entries.length - 1))]);
       try {
         final sys = await _applyHtTarget(
           bar: soundbarDevice,
@@ -257,8 +271,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         tracker.done('bond');
         return sys;
       } catch (e) {
-        // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail('bond', friendlyError(e));
+        // OperationCancelled lands here too — its message is the aborted text.
+        tracker.fail('bond', localizedError(l10n, e));
         rethrow;
       }
     });
@@ -278,9 +292,11 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         profile.entities.where((e) => !skip.contains(e.primaryUuid)).toList();
     if (entities.isEmpty) return;
 
+    final l10n = appL10n();
     final tracker = _newTracker([
       for (final e in entities)
-        ApplyStep(id: e.primaryUuid, label: '${e.kindLabel}: ${e.label}'),
+        ApplyStep(
+            id: e.primaryUuid, label: '${_kindLabel(l10n, e.kind)}: ${e.label}'),
     ]);
     _activeOp = CancellationToken();
 
@@ -307,10 +323,12 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     // too (not just once bonding starts).
     final cancel = CancellationToken();
     _activeOp = cancel;
+    final l10n = appL10n();
     final tracker = _newTracker([
-      const ApplyStep(id: _scanStepId, label: 'Scan network for Sonos system'),
+      ApplyStep(id: _scanStepId, label: l10n.stepScanNetwork),
       for (final e in profile.entities)
-        ApplyStep(id: e.primaryUuid, label: '${e.kindLabel}: ${e.label}'),
+        ApplyStep(
+            id: e.primaryUuid, label: '${_kindLabel(l10n, e.kind)}: ${e.label}'),
     ]);
 
     // ponytail: cooperative cancel — steps 1–2 (scan/preflight/confirm) run
@@ -337,10 +355,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
                        → scanned stays null → handled below */}
       cancel.throwIfCancelled(); // aborted during the scan? stop before any write
       if (scanned == null) {
-        tracker.fail(
-            _scanStepId, 'Couldn’t find your Sonos system on the network.');
+        tracker.fail(_scanStepId, l10n.errSystemNotFound);
         throw state.error ??
-            Exception('Couldn’t find your Sonos system on the network.');
+            const SonorityError(SonorityErrorCode.systemNotFound);
       }
       tracker.done(_scanStepId);
 
@@ -363,8 +380,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       for (final e in profile.entities) {
         final miss = blocked[e.primaryUuid];
         if (miss != null) {
-          tracker.done(e.primaryUuid,
-              detail: 'skipped — $miss not on the network');
+          tracker.done(e.primaryUuid, detail: l10n.stepSkippedMissing(miss));
         } else {
           applicable.add(e);
         }
@@ -375,7 +391,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       // Abort during scan/pre-flight: mark the step that was running. No-op for
       // the "not found" path (scan step already failed) and a confirm decline
       // (no step active), so only a real abort attaches the reason.
-      tracker.failActive('Aborted');
+      tracker.failActive(l10n.errAborted);
       rethrow;
     }
 
@@ -394,6 +410,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// [applyProfile] and [scanAndApplyProfile]; [sys] is the current live system.
   Future<SonosSystem> _runEntitySteps(
       List<EntitySnapshot> entities, SonosSystem sys, ApplyProgress tracker) async {
+    final l10n = appL10n();
     for (final e in entities) {
       _activeOp?.throwIfCancelled(); // abort before starting the next entity
       tracker.start(e.primaryUuid);
@@ -402,11 +419,11 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       // (freeing conflicts, removing changed satellites) pop in when needed.
       ph.seed([
         if (e.kind == EntityKind.homeTheater)
-          ('bond', 'Bond ${e.involvedUuids.length - 1} speakers')
+          ('bond', l10n.stepBondNSpeakers(e.involvedUuids.length - 1))
         else if (e.kind != EntityKind.single)
-          ('bond', 'Bond ${e.involvedUuids.length} speakers'),
-        ('names', 'Restore room name'),
-        if (e.settings.isNotEmpty) ('settings', 'Restore settings'),
+          ('bond', l10n.stepBondNSpeakers(e.involvedUuids.length)),
+        ('names', l10n.stepRestoreRoomName),
+        if (e.settings.isNotEmpty) ('settings', l10n.stepRestoreSettings),
       ]);
       try {
         sys = await _applyEntity(e, sys, ph);
@@ -414,8 +431,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         await _restoreSettings(e, sys, ph);
         tracker.done(e.primaryUuid);
       } catch (err) {
-        // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail(e.primaryUuid, friendlyError(err));
+        // OperationCancelled lands here too — its message is the aborted text.
+        tracker.fail(e.primaryUuid, localizedError(l10n, err));
         rethrow;
       }
     }
@@ -424,45 +441,49 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
 
   Future<SonosSystem> _applyEntity(
       EntitySnapshot e, SonosSystem sys, Phases ph) async {
+    final l10n = appL10n();
     switch (e.kind) {
       case EntityKind.single:
         final dev = sys.device(e.primaryUuid);
         if (dev?.ip == null) {
-          throw Exception('“${e.label}” isn’t on the network.');
+          throw SonorityError(SonorityErrorCode.entityNotOnNetwork, e.label);
         }
         if (sys.ownerOf(e.primaryUuid) != null) {
           _activeOp?.throwIfCancelled();
-          ph.phase('free', 'Free from its current bond');
+          ph.phase('free', l10n.stepFreeFromBond);
           await _repo.freeSpeaker(sys, e.primaryUuid);
-          ph.note('waiting for Sonos to settle');
+          ph.note(l10n.stepWaitingSettle);
           sys = await _settleRead(sys, dev!.ip!);
         }
         _activeOp?.throwIfCancelled();
-        ph.phase('names', 'Restore room name');
+        ph.phase('names', l10n.stepRestoreRoomName);
         if (!await _repo.setRoomName(
             ip: dev!.ip!, name: e.names[e.primaryUuid] ?? dev.roomName)) {
-          ph.skipPhase(detail: 'name unchanged — nothing to do');
+          ph.skipPhase(detail: l10n.stepNameUnchanged);
         }
         return sys;
 
       // Stereo pair / zone / custom all share one channel-map bond path.
       case EntityKind.stereoPair || EntityKind.zone || EntityKind.custom:
         final map = e.mapSet;
-        if (map == null) throw Exception('Stored group is malformed.');
+        if (map == null) {
+          throw const SonorityError(SonorityErrorCode.malformedGroup);
+        }
         final coord = sys.device(e.primaryUuid);
         if (coord?.ip == null) {
-          throw Exception('“${e.label}” coordinator isn’t on the network.');
+          throw SonorityError(
+              SonorityErrorCode.coordinatorNotOnNetwork, e.label);
         }
         final involved = e.involvedUuids.toList();
         // Already exactly this group? Just re-assert the name (no disruptive write).
         if (_isGroupFormed(sys, e.primaryUuid, involved)) {
-          ph.phase('bond', 'Bond ${involved.length} speakers');
-          ph.skipPhase(detail: 'already formed — nothing to do');
+          ph.phase('bond', l10n.stepBondNSpeakers(involved.length));
+          ph.skipPhase(detail: l10n.stepAlreadyFormed);
           _activeOp?.throwIfCancelled();
-          ph.phase('names', 'Restore room name');
+          ph.phase('names', l10n.stepRestoreRoomName);
           if (!await _repo.setRoomName(
               ip: coord!.ip!, name: e.names[coord.uuid] ?? coord.roomName)) {
-            ph.skipPhase(detail: 'name unchanged — nothing to do');
+            ph.skipPhase(detail: l10n.stepNameUnchanged);
           }
           return sys;
         }
@@ -471,8 +492,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           final owner = sys.ownerOf(u);
           if (owner != null && !involved.contains(owner)) {
             _activeOp?.throwIfCancelled();
-            ph.phase('free', 'Free conflicting speakers');
-            ph.note('freeing ${sys.device(u)?.roomName ?? u}');
+            ph.phase('free', l10n.stepFreeConflicting);
+            ph.note(l10n.stepFreeing(sys.device(u)?.roomName ?? u));
             await _repo.freeSpeaker(sys, u);
             sys = await _settleRead(sys, coord!.ip!);
           }
@@ -484,23 +505,28 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         for (final entry in parsed.groupChannels.entries) {
           final d = sys.device(entry.key);
           if (d?.ip == null) {
-            throw Exception('A speaker in “${e.label}” isn’t on the network.');
+            throw SonorityError(
+                SonorityErrorCode.speakerInEntityNotOnNetwork, e.label);
           }
           memberEntries.add((device: d!, channel: entry.value));
         }
         final subU = parsed.subUuid;
         final sub = subU == null ? null : sys.device(subU);
         if (subU != null && sub?.ip == null) {
-          throw Exception('The Sub for “${e.label}” isn’t on the network.');
+          throw SonorityError(SonorityErrorCode.subNotOnNetwork, e.label);
         }
         if (memberEntries.length < 2) {
-          throw Exception('“${e.label}” is missing speakers.');
+          throw SonorityError(
+              SonorityErrorCode.entityMissingSpeakers, e.label);
         }
         _activeOp?.throwIfCancelled();
-        ph.phase('bond',
-            'Bond ${memberEntries.length} speakers${sub != null ? ' + sub' : ''}');
+        ph.phase(
+            'bond',
+            sub != null
+                ? l10n.stepBondNSpeakersWithSub(memberEntries.length)
+                : l10n.stepBondNSpeakers(memberEntries.length));
         await _repo.createGroup(members: memberEntries, sub: sub);
-        ph.note('waiting for Sonos to confirm');
+        ph.note(l10n.stepWaitingConfirm);
         sys = await _pollUntil(
           previous: sys,
           ip: coord!.ip,
@@ -508,23 +534,25 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           until: (s) => _isGroupFormed(s, e.primaryUuid, involved),
         );
         if (!_isGroupFormed(sys, e.primaryUuid, involved)) {
-          throw Exception('Sonos did not form “${e.label}”.');
+          throw SonorityError(SonorityErrorCode.didNotForm, e.label);
         }
         _activeOp?.throwIfCancelled();
-        ph.phase('names', 'Restore room name');
+        ph.phase('names', l10n.stepRestoreRoomName);
         if (!await _repo.setRoomName(
             ip: coord.ip!, name: e.names[coord.uuid] ?? coord.roomName)) {
-          ph.skipPhase(detail: 'name unchanged — nothing to do');
+          ph.skipPhase(detail: l10n.stepNameUnchanged);
         }
         return sys;
 
       case EntityKind.homeTheater:
         final bar = sys.device(e.primaryUuid);
         if (bar?.ip == null) {
-          throw Exception('Soundbar for “${e.label}” isn’t on the network.');
+          throw SonorityError(SonorityErrorCode.soundbarNotOnNetwork, e.label);
         }
         final map = e.mapSet;
-        if (map == null) throw Exception('Stored home theater is malformed.');
+        if (map == null) {
+          throw const SonorityError(SonorityErrorCode.malformedHomeTheater);
+        }
         // The saved map IS the exact target (bar + every satellite, including a
         // second Sub in a dual-sub setup) — use it directly rather than a
         // channel→uuid map, which would collapse two SW entries into one.
@@ -535,8 +563,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           final owner = sys.ownerOf(u);
           if (owner != null && owner != bar!.uuid) {
             _activeOp?.throwIfCancelled();
-            ph.phase('free', 'Free conflicting speakers');
-            ph.note('freeing ${sys.device(u)?.roomName ?? u}');
+            ph.phase('free', l10n.stepFreeConflicting);
+            ph.note(l10n.stepFreeing(sys.device(u)?.roomName ?? u));
             await _repo.freeSpeaker(sys, u);
             sys = await _settleRead(sys, bar.ip!);
           }
@@ -556,10 +584,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           ph: ph,
         );
         _activeOp?.throwIfCancelled();
-        ph.phase('names', 'Restore room name');
+        ph.phase('names', l10n.stepRestoreRoomName);
         if (!await _repo.setRoomName(
             ip: bar.ip!, name: e.names[bar.uuid] ?? bar.roomName)) {
-          ph.skipPhase(detail: 'name unchanged — nothing to do');
+          ph.skipPhase(detail: l10n.stepNameUnchanged);
         }
         return sys;
     }
@@ -577,20 +605,21 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     required SonosSystem sys,
     required Phases ph,
   }) async {
+    final l10n = appL10n();
     final diff = front_layout.diffHtLayout(current: current, target: target);
-    final bondLabel = 'Bond ${target.entries.length - 1} speakers';
+    final bondLabel = l10n.stepBondNSpeakers(target.entries.length - 1);
     if (diff.isNoOp) {
       ph.phase('bond', bondLabel);
-      ph.skipPhase(detail: 'layout unchanged — nothing to do');
+      ph.skipPhase(detail: l10n.stepLayoutUnchanged);
       return sys;
     }
     if (diff.toRemove.isNotEmpty) {
       // Only genuine leaves reach here (a dropped sub / a replaced speaker) —
       // a speaker that merely moves channel stays bonded and reassigns in place.
-      ph.phase('remove', 'Remove ${diff.toRemove.length} speakers no longer used');
+      ph.phase('remove', l10n.stepRemoveUnused(diff.toRemove.length));
       await _repo.removeHtSatellites(
           soundbarIp: bar.ip!, uuids: diff.toRemove, cancel: _activeOp);
-      ph.note('waiting for Sonos to settle');
+      ph.note(l10n.stepWaitingSettle);
       sys = await _settleRead(sys, bar.ip!);
     }
     ph.phase('bond', bondLabel);
@@ -598,7 +627,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     // retry churn stays in the log (ph.log) rather than flickering the timeline
     // — a swap 800s and re-asserts several times, which reads as alarming
     // otherwise even though it's normal Sonos settling.
-    ph.note('Applying — Sonos can take up to a minute to settle.');
+    ph.note(l10n.stepApplyingSettle);
     return _repo.bondAndVerify(
         coordinator: bar,
         target: target,
@@ -624,7 +653,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     required String name,
   }) async {
     final ip = device.ip;
-    if (ip == null) throw Exception('Speaker IP unknown; rescan and retry.');
+    if (ip == null) {
+      throw const SonorityError(SonorityErrorCode.speakerIpUnknown);
+    }
     final previous = state.value;
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
@@ -660,16 +691,21 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     required ZoneGroupMember soundbar,
     required SonosDevice soundbarDevice,
     required Set<SonosChannel> channels,
-    String label = 'speakers',
+    String? label,
   }) async {
     final ip = soundbarDevice.ip;
-    if (ip == null) throw Exception('Soundbar IP unknown; rescan and retry.');
+    if (ip == null) {
+      throw const SonorityError(SonorityErrorCode.soundbarIpUnknown);
+    }
     final uuids = <String>{
       for (final c in channels) ...soundbar.uuidsForChannel(c),
     };
     if (uuids.isEmpty) return;
 
-    final tracker = _newTracker([ApplyStep(id: 'remove', label: 'Remove $label')]);
+    final l10n = appL10n();
+    final lbl = label ?? l10n.stepSpeakers;
+    final tracker =
+        _newTracker([ApplyStep(id: 'remove', label: l10n.stepRemoveLabel(lbl))]);
     _activeOp = CancellationToken();
 
     final previous = state.value;
@@ -678,14 +714,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       tracker.start('remove');
       final ph = _phases(tracker, 'remove');
       ph.seed([
-        ('unbond', 'Unbond ${uuids.length} speaker(s)'),
-        ('settle', 'Wait for Sonos to settle'),
+        ('unbond', l10n.stepUnbondN(uuids.length)),
+        ('settle', l10n.stepWaitForSettle),
       ]);
       try {
-        ph.phase('unbond', 'Unbond ${uuids.length} speaker(s)');
+        ph.phase('unbond', l10n.stepUnbondN(uuids.length));
         await _repo.removeHtSatellites(
             soundbarIp: ip, uuids: uuids, cancel: _activeOp);
-        ph.phase('settle', 'Wait for Sonos to settle');
+        ph.phase('settle', l10n.stepWaitForSettle);
         // The soundbar itself always survives an unbond; a null member here is
         // the transient mid-reshuffle drop-out, NOT confirmation — keep polling.
         bool rolesGone(SonosSystem s) {
@@ -697,13 +733,13 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         final sys = await _pollUntil(previous: previous, ip: ip, until: rolesGone);
         // Sonos can 200-OK an unbond yet silently no-op — re-assert before done.
         if (!rolesGone(sys)) {
-          throw Exception('Sonos did not remove the $label — try again.');
+          throw SonorityError(SonorityErrorCode.didNotRemove, lbl);
         }
         tracker.done('remove');
         return sys;
       } catch (e) {
-        // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail('remove', friendlyError(e));
+        // OperationCancelled lands here too — its message is the aborted text.
+        tracker.fail('remove', localizedError(l10n, e));
         rethrow;
       }
     });
@@ -721,7 +757,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   }) async {
     assert(members.length >= 2, 'createGroup needs ≥2 members (UI must gate this)');
     if (members.length < 2) {
-      throw Exception('A group needs at least 2 speakers.');
+      throw const SonorityError(SonorityErrorCode.groupNeedsTwo);
     }
     final coord = members.first.device;
     final involved = [
@@ -729,8 +765,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       if (sub != null) sub.uuid,
     ];
 
+    final l10n = appL10n();
     final tracker = _newTracker([
-      ApplyStep(id: 'group', label: 'Create group (${members.length} speakers)'),
+      ApplyStep(id: 'group', label: l10n.stepCreateGroupN(members.length)),
     ]);
     _activeOp = CancellationToken();
 
@@ -741,15 +778,15 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       final ph = _phases(tracker, 'group');
       final wanted = name?.trim();
       ph.seed([
-        ('bond', 'Bond speakers'),
-        ('confirm', 'Wait for Sonos to confirm'),
+        ('bond', l10n.stepBondSpeakers),
+        ('confirm', l10n.stepWaitForConfirm),
         if (wanted != null && wanted.isNotEmpty && coord.ip != null)
-          ('name', 'Name the group'),
+          ('name', l10n.stepNameGroup),
       ]);
       try {
-        ph.phase('bond', 'Bond speakers');
+        ph.phase('bond', l10n.stepBondSpeakers);
         await _repo.createGroup(members: members, sub: sub);
-        ph.phase('confirm', 'Wait for Sonos to confirm');
+        ph.phase('confirm', l10n.stepWaitForConfirm);
         var system = await _pollUntil(
           previous: previous,
           ip: coord.ip ?? _lastIp,
@@ -763,11 +800,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // Sonos accepts the command (200) but silently no-ops if a speaker is
         // incompatible — confirm the group actually formed.
         if (!_isGroupFormed(system, coord.uuid, involved)) {
-          throw Exception(
-              'Sonos did not create the group — a speaker may be incompatible.');
+          throw const SonorityError(SonorityErrorCode.didNotCreateGroup);
         }
         if (wanted != null && wanted.isNotEmpty && coord.ip != null) {
-          ph.phase('name', 'Name the group');
+          ph.phase('name', l10n.stepNameGroup);
           await _repo.setRoomName(ip: coord.ip!, name: wanted);
           system = await _pollUntil(
             previous: system,
@@ -780,8 +816,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         tracker.done('group');
         return system;
       } catch (e) {
-        // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail('group', friendlyError(e));
+        // OperationCancelled lands here too — its message is the aborted text.
+        tracker.fail('group', localizedError(l10n, e));
         rethrow;
       }
     });
@@ -810,8 +846,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final audioReappear =
         members.where((m) => m.uuid != coord.uuid && m.uuid != subU);
 
+    final l10n = appL10n();
     final tracker =
-        _newTracker([const ApplyStep(id: 'ungroup', label: 'Separate group')]);
+        _newTracker([ApplyStep(id: 'ungroup', label: l10n.stepSeparateGroup)]);
     _activeOp = CancellationToken();
 
     final previous = sys;
@@ -820,14 +857,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       tracker.start('ungroup');
       final ph = _phases(tracker, 'ungroup');
       ph.seed([
-        ('separate', 'Separate + restore room names'),
-        ('settle', 'Wait for Sonos to settle'),
+        ('separate', l10n.stepSeparateRestore),
+        ('settle', l10n.stepWaitForSettle),
       ]);
       try {
         // 1. A bond can't be dissolved while the coordinator is a non-coordinator
         //    member of a larger playback group — detach into its own group first.
         if (coord.ip != null && !_isOwnGroupCoordinator(previous, coord.uuid)) {
-          ph.phase('detach', 'Detach from playback group');
+          ph.phase('detach', l10n.stepDetach);
           await _repo.detachFromGroup(coord.ip!);
           await _pollUntil(
             previous: previous,
@@ -837,9 +874,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           );
         }
         // 2. Dissolve (SeparateStereoPair on the live map) + restore names.
-        ph.phase('separate', 'Separate + restore room names');
+        ph.phase('separate', l10n.stepSeparateRestore);
         await _repo.separateGroup(members: members, channelMapSet: cms);
-        ph.phase('settle', 'Wait for Sonos to settle');
+        ph.phase('settle', l10n.stepWaitForSettle);
         final system = await _pollUntil(
           previous: previous,
           ip: coord.ip ?? _lastIp,
@@ -849,13 +886,13 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
               audioReappear.every((m) => s.allMembers.any((x) => x.uuid == m.uuid)),
         );
         if (_isGroupFormed(system, coord.uuid, involved)) {
-          throw Exception('Sonos did not separate the group — try again.');
+          throw const SonorityError(SonorityErrorCode.didNotSeparate);
         }
         tracker.done('ungroup');
         return system;
       } catch (e) {
-        // OperationCancelled lands here too — its toString is 'Aborted'.
-        tracker.fail('ungroup', friendlyError(e));
+        // OperationCancelled lands here too — its message is the aborted text.
+        tracker.fail('ungroup', localizedError(l10n, e));
         rethrow;
       }
     });

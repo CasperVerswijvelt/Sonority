@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import 'member_channel_card.dart';
@@ -17,7 +18,7 @@ String? typeForChannel(
     {Map<String, String>? names}) {
   final uuid = member.channelAssignments[channel];
   if (uuid == null) return null;
-  return system?.device(uuid)?.typeLabel ?? names?[uuid] ?? 'Speaker';
+  return system?.device(uuid)?.typeLabel ?? names?[uuid] ?? appL10n().widgetsSpeaker;
 }
 
 /// Whether a speaker is currently bonded to [channel].

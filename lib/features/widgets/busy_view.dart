@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 
 /// A friendly full-screen busy state with a title + explanation, so long
@@ -61,11 +62,11 @@ class MissingRoomView extends StatelessWidget {
             children: [
               const Icon(Icons.help_outline, size: 56),
               Gap.m,
-              const Text('This room is no longer available. Rescan to refresh.'),
+              Text(context.l10n.widgetsRoomNoLongerAvailable),
               Gap.l,
               FilledButton(
                 onPressed: () => context.go('/'),
-                child: const Text('Back to scan'),
+                child: Text(context.l10n.widgetsBackToScan),
               ),
             ],
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:sonority/l10n/app_localizations.dart';
 import 'package:sonority/features/widgets/version_badge.dart';
 
 const _sample = '''
@@ -73,6 +74,8 @@ void main() {
       buildNumber: '50008',
     );
     await tester.pumpWidget(MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Builder(
         builder: (ctx) => TextButton(
           onPressed: () => showVersionSheet(ctx, info),

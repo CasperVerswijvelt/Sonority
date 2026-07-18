@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
+
 /// Shared yes/no confirmation dialog. Returns true only if the user taps the
 /// confirm action (false on cancel or dismiss). [destructive] tints the confirm
 /// label with the error color; both actions are `TextButton`s so they stay
@@ -10,7 +12,7 @@ Future<bool> confirmDialog(
   required String title,
   required String message,
   required String confirmLabel,
-  String cancelLabel = 'Cancel',
+  String? cancelLabel,
   IconData? icon,
   bool destructive = true,
 }) async {
@@ -23,7 +25,7 @@ Future<bool> confirmDialog(
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(cancelLabel)),
+            child: Text(cancelLabel ?? ctx.l10n.actionCancel)),
         TextButton(
           onPressed: () => Navigator.pop(ctx, true),
           style: destructive

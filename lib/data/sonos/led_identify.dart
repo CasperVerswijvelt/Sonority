@@ -1,6 +1,7 @@
 import 'package:xml/xml.dart';
 
 import 'soap_client.dart';
+import 'sonority_error.dart';
 
 /// Identifies a speaker by **blinking its white status LED** — an alternative to
 /// the audio chime ([IdentifyServiceClient]) that needs no in-app HTTP server and so
@@ -109,7 +110,7 @@ class LedIdentifyClient {
     // If not a single toggle landed, the speaker is unreachable — surface it so
     // the UI can tell the user, instead of silently doing nothing.
     if (attempts > 0 && failures == attempts) {
-      throw Exception('Could not reach the speaker to blink its light.');
+      throw const SonorityError(SonorityErrorCode.cannotBlinkLight);
     }
   }
 }

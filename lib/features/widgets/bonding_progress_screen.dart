@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/sonos/cancellation.dart';
 import '../../state/sonos_controller.dart';
@@ -113,7 +114,7 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
     await Clipboard.setData(ClipboardData(text: log));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logs copied to clipboard.')));
+          SnackBar(content: Text(context.l10n.bondingLogsCopied)));
     }
   }
 
@@ -133,12 +134,14 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
           title: Text(widget.title),
           actions: [
             IconButton(
-              tooltip: 'Copy logs',
+              tooltip: context.l10n.bondingCopyLogs,
               onPressed: _copyLogs,
               icon: const Icon(Icons.copy_all),
             ),
             IconButton(
-              tooltip: _showLogs ? 'Show steps' : 'Show raw log',
+              tooltip: _showLogs
+                  ? context.l10n.bondingShowSteps
+                  : context.l10n.bondingShowRawLog,
               onPressed: () => setState(() => _showLogs = !_showLogs),
               icon: Icon(_showLogs
                   ? Icons.view_timeline_outlined
@@ -197,7 +200,7 @@ class _RawLogViewState extends ConsumerState<_RawLogView> {
     });
     if (lines.isEmpty) {
       return Center(
-        child: Text('No log output yet.', style: theme.mutedText),
+        child: Text(context.l10n.bondingNoLogOutput, style: theme.mutedText),
       );
     }
     return Scrollbar(
@@ -242,7 +245,8 @@ class _BottomBar extends StatelessWidget {
         onPressed: aborting ? null : onAbort,
         style: FilledButton.styleFrom(
             backgroundColor: scheme.error, foregroundColor: scheme.onError),
-        child: Text(aborting ? 'Aborting…' : 'Abort'),
+        child: Text(
+            aborting ? context.l10n.actionAborting : context.l10n.actionAbort),
       );
     } else {
       // Color Done by result: green on success, red/error on failure (or abort).
@@ -256,7 +260,7 @@ class _BottomBar extends StatelessWidget {
               style: FilledButton.styleFrom(
                   backgroundColor: doneColor,
                   foregroundColor: failed ? scheme.onError : Colors.white),
-              child: const Text('Done'),
+              child: Text(context.l10n.actionDone),
             ),
           ),
           if (failed) ...[
@@ -265,7 +269,7 @@ class _BottomBar extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text(context.l10n.actionRetry),
               ),
             ),
           ],

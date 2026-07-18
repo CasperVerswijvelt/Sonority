@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import '../../core/tone_generator.dart';
 import 'identify_errors.dart';
 import 'soap_client.dart';
+import 'sonority_error.dart';
 
 /// Plays a short chime on a specific speaker so the user can tell which physical
 /// box will be Left vs Right.
@@ -189,7 +190,7 @@ class IdentifyServiceClient {
         if (!a.isLoopback) return a.address;
       }
     }
-    throw Exception('No LAN IP found to serve the chime from.');
+    throw const SonorityError(SonorityErrorCode.noLanIpForChime);
   }
 
   Future<void> dispose() async {

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
+import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/identify_controls.dart';
@@ -27,9 +29,10 @@ class _RoomSheet extends ConsumerWidget {
     final member = system?.memberByUuid(uuid);
 
     if (member == null) {
-      return const SheetScaffold(
-        title: 'Room',
-        body: Padding(padding: EdgeInsets.all(24), child: MissingRoomView()),
+      return SheetScaffold(
+        title: context.l10n.roomTitle,
+        body: const Padding(
+            padding: EdgeInsets.all(24), child: MissingRoomView()),
       );
     }
 
@@ -39,12 +42,12 @@ class _RoomSheet extends ConsumerWidget {
 
     return SheetScaffold(
       title: member.zoneName,
-      subtitle: 'Room',
+      subtitle: context.l10n.roomTitle,
       trailing: device == null
           ? null
           : IconButton(
               icon: const Icon(Icons.drive_file_rename_outline),
-              tooltip: 'Rename room',
+              tooltip: context.l10n.roomRenameTooltip,
               onPressed: () => _rename(context, ref, device, member.zoneName),
             ),
       body: Column(
@@ -75,12 +78,14 @@ Future<void> _rename(BuildContext context, WidgetRef ref, SonosDevice device,
   final name = await showRenameDialog(context, current);
   if (name == null || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
+  final l10n = context.l10n;
   try {
     await ref
         .read(sonosControllerProvider.notifier)
         .renameRoom(device: device, name: name);
-    messenger.showSnackBar(SnackBar(content: Text('Renamed to “$name”.')));
+    messenger.showSnackBar(SnackBar(content: Text(l10n.roomRenamedTo(name))));
   } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+    messenger.showSnackBar(
+        SnackBar(content: Text(l10n.roomRenameFailed(localizedError(l10n, e)))));
   }
 }

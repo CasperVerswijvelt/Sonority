@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 
 /// A simple top-down room diagram showing the soundbar and the currently
@@ -52,7 +53,7 @@ class SpeakerDiagram extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text(soundbarLabel ?? 'TV / Soundbar',
+            Text(soundbarLabel ?? context.l10n.widgetsTvSoundbar,
                 style: Theme.of(context)
                     .textTheme
                     .labelSmall

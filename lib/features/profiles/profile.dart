@@ -1,3 +1,4 @@
+import '../../core/l10n.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/speaker_settings.dart';
 
@@ -68,14 +69,19 @@ class EntitySnapshot {
   /// A short human label for the create checklist + profile tiles.
   String get label => names[primaryUuid] ?? primaryUuid;
 
-  String get kindLabel => switch (kind) {
-        EntityKind.homeTheater => 'Home theater',
-        EntityKind.single => 'Speaker',
-        // Reuse the group labels so the strings live in one place.
-        EntityKind.stereoPair => groupKindLabel(GroupKind.stereoPair),
-        EntityKind.zone => groupKindLabel(GroupKind.zone),
-        EntityKind.custom => groupKindLabel(GroupKind.custom),
-      };
+  // Context-less (this getter is read from widgets), so it resolves strings via
+  // the shared [appL10n] helper. Reuses the app-wide entity-kind keys — the same
+  // labels the state layer's progress steps use.
+  String get kindLabel {
+    final l10n = appL10n();
+    return switch (kind) {
+      EntityKind.homeTheater => l10n.entityKindHomeTheater,
+      EntityKind.stereoPair => l10n.entityKindStereoPair,
+      EntityKind.zone => l10n.entityKindZone,
+      EntityKind.custom => l10n.entityKindCustom,
+      EntityKind.single => l10n.entityKindSpeaker,
+    };
+  }
 
   /// Every UUID this entity bonds — used for pre-flight resolution + conflict
   /// detection. For an HT that's the coordinator + all satellites; for a pair

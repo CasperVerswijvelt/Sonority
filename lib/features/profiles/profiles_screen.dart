@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
+import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/app_scaffold.dart';
@@ -22,7 +24,9 @@ class ProfilesScreen extends ConsumerWidget {
 
     final body = profiles.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Couldn’t load profiles: $e')),
+      error: (e, _) => Center(
+          child: Text(
+              context.l10n.profileLoadError(localizedError(context.l10n, e)))),
       data: (list) => list.isEmpty
           ? const _EmptyState()
           : ReorderableListView.builder(
@@ -59,17 +63,20 @@ class ProfilesScreen extends ConsumerWidget {
                           IconButton.filled(
                             onPressed: () =>
                                 applyProfileInteractive(context, ref, p),
-                            tooltip: 'Apply',
+                            tooltip: context.l10n.actionApply,
                             icon: const Icon(Icons.play_arrow),
                           ),
                           PopupMenuButton<String>(
                             onSelected: (v) => v == 'edit'
                                 ? context.go('/profiles/edit/${p.id}')
                                 : _confirmDelete(context, ref, p),
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(value: 'edit', child: Text('Edit')),
+                            itemBuilder: (_) => [
                               PopupMenuItem(
-                                  value: 'delete', child: Text('Delete')),
+                                  value: 'edit',
+                                  child: Text(context.l10n.profileEdit)),
+                              PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text(context.l10n.actionDelete)),
                             ],
                           ),
                         ],
@@ -82,17 +89,17 @@ class ProfilesScreen extends ConsumerWidget {
     );
 
     return AppScaffold(
-      title: 'Profiles',
+      title: context.l10n.tabProfiles,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: hasSystem
             ? () => context.go('/profiles/new')
             : () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Scan your system first (System tab).'),
+                SnackBar(
+                  content: Text(context.l10n.profileScanFirst),
                 ),
               ),
         icon: const Icon(Icons.add),
-        label: const Text('New profile'),
+        label: Text(context.l10n.profileNew),
       ),
       body: body,
     );
@@ -105,9 +112,9 @@ class ProfilesScreen extends ConsumerWidget {
   ) async {
     final ok = await confirmDialog(
       context,
-      title: 'Delete “${p.name}”?',
-      message: 'This removes the saved profile. Your speakers are not changed.',
-      confirmLabel: 'Delete',
+      title: context.l10n.profileDeleteConfirm(p.name),
+      message: context.l10n.profileDeleteMessage,
+      confirmLabel: context.l10n.actionDelete,
     );
     if (ok) await ref.read(profilesProvider.notifier).remove(p.id);
   }
@@ -122,7 +129,7 @@ Future<void> applyProfileInteractive(
   final system = ref.read(sonosControllerProvider).value;
   if (system == null) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Scan your system first (System tab).')),
+      SnackBar(content: Text(context.l10n.profileScanFirst)),
     );
     return;
   }
@@ -144,7 +151,7 @@ Future<void> applyProfileInteractive(
   // No success toast — the progress screen already shows the outcome.
   await showBondingProgress(
     context,
-    title: 'Applying “${profile.name}”',
+    title: context.l10n.profileApplying(profile.name),
     run: () => ctrl.applyProfile(profile, skip: skip),
   );
 }
@@ -159,7 +166,7 @@ Future<void> applyProfileFromLaunch(
   final ctrl = ref.read(sonosControllerProvider.notifier);
   await showBondingProgress(
     context,
-    title: 'Applying “${profile.name}”',
+    title: context.l10n.profileApplying(profile.name),
     run: () => ctrl.scanAndApplyProfile(
       profile,
       confirmIssues: (issues) async {
@@ -192,12 +199,11 @@ class _EmptyState extends StatelessWidget {
               color: theme.colorScheme.primary,
             ),
             Gap.m,
-            Text('No profiles yet', style: theme.textTheme.titleLarge),
+            Text(context.l10n.profileEmptyTitle,
+                style: theme.textTheme.titleLarge),
             Gap.s,
             Text(
-              'A profile snapshots your current home theaters, stereo pairs and '
-              'rooms so you can rebuild them in one tap — handy after moving '
-              'speakers away. Tap “New profile” to capture your setup now.',
+              context.l10n.profileEmptyBody,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -222,16 +228,14 @@ class _ApplyConfirmDialog extends StatelessWidget {
     final applicable = issues.where((i) => !i.blocked).toList();
 
     return AlertDialog(
-      title: Text('Apply “${profile.name}”?'),
+      title: Text(context.l10n.profileApplyConfirmTitle(profile.name)),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'This re-bonds speakers on your live system and may take a while '
-              '(each step waits for Sonos to settle). Trueplay may need '
-              're-tuning afterward.',
+              context.l10n.profileApplyConfirmBody,
               style: theme.textTheme.bodySmall,
             ),
             Gap.m,
@@ -248,19 +252,20 @@ class _ApplyConfirmDialog extends StatelessWidget {
                 title: Text('${i.entity.kindLabel}: ${i.entity.label}'),
                 subtitle: i.blocked
                     ? Text(
-                        'Missing: ${i.missing.toSet().join(', ')} — will be skipped',
+                        context.l10n.profileIssueMissing(
+                            i.missing.toSet().join(', ')),
                         style: TextStyle(color: theme.colorScheme.error),
                       )
                     : i.conflicts.isNotEmpty
-                    ? Text('Will free: ${i.conflicts.toSet().join(', ')}')
+                    ? Text(context.l10n
+                        .profileIssueFree(i.conflicts.toSet().join(', ')))
                     : null,
               ),
             if (applicable.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Nothing can be applied — all entities are missing '
-                  'speakers.',
+                  context.l10n.profileNothingApplicable,
                   style: TextStyle(color: theme.colorScheme.error),
                 ),
               )
@@ -268,8 +273,8 @@ class _ApplyConfirmDialog extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Will apply ${applicable.length} of ${issues.length} '
-                  'entities; ${blocked.length} skipped.',
+                  context.l10n.profileApplySummary(
+                      applicable.length, issues.length, blocked.length),
                   style: theme.textTheme.bodySmall,
                 ),
               ),
@@ -279,13 +284,13 @@ class _ApplyConfirmDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.actionCancel),
         ),
         TextButton(
           onPressed: applicable.isEmpty
               ? null
               : () => Navigator.pop(context, true),
-          child: const Text('Apply'),
+          child: Text(context.l10n.actionApply),
         ),
       ],
     );

@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/identify_service.dart';
+import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import 'busy_spinner.dart';
 
@@ -27,7 +29,7 @@ class IdentifyButtons extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          tooltip: 'Blink the light',
+          tooltip: context.l10n.widgetsBlinkLightTooltip,
           onPressed: busy ? null : onBlink,
           icon: busy
               ? const BusySpinner()
@@ -35,7 +37,7 @@ class IdentifyButtons extends StatelessWidget {
         ),
         if (onChime != null)
           IconButton(
-            tooltip: 'Play a test chime',
+            tooltip: context.l10n.widgetsChimeTooltip,
             onPressed: busy ? null : onChime,
             icon: const Icon(Icons.volume_up_outlined),
           ),
@@ -68,13 +70,13 @@ mixin IdentifyMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   /// Blinks a speaker's status LED so the user can tell which physical box it
   /// is. The default identify action — silent and works on every platform.
   Future<void> identify(SonosDevice device) =>
-      _run(device, '💡 Blinking the light on ${device.roomName}…', () async {
+      _run(device, context.l10n.widgetsBlinkingLight(device.roomName), () async {
         await ref.read(ledIdentifyProvider).blink(device.ip!);
       });
 
   /// Plays an audio chime (mobile only) as an audible alternative to the blink.
   Future<void> playChime(SonosDevice device) =>
-      _run(device, '🔊 Playing a chime on ${device.roomName}…', () async {
+      _run(device, context.l10n.widgetsPlayingChime(device.roomName), () async {
         await ref.read(identifyServiceProvider).chirp(device.ip!);
       });
 
@@ -97,9 +99,10 @@ mixin IdentifyMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     Future<void> Function() action,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     if (device.ip == null) {
-      messenger.showSnackBar(
-          SnackBar(content: Text('No address for ${device.roomName}.')));
+      messenger.showSnackBar(SnackBar(
+          content: Text(l10n.widgetsNoAddressFor(device.roomName))));
       return;
     }
     setState(() => _identifyingUuid = device.uuid);
@@ -110,11 +113,13 @@ mixin IdentifyMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     try {
       await action();
     } on SpeakerUnreachable catch (e) {
-      messenger.showSnackBar(
-          SnackBar(content: Text('$e'), duration: const Duration(seconds: 6)));
+      messenger.showSnackBar(SnackBar(
+          content: Text(localizedError(l10n, e)),
+          duration: const Duration(seconds: 6)));
     } catch (e) {
       messenger.showSnackBar(SnackBar(
-          content: Text('Couldn’t identify ${device.roomName}: $e')));
+          content: Text(l10n.widgetsCouldntIdentify(
+              device.roomName, localizedError(l10n, e)))));
     } finally {
       if (mounted) setState(() => _identifyingUuid = null);
     }

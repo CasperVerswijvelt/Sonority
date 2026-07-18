@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
 import 'busy_spinner.dart';
 
 /// An app-bar refresh button that shows a spinner while its async [onRefresh]
@@ -35,7 +36,7 @@ class _RefreshIconButtonState extends State<RefreshIconButton> {
       );
     }
     return IconButton(
-      tooltip: 'Refresh',
+      tooltip: context.l10n.widgetsRefresh,
       onPressed: _run,
       icon: const Icon(Icons.refresh),
     );

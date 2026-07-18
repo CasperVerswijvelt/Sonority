@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_sficon/flutter_sficon.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/l10n.dart';
 import 'core/theme.dart';
 import 'demo/demo_mode.dart';
 import 'features/discovery/discovery_screen.dart';
@@ -112,15 +113,15 @@ class _HomeShell extends StatelessWidget {
           selectedIndex: shell.currentIndex,
           onDestinationSelected: (i) =>
               shell.goBranch(i, initialLocation: i == shell.currentIndex),
-          destinations: const [
+          destinations: [
             NavigationDestination(
-                icon: Icon(Icons.speaker_group_outlined),
-                selectedIcon: Icon(Icons.speaker_group),
-                label: 'System'),
+                icon: const Icon(Icons.speaker_group_outlined),
+                selectedIcon: const Icon(Icons.speaker_group),
+                label: context.l10n.tabSystem),
             NavigationDestination(
-                icon: Icon(Icons.dashboard_customize_outlined),
-                selectedIcon: Icon(Icons.dashboard_customize),
-                label: 'Profiles'),
+                icon: const Icon(Icons.dashboard_customize_outlined),
+                selectedIcon: const Icon(Icons.dashboard_customize),
+                label: context.l10n.tabProfiles),
           ],
         ),
       ),
@@ -294,6 +295,8 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
               AppTheme.dark(useDynamic ? darkDynamic?.harmonized() : null)
                   .copyWith(platform: platform),
           themeMode: ThemeMode.system,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           routerConfig: _router,
           // The screenshot-only web demo build has no OS chrome, which looks
           // bare — so paint a faux iOS status bar and reserve its height as the
