@@ -13,6 +13,7 @@ import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/info_note.dart';
+import '../widgets/max_width_body.dart';
 import '../widgets/speaker_diagram.dart';
 
 /// Seeds the configure-HT selectors from [member]'s current bond: front uuids
@@ -136,6 +137,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         ),
       ),
       body: SafeArea(
+        child: MaxWidthBody(
         child: Stepper(
           currentStep: _step,
           type: StepperType.vertical,
@@ -239,6 +241,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   subCount: _subs.length),
             ),
           ],
+        ),
         ),
       ),
     );

@@ -9,6 +9,7 @@ import '../widgets/assign_sides.dart';
 import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/identify_controls.dart';
+import '../widgets/max_width_body.dart';
 import '../widgets/member_channel_card.dart';
 
 /// How the segmented control frames the bond. All three build a `ChannelMapSet`
@@ -92,6 +93,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
         surfaceTintColor: Colors.transparent,
       ),
       body: SafeArea(
+        child: MaxWidthBody(
         child: candidates.length < 2
             ? const Center(
                 child: Padding(
@@ -208,6 +210,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                   ),
                 ],
               ),
+        ),
       ),
     );
   }

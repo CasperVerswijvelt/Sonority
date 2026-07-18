@@ -7,6 +7,7 @@ import '../../data/sonos/cancellation.dart';
 import '../../state/sonos_controller.dart';
 import 'app_scaffold.dart';
 import 'apply_progress_view.dart';
+import 'max_width_body.dart';
 
 /// How a bonding operation ended, returned by [showBondingProgress].
 enum BondingOutcome { success, failed, aborted }
@@ -146,9 +147,11 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
             ),
           ],
         ),
-        body: _showLogs
-            ? const _RawLogView()
-            : ApplyProgressView(steps: steps, aborted: _aborted),
+        body: MaxWidthBody(
+          child: _showLogs
+              ? const _RawLogView()
+              : ApplyProgressView(steps: steps, aborted: _aborted),
+        ),
         bottomNavigationBar: SafeArea(
           child: _BottomBar(
             finished: _finished,
@@ -274,7 +277,25 @@ class _BottomBar extends StatelessWidget {
     }
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: SizedBox(width: double.infinity, child: child),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Reassure on failure/abort: our writes are diff-based and
+          // idempotent, so a partial run leaves a safe state that re-applying
+          // (Retry) converges — nothing is stuck half-bonded.
+          if (finished && failed) ...[
+            Text(
+              'Your speakers are in a safe state — nothing was left '
+              'half-applied. Fix the issue and retry.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            Gap.s,
+          ],
+          SizedBox(width: double.infinity, child: child),
+        ],
+      ),
     );
   }
 }

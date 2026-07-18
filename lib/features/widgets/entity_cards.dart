@@ -23,8 +23,20 @@ import 'pill_chip.dart';
 // an entity's kind/parts read at a glance and different kinds look distinct.
 // -----------------------------------------------------------------------------
 
-/// One composition pill on an entity card (an icon + short label).
-typedef EntityChip = ({IconData icon, String label});
+/// Colour role for an entity-card chip. Resolved to a real colour at render
+/// (the model is built without a [BuildContext]): [normal] = the composition
+/// accent, [warning] = a caution (e.g. a zone that can drop out), [positive] = a
+/// highlight (e.g. a config the Sonos app won't build).
+enum EntityChipTone { normal, warning, positive }
+
+/// One composition pill on an entity card (an icon + short label + tone).
+class EntityChip {
+  final IconData icon;
+  final String label;
+  final EntityChipTone tone;
+  const EntityChip(this.icon, this.label,
+      {this.tone = EntityChipTone.normal});
+}
 
 /// The compact tile for any entity kind — the overview (home theaters, groups &
 /// singles) and every profile tile. [subtitle] is the secondary line (soundbar
@@ -63,20 +75,24 @@ class EntityCardModel {
       final chips = <EntityChip>[
         if (hasChannel(m, SonosChannel.leftFront) ||
             hasChannel(m, SonosChannel.rightFront))
-          (icon: Icons.speaker, label: 'Fronts'),
+          const EntityChip(Icons.speaker, 'Fronts'),
         if (hasChannel(m, SonosChannel.leftRear) ||
             hasChannel(m, SonosChannel.rightRear))
-          (icon: Icons.surround_sound, label: 'Surrounds'),
+          const EntityChip(Icons.surround_sound, 'Surrounds'),
         if (hasChannel(m, SonosChannel.sub))
-          (icon: Icons.graphic_eq, label: 'Subwoofer'),
+          const EntityChip(Icons.graphic_eq, 'Subwoofer'),
       ];
       return EntityCardModel(
         icon: Icons.surround_sound,
         title: m.zoneName,
         subtitle: type,
-        chips: chips.isEmpty
-            ? const [(icon: Icons.info_outline, label: 'No extra speakers')]
-            : chips,
+        chips: [
+          if (chips.isEmpty)
+            const EntityChip(Icons.info_outline, 'No extra speakers')
+          else
+            ...chips,
+          ..._metaChips(system, m),
+        ],
       );
     }
     if (m.isGroup) {
@@ -85,9 +101,10 @@ class EntityCardModel {
         title: m.zoneName,
         // No per-speaker type list — tap through for speaker details.
         chips: [
-          (icon: groupKindIcon(m.groupKind), label: groupKindLabel(m.groupKind)),
-          (icon: Icons.speaker, label: '${m.groupChannels.length} speakers'),
-          if (m.subUuid != null) (icon: Icons.graphic_eq, label: 'Sub'),
+          EntityChip(groupKindIcon(m.groupKind), groupKindLabel(m.groupKind)),
+          EntityChip(Icons.speaker, '${m.groupChannels.length} speakers'),
+          if (m.subUuid != null) const EntityChip(Icons.graphic_eq, 'Sub'),
+          ..._metaChips(system, m),
         ],
       );
     }
@@ -101,6 +118,39 @@ class EntityCardModel {
       reachable: reachable,
     );
   }
+
+  /// Trailing status/highlight chips shared by HT + group cards: a drop-out
+  /// caution for a large zone, and a positive "not in the Sonos app" flag for a
+  /// config the official app won't build.
+  static List<EntityChip> _metaChips(SonosSystem? system, ZoneGroupMember m) => [
+        if (m.isZone && m.groupChannels.length >= kZoneWarnSize)
+          const EntityChip(Icons.warning_amber_rounded, 'Can drop out',
+              tone: EntityChipTone.warning),
+        if (unofficialConfigLabel(system, m) != null)
+          const EntityChip(Icons.lock_open, 'Not in the Sonos app',
+              tone: EntityChipTone.positive),
+      ];
+}
+
+/// A short reason an entity is a config the **Sonos app won't build** (so we can
+/// flag it as a Sonority-only capability), or null for an ordinary config. Kept
+/// conservative — only cases we can detect confidently, no model whitelist:
+/// - a home theater with dedicated front L/R,
+/// - a stereo pair of two different models,
+/// - a custom per-speaker L/R/Both group.
+/// The mixed-pair case needs a live [system] to compare models; skipped when the
+/// system is absent (a profile snapshot).
+String? unofficialConfigLabel(SonosSystem? system, ZoneGroupMember m) {
+  if (m.isHomeTheater && m.hasDedicatedFronts) return 'Dedicated fronts';
+  if (m.groupKind == GroupKind.custom) return 'Custom layout';
+  if (m.isStereoPair && system != null) {
+    final models = m.groupChannels.keys
+        .map((u) => system.device(u)?.modelName)
+        .whereType<String>()
+        .toSet();
+    if (models.length > 1) return 'Mixed-model pair';
+  }
+  return null;
 }
 
 /// Shown wherever an unreachable speaker ([SonosDevice.reachable] == false)
@@ -166,7 +216,11 @@ class EntityCard extends StatelessWidget {
                               PillChip(
                                   icon: c.icon,
                                   text: c.label,
-                                  color: scheme.primary),
+                                  color: switch (c.tone) {
+                                    EntityChipTone.normal => scheme.primary,
+                                    EntityChipTone.warning => scheme.error,
+                                    EntityChipTone.positive => scheme.tertiary,
+                                  }),
                           ],
                         ),
                       ],

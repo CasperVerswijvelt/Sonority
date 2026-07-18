@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+import 'max_width_body.dart';
+
 /// A Scaffold with a fixed (standard-height) Material 3 app bar over a body
 /// that fills the screen. Pass a plain widget as [body] — a scroll view
 /// (`ListView`/`SingleChildScrollView`) for long content, or a centered
@@ -27,6 +30,10 @@ class AppScaffold extends StatelessWidget {
   /// content stays reachable above it.
   final Widget? bottomOverlay;
 
+  /// Max width the body clamps to on a wide layout (see [MaxWidthBody]). The
+  /// System overview passes a wider cap since it lays cards out in columns.
+  final double maxContentWidth;
+
   const AppScaffold({
     super.key,
     required this.title,
@@ -37,6 +44,7 @@ class AppScaffold extends StatelessWidget {
     this.onRefresh,
     this.floatingActionButton,
     this.bottomOverlay,
+    this.maxContentWidth = kContentMaxWidth,
   });
 
   @override
@@ -73,21 +81,26 @@ class AppScaffold extends StatelessWidget {
       ),
       floatingActionButton: floatingActionButton,
       // AppBar owns the top inset, so the body only needs the bottom safe area.
+      // MaxWidthBody clamps + centers content (and its bottom overlay together)
+      // on a wide layout; it's a no-op on phones.
       body: SafeArea(
         top: false,
-        child: bottomOverlay == null
-            ? content
-            : Stack(
-                children: [
-                  Positioned.fill(child: content),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: bottomOverlay!,
-                  ),
-                ],
-              ),
+        child: MaxWidthBody(
+          maxWidth: maxContentWidth,
+          child: bottomOverlay == null
+              ? content
+              : Stack(
+                  children: [
+                    Positioned.fill(child: content),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: bottomOverlay!,
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }

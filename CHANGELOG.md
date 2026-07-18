@@ -11,7 +11,14 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Added
+- Responsive desktop layout: on a wide window the bottom tabs become a left navigation rail, content is centered at a readable width, and the System overview lays its cards out in multiple columns. The macOS window is now freely resizable (it was locked to a fixed phone size) — resize it and the layout adapts live. Phones are unchanged.
+- Diagnostics is now its own bottom-bar tab (a full page) instead of a button tucked in the overview's app bar.
+- Standalone rooms can now jump straight into a setup: the room sheet has "Group with another speaker" and "Add to a home theater" shortcuts.
+- Configs the official Sonos app won't build (dedicated fronts, a mixed-model stereo pair, a custom L/R/Both group) now carry a small "Not in the Sonos app" tag, and a large zone shows a "can drop out" caution (with a fuller heads-up on its detail page).
+
 ### Changed
+- When applying a profile or layout fails partway, the progress screen now reassures you the system is in a safe state (nothing left half-applied) before offering Retry.
 - UI refresh so different concepts look different: entity tiles (home theaters, groups, rooms, profiles) now share one rounded-square glyph and communicate their makeup with pills (kind, parts, sub) instead of a run-on "· · ·" subtitle; every "pick speakers/entities" list uses one flat checkbox style; and the group-creation review now shows the bonded layout as per-speaker cards instead of a text list.
 - Navigation is now predictable: tapping a bonded config (home theater or speaker group) always opens a full page, and a single standalone room opens a sheet — where before a group opened a sheet and a home theater a page. The guided home-theater and group-creation flows now cover the bottom tabs so you can't accidentally tab away mid-setup.
 - A standalone (unbonded) Sub on the overview is now tappable — it opens a small sheet to identify it and explains how to add it to a home theater or group (previously it was shown but did nothing).

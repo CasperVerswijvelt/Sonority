@@ -199,6 +199,26 @@ const double kPageGutter = 16;
 /// bottom padding, so it's a `double` rather than a [Gap] SizedBox).
 const double kCardGap = 12;
 
+/// Width at/above which the UI switches to its wide (desktop/large-window)
+/// layout: a left `NavigationRail` instead of the bottom nav bar, and content
+/// centered within a max width. Below it, the single-column phone layout. The
+/// only responsive breakpoint in the app — keep width branches keyed to it.
+const double kWideLayoutBreakpoint = 720;
+
+/// Max width a single-column page clamps to on a wide layout, so lists don't
+/// stretch edge-to-edge across a desktop window. The System overview overrides
+/// this with a wider cap (it lays cards out in multiple columns instead).
+const double kContentMaxWidth = 720;
+
+/// Wide-overview cap — roomier than [kContentMaxWidth] so the entity-card grid
+/// gets several columns.
+const double kOverviewMaxWidth = 1100;
+
+/// A zone with at least this many bonded speakers gets a "can drop out" warning.
+/// Heuristic from hardware: an 8-speaker Play:1-era zone kept dropping even after
+/// settling, so the practical ceiling is well below Sonos' claimed 16.
+const int kZoneWarnSize = 5;
+
 /// Shared spacing scale (each a square [SizedBox], so it works as height OR
 /// width).
 class Gap {

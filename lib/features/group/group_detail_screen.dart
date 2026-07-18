@@ -11,6 +11,7 @@ import '../widgets/busy_view.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/destructive_button.dart';
 import '../widgets/identify_controls.dart';
+import '../widgets/info_note.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
 
@@ -80,6 +81,14 @@ class GroupDetailScreen extends ConsumerWidget {
               trailing: speakerIdentifyButton(system.device(group.subUuid!)),
             ),
             Gap.s,
+          ],
+          if (group.isZone && group.groupChannels.length >= kZoneWarnSize) ...[
+            Gap.s,
+            const InfoNote(
+              'Large zones can drop out for the first minute after audio '
+              'starts, and mixed or older speakers may keep dropping. Play '
+              'something to confirm it stays stable for you.',
+            ),
           ],
           Gap.l,
           DestructiveButton(

@@ -441,10 +441,17 @@ Run on the same Wi-Fi as the Sonos system:
   `ios/Runner/Runner.entitlements` + `CODE_SIGN_ENTITLEMENTS` in the pbxproj,
   regenerate match profiles (`docs/SIGNING.md`) — restores native SSDP on
   device; keep the sweep as fallback regardless.
-- macOS: entitlements include `network.client` + `network.server`; window is locked
-  to a fixed **420×880 portrait** (`MainFlutterWindow.swift`) so the UI only ever
-  handles one mobile layout.
-- All platforms: portrait-only (`SystemChrome` + iOS plist + Android manifest).
+- macOS: entitlements include `network.client` + `network.server`; the window is
+  **resizable** (`MainFlutterWindow.swift`: default ~1100×900, min ~380×640,
+  clamped to the screen's visible frame — App Review G4). The UI is **responsive**
+  (see Conventions): a phone-width window shows the bottom nav + single column; a
+  wide window shows a `NavigationRail` + centered/multi-column content, driven by
+  `kWideLayoutBreakpoint`. (macOS "Resume" may restore a previously-saved small
+  window frame on relaunch; the window is resizable, and fresh installs open at
+  the default.)
+- Phones stay **portrait-only** (`SystemChrome` + iOS plist + Android manifest);
+  the responsive layout is width-driven, so it's macOS/large-window only for now
+  (iPad/phone landscape is out of scope).
 - Emulators/simulators usually can't reach the LAN's SSDP multicast (this Android
   AVD happens to). Use a **physical device** for real discovery.
 
@@ -529,8 +536,9 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   ⚠️ action names/EQType tokens assumed standard-UPnP — **verify with
   `tool/eq_probe.dart` on hardware** before shipping.
 - ✅ **Room renaming** from the room / HT detail pages (`renameRoom` + `rename_dialog`).
-- ✅ **Diagnostics** (`features/diagnostics/`) — a bug-icon app-bar action opens a
-  modal bottom sheet with a hide-nothing technical topology view (invisible
+- ✅ **Diagnostics** (`features/diagnostics/diagnostics_screen.dart`) — a
+  **bottom-nav tab** (`DiagnosticsScreen`, `AppScaffold` page) with a
+  hide-nothing technical topology view (invisible
   members, IP/MAC/serial/firmware, raw channel maps — reads `system.groups[].members`
   unfiltered + `devicesByUuid`, and the new `SonosDevice.mac/serial/software/
   hardwareVersion` parsed in `device_description.dart`). Packages a **structured
@@ -649,11 +657,26 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   **pushed page** (route in the System shell branch, tab bar visible); a **single
   standalone room** opens as a **sheet** (`showRoomSheet`). Read-only profile-entity
   detail stays a sheet (`showEntitySheet`) — the one allowed exception, since it's a
-  light read-only view. **Guided flows** (`/group`, `/theater/:uuid/fronts`) present
-  at ROOT via `parentNavigatorKey: rootNavigatorKey` so they cover the tab bar (a
-  wizard is commit-or-cancel), like the bonding progress screen. Don't route a
-  bonded-config detail as a sheet again (it reintroduces the page-on-sheet stack
-  when Separate/apply pushes the bonding screen).
+  light read-only view. **Guided flows** (`/group`, `/theater/:uuid/fronts`) are
+  **top-level routes** (siblings of the `StatefulShellRoute`, NOT inside a branch)
+  so they render on the root navigator and cover the tab bar — a wizard is
+  commit-or-cancel, like the bonding progress screen. (go_router **asserts** if you
+  put `parentNavigatorKey: rootNavigatorKey` on a route *inside* a branch — that
+  red-screens at runtime, caught only on-device; top-level placement is the fix.)
+  Don't route a bonded-config detail as a sheet again (it reintroduces the
+  page-on-sheet stack when Separate/apply pushes the bonding screen). The
+  **standalone-room sheet** offers shortcuts INTO these flows ("Group with another
+  speaker" → `/group`; "Add to a home theater" → the fronts flow for a chosen
+  soundbar) via pop-then-push, so a room isn't a dead end.
+- **Responsive layout (macOS / wide windows).** One breakpoint,
+  `kWideLayoutBreakpoint` (`core/theme.dart`). Below it: the phone layout (bottom
+  `NavigationBar`, single column) — unchanged. At/above it: `_HomeShell` swaps the
+  bottom bar for a `NavigationRail`, and `AppScaffold` wraps its body in
+  `MaxWidthBody` (centered, clamped to `kContentMaxWidth`; the overview passes the
+  wider `kOverviewMaxWidth` and lays cards out in a `_cardGrid` of columns). The
+  three tabs (System / Profiles / **Diagnostics**) share one `_destinations` list
+  so the rail and bar can't drift. Guided flows + the bonding screen also clamp via
+  `MaxWidthBody`. Keep new pages on `AppScaffold` so they inherit the clamp for free.
 - **Names vs. types in the UI.** Once a speaker is bonded into an HT or stereo
   entity its individual room name stops mattering — Sonos absorbs it into the
   entity name (a satellite/hidden half just echoes the HT/pair name), so showing

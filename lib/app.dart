@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import 'core/theme.dart';
 import 'demo/demo_mode.dart';
+import 'features/diagnostics/diagnostics_screen.dart';
 import 'features/discovery/discovery_screen.dart';
 import 'features/front_surrounds/front_surrounds_flow.dart';
 import 'features/home_theater/home_theater_screen.dart';
@@ -86,6 +87,15 @@ final _router = GoRouter(
             ),
           ],
         ),
+        // Diagnostics: a hide-nothing technical view + shareable bundle.
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/diagnostics',
+              builder: (_, __) => const DiagnosticsScreen(),
+            ),
+          ],
+        ),
       ],
     ),
     // Guided flows live at the ROOT (siblings of the shell, not inside a branch)
@@ -102,41 +112,88 @@ final _router = GoRouter(
   ],
 );
 
-/// Root scaffold with the bottom tab bar switching between System and Profiles.
+/// One shell tab — shared by the bottom `NavigationBar` (narrow) and the
+/// `NavigationRail` (wide) so the destinations can't drift between layouts.
+class _Destination {
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  const _Destination(this.icon, this.selectedIcon, this.label);
+}
+
+const _destinations = [
+  _Destination(Icons.speaker_group_outlined, Icons.speaker_group, 'System'),
+  _Destination(
+      Icons.dashboard_customize_outlined, Icons.dashboard_customize, 'Profiles'),
+  _Destination(Icons.bug_report_outlined, Icons.bug_report, 'Diagnostics'),
+];
+
+/// Root scaffold. Adaptive: a bottom `NavigationBar` on a phone-width window, a
+/// left `NavigationRail` once the window is wide (desktop / resized macOS). The
+/// destination list + `goBranch` index mapping is shared, so both stay in sync.
 class _HomeShell extends StatelessWidget {
   final StatefulNavigationShell shell;
   const _HomeShell({required this.shell});
 
+  void _go(int i) =>
+      shell.goBranch(i, initialLocation: i == shell.currentIndex);
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      body: shell,
-      bottomNavigationBar: DecoratedBox(
-        // Hairline divider so the nav bar reads as a separate surface from the
-        // page behind it (dynamic-colour tones alone don't separate them).
-        // Foreground: the nav bar's opaque background would paint over a
-        // background-position border, so draw the line on top of its top edge.
-        position: DecorationPosition.foreground,
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: scheme.outlineVariant)),
-        ),
-        child: NavigationBar(
-          selectedIndex: shell.currentIndex,
-          onDestinationSelected: (i) =>
-              shell.goBranch(i, initialLocation: i == shell.currentIndex),
-          destinations: const [
-            NavigationDestination(
-                icon: Icon(Icons.speaker_group_outlined),
-                selectedIcon: Icon(Icons.speaker_group),
-                label: 'System'),
-            NavigationDestination(
-                icon: Icon(Icons.dashboard_customize_outlined),
-                selectedIcon: Icon(Icons.dashboard_customize),
-                label: 'Profiles'),
-          ],
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= kWideLayoutBreakpoint) {
+          // Wide: rail on the left, hairline divider, then the branch content.
+          return Scaffold(
+            body: Row(
+              children: [
+                NavigationRail(
+                  selectedIndex: shell.currentIndex,
+                  onDestinationSelected: _go,
+                  labelType: NavigationRailLabelType.all,
+                  backgroundColor: scheme.surfaceContainerHigh,
+                  destinations: [
+                    for (final d in _destinations)
+                      NavigationRailDestination(
+                        icon: Icon(d.icon),
+                        selectedIcon: Icon(d.selectedIcon),
+                        label: Text(d.label),
+                      ),
+                  ],
+                ),
+                VerticalDivider(width: 1, color: scheme.outlineVariant),
+                Expanded(child: shell),
+              ],
+            ),
+          );
+        }
+        return Scaffold(
+          body: shell,
+          bottomNavigationBar: DecoratedBox(
+            // Hairline divider so the nav bar reads as a separate surface from
+            // the page behind it (dynamic-colour tones alone don't separate
+            // them). Foreground: the nav bar's opaque background would paint
+            // over a background-position border, so draw the line on top.
+            position: DecorationPosition.foreground,
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: scheme.outlineVariant)),
+            ),
+            child: NavigationBar(
+              selectedIndex: shell.currentIndex,
+              onDestinationSelected: _go,
+              destinations: [
+                for (final d in _destinations)
+                  NavigationDestination(
+                    icon: Icon(d.icon),
+                    selectedIcon: Icon(d.selectedIcon),
+                    label: d.label,
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

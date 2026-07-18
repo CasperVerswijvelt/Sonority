@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
@@ -39,6 +40,12 @@ class _RoomSheet extends ConsumerWidget {
     // Single standalone speaker (stereo pairs are groups → the group sheet).
     final device = system!.device(uuid);
     final devices = [if (device != null) device];
+    // Soundbars this speaker could join as a front/surround (same rule the
+    // overview uses to list home theaters).
+    final soundbars = system.allMembers
+        .where((m) =>
+            m.isHomeTheater || (system.device(m.uuid)?.isSoundbar ?? false))
+        .toList();
 
     return SheetScaffold(
       title: member.zoneName,
@@ -65,12 +72,69 @@ class _RoomSheet extends ConsumerWidget {
                 trailing: speakerIdentifyButton(device, allowChime: true),
               ),
             ),
+          // Put this speaker to use: shortcuts into the bonding flows so a
+          // standalone room isn't a dead end (the flows do their own validation).
+          Padding(
+            padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _leaveTo(context, '/group'),
+                  icon: const Icon(Icons.speaker_group_outlined),
+                  label: const Text('Group with another speaker'),
+                ),
+                if (soundbars.isNotEmpty) ...[
+                  Gap.s,
+                  OutlinedButton.icon(
+                    onPressed: () => _addToHomeTheater(context, soundbars),
+                    icon: const Icon(Icons.surround_sound),
+                    label: const Text('Add to a home theater'),
+                  ),
+                ],
+              ],
+            ),
+          ),
           // Settings: a flat, sectioned Trueplay row, not another card.
           SettingsSection(children: [TrueplayControl(devices: devices)]),
         ],
       ),
     );
   }
+}
+
+/// Closes the room sheet, then pushes [location] — pop-then-push so a root-level
+/// guided flow doesn't stack on top of the modal sheet.
+void _leaveTo(BuildContext context, String location) {
+  final router = GoRouter.of(context);
+  Navigator.of(context).pop();
+  router.push(location);
+}
+
+/// "Add to a home theater": route into the HT setup flow keyed to a soundbar —
+/// straight through with one soundbar, or a small chooser when there are several.
+Future<void> _addToHomeTheater(
+    BuildContext context, List<ZoneGroupMember> soundbars) async {
+  String? target;
+  if (soundbars.length == 1) {
+    target = soundbars.first.uuid;
+  } else {
+    target = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Add to which home theater?'),
+        children: [
+          for (final s in soundbars)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, s.uuid),
+              child: Text(s.zoneName),
+            ),
+        ],
+      ),
+    );
+  }
+  if (target == null || !context.mounted) return;
+  _leaveTo(context, '/theater/$target/fronts');
 }
 
 Future<void> _rename(BuildContext context, WidgetRef ref, SonosDevice device,
