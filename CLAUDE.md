@@ -328,7 +328,11 @@ zone/pair name snapshots through an injected `KeyValueStore` port
 - **Amp as fronts**: a single Sonos Amp drives two passive front speakers, so it
   occupies BOTH front channels in one entry — `AMP:LF,RF` — instead of two
   separate Sonos speakers. Bar still becomes `CC`. (`buildAmpFrontsMap`;
-  detected via `SonosDevice.isAmp`. Confirmed working on hardware.)
+  detected via `SonosDevice.isAmp`.) **Audio is per-soundbar and NOT
+  API-discoverable** — confirmed working on a **Playbase + Connect:Amp**, but
+  **silent on an Arc Ultra + Amp (S16)** despite a clean, correct bond (the Atmos
+  bar appears not to route fronts to a satellite). Track confirmed/failing combos
+  in `docs/COMPATIBILITY.md`; a clean bond ≠ audio.
 - Adding fronts to a setup that already has rears yields 4 satellites — that's the
   natural max; Sonos has no true 7.1 (6 boxes).
 - **Stereo pair** map: `UUID_LEFT:LF,LF;UUID_RIGHT:RF,RF`. Left stays visible; right

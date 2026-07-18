@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/diagnostics_log.dart';
 import '../../data/sonos/sonos_repository.dart';
+import '../../data/sonos/speaker_settings.dart';
 import '../widgets/version_badge.dart' show fullVersionLabel;
 import 'diagnostics_platform.dart';
 
@@ -71,6 +72,15 @@ Future<String> buildDiagnosticsZip({
 
   // App-owned persisted state (profiles + pre-group room-name snapshots).
   add('app_state.json', await _appStateJson());
+
+  // Live per-speaker audio settings (RenderingControl reads only — no writes).
+  // Useful for "configured but silent" reports: a muted / zero-volume satellite,
+  // odd sub/surround levels. Best-effort per field (unsupported reads → absent).
+  add(
+    'speaker_settings.json',
+    const JsonEncoder.withIndent('  ')
+        .convert(await readSpeakerSettings(system, SpeakerSettingsClient())),
+  );
 
   if (options.includeNetwork) {
     add('network.txt', await networkInterfacesText());
@@ -147,6 +157,65 @@ Map<String, dynamic> topologyJson(SonosSystem system) => {
       },
   ],
 };
+
+/// Per-speaker RenderingControl read plan for the settings dump, keyed by UUID.
+/// Pure so the role-gating is unit-testable without touching the network. Mirrors
+/// [SonosController.captureSettings]:
+/// - HT satellites reject every EQ read (UPnPError 803), so `audio` is skipped
+///   and only volume/mute is attempted for them.
+/// - The extended EQ bundle (sub/surround/night/speech/height) is only meaningful
+///   on a soundbar, an HT coordinator, or a group/zone coordinator with a bonded
+///   Sub (the sub level/crossover ride the coordinator's `GetEQ`); a plain
+///   speaker answers those GetEQ calls with harmless defaults, so it captures
+///   bass/treble/loudness only.
+Map<String, ({bool audio, bool extendedEq})> settingsReadPlan(
+    SonosSystem system) {
+  final htSatellites = {
+    for (final g in system.groups)
+      for (final m in g.members)
+        for (final s in m.satellites) s.uuid,
+  };
+  // Coordinators that carry the extended EQ: an HT primary, or a group/zone
+  // coordinator with a bonded Sub (`subUuid` reads the group ChannelMapSet) —
+  // matches captureSettings' `entityHtOrSub` gate so a sub-in-zone isn't missed.
+  final extendedCoordinators = {
+    for (final g in system.groups)
+      for (final m in g.members)
+        if (m.isHomeTheater || m.subUuid != null) m.uuid,
+  };
+  return {
+    for (final d in system.devicesByUuid.values)
+      d.uuid: (
+        audio: !htSatellites.contains(d.uuid),
+        extendedEq: d.isSoundbar || extendedCoordinators.contains(d.uuid),
+      ),
+  };
+}
+
+/// Reads a best-effort per-speaker settings snapshot (RenderingControl) for every
+/// reachable speaker, keyed by UUID. Read-only; volume/mute is always attempted
+/// (the most useful signal for a silence report), audio/extended EQ per
+/// [settingsReadPlan].
+Future<Map<String, dynamic>> readSpeakerSettings(
+  SonosSystem system,
+  SpeakerSettingsClient client,
+) async {
+  final plan = settingsReadPlan(system);
+  final out = <String, dynamic>{};
+  for (final d in system.devicesByUuid.values) {
+    final ip = d.ip;
+    if (ip == null || !d.reachable) continue;
+    final p = plan[d.uuid]!;
+    final s = await client.read(ip,
+        audio: p.audio, volume: true, extendedEq: p.extendedEq);
+    out[d.uuid] = {
+      'roomName': d.roomName,
+      'typeLabel': d.typeLabel,
+      'settings': s.toJson(),
+    };
+  }
+  return out;
+}
 
 /// Human-readable mirror of the on-screen technical view — the same string is
 /// shown in the diagnostics sheet and written to `topology.txt`.
@@ -292,6 +361,7 @@ String _readme(
     'raw_topology.xml        — raw GetZoneGroupState from a player',
     'device_descriptions/    — raw device_description.xml per speaker',
     'app_state.json          — the app\'s stored profiles + saved room names',
+    'speaker_settings.json   — per-speaker EQ / volume / mute (RenderingControl, read-only)',
     if (o.includeLogs)
       'logs.txt                — app diagnostics log (SOAP faults, retries, discovery, errors)',
     if (o.includeNetwork)
