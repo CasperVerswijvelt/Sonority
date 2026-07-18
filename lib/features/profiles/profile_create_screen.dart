@@ -6,9 +6,9 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
-import '../widgets/entity_cards.dart';
 import '../widgets/info_note.dart';
 import '../widgets/section_header.dart';
+import '../widgets/settings_section.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
 import 'profile_ui.dart';
@@ -174,55 +174,40 @@ class _State extends ConsumerState<ProfileCreateScreen> {
             helper: 'Pick which of your current home theaters, pairs and '
                 'rooms to capture in this profile.',
           ),
-          for (final e in _entities) ...[
+          for (final e in _entities)
             _SelectableEntityCard(
               entity: e,
-              system: system,
               included: _included[e.primaryUuid] ?? true,
               onChanged: (v) => setState(() => _included[e.primaryUuid] = v),
             ),
-            Gap.s,
-          ],
           Gap.l,
           const SectionHeader(
             'Speaker settings',
             helper: 'Optionally snapshot each speaker’s current settings and '
                 'restore them when this profile is applied.',
           ),
-          Card(
-            margin: EdgeInsets.zero,
-            child: Column(
-              children: [
-                // Split card: each tile rounds only the corners it shares with
-                // the card, so the ink highlight matches (top tile → top corners,
-                // bottom tile → bottom corners; the divider edge stays square).
-                SwitchListTile(
-                  value: _saveAudio,
-                  onChanged: (v) => setState(() => _saveAudio = v),
-                  shape: const RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(12))),
-                  secondary: const Icon(Icons.tune),
-                  title: const Text('Save audio settings'),
-                  subtitle: const Text(
-                      'EQ, night sound, speech enhancement, sub & surround '
-                      'levels, lip sync & more'),
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  value: _saveVolume,
-                  onChanged: (v) => setState(() => _saveVolume = v),
-                  shape: const RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.vertical(bottom: Radius.circular(12))),
-                  secondary: const Icon(Icons.volume_up),
-                  title: const Text('Save volume'),
-                  subtitle: const Text(
-                      'Applying the profile will change how loud each speaker plays'),
-                ),
-              ],
+          // Flat settings rows (not a card) — these are toggles, matching the
+          // Trueplay / diagnostics registers.
+          SettingsSection(children: [
+            SwitchListTile(
+              value: _saveAudio,
+              onChanged: (v) => setState(() => _saveAudio = v),
+              secondary: const Icon(Icons.tune),
+              title: const Text('Save audio settings'),
+              subtitle: const Text(
+                  'EQ, night sound, speech enhancement, sub & surround '
+                  'levels, lip sync & more'),
             ),
-          ),
+            const Divider(height: 1),
+            SwitchListTile(
+              value: _saveVolume,
+              onChanged: (v) => setState(() => _saveVolume = v),
+              secondary: const Icon(Icons.volume_up),
+              title: const Text('Save volume'),
+              subtitle: const Text(
+                  'Applying the profile will change how loud each speaker plays'),
+            ),
+          ]),
         ],
       ),
     );
@@ -263,33 +248,27 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   }
 }
 
+/// A card-less selection row (the shared selection register) for one capturable
+/// entity — checkbox + name + kind, matching the speaker pickers in the flows.
 class _SelectableEntityCard extends StatelessWidget {
   final EntitySnapshot entity;
-  final SonosSystem system;
   final bool included;
   final ValueChanged<bool> onChanged;
 
   const _SelectableEntityCard({
     required this.entity,
-    required this.system,
     required this.included,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Compact summary, matching the profile detail / overview tiles.
-    final model = EntityCardModel.fromSnapshot(system, entity.toMember());
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: CheckboxListTile(
-        value: included,
-        onChanged: (v) => onChanged(v ?? false),
-        secondary: Icon(model.icon),
-        title: Text(entity.label),
-        subtitle: Text(model.subtitle),
-      ),
+    return CheckboxListTile(
+      value: included,
+      onChanged: (v) => onChanged(v ?? false),
+      controlAffinity: ListTileControlAffinity.leading,
+      title: Text(entity.label),
+      subtitle: Text(entity.kindLabel),
     );
   }
 }

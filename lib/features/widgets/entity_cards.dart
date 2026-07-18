@@ -2,63 +2,39 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
-import 'bondable_speaker_tile.dart';
 import 'diagram_labels.dart';
+import 'entity_glyph.dart';
 import 'entity_icons.dart';
 import 'pill_chip.dart';
 
 // -----------------------------------------------------------------------------
-// View models
+// View model
 //
-// The cards render one of these, never a domain `ZoneGroupMember` directly, so a
+// The card renders one of these, never a domain `ZoneGroupMember` directly, so a
 // card can't accidentally surface live-only state (`satellites`, `ip`, …) — only
-// the fields it shows live here. `TheaterCardModel` (the overview's rich HT card)
-// is live-only. `EntityCardModel` (the compact tile) is built either from a LIVE
-// member (`fromMember`, system guaranteed) or from a SNAPSHOT member
-// (`fromSnapshot`, system may be null — the throwaway member the profile builds
-// via `EntitySnapshot.toMember()`); the snapshot factory forces `reachable = true`
-// (a stored config is always "openable"), fixing the case where a
-// momentarily-offline speaker used to disable the profile tile.
+// the fields it shows live here. Built either from a LIVE member (`fromMember`,
+// system guaranteed) or from a SNAPSHOT member (`fromSnapshot`, system may be
+// null — the throwaway member a profile builds via `EntitySnapshot.toMember()`);
+// the snapshot factory forces `reachable = true` (a stored config is always
+// "openable"), fixing the case where a momentarily-offline speaker used to
+// disable the profile tile.
+//
+// COMPOSITION is carried as `chips` (visual pills), not a `·`-joined string, so
+// an entity's kind/parts read at a glance and different kinds look distinct.
 // -----------------------------------------------------------------------------
 
-/// A home theater: soundbar model + which extra-speaker groups are bonded.
-class TheaterCardModel {
-  final String title;
-  final String soundbarLabel;
-  final bool hasFronts;
-  final bool hasSurrounds;
-  final bool hasSub;
+/// One composition pill on an entity card (an icon + short label).
+typedef EntityChip = ({IconData icon, String label});
 
-  const TheaterCardModel({
-    required this.title,
-    required this.soundbarLabel,
-    required this.hasFronts,
-    required this.hasSurrounds,
-    required this.hasSub,
-  });
-
-  // Overview-only (the rich HT card), so a single live-member factory suffices.
-  factory TheaterCardModel.fromMember(SonosSystem system, ZoneGroupMember m) =>
-      TheaterCardModel(
-        title: m.zoneName,
-        soundbarLabel: system.device(m.uuid)?.modelName ?? 'Soundbar',
-        hasFronts: hasChannel(m, SonosChannel.leftFront) ||
-            hasChannel(m, SonosChannel.rightFront),
-        hasSurrounds: hasChannel(m, SonosChannel.leftRear) ||
-            hasChannel(m, SonosChannel.rightRear),
-        hasSub: hasChannel(m, SonosChannel.sub),
-      );
-}
-
-/// A compact tile for any entity kind — used by the overview (groups & singles)
-/// and by the profile detail (all kinds, including a compact home theater). The
-/// rich avatar HT card ([TheaterEntityCard]) is separate and overview-only, so
-/// its composition still renders as chips there; here a home theater's
-/// composition is a text subtitle instead.
+/// The compact tile for any entity kind — the overview (home theaters, groups &
+/// singles) and every profile tile. [subtitle] is the secondary line (soundbar
+/// or speaker type); [chips] are the composition pills (parts of a home theater,
+/// a group's kind + size). A single standalone speaker has just a [subtitle].
 class EntityCardModel {
   final IconData icon;
   final String title;
-  final String subtitle;
+  final String? subtitle;
+  final List<EntityChip> chips;
 
   /// Whether the speaker is currently usable — only a live single can be false;
   /// snapshots and HT/group tiles are always openable.
@@ -67,7 +43,8 @@ class EntityCardModel {
   const EntityCardModel({
     required this.icon,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
+    this.chips = const [],
     this.reachable = true,
   });
 
@@ -83,19 +60,23 @@ class EntityCardModel {
       {required bool reachable}) {
     if (m.isHomeTheater) {
       final type = system?.device(m.uuid)?.typeLabel ?? 'Soundbar';
-      final features = [
+      final chips = <EntityChip>[
         if (hasChannel(m, SonosChannel.leftFront) ||
             hasChannel(m, SonosChannel.rightFront))
-          'Fronts',
+          (icon: Icons.speaker, label: 'Fronts'),
         if (hasChannel(m, SonosChannel.leftRear) ||
             hasChannel(m, SonosChannel.rightRear))
-          'Surrounds',
-        if (hasChannel(m, SonosChannel.sub)) 'Subwoofer',
+          (icon: Icons.surround_sound, label: 'Surrounds'),
+        if (hasChannel(m, SonosChannel.sub))
+          (icon: Icons.graphic_eq, label: 'Subwoofer'),
       ];
       return EntityCardModel(
         icon: Icons.surround_sound,
         title: m.zoneName,
-        subtitle: [type, ...features].join(' · '),
+        subtitle: type,
+        chips: chips.isEmpty
+            ? const [(icon: Icons.info_outline, label: 'No extra speakers')]
+            : chips,
       );
     }
     if (m.isGroup) {
@@ -103,11 +84,11 @@ class EntityCardModel {
         icon: groupKindIcon(m.groupKind),
         title: m.zoneName,
         // No per-speaker type list — tap through for speaker details.
-        subtitle: [
-          groupKindLabel(m.groupKind),
-          '${m.groupChannels.length} speakers',
-          if (m.subUuid != null) 'Sub',
-        ].join(' · '),
+        chips: [
+          (icon: groupKindIcon(m.groupKind), label: groupKindLabel(m.groupKind)),
+          (icon: Icons.speaker, label: '${m.groupChannels.length} speakers'),
+          if (m.subUuid != null) (icon: Icons.graphic_eq, label: 'Sub'),
+        ],
       );
     }
     return EntityCardModel(
@@ -122,79 +103,17 @@ class EntityCardModel {
   }
 }
 
-// -----------------------------------------------------------------------------
-// Cards — dumb renderers over the models above, shared by the system overview
-// (live) and the profile detail list (snapshot). [onTap] and [footer] are
-// interaction/decoration the caller supplies (the overview routes to the live
-// detail; the profile routes to the entity detail + passes a "settings saved"
-// footer).
-// -----------------------------------------------------------------------------
+/// Shown wherever an unreachable speaker ([SonosDevice.reachable] == false)
+/// surfaces — we have it from the topology but couldn't read its description.
+const unreachableSpeakerHint =
+    'Couldn’t read this speaker’s details — check it’s powered on and on the '
+    'same network.';
 
-/// A home theater: soundbar avatar + model + Fronts/Surrounds/Sub chips.
-class TheaterEntityCard extends StatelessWidget {
-  final TheaterCardModel model;
-  final VoidCallback? onTap;
-  const TheaterEntityCard({super.key, required this.model, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: kCardGap),
-      child: Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(kCardRadius),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 26,
-                  backgroundColor: scheme.primaryContainer,
-                  child: Icon(Icons.surround_sound,
-                      color: scheme.onPrimaryContainer),
-                ),
-                Gap.m,
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Match the compact EntityCard's ListTile defaults so the
-                      // two cards read consistently: title bodyLarge, subtitle
-                      // bodyMedium/onSurfaceVariant.
-                      Text(model.title,
-                          style: Theme.of(context).textTheme.bodyLarge),
-                      Text(
-                        model.soundbarLabel,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                      Gap.s,
-                      _GroupChips(
-                        hasFronts: model.hasFronts,
-                        hasSurrounds: model.hasSurrounds,
-                        hasSub: model.hasSub,
-                      ),
-                    ],
-                  ),
-                ),
-                if (onTap != null) const Icon(Icons.chevron_right),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A compact tile for any [EntityCardModel] — the overview's group/single cards
-/// and every profile detail tile. [footer] (e.g. saved-settings chips) stacks
-/// under the subtitle; [onTap] adds a chevron. An unreachable single is flagged
-/// and made non-tappable regardless of the passed [onTap].
+/// The one entity card — a dumb renderer over [EntityCardModel], shared by the
+/// system overview (live) and the profile detail list (snapshot). [onTap] adds a
+/// chevron; [footer] (e.g. saved-settings pills) stacks under the composition. An
+/// unreachable single is flagged with a warning glyph + hint and made
+/// non-tappable regardless of the passed [onTap].
 class EntityCard extends StatelessWidget {
   final EntityCardModel model;
   final VoidCallback? onTap;
@@ -203,71 +122,64 @@ class EntityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final unreachable = !model.reachable;
     final tap = unreachable ? null : onTap;
-    final text = unreachable ? unreachableSpeakerHint : model.subtitle;
-    return Card(
-      margin: const EdgeInsets.only(bottom: kCardGap),
-      child: ListTile(
-        titleAlignment: ListTileTitleAlignment.center,
-        onTap: tap,
-        leading: Icon(
-          unreachable ? Icons.warning_amber_rounded : model.icon,
-          color: unreachable ? scheme.error : null,
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: kCardGap),
+      child: Card(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(kCardRadius),
+          onTap: tap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                EntityGlyph(
+                  icon: unreachable ? Icons.warning_amber_rounded : model.icon,
+                  background: unreachable ? scheme.errorContainer : null,
+                  foreground: unreachable ? scheme.onErrorContainer : null,
+                ),
+                Gap.m,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(model.title, style: theme.textTheme.bodyLarge),
+                      if (unreachable)
+                        Text(unreachableSpeakerHint,
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(color: scheme.error))
+                      else if (model.subtitle != null)
+                        Text(model.subtitle!,
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(color: scheme.onSurfaceVariant)),
+                      if (!unreachable && model.chips.isNotEmpty) ...[
+                        Gap.s,
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final c in model.chips)
+                              PillChip(
+                                  icon: c.icon,
+                                  text: c.label,
+                                  color: scheme.primary),
+                          ],
+                        ),
+                      ],
+                      if (footer != null) ...[Gap.s, footer!],
+                    ],
+                  ),
+                ),
+                if (tap != null) const Icon(Icons.chevron_right),
+              ],
+            ),
+          ),
         ),
-        title: Text(model.title),
-        subtitle: _subtitle(
-          Text(text, style: unreachable ? TextStyle(color: scheme.error) : null),
-          footer,
-        ),
-        isThreeLine: footer != null,
-        trailing: tap == null ? null : const Icon(Icons.chevron_right),
       ),
     );
-  }
-}
-
-/// A ListTile subtitle that stacks the standard text over an optional [footer].
-Widget _subtitle(Widget text, Widget? footer) => footer == null
-    ? text
-    : Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [text, const SizedBox(height: 6), footer],
-      );
-
-/// Chips on a home-theater card marking which extra-speaker groups are bonded.
-class _GroupChips extends StatelessWidget {
-  final bool hasFronts;
-  final bool hasSurrounds;
-  final bool hasSub;
-  const _GroupChips(
-      {required this.hasFronts,
-      required this.hasSurrounds,
-      required this.hasSub});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final chips = <Widget>[
-      if (hasFronts)
-        PillChip(icon: Icons.speaker, text: 'Fronts', color: scheme.primary),
-      if (hasSurrounds)
-        PillChip(
-            icon: Icons.surround_sound,
-            text: 'Surrounds',
-            color: scheme.primary),
-      if (hasSub)
-        PillChip(
-            icon: Icons.graphic_eq, text: 'Subwoofer', color: scheme.primary),
-    ];
-    if (chips.isEmpty) {
-      chips.add(PillChip(
-        icon: Icons.info_outline,
-        text: 'No extra speakers',
-        color: scheme.onSurfaceVariant,
-      ));
-    }
-    return Wrap(spacing: 6, runSpacing: 6, children: chips);
   }
 }

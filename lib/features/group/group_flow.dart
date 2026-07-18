@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/assign_sides.dart';
+import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/identify_controls.dart';
-import '../widgets/speaker_side_card.dart';
+import '../widgets/member_channel_card.dart';
 
 /// How the segmented control frames the bond. All three build a `ChannelMapSet`
 /// and go through the same `AddBondedZones` engine path.
@@ -322,11 +324,11 @@ class _SelectStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(_hint, style: Theme.of(context).textTheme.bodySmall),
-        Gap.m,
+        Gap.s,
         ...candidates.map((d) {
           final isSel = selected.contains(d.uuid);
           final disabled = !isSel && selected.length >= cap;
-          return _CandidateCard(
+          return _CandidateTile(
             device: d,
             selected: isSel,
             enabled: !disabled,
@@ -339,24 +341,13 @@ class _SelectStep extends StatelessWidget {
         }),
         if (mode == _Mode.stereo && selected.length == 2) ...[
           Gap.m,
-          Row(
-            children: [
-              Expanded(
-                  child: SpeakerSideCard(
-                      side: 'LEFT',
-                      device: system.device(selected[0]),
-                      controls: identifyControls(system.device(selected[0])!))),
-              IconButton.filledTonal(
-                onPressed: onSwap,
-                icon: const Icon(Icons.swap_horiz),
-                tooltip: 'Swap sides',
-              ),
-              Expanded(
-                  child: SpeakerSideCard(
-                      side: 'RIGHT',
-                      device: system.device(selected[1]),
-                      controls: identifyControls(system.device(selected[1])!))),
-            ],
+          AssignSides(
+            system: system,
+            selected: selected,
+            leftLabel: 'LEFT',
+            rightLabel: 'RIGHT',
+            onSwap: onSwap,
+            identifyControls: identifyControls,
           ),
         ],
       ],
@@ -364,10 +355,9 @@ class _SelectStep extends StatelessWidget {
   }
 }
 
-/// A selectable speaker card. The whole card is the tap target (so hover/press
-/// highlights all of it); in custom mode a selected card reveals an animated
-/// Left/Both/Right control inside it.
-class _CandidateCard extends StatelessWidget {
+/// A selectable speaker row (the shared card-less selection register), plus — in
+/// custom mode when selected — an animated Left/Both/Right control beneath it.
+class _CandidateTile extends StatelessWidget {
   final SonosDevice device;
   final bool selected;
   final bool enabled;
@@ -377,7 +367,7 @@ class _CandidateCard extends StatelessWidget {
   final void Function(GroupChannel) onChannel;
   final Widget identify;
 
-  const _CandidateCard({
+  const _CandidateTile({
     required this.device,
     required this.selected,
     required this.enabled,
@@ -390,59 +380,43 @@ class _CandidateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: kCardGap),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: enabled ? onToggle : null,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // No onTap: taps fall through to the whole-card InkWell above; the
-            // Checkbox + identify button still handle their own taps.
-            ListTile(
-              titleAlignment: ListTileTitleAlignment.center,
-              leading: Checkbox(
-                value: selected,
-                onChanged: enabled ? (_) => onToggle() : null,
-              ),
-              title: Text(device.roomName),
-              subtitle: Text(device.typeLabel),
-              trailing: identify,
-            ),
-            // CrossFade (not just AnimatedSize) so the control fades out WHILE
-            // the height collapses on deselect, instead of vanishing instantly.
-            AnimatedCrossFade(
-              duration: const Duration(milliseconds: 200),
-              sizeCurve: Curves.easeInOut,
-              alignment: Alignment.topCenter,
-              crossFadeState: showChannel
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              firstChild: const SizedBox(width: double.infinity, height: 0),
-              secondChild: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<GroupChannel>(
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(
-                          value: GroupChannel.left, label: Text('Left')),
-                      ButtonSegment(
-                          value: GroupChannel.both, label: Text('Both')),
-                      ButtonSegment(
-                          value: GroupChannel.right, label: Text('Right')),
-                    ],
-                    selected: {channel},
-                    onSelectionChanged: (s) => onChannel(s.first),
-                  ),
-                ),
-              ),
-            ),
-          ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        BondableSpeakerTile(
+          device: device,
+          selected: selected,
+          onChanged: enabled ? (_) => onToggle() : null,
+          subtitle: device.typeLabel,
+          secondary: identify,
         ),
-      ),
+        // CrossFade (not just AnimatedSize) so the control fades out WHILE the
+        // height collapses on deselect, instead of vanishing instantly.
+        AnimatedCrossFade(
+          duration: const Duration(milliseconds: 200),
+          sizeCurve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          crossFadeState:
+              showChannel ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          firstChild: const SizedBox(width: double.infinity, height: 0),
+          secondChild: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<GroupChannel>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: GroupChannel.left, label: Text('Left')),
+                  ButtonSegment(value: GroupChannel.both, label: Text('Both')),
+                  ButtonSegment(value: GroupChannel.right, label: Text('Right')),
+                ],
+                selected: {channel},
+                onSelectionChanged: (s) => onChannel(s.first),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -474,16 +448,13 @@ class _SubStep extends StatelessWidget {
         else ...[
           Text('Optionally add a Sub to the group.', style: muted),
           Gap.s,
-          ...subs.map((s) => Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: CheckboxListTile(
-                  value: selected == s.uuid,
-                  onChanged: (v) => onChanged((v ?? false) ? s.uuid : null),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text('Subwoofer'),
-                  subtitle: Text(s.typeLabel),
-                  secondary: const Icon(Icons.graphic_eq),
-                ),
+          ...subs.map((s) => CheckboxListTile(
+                value: selected == s.uuid,
+                onChanged: (v) => onChanged((v ?? false) ? s.uuid : null),
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('Subwoofer'),
+                subtitle: Text(s.typeLabel),
+                secondary: const Icon(Icons.graphic_eq),
               )),
         ],
       ],
@@ -509,7 +480,13 @@ class _ReviewStep extends StatelessWidget {
     required this.name,
   });
 
-  String _room(String uuid) => system.device(uuid)?.roomName ?? uuid;
+  String _type(String uuid) => system.device(uuid)?.typeLabel ?? 'Speaker';
+
+  GroupChannel _channelFor(int i) => switch (mode) {
+        _Mode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
+        _Mode.zone => GroupChannel.both,
+        _Mode.custom => channels[selected[i]] ?? GroupChannel.both,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -520,21 +497,8 @@ class _ReviewStep extends StatelessWidget {
       _Mode.zone => 'Zone (${selected.length} speakers)',
       _Mode.custom => 'Custom group (${selected.length} speakers)',
     };
-    final lines = <String>[];
-    for (var i = 0; i < selected.length; i++) {
-      final ch = switch (mode) {
-        _Mode.stereo => i == 0 ? 'Left' : 'Right',
-        _Mode.zone => 'Both',
-        _Mode.custom => switch (channels[selected[i]] ?? GroupChannel.both) {
-            GroupChannel.left => 'Left',
-            GroupChannel.right => 'Right',
-            GroupChannel.both => 'Both',
-          },
-      };
-      lines.add('${_room(selected[i])} — $ch');
-    }
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(kind, style: theme.textTheme.titleMedium),
         if (name.isNotEmpty) ...[
@@ -542,14 +506,25 @@ class _ReviewStep extends StatelessWidget {
           Text('Name: $name', style: muted),
         ],
         Gap.s,
-        ...lines.map((l) => Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Text(l, style: muted),
-            )),
-        if (subUuid != null)
-          Text('Sub: ${system.device(subUuid!)?.typeLabel ?? 'Subwoofer'}',
-              style: muted),
-        Gap.m,
+        // The bonded layout, shown the same way as a group's detail view: one
+        // card per member with its channel role.
+        for (var i = 0; i < selected.length; i++) ...[
+          MemberChannelCard(
+            icon: Icons.speaker,
+            type: _type(selected[i]),
+            channel: groupChannelShort(_channelFor(i)),
+          ),
+          Gap.s,
+        ],
+        if (subUuid != null) ...[
+          MemberChannelCard(
+            icon: Icons.graphic_eq,
+            type: system.device(subUuid!)?.typeLabel ?? 'Subwoofer',
+            channel: 'Sub',
+          ),
+          Gap.s,
+        ],
+        Gap.s,
         Text(
           'Bonded speakers play as one room. Larger or mixed-model groups can '
           'drop out briefly — play something to confirm it works for you. '

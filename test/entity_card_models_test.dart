@@ -4,42 +4,13 @@ import 'package:sonority/data/models/sonos_models.dart';
 import 'package:sonority/features/widgets/entity_cards.dart';
 
 void main() {
-  // The rich HT card (overview only) keeps its composition chips.
-  group('TheaterCardModel.fromMember', () {
-    final emptySystem = const SonosSystem(groups: [], devicesByUuid: {});
-
-    test('reads chip presence from the HT map; soundbar falls back sans device',
-        () {
-      final model = TheaterCardModel.fromMember(
-        emptySystem,
-        ZoneGroupMember(
-          uuid: 'BAR',
-          zoneName: 'Living Room',
-          htSatChanMapSet: 'BAR:CC;L:LF;R:RF;RL:LR;RR:RR;SUB:SW',
-        ),
-      );
-      expect(model.title, 'Living Room');
-      expect(model.soundbarLabel, 'Soundbar');
-      expect(model.hasFronts, isTrue);
-      expect(model.hasSurrounds, isTrue);
-      expect(model.hasSub, isTrue);
-    });
-
-    test('fronts-only HT has no surrounds/sub', () {
-      final model = TheaterCardModel.fromMember(
-        emptySystem,
-        ZoneGroupMember(
-            uuid: 'BAR', zoneName: 'LR', htSatChanMapSet: 'BAR:CC;L:LF;R:RF'),
-      );
-      expect(model.hasFronts, isTrue);
-      expect(model.hasSurrounds, isFalse);
-      expect(model.hasSub, isFalse);
-    });
-  });
-
-  // The unified compact tile (overview group/single + every profile tile).
+  // The one entity tile (overview home theaters/groups/singles + every profile
+  // tile). Composition is carried as `chips`, not a `·`-joined string.
   group('EntityCardModel', () {
-    test('home theater: surround icon + type · features text subtitle', () {
+    List<String> chipLabels(EntityCardModel m) =>
+        m.chips.map((c) => c.label).toList();
+
+    test('home theater: surround icon, soundbar-type subtitle, part chips', () {
       final model = EntityCardModel.fromSnapshot(
         null,
         ZoneGroupMember(
@@ -49,28 +20,43 @@ void main() {
       );
       expect(model.icon, Icons.surround_sound);
       expect(model.title, 'Woonkamer');
-      // Surrounds absent → omitted; soundbar type falls back sans system.
-      expect(model.subtitle, 'Soundbar · Fronts · Subwoofer');
+      // Soundbar type falls back sans system.
+      expect(model.subtitle, 'Soundbar');
+      // Surrounds absent → omitted from the chips.
+      expect(chipLabels(model), ['Fronts', 'Subwoofer']);
     });
 
-    test('group: kind + count, sub flagged, NO per-speaker type list', () {
+    test('home theater with no extras shows a single placeholder chip', () {
+      final model = EntityCardModel.fromSnapshot(
+        null,
+        ZoneGroupMember(uuid: 'BAR', zoneName: 'LR', htSatChanMapSet: 'BAR:CC'),
+      );
+      expect(chipLabels(model), ['No extra speakers']);
+    });
+
+    test('group: kind + count chips, sub flagged, NO per-speaker type list', () {
       final system = SonosSystem(groups: const [], devicesByUuid: {
-        'A': const SonosDevice(uuid: 'A', roomName: 'Office', modelName: 'Sonos One'),
-        'B': const SonosDevice(uuid: 'B', roomName: 'Office', modelName: 'Sonos One'),
+        'A': const SonosDevice(
+            uuid: 'A', roomName: 'Office', modelName: 'Sonos One'),
+        'B': const SonosDevice(
+            uuid: 'B', roomName: 'Office', modelName: 'Sonos One'),
       });
       final pair = EntityCardModel.fromMember(
           system,
           ZoneGroupMember(
               uuid: 'A', zoneName: 'Office', channelMapSet: 'A:LF,LF;B:RF,RF'));
       expect(pair.icon, Icons.speaker_group);
-      expect(pair.subtitle, 'Stereo pair · 2 speakers');
-      expect(pair.subtitle, isNot(contains('One'))); // types dropped
+      expect(chipLabels(pair), ['Stereo pair', '2 speakers']);
+      // Types are never listed — tap through for details.
+      expect(chipLabels(pair), isNot(contains('One')));
 
       final withSub = EntityCardModel.fromSnapshot(
           null,
           ZoneGroupMember(
-              uuid: 'A', zoneName: 'Office', channelMapSet: 'A:LF,LF;B:RF,RF;S:SW'));
-      expect(withSub.subtitle, 'Stereo pair · 2 speakers · Sub');
+              uuid: 'A',
+              zoneName: 'Office',
+              channelMapSet: 'A:LF,LF;B:RF,RF;S:SW'));
+      expect(chipLabels(withSub), ['Stereo pair', '2 speakers', 'Sub']);
 
       final zone = EntityCardModel.fromSnapshot(
           null,
@@ -78,7 +64,7 @@ void main() {
               uuid: 'A',
               zoneName: 'Upstairs',
               channelMapSet: 'A:LF,RF;B:LF,RF;C:LF,RF'));
-      expect(zone.subtitle, 'Zone · 3 speakers');
+      expect(chipLabels(zone), ['Zone', '3 speakers']);
     });
 
     group('single', () {
@@ -88,11 +74,12 @@ void main() {
       });
       final member = ZoneGroupMember(uuid: 'X', zoneName: 'Den');
 
-      test('speaker icon; snapshot always reachable + label fallback', () {
+      test('speaker icon, type subtitle, no chips; snapshot always reachable', () {
         final m = EntityCardModel.fromSnapshot(null, member);
         expect(m.icon, Icons.speaker_outlined);
         expect(m.reachable, isTrue);
         expect(m.subtitle, 'Standalone speaker');
+        expect(m.chips, isEmpty);
         expect(
             EntityCardModel.fromSnapshot(unreachableSystem, member).reachable,
             isTrue);

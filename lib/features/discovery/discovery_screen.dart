@@ -7,11 +7,13 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../diagnostics/diagnostics_sheet.dart';
-import '../group/group_detail_screen.dart';
 import '../room/room_screen.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/entity_cards.dart';
+import '../widgets/identify_controls.dart';
+import '../widgets/member_channel_card.dart';
 import '../widgets/section_header.dart';
+import '../widgets/sheet_scaffold.dart';
 import '../widgets/version_badge.dart';
 
 /// Entry screen: auto-scans the LAN on launch and presents the system, leading
@@ -125,8 +127,8 @@ class _SystemView extends ConsumerWidget {
               'No soundbar found. Dedicated fronts need an Arc, Beam, Ray, '
               'Playbar or Playbase.',
             ),
-          ...theaters.map((m) => TheaterEntityCard(
-                model: TheaterCardModel.fromMember(system, m),
+          ...theaters.map((m) => EntityCard(
+                model: EntityCardModel.fromMember(system, m),
                 onTap: () => context.push('/theater/${m.uuid}'),
               )),
           Gap.l,
@@ -139,11 +141,11 @@ class _SystemView extends ConsumerWidget {
             addTooltip: 'Group speakers',
           ),
           if (groups.isEmpty)
-            const _EmptySectionCard('No speaker groups yet')
+            const _EmptyHint('No speaker groups yet')
           else
             ...groups.map((m) => EntityCard(
                   model: EntityCardModel.fromMember(system, m),
-                  onTap: () => showGroupSheet(context, m.uuid),
+                  onTap: () => context.push('/group/${m.uuid}'),
                 )),
           // Single speaker rooms — hidden entirely when there are none.
           if (singleRooms.isNotEmpty) ...[
@@ -156,21 +158,21 @@ class _SystemView extends ConsumerWidget {
                 )),
           ],
           // Other devices: unbonded Subs are shown so they're visible (they're
-          // Invisible members with no room), but not tappable — there's nothing
-          // to configure for a standalone sub; add it to a home theater from the
-          // HT setup flow.
+          // Invisible members with no room). Tapping opens a small sheet to
+          // identify it and explains how to bond it — a standalone sub has no
+          // config of its own, so this is the only affordance.
           if (system.bondableSubs.isNotEmpty) ...[
             Gap.l,
             SectionHeader('Other devices', icon: Icons.devices_other_outlined),
           ],
           ...system.bondableSubs.map(
-            (sub) => Card(
-              margin: const EdgeInsets.only(bottom: kCardGap),
-              child: ListTile(
-                leading: const Icon(Icons.graphic_eq),
-                title: const Text('Subwoofer'),
-                subtitle: Text(sub.typeLabel),
+            (sub) => EntityCard(
+              model: EntityCardModel(
+                icon: Icons.graphic_eq,
+                title: 'Subwoofer',
+                subtitle: sub.typeLabel,
               ),
+              onTap: () => _showSubSheet(context, sub),
             ),
           ),
         ],
@@ -179,33 +181,35 @@ class _SystemView extends ConsumerWidget {
   }
 }
 
-/// A subtle, fill-free outlined card with centered text for an empty section.
-/// Uses a transparent [Card] so its shape + hairline outline come straight from
-/// `cardTheme` (theme.dart) — radius stays in sync with the real cards, nothing
-/// hardcoded.
-class _EmptySectionCard extends StatelessWidget {
-  final String text;
-  const _EmptySectionCard(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: Colors.transparent,
-      margin: const EdgeInsets.only(bottom: kCardGap),
-      child: SizedBox(
-        width: double.infinity,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).mutedText,
+/// Opens a standalone (unbonded) Sub as a small sheet: identify it by ear/LED and
+/// a note on how to put it to use (it has no config of its own).
+Future<void> _showSubSheet(BuildContext context, SonosDevice sub) =>
+    showSheet<void>(
+      context,
+      SheetScaffold(
+        title: 'Subwoofer',
+        subtitle: sub.typeLabel,
+        body: Padding(
+          padding: const EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              MemberChannelCard(
+                icon: Icons.graphic_eq,
+                type: sub.typeLabel,
+                trailing: speakerIdentifyButton(sub),
+              ),
+              Gap.m,
+              Text(
+                'This Sub isn’t bonded to anything yet. Add it to a home theater '
+                '(Configure home theater) or a speaker group to use it.',
+                style: Theme.of(context).mutedText,
+              ),
+            ],
           ),
         ),
       ),
     );
-  }
-}
 
 class _EmptyHint extends StatelessWidget {
   final String text;

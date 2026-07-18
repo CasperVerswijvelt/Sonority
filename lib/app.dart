@@ -17,6 +17,7 @@ import 'features/profiles/profile_widget.dart';
 import 'features/profiles/profiles_screen.dart';
 import 'features/profiles/profile_create_screen.dart';
 import 'features/profiles/profile_detail_screen.dart';
+import 'features/group/group_detail_screen.dart';
 import 'features/group/group_flow.dart';
 
 /// Root navigator key — lets an out-of-app launch (app shortcut / widget) reach
@@ -39,18 +40,19 @@ final _router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(path: '/', builder: (_, __) => const DiscoveryScreen()),
-            GoRoute(path: '/group', builder: (_, __) => const GroupFlow()),
-            // Group + room detail are modal sheets (see showGroupSheet /
-            // showRoomSheet), not routes.
+            // Detail pages stay in the shell (tab bar visible), matching the
+            // rule: a bonded config (home theater / group) opens as a page; a
+            // single standalone room opens as a sheet (showRoomSheet, not a
+            // route).
             GoRoute(
               path: '/theater/:uuid',
               builder: (_, s) =>
                   HomeTheaterScreen(soundbarUuid: s.pathParameters['uuid']!),
             ),
             GoRoute(
-              path: '/theater/:uuid/fronts',
+              path: '/group/:uuid',
               builder: (_, s) =>
-                  FrontSurroundsFlow(soundbarUuid: s.pathParameters['uuid']!),
+                  GroupDetailScreen(uuid: s.pathParameters['uuid']!),
             ),
           ],
         ),
@@ -85,6 +87,17 @@ final _router = GoRouter(
           ],
         ),
       ],
+    ),
+    // Guided flows live at the ROOT (siblings of the shell, not inside a branch)
+    // so they cover the tab bar — a wizard is a task you commit or cancel, not
+    // somewhere to tab away from mid-Stepper (matches the bonding progress
+    // screen). go_router forbids parentNavigatorKey on a route inside a branch,
+    // so top-level placement is how they render on the root navigator.
+    GoRoute(path: '/group', builder: (_, __) => const GroupFlow()),
+    GoRoute(
+      path: '/theater/:uuid/fronts',
+      builder: (_, s) =>
+          FrontSurroundsFlow(soundbarUuid: s.pathParameters['uuid']!),
     ),
   ],
 );

@@ -492,8 +492,8 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   single **Sonos Amp** driving passive fronts (`AMP:LF,RF`; exclusive selection).
 - ✅ Identify a speaker by **blinking its status LED** (`led_identify.dart`, default,
   all platforms incl. macOS) with the audio chime as a mobile-only extra. Offered
-  in the pick-a-speaker flows AND per-speaker in the room / group detail sheets
-  (`SpeakerIdentifyButton`); chime is gated to standalone speakers via
+  in the pick-a-speaker flows AND per-speaker in the room detail sheet / group &
+  HT detail pages (`SpeakerIdentifyButton`); chime is gated to standalone speakers via
   `SonosSystem.isStandalone` (a bonded member blinks only — a chime plays the
   whole bond).
 - ✅ **Speaker groups** (`features/group/group_flow.dart`, `zone_layout.dart`) —
@@ -625,10 +625,35 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   or helper is being copy-pasted across features/tools, extract it. Established
   shared pieces to reuse (don't reinvent): `features/widgets/identify_controls.dart`
   (`IdentifyButtons` + `IdentifyMixin` — speaker blink/chime), `features/widgets/
-  speaker_side_card.dart` (the L/R card), and `tool/discover_util.dart`
-  (`resolveSpeaker` — CLI room/uuid/IP resolution). Prefer a shared widget/mixin/
-  helper over a second copy; only keep a bespoke variant when forcing it into the
-  shared shape would genuinely hurt readability.
+  assign_sides.dart` (`AssignSides` — the L/R + swap row, over `speaker_side_card.dart`),
+  `features/widgets/entity_glyph.dart` (`EntityGlyph` — the one rounded-square icon
+  tile) and `tool/discover_util.dart` (`resolveSpeaker` — CLI room/uuid/IP
+  resolution). Prefer a shared widget/mixin/helper over a second copy; only keep a
+  bespoke variant when forcing it into the shared shape would genuinely hurt readability.
+- **Visual grammar — one form per concept (don't blur them).** The UI deliberately
+  maps each concept to ONE component so a screen isn't a wall of identical cards:
+  **entity** (a thing you open/act on: HT/group/room/profile) = a rounded content
+  card via the single `EntityCard`/`EntityCardModel` (glyph + title + composition
+  **`PillChip`s**, never a `·`-joined subtitle string) or `ProfileCard`;
+  **settings** (toggle/read: Trueplay, capture toggles, saved settings) = the
+  card-less `SettingsSection` (flat divider-led rows), NOT a card; **selection** (a
+  transient multi-select pick) = a card-less `CheckboxListTile` (`BondableSpeakerTile`
+  and the same style in every flow — never wrap a picker in a Card); **spatial
+  layout** = `SpeakerDiagram`; **progress** = `ApplyProgressView`; **tag** = the one
+  `PillChip` (there is no second pill widget). **Color is reserved for profile
+  identity** (the user-chosen swatch); system entity glyphs stay tonal-neutral
+  (`primaryContainer`) so the two axes never compete. When adding UI, reuse the
+  matching form — don't invent a new card variant for an existing concept.
+- **Presentation rule — "tap a thing" is predictable.** A **bonded config**
+  (home theater `HomeTheaterScreen`, speaker group `GroupDetailScreen`) opens as a
+  **pushed page** (route in the System shell branch, tab bar visible); a **single
+  standalone room** opens as a **sheet** (`showRoomSheet`). Read-only profile-entity
+  detail stays a sheet (`showEntitySheet`) — the one allowed exception, since it's a
+  light read-only view. **Guided flows** (`/group`, `/theater/:uuid/fronts`) present
+  at ROOT via `parentNavigatorKey: rootNavigatorKey` so they cover the tab bar (a
+  wizard is commit-or-cancel), like the bonding progress screen. Don't route a
+  bonded-config detail as a sheet again (it reintroduces the page-on-sheet stack
+  when Separate/apply pushes the bonding screen).
 - **Names vs. types in the UI.** Once a speaker is bonded into an HT or stereo
   entity its individual room name stops mattering — Sonos absorbs it into the
   entity name (a satellite/hidden half just echoes the HT/pair name), so showing

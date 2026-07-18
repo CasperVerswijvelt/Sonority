@@ -7,13 +7,13 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/assign_sides.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/info_note.dart';
 import '../widgets/speaker_diagram.dart';
-import '../widgets/speaker_side_card.dart';
 
 /// Seeds the configure-HT selectors from [member]'s current bond: front uuids
 /// ordered [left, right] (a single device on both fronts — an Amp — collapses to
@@ -171,7 +171,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     ),
                   ] else if (_fronts.length == 2) ...[
                     Gap.m,
-                    _AssignSides(
+                    AssignSides(
                       system: system,
                       selected: _fronts,
                       leftLabel: 'LEFT',
@@ -204,7 +204,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   ),
                   if (_surrounds.length == 2) ...[
                     Gap.m,
-                    _AssignSides(
+                    AssignSides(
                       system: system,
                       selected: _surrounds,
                       leftLabel: 'REAR LEFT',
@@ -540,59 +540,6 @@ class _AmpWiringNote extends StatelessWidget {
           Gap.s,
           identifyControls(amp),
         ],
-      ],
-    );
-  }
-}
-
-class _AssignSides extends StatelessWidget {
-  final SonosSystem system;
-  final List<String> selected;
-  final String leftLabel;
-  final String rightLabel;
-  final VoidCallback onSwap;
-  final Widget Function(SonosDevice device) identifyControls;
-
-  const _AssignSides({
-    required this.system,
-    required this.selected,
-    required this.leftLabel,
-    required this.rightLabel,
-    required this.onSwap,
-    required this.identifyControls,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (selected.length != 2) {
-      return const Text('Choose two speakers first.');
-    }
-    final left = system.device(selected[0]);
-    final right = system.device(selected[1]);
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-                child: SpeakerSideCard(
-                    side: leftLabel,
-                    device: left,
-                    controls: left == null ? null : identifyControls(left))),
-            IconButton.filledTonal(
-              onPressed: onSwap,
-              icon: const Icon(Icons.swap_horiz),
-              tooltip: 'Swap sides',
-            ),
-            Expanded(
-                child: SpeakerSideCard(
-                    side: rightLabel,
-                    device: right,
-                    controls: right == null ? null : identifyControls(right))),
-          ],
-        ),
-        Gap.s,
-        Text('Tap swap if the sides are reversed.',
-            style: Theme.of(context).textTheme.bodySmall),
       ],
     );
   }

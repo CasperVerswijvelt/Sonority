@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_sficon/flutter_sficon.dart';
 
 import '../../core/theme.dart';
+import '../widgets/entity_glyph.dart';
+import '../widgets/pill_chip.dart';
 import 'profile.dart';
 
 /// True if [name] (trimmed, case-insensitive) is already used by another
@@ -278,15 +280,10 @@ class ProfileCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: crossAxisAlignment,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                    color: tonal.card,
-                    borderRadius: BorderRadius.circular(kCardRadius)),
-                child: Center(
-                    child: profileGlyph(profile.iconId,
-                        size: 22, color: tonal.icon)),
+              EntityGlyph(
+                background: tonal.card,
+                child: profileGlyph(profile.iconId,
+                    size: 22, color: tonal.icon),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -301,7 +298,7 @@ class ProfileCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.mutedText,
                     ),
-                    if (settingsBadges(
+                    if (settingsBadges(context,
                             audio: profile.hasAudioSettings,
                             volume: profile.hasVolume)
                         case final badges?) ...[
@@ -320,51 +317,23 @@ class ProfileCard extends StatelessWidget {
   }
 }
 
-/// The captured-settings chips ("Audio settings" / "Volume"), or null when
+/// The captured-settings pills ("Audio settings" / "Volume"), or null when
 /// neither is set. Shared by the profile tile (aggregate) and the per-entity
-/// cards on the detail screen.
-Widget? settingsBadges({required bool audio, required bool volume}) {
+/// cards on the detail screen. Uses the shared [PillChip] (the app's one tag
+/// pill), tinted `secondary` so a captured-setting tag reads distinct from a
+/// composition chip (which is `primary`).
+Widget? settingsBadges(BuildContext context,
+    {required bool audio, required bool volume}) {
   if (!audio && !volume) return null;
+  final color = Theme.of(context).colorScheme.secondary;
   return Wrap(
     spacing: 6,
     runSpacing: 6,
     children: [
-      if (audio) const SettingsBadge(icon: Icons.tune, label: 'Audio settings'),
-      if (volume) const SettingsBadge(icon: Icons.volume_up, label: 'Volume'),
+      if (audio) PillChip(icon: Icons.tune, text: 'Audio settings', color: color),
+      if (volume) PillChip(icon: Icons.volume_up, text: 'Volume', color: color),
     ],
   );
-}
-
-/// Small pill marking a captured setting (audio or volume).
-class SettingsBadge extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const SettingsBadge({super.key, required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: theme.colorScheme.onSecondaryContainer),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSecondaryContainer,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Icon + colour picker dialog. Returns the chosen `(iconId, color)`, or null if

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
+import 'entity_glyph.dart';
 import 'pill_chip.dart';
 
 /// One speaker in a bonded group / home theater: an icon, the speaker type as
@@ -34,10 +35,7 @@ class MemberChannelCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: scheme.primaryContainer,
-              child: Icon(icon, color: scheme.onPrimaryContainer),
-            ),
+            EntityGlyph(icon: icon),
             Gap.m,
             Expanded(
               child: Column(

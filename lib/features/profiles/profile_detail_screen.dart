@@ -161,6 +161,7 @@ Widget _entityCard(
   return EntityCard(
     model: EntityCardModel.fromSnapshot(system, e.toMember()),
     onTap: () => showEntitySheet(context, e, system),
-    footer: settingsBadges(audio: e.hasAudioSettings, volume: e.hasVolume),
+    footer:
+        settingsBadges(context, audio: e.hasAudioSettings, volume: e.hasVolume),
   );
 }

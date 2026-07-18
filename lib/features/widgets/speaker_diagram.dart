@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
+import 'pill_chip.dart';
 
 /// A simple top-down room diagram showing the soundbar and the currently
 /// assigned channels around it. Purely illustrative — communicates layout at a
@@ -70,8 +71,10 @@ class SpeakerDiagram extends StatelessWidget {
             if (subCount > 0)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                child: _chip(context, subCount > 1 ? 'SUB ×$subCount' : 'SUB',
-                    scheme.tertiary),
+                child: PillChip(
+                    icon: Icons.graphic_eq,
+                    text: subCount > 1 ? 'SUB ×$subCount' : 'SUB',
+                    color: scheme.tertiary),
               ),
             Expanded(
               child: Row(
@@ -130,18 +133,6 @@ class SpeakerDiagram extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _chip(BuildContext context, String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(text,
-          style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 11)),
     );
   }
 }
