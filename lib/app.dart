@@ -33,9 +33,9 @@ final _router = GoRouter(
       builder: (context, state, shell) => _HomeShell(shell: shell),
       navigatorContainerBuilder: (context, shell, children) =>
           _AnimatedBranchContainer(
-        currentIndex: shell.currentIndex,
-        children: children,
-      ),
+            currentIndex: shell.currentIndex,
+            children: children,
+          ),
       branches: [
         // System: discovery + the per-device detail/flow screens.
         StatefulShellBranch(
@@ -65,7 +65,9 @@ final _router = GoRouter(
               builder: (_, __) => const ProfilesScreen(),
               routes: [
                 GoRoute(
-                    path: 'new', builder: (_, __) => const ProfileCreateScreen()),
+                  path: 'new',
+                  builder: (_, __) => const ProfileCreateScreen(),
+                ),
                 GoRoute(
                   path: 'edit/:id',
                   builder: (_, s) =>
@@ -78,8 +80,9 @@ final _router = GoRouter(
                   routes: [
                     GoRoute(
                       path: 'resnapshot',
-                      builder: (_, s) =>
-                          ProfileCreateScreen(profileId: s.pathParameters['id']),
+                      builder: (_, s) => ProfileCreateScreen(
+                        profileId: s.pathParameters['id'],
+                      ),
                     ),
                   ],
                 ),
@@ -124,7 +127,10 @@ class _Destination {
 const _destinations = [
   _Destination(Icons.speaker_group_outlined, Icons.speaker_group, 'System'),
   _Destination(
-      Icons.dashboard_customize_outlined, Icons.dashboard_customize, 'Profiles'),
+    Icons.dashboard_customize_outlined,
+    Icons.dashboard_customize,
+    'Profiles',
+  ),
   _Destination(Icons.bug_report_outlined, Icons.bug_report, 'Diagnostics'),
 ];
 
@@ -145,6 +151,9 @@ class _HomeShell extends StatelessWidget {
       builder: (context, constraints) {
         if (constraints.maxWidth >= kWideLayoutBreakpoint) {
           // Wide: rail on the left, hairline divider, then the branch content.
+          // Roomy windows get the extended rail (icon + label side by side);
+          // the tighter rail-vs-bar range keeps the compact labelled rail.
+          final extendedRail = constraints.maxWidth >= 1000;
           return Scaffold(
             body: Row(
               // Stretch so the rail and content fill the full height (default
@@ -154,7 +163,10 @@ class _HomeShell extends StatelessWidget {
                 NavigationRail(
                   selectedIndex: shell.currentIndex,
                   onDestinationSelected: _go,
-                  labelType: NavigationRailLabelType.all,
+                  extended: extendedRail,
+                  labelType: extendedRail
+                      ? NavigationRailLabelType.none
+                      : NavigationRailLabelType.all,
                   backgroundColor: scheme.surfaceContainerHigh,
                   destinations: [
                     for (final d in _destinations)
@@ -254,23 +266,31 @@ class _AnimatedBranchContainerState extends State<_AnimatedBranchContainer>
         final ordered = <Widget>[];
         for (var i = 0; i < widget.children.length; i++) {
           if (i == widget.currentIndex) continue;
-          ordered.add(_branch(
-            widget.children[i],
-            visible: animating && i == _previousIndex,
-            outgoing: true,
-          ));
+          ordered.add(
+            _branch(
+              widget.children[i],
+              visible: animating && i == _previousIndex,
+              outgoing: true,
+            ),
+          );
         }
-        ordered.add(_branch(
-          widget.children[widget.currentIndex],
-          visible: true,
-          outgoing: false,
-        ));
+        ordered.add(
+          _branch(
+            widget.children[widget.currentIndex],
+            visible: true,
+            outgoing: false,
+          ),
+        );
         return Stack(children: ordered);
       },
     );
   }
 
-  Widget _branch(Widget child, {required bool visible, required bool outgoing}) {
+  Widget _branch(
+    Widget child, {
+    required bool visible,
+    required bool outgoing,
+  }) {
     if (!visible) {
       return Offstage(
         offstage: true,
@@ -309,7 +329,8 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
     // App-icon shortcut tap → funnel through pendingApplyProvider (also fires
     // for the shortcut that cold-started the app).
     initProfileShortcuts(
-        (id) => ref.read(pendingApplyProvider.notifier).set(id));
+      (id) => ref.read(pendingApplyProvider.notifier).set(id),
+    );
     // Home-screen widget tap → same apply seam.
     initProfileWidget((id) => ref.read(pendingApplyProvider.notifier).set(id));
   }
@@ -356,16 +377,16 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
         // handles and scrollbars appear. Pose as iOS there so the captured
         // screens look like the mobile app. (Can't use
         // debugDefaultTargetPlatformOverride — it throws in release builds.)
-        final platform =
-            (kDemoMode && kIsWeb) ? TargetPlatform.iOS : null;
+        final platform = (kDemoMode && kIsWeb) ? TargetPlatform.iOS : null;
         return MaterialApp.router(
           title: 'Sonority',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(useDynamic ? lightDynamic?.harmonized() : null)
-              .copyWith(platform: platform),
-          darkTheme:
-              AppTheme.dark(useDynamic ? darkDynamic?.harmonized() : null)
-                  .copyWith(platform: platform),
+          theme: AppTheme.light(
+            useDynamic ? lightDynamic?.harmonized() : null,
+          ).copyWith(platform: platform),
+          darkTheme: AppTheme.dark(
+            useDynamic ? darkDynamic?.harmonized() : null,
+          ).copyWith(platform: platform),
           themeMode: ThemeMode.system,
           routerConfig: _router,
           // The screenshot-only web demo build has no OS chrome, which looks
@@ -379,10 +400,18 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
                   final mq = MediaQuery.of(context);
                   return MediaQuery(
                     data: mq.copyWith(
-                      padding: mq.padding
-                          .copyWith(top: statusBarH, left: 8, right: 8, bottom: 10),
-                      viewPadding: mq.viewPadding
-                          .copyWith(top: statusBarH, left: 8, right: 8, bottom: 10),
+                      padding: mq.padding.copyWith(
+                        top: statusBarH,
+                        left: 8,
+                        right: 8,
+                        bottom: 10,
+                      ),
+                      viewPadding: mq.viewPadding.copyWith(
+                        top: statusBarH,
+                        left: 8,
+                        right: 8,
+                        bottom: 10,
+                      ),
                     ),
                     child: Stack(
                       children: [
@@ -420,27 +449,36 @@ class _DemoStatusBar extends StatelessWidget {
     return Material(
       type: MaterialType.transparency,
       child: SizedBox(
-      height: height,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 26),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('9:41',
+        height: height,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 26),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '9:41',
                 style: TextStyle(
-                    color: color, fontSize: 17, fontWeight: FontWeight.w600)),
-            Row(
-              children: [
-                SFIcon(SFIcons.sf_cellularbars, fontSize: 17, color: color),
-                const SizedBox(width: 7),
-                SFIcon(SFIcons.sf_wifi, fontSize: 17, color: color),
-                const SizedBox(width: 7),
-                SFIcon(SFIcons.sf_battery_100percent, fontSize: 20, color: color),
-              ],
-            ),
-          ],
+                  color: color,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Row(
+                children: [
+                  SFIcon(SFIcons.sf_cellularbars, fontSize: 17, color: color),
+                  const SizedBox(width: 7),
+                  SFIcon(SFIcons.sf_wifi, fontSize: 17, color: color),
+                  const SizedBox(width: 7),
+                  SFIcon(
+                    SFIcons.sf_battery_100percent,
+                    fontSize: 20,
+                    color: color,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

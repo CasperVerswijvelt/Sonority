@@ -50,23 +50,23 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
   }
 
   void _toggle(String uuid) => setState(() {
-        if (_selected.remove(uuid)) {
-          _channels.remove(uuid);
-        } else if (_selected.length < _cap) {
-          _selected.add(uuid);
-          _channels[uuid] = GroupChannel.both;
-        }
-      });
+    if (_selected.remove(uuid)) {
+      _channels.remove(uuid);
+    } else if (_selected.length < _cap) {
+      _selected.add(uuid);
+      _channels[uuid] = GroupChannel.both;
+    }
+  });
 
   void _onModeChanged(_Mode m) => setState(() {
-        _mode = m;
-        if (m == _Mode.stereo && _selected.length > 2) {
-          for (final u in _selected.sublist(2)) {
-            _channels.remove(u);
-          }
-          _selected.removeRange(2, _selected.length);
-        }
-      });
+    _mode = m;
+    if (m == _Mode.stereo && _selected.length > 2) {
+      for (final u in _selected.sublist(2)) {
+        _channels.remove(u);
+      }
+      _selected.removeRange(2, _selected.length);
+    }
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -74,8 +74,9 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     if (system == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final candidates =
-        system.zoneableSpeakers.where((d) => d.reachable).toList();
+    final candidates = system.zoneableSpeakers
+        .where((d) => d.reachable)
+        .toList();
     final subs = system.bondableSubs.where((d) => d.reachable).toList();
     final scheme = Theme.of(context).colorScheme;
     // Candidates here are all standalone, so chime applies; gate per-device
@@ -93,7 +94,8 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
         surfaceTintColor: Colors.transparent,
       ),
       body: SafeArea(
-        child: MaxWidthBody(
+        // The segmented-mode header + its divider stay full-width; only the
+        // scrolling Stepper below is clamped/centered on a wide window.
         child: candidates.length < 2
             ? const Center(
                 child: Padding(
@@ -122,11 +124,17 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                           ),
                           segments: const [
                             ButtonSegment(
-                                value: _Mode.stereo, label: Text('Stereo')),
+                              value: _Mode.stereo,
+                              label: Text('Stereo'),
+                            ),
                             ButtonSegment(
-                                value: _Mode.zone, label: Text('Zone')),
+                              value: _Mode.zone,
+                              label: Text('Zone'),
+                            ),
                             ButtonSegment(
-                                value: _Mode.custom, label: Text('Custom')),
+                              value: _Mode.custom,
+                              label: Text('Custom'),
+                            ),
                           ],
                           selected: {_mode},
                           onSelectionChanged: (s) => _onModeChanged(s.first),
@@ -136,81 +144,87 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                   ),
                   Divider(height: 1, color: scheme.outlineVariant),
                   Expanded(
-                    child: Stepper(
-                      currentStep: _step,
-                      type: StepperType.vertical,
-                      onStepTapped: (i) => setState(() => _step = i),
-                      controlsBuilder: (context, _) => _controls(system),
-                      steps: [
-                        Step(
-                          title: const Text('Select speakers'),
-                          isActive: _step >= _stepSpeakers,
-                          state: _selected.length >= 2
-                              ? StepState.complete
-                              : StepState.indexed,
-                          content: _SelectStep(
-                            mode: _mode,
-                            system: system,
-                            candidates: candidates,
-                            selected: _selected,
-                            channels: _channels,
-                            onToggle: _toggle,
-                            onChannel: (u, c) =>
-                                setState(() => _channels[u] = c),
-                            onSwap: () => setState(() => _selected
-                                .setAll(0, [_selected[1], _selected[0]])),
-                            identifyControls: idControls,
+                    child: MaxWidthBody(
+                      child: Stepper(
+                        currentStep: _step,
+                        type: StepperType.vertical,
+                        onStepTapped: (i) => setState(() => _step = i),
+                        controlsBuilder: (context, _) => _controls(system),
+                        steps: [
+                          Step(
+                            title: const Text('Select speakers'),
+                            isActive: _step >= _stepSpeakers,
+                            state: _selected.length >= 2
+                                ? StepState.complete
+                                : StepState.indexed,
+                            content: _SelectStep(
+                              mode: _mode,
+                              system: system,
+                              candidates: candidates,
+                              selected: _selected,
+                              channels: _channels,
+                              onToggle: _toggle,
+                              onChannel: (u, c) =>
+                                  setState(() => _channels[u] = c),
+                              onSwap: () => setState(
+                                () => _selected.setAll(0, [
+                                  _selected[1],
+                                  _selected[0],
+                                ]),
+                              ),
+                              identifyControls: idControls,
+                            ),
                           ),
-                        ),
-                        Step(
-                          title: const Text('Add a Sub'),
-                          subtitle: const Text('Optional'),
-                          isActive: _step >= _stepSub,
-                          state: _subUuid != null
-                              ? StepState.complete
-                              : StepState.indexed,
-                          content: _SubStep(
-                            subs: subs,
-                            selected: _subUuid,
-                            onChanged: (u) => setState(() => _subUuid = u),
+                          Step(
+                            title: const Text('Add a Sub'),
+                            subtitle: const Text('Optional'),
+                            isActive: _step >= _stepSub,
+                            state: _subUuid != null
+                                ? StepState.complete
+                                : StepState.indexed,
+                            content: _SubStep(
+                              subs: subs,
+                              selected: _subUuid,
+                              onChanged: (u) => setState(() => _subUuid = u),
+                            ),
                           ),
-                        ),
-                        Step(
-                          title: const Text('Name'),
-                          subtitle: const Text('Optional'),
-                          isActive: _step >= _stepName,
-                          content: Padding(
-                            // Top room for the floating label (else it clips).
-                            padding: const EdgeInsets.only(top: 8),
-                            child: TextField(
-                              controller: _nameController,
-                              textCapitalization: TextCapitalization.sentences,
-                              decoration: const InputDecoration(
-                                labelText: 'Group name (optional)',
-                                hintText: 'e.g. Downstairs',
-                                border: OutlineInputBorder(),
+                          Step(
+                            title: const Text('Name'),
+                            subtitle: const Text('Optional'),
+                            isActive: _step >= _stepName,
+                            content: Padding(
+                              // Top room for the floating label (else it clips).
+                              padding: const EdgeInsets.only(top: 8),
+                              child: TextField(
+                                controller: _nameController,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                                decoration: const InputDecoration(
+                                  labelText: 'Group name (optional)',
+                                  hintText: 'e.g. Downstairs',
+                                  border: OutlineInputBorder(),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        Step(
-                          title: const Text('Review & create'),
-                          isActive: _step >= _stepReview,
-                          content: _ReviewStep(
-                            mode: _mode,
-                            system: system,
-                            selected: _selected,
-                            channels: _channels,
-                            subUuid: _subUuid,
-                            name: _nameController.text.trim(),
+                          Step(
+                            title: const Text('Review & create'),
+                            isActive: _step >= _stepReview,
+                            content: _ReviewStep(
+                              mode: _mode,
+                              system: system,
+                              selected: _selected,
+                              channels: _channels,
+                              subUuid: _subUuid,
+                              name: _nameController.text.trim(),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
-        ),
       ),
     );
   }
@@ -240,8 +254,8 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
               onPressed: !canAdvance
                   ? null
                   : isLast
-                      ? () => _create(system)
-                      : () => setState(() => _step++),
+                  ? () => _create(system)
+                  : () => setState(() => _step++),
               child: Text(label),
             ),
           ),
@@ -272,16 +286,23 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
       context,
       title: 'Group speakers',
       run: () => controller.createGroup(
-          members: members, sub: sub, name: name.isEmpty ? null : name),
+        members: members,
+        sub: sub,
+        name: name.isEmpty ? null : name,
+      ),
     );
     if (outcome == BondingOutcome.success) {
       router.pop();
     } else if (outcome == BondingOutcome.failed) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Couldn’t create the group — Sonos may not allow one of '
-            'these speakers. See the log for details.'),
-        duration: Duration(seconds: 6),
-      ));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Couldn’t create the group — Sonos may not allow one of '
+            'these speakers. See the log for details.',
+          ),
+          duration: Duration(seconds: 6),
+        ),
+      );
     }
   }
 }
@@ -311,14 +332,13 @@ class _SelectStep extends StatelessWidget {
   });
 
   String get _hint => switch (mode) {
-        _Mode.stereo =>
-          'Pick two speakers — one plays left, the other right (swap below). '
-              'Mismatched models are fine.',
-        _Mode.zone =>
-          'Pick 2–16 speakers. They all play full stereo (L+R) as one room.',
-        _Mode.custom =>
-          'Pick 2–16 speakers and set each to Left, Right, or Both.',
-      };
+    _Mode.stereo =>
+      'Pick two speakers — one plays left, the other right (swap below). '
+          'Mismatched models are fine.',
+    _Mode.zone =>
+      'Pick 2–16 speakers. They all play full stereo (L+R) as one room.',
+    _Mode.custom => 'Pick 2–16 speakers and set each to Left, Right, or Both.',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -401,28 +421,38 @@ class _CandidateTile extends StatelessWidget {
           // CrossFade (not just AnimatedSize) so the control fades out WHILE the
           // height collapses on deselect, instead of vanishing instantly.
           AnimatedCrossFade(
-          duration: const Duration(milliseconds: 200),
-          sizeCurve: Curves.easeInOut,
-          alignment: Alignment.topCenter,
-          crossFadeState:
-              showChannel ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-          firstChild: const SizedBox(width: double.infinity, height: 0),
-          secondChild: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<GroupChannel>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: GroupChannel.left, label: Text('Left')),
-                  ButtonSegment(value: GroupChannel.both, label: Text('Both')),
-                  ButtonSegment(value: GroupChannel.right, label: Text('Right')),
-                ],
-                selected: {channel},
-                onSelectionChanged: (s) => onChannel(s.first),
+            duration: const Duration(milliseconds: 200),
+            sizeCurve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            crossFadeState: showChannel
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: const SizedBox(width: double.infinity, height: 0),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<GroupChannel>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: GroupChannel.left,
+                      label: Text('Left'),
+                    ),
+                    ButtonSegment(
+                      value: GroupChannel.both,
+                      label: Text('Both'),
+                    ),
+                    ButtonSegment(
+                      value: GroupChannel.right,
+                      label: Text('Right'),
+                    ),
+                  ],
+                  selected: {channel},
+                  onSelectionChanged: (s) => onChannel(s.first),
+                ),
               ),
             ),
-          ),
           ),
         ],
       ),
@@ -457,18 +487,20 @@ class _SubStep extends StatelessWidget {
         else ...[
           Text('Optionally add a Sub to the group.', style: muted),
           Gap.s,
-          ...subs.map((s) => Card(
-                margin: const EdgeInsets.only(bottom: kCardGap),
-                clipBehavior: Clip.antiAlias,
-                child: CheckboxListTile(
-                  value: selected == s.uuid,
-                  onChanged: (v) => onChanged((v ?? false) ? s.uuid : null),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text('Subwoofer'),
-                  subtitle: Text(s.typeLabel),
-                  secondary: const Icon(Icons.graphic_eq),
-                ),
-              )),
+          ...subs.map(
+            (s) => Card(
+              margin: const EdgeInsets.only(bottom: kCardGap),
+              clipBehavior: Clip.antiAlias,
+              child: CheckboxListTile(
+                value: selected == s.uuid,
+                onChanged: (v) => onChanged((v ?? false) ? s.uuid : null),
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('Subwoofer'),
+                subtitle: Text(s.typeLabel),
+                secondary: const Icon(Icons.graphic_eq),
+              ),
+            ),
+          ),
         ],
       ],
     );
@@ -496,10 +528,10 @@ class _ReviewStep extends StatelessWidget {
   String _type(String uuid) => system.device(uuid)?.typeLabel ?? 'Speaker';
 
   GroupChannel _channelFor(int i) => switch (mode) {
-        _Mode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
-        _Mode.zone => GroupChannel.both,
-        _Mode.custom => channels[selected[i]] ?? GroupChannel.both,
-      };
+    _Mode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
+    _Mode.zone => GroupChannel.both,
+    _Mode.custom => channels[selected[i]] ?? GroupChannel.both,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -514,10 +546,7 @@ class _ReviewStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(kind, style: theme.textTheme.titleMedium),
-        if (name.isNotEmpty) ...[
-          Gap.s,
-          Text('Name: $name', style: muted),
-        ],
+        if (name.isNotEmpty) ...[Gap.s, Text('Name: $name', style: muted)],
         Gap.s,
         // The bonded layout, shown the same way as a group's detail view: one
         // card per member with its channel role.
