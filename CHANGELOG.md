@@ -17,7 +17,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Responsive desktop layout: on a wide window the bottom tabs become a left navigation rail, content is centered at a readable width, and the System overview lays its cards out in multiple columns. The macOS window is now freely resizable (it was locked to a fixed phone size) — resize it and the layout adapts live. Phones are unchanged.
 - Diagnostics is now its own bottom-bar tab (a full page) instead of a button tucked in the overview's app bar.
 - Standalone rooms can now jump straight into a setup: the room sheet has "Group with another speaker" and "Add to a home theater" shortcuts.
-- Configs the official Sonos app won't build (dedicated fronts, a mixed-model stereo pair, a custom L/R/Both group) now carry a small "Not in the Sonos app" tag, and a large zone shows a "can drop out" caution (with a fuller heads-up on its detail page).
+- A large zone shows a "can drop out" caution on the overview, with a fuller heads-up on its detail page.
 
 ### Changed
 - When applying a profile or layout fails partway, the progress screen now reassures you the system is in a safe state (nothing left half-applied) before offering Retry.

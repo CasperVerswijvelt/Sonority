@@ -53,8 +53,26 @@ class ProfilesScreen extends ConsumerWidget {
                     child: ProfileCard(
                       profile: p,
                       onTap: () => context.go('/profiles/edit/${p.id}'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      // Overflow menu (destructive Delete) tucked top-right.
+                      trailing: PopupMenuButton<String>(
+                        tooltip: 'More',
+                        onSelected: (_) => _confirmDelete(context, ref, p),
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'delete', child: Text('Delete')),
+                        ],
+                      ),
+                      // Split actions: Edit (muted) + Apply (prominent).
                       actions: Row(
                         children: [
+                          Expanded(
+                            child: FilledButton.tonal(
+                              onPressed: () =>
+                                  context.go('/profiles/edit/${p.id}'),
+                              child: const Text('Edit'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: FilledButton.icon(
                               onPressed: () =>
@@ -62,18 +80,6 @@ class ProfilesScreen extends ConsumerWidget {
                               icon: const Icon(Icons.play_arrow),
                               label: const Text('Apply'),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          PopupMenuButton<String>(
-                            tooltip: 'More',
-                            onSelected: (v) => v == 'edit'
-                                ? context.go('/profiles/edit/${p.id}')
-                                : _confirmDelete(context, ref, p),
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              PopupMenuItem(
-                                  value: 'delete', child: Text('Delete')),
-                            ],
                           ),
                         ],
                       ),

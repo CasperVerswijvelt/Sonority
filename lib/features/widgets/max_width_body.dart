@@ -16,7 +16,10 @@ class MaxWidthBody extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < kWideLayoutBreakpoint) return child;
-        return Center(
+        // Center horizontally only — top-align vertically so short content
+        // doesn't float to the middle of a tall window.
+        return Align(
+          alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
             child: child,

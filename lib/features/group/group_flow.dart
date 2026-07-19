@@ -383,19 +383,24 @@ class _CandidateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        BondableSpeakerTile(
-          device: device,
-          selected: selected,
-          onChanged: enabled ? (_) => onToggle() : null,
-          subtitle: device.typeLabel,
-          secondary: identify,
-        ),
-        // CrossFade (not just AnimatedSize) so the control fades out WHILE the
-        // height collapses on deselect, instead of vanishing instantly.
-        AnimatedCrossFade(
+    // Outlined card wrapping the row + its (custom-mode) channel control, so each
+    // selectable speaker reads as its own panel.
+    return Card(
+      margin: const EdgeInsets.only(bottom: kCardGap),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          BondableSpeakerTile(
+            device: device,
+            selected: selected,
+            onChanged: enabled ? (_) => onToggle() : null,
+            subtitle: device.typeLabel,
+            secondary: identify,
+          ),
+          // CrossFade (not just AnimatedSize) so the control fades out WHILE the
+          // height collapses on deselect, instead of vanishing instantly.
+          AnimatedCrossFade(
           duration: const Duration(milliseconds: 200),
           sizeCurve: Curves.easeInOut,
           alignment: Alignment.topCenter,
@@ -418,8 +423,9 @@ class _CandidateTile extends StatelessWidget {
               ),
             ),
           ),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -451,13 +457,17 @@ class _SubStep extends StatelessWidget {
         else ...[
           Text('Optionally add a Sub to the group.', style: muted),
           Gap.s,
-          ...subs.map((s) => CheckboxListTile(
-                value: selected == s.uuid,
-                onChanged: (v) => onChanged((v ?? false) ? s.uuid : null),
-                controlAffinity: ListTileControlAffinity.leading,
-                title: const Text('Subwoofer'),
-                subtitle: Text(s.typeLabel),
-                secondary: const Icon(Icons.graphic_eq),
+          ...subs.map((s) => Card(
+                margin: const EdgeInsets.only(bottom: kCardGap),
+                clipBehavior: Clip.antiAlias,
+                child: CheckboxListTile(
+                  value: selected == s.uuid,
+                  onChanged: (v) => onChanged((v ?? false) ? s.uuid : null),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('Subwoofer'),
+                  subtitle: Text(s.typeLabel),
+                  secondary: const Icon(Icons.graphic_eq),
+                ),
               )),
         ],
       ],

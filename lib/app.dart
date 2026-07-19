@@ -147,6 +147,9 @@ class _HomeShell extends StatelessWidget {
           // Wide: rail on the left, hairline divider, then the branch content.
           return Scaffold(
             body: Row(
+              // Stretch so the rail and content fill the full height (default
+              // is center, which would float short content vertically).
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 NavigationRail(
                   selectedIndex: shell.currentIndex,

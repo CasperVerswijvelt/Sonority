@@ -99,19 +99,34 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // Speakers free to assign, minus ones already chosen in another role here.
-    // Already-bonded speakers of *this* HT aren't in `bondableSpeakers`, so add
-    // the current-role picks explicitly — they must show selected & deselectable.
+    // Candidate speakers for a role: everything standalone, PLUS the speakers
+    // already bonded to *this* HT — those aren't in `bondableSpeakers`, but they
+    // must stay in the list even after you deselect one, or a pre-selected front/
+    // surround would vanish and couldn't be re-added. A speaker chosen in another
+    // role here is hidden from this one.
     final chosenElsewhere = <String>{..._fronts, ..._surrounds, ..._subs};
+    final htOwn = <String>{
+      ...member.channelAssignments.values,
+      ...member.subUuids,
+    };
     List<SonosDevice> avail(List<String> keepFor) {
-      final out = <SonosDevice>[
-        for (final d in system.bondableSpeakers)
-          if (keepFor.contains(d.uuid) || !chosenElsewhere.contains(d.uuid)) d,
-      ];
+      final seen = <String>{};
+      final out = <SonosDevice>[];
+      void consider(String id) {
+        if (!seen.add(id)) return;
+        // Show it unless it's currently assigned to a *different* role.
+        if (!keepFor.contains(id) && chosenElsewhere.contains(id)) return;
+        if (system.device(id) case final d?) out.add(d);
+      }
+
+      for (final d in system.bondableSpeakers) {
+        consider(d.uuid);
+      }
+      for (final id in htOwn) {
+        consider(id);
+      }
       for (final id in keepFor) {
-        if (out.any((d) => d.uuid == id)) continue;
-        final d = system.device(id);
-        if (d != null) out.add(d);
+        consider(id);
       }
       return out;
     }
@@ -472,6 +487,7 @@ class _ChooseSpeakers extends StatelessWidget {
                 ? '${d.typeLabel} — drives both fronts (L + R)'
                 : d.typeLabel,
             secondary: identifyControls(d),
+            outlined: true,
           );
         }),
       ],
@@ -513,6 +529,7 @@ class _ChooseSub extends StatelessWidget {
             onChanged: (!isSel && selected.length >= 2) ? null : (_) => onToggle(d),
             subtitle: d.typeLabel,
             secondary: identifyControls(d),
+            outlined: true,
           );
         }),
       ],

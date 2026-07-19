@@ -308,6 +308,23 @@ class ProfileCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: theme.mutedText,
                         ),
+                        // Capture time as header metadata (grouped with the
+                        // name/summary), with a clock glyph so it reads as a
+                        // timestamp rather than floating loose in the card.
+                        if (profile.updatedAt case final t?) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.schedule,
+                                  size: 13, color: scheme.onSurfaceVariant),
+                              const SizedBox(width: 4),
+                              Text('Updated ${timeAgo(t)}',
+                                  style: theme.textTheme.labelSmall
+                                      ?.copyWith(color: scheme.onSurfaceVariant)),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -319,12 +336,6 @@ class ProfileCard extends StatelessWidget {
               // wrap awkwardly beside it; includes what is NOT captured.
               profileCaptureChips(context,
                   audio: profile.hasAudioSettings, volume: profile.hasVolume),
-              if (profile.updatedAt case final t?) ...[
-                const SizedBox(height: 8),
-                Text('Updated ${timeAgo(t)}',
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(color: scheme.onSurfaceVariant)),
-              ],
               if (actions != null) ...[const SizedBox(height: 14), actions!],
             ],
           ),

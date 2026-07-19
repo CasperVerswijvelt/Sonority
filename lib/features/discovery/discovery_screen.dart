@@ -140,7 +140,7 @@ class _SystemView extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (ctas.isNotEmpty) ...[
-            _cardGrid(ctas),
+            _cardGrid(context, ctas),
             Gap.l,
           ],
           SectionHeader('Home theaters', icon: Icons.theaters_outlined),
@@ -149,7 +149,7 @@ class _SystemView extends ConsumerWidget {
               'No soundbar found. Dedicated fronts need an Arc, Beam, Ray, '
               'Playbar or Playbase.',
             ),
-          _cardGrid([
+          _cardGrid(context, [
             for (final m in theaters)
               EntityCard(
                 model: EntityCardModel.fromMember(system, m),
@@ -168,7 +168,7 @@ class _SystemView extends ConsumerWidget {
           if (groups.isEmpty)
             const _EmptyHint('No speaker groups yet')
           else
-            _cardGrid([
+            _cardGrid(context, [
               for (final m in groups)
                 EntityCard(
                   model: EntityCardModel.fromMember(system, m),
@@ -180,7 +180,7 @@ class _SystemView extends ConsumerWidget {
             Gap.l,
             SectionHeader('Single speaker rooms',
                 icon: Icons.meeting_room_outlined),
-            _cardGrid([
+            _cardGrid(context, [
               for (final m in singleRooms)
                 EntityCard(
                   model: EntityCardModel.fromMember(system, m),
@@ -195,7 +195,7 @@ class _SystemView extends ConsumerWidget {
           if (system.bondableSubs.isNotEmpty) ...[
             Gap.l,
             SectionHeader('Other devices', icon: Icons.devices_other_outlined),
-            _cardGrid([
+            _cardGrid(context, [
               for (final sub in system.bondableSubs)
                 EntityCard(
                   model: EntityCardModel(
@@ -295,18 +295,20 @@ class _ActionCard extends StatelessWidget {
 }
 
 /// Lays a section's entity cards out responsively: one full-width column on a
-/// phone, a multi-column grid on a wide window. Each [EntityCard] already
-/// carries its own bottom gap, so the grid uses `runSpacing: 0` and only adds
-/// horizontal spacing between columns.
-Widget _cardGrid(List<Widget> cards) {
+/// phone, a multi-column grid on a wide window. The wide/narrow switch keys off
+/// the WINDOW width (like the nav rail), not the post-rail content width — so the
+/// grid goes multi-column at exactly the same breakpoint the bottom bar becomes a
+/// rail. Each [EntityCard] carries its own bottom gap, so the grid uses
+/// `runSpacing: 0` and only adds horizontal spacing between columns.
+Widget _cardGrid(BuildContext context, List<Widget> cards) {
   if (cards.isEmpty) return const SizedBox.shrink();
+  if (MediaQuery.sizeOf(context).width < kWideLayoutBreakpoint) {
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch, children: cards);
+  }
   return LayoutBuilder(
     builder: (context, c) {
-      if (c.maxWidth < kWideLayoutBreakpoint) {
-        return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch, children: cards);
-      }
-      final cols = (c.maxWidth / 360).floor().clamp(1, 3);
+      final cols = (c.maxWidth / 360).floor().clamp(2, 3);
       final w = (c.maxWidth - (cols - 1) * kCardGap) / cols;
       return Wrap(
         spacing: kCardGap,

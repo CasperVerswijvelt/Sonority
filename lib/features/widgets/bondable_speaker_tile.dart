@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 
 /// Shown wherever an unreachable speaker ([SonosDevice.reachable] == false)
@@ -30,6 +31,10 @@ class BondableSpeakerTile extends StatelessWidget {
   /// Trailing controls (identify buttons). Hidden when unreachable.
   final Widget? secondary;
 
+  /// Wrap the row in an outlined [Card] so each selectable speaker reads as its
+  /// own tappable panel (used by the pick-speakers lists).
+  final bool outlined;
+
   const BondableSpeakerTile({
     super.key,
     required this.device,
@@ -37,31 +42,37 @@ class BondableSpeakerTile extends StatelessWidget {
     required this.onChanged,
     required this.subtitle,
     this.secondary,
+    this.outlined = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    if (!device.reachable) {
-      return CheckboxListTile(
-        value: false,
-        onChanged: null,
-        title: Text(device.roomName),
-        subtitle: Text(
-          unreachableSpeakerHint,
-          style: TextStyle(color: scheme.error),
-        ),
-        controlAffinity: ListTileControlAffinity.leading,
-        secondary: Icon(Icons.warning_amber_rounded, color: scheme.error),
-      );
-    }
-    return CheckboxListTile(
-      value: selected,
-      onChanged: onChanged,
-      title: Text(device.roomName),
-      subtitle: Text(subtitle),
-      controlAffinity: ListTileControlAffinity.leading,
-      secondary: secondary,
+    final Widget tile = !device.reachable
+        ? CheckboxListTile(
+            value: false,
+            onChanged: null,
+            title: Text(device.roomName),
+            subtitle: Text(
+              unreachableSpeakerHint,
+              style: TextStyle(color: scheme.error),
+            ),
+            controlAffinity: ListTileControlAffinity.leading,
+            secondary: Icon(Icons.warning_amber_rounded, color: scheme.error),
+          )
+        : CheckboxListTile(
+            value: selected,
+            onChanged: onChanged,
+            title: Text(device.roomName),
+            subtitle: Text(subtitle),
+            controlAffinity: ListTileControlAffinity.leading,
+            secondary: secondary,
+          );
+    if (!outlined) return tile;
+    return Card(
+      margin: const EdgeInsets.only(bottom: kCardGap),
+      clipBehavior: Clip.antiAlias,
+      child: tile,
     );
   }
 }

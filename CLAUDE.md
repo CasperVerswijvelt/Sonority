@@ -645,9 +645,11 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   **`PillChip`s**, never a `·`-joined subtitle string) or `ProfileCard`;
   **settings** (toggle/read: Trueplay, capture toggles, saved settings) = the
   card-less `SettingsSection` (flat divider-led rows), NOT a card; **selection** (a
-  transient multi-select pick) = a card-less `CheckboxListTile` (`BondableSpeakerTile`
-  and the same style in every flow — never wrap a picker in a Card); **spatial
-  layout** = `SpeakerDiagram`; **progress** = `ApplyProgressView`; **tag** = the one
+  transient multi-select pick) = a `CheckboxListTile` via `BondableSpeakerTile`,
+  the same style in every flow — the speaker pickers wrap each in an outlined
+  `Card` (`BondableSpeakerTile(outlined: true)`), so each candidate reads as its
+  own panel; **spatial layout** = `SpeakerDiagram`; **progress** =
+  `ApplyProgressView`; **tag** = the one
   `PillChip` (there is no second pill widget). **Color is reserved for profile
   identity** (the user-chosen swatch); system entity glyphs stay tonal-neutral
   (`primaryContainer`) so the two axes never compete. When adding UI, reuse the
