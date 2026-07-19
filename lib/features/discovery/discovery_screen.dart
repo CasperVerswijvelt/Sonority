@@ -140,7 +140,7 @@ class _SystemView extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (ctas.isNotEmpty) ...[
-            _cardGrid(context, ctas),
+            _quickActions(context, ctas),
             Gap.l,
           ],
           SectionHeader('Home theaters', icon: Icons.theaters_outlined),
@@ -239,8 +239,37 @@ Future<void> _buildHomeTheater(
   }
 }
 
-/// A flagship action card at the top of the overview: a tonal glyph, a title,
-/// a one-line description of what it builds, and a chevron.
+/// Lays the overview's quick-action cards out: stacked full-width on a phone, a
+/// single equal-height row on a wide window (so mismatched description lengths
+/// don't leave one card taller than the other).
+Widget _quickActions(BuildContext context, List<Widget> cards) {
+  if (MediaQuery.sizeOf(context).width < kWideLayoutBreakpoint) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < cards.length; i++) ...[
+          if (i > 0) const SizedBox(height: kCardGap),
+          cards[i],
+        ],
+      ],
+    );
+  }
+  return IntrinsicHeight(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < cards.length; i++) ...[
+          if (i > 0) const SizedBox(width: kCardGap),
+          Expanded(child: cards[i]),
+        ],
+      ],
+    ),
+  );
+}
+
+/// A quick-action card at the top of the overview: a primary-tinted icon, a
+/// title, a one-line description of what it builds, and a chevron. A calm
+/// outlined card (not a filled accent) so it leads without shouting.
 class _ActionCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -256,37 +285,29 @@ class _ActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: kCardGap),
-      child: Card(
-        color: theme.colorScheme.primaryContainer,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(kCardRadius),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(icon, color: theme.colorScheme.onPrimaryContainer),
-                Gap.m,
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer)),
-                      Text(subtitle,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer
-                                  .withValues(alpha: 0.8))),
-                    ],
-                  ),
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(kCardRadius),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(icon, color: theme.colorScheme.primary, size: 26),
+              Gap.m,
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: theme.textTheme.titleMedium),
+                    Text(subtitle, style: theme.mutedText),
+                  ],
                 ),
-                Icon(Icons.chevron_right,
-                    color: theme.colorScheme.onPrimaryContainer),
-              ],
-            ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
           ),
         ),
       ),

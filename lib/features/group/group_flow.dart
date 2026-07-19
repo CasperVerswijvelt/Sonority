@@ -367,10 +367,7 @@ class _SelectStep extends StatelessWidget {
           AssignSides(
             system: system,
             selected: selected,
-            leftLabel: 'LEFT',
-            rightLabel: 'RIGHT',
             onSwap: onSwap,
-            identifyControls: identifyControls,
           ),
         ],
       ],

@@ -2,30 +2,24 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
-import 'speaker_side_card.dart';
 
-/// The two-speaker L/R assignment row: a [SpeakerSideCard] per side with a swap
-/// button between them, plus a "tap swap if reversed" hint. Shared by the
-/// home-theater setup (fronts / rear surrounds) and the stereo-group flow so the
-/// L/R assignment reads identically everywhere.
+/// Assigns which of two chosen speakers plays left vs right: one compact row per
+/// speaker with a Left/Right segmented toggle. There are only two, so choosing a
+/// side on one swaps them — [selected] is ordered `[left, right]`, and any change
+/// calls [onSwap]. Shared by the home-theater setup (fronts / rear surrounds) and
+/// the stereo-group flow.
 class AssignSides extends StatelessWidget {
   final SonosSystem system;
 
   /// The two chosen uuids, order [left, right].
   final List<String> selected;
-  final String leftLabel;
-  final String rightLabel;
   final VoidCallback onSwap;
-  final Widget Function(SonosDevice device) identifyControls;
 
   const AssignSides({
     super.key,
     required this.system,
     required this.selected,
-    required this.leftLabel,
-    required this.rightLabel,
     required this.onSwap,
-    required this.identifyControls,
   });
 
   @override
@@ -33,33 +27,49 @@ class AssignSides extends StatelessWidget {
     if (selected.length != 2) {
       return const Text('Choose two speakers first.');
     }
-    final left = system.device(selected[0]);
-    final right = system.device(selected[1]);
+    final theme = Theme.of(context);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-                child: SpeakerSideCard(
-                    side: leftLabel,
-                    device: left,
-                    controls: left == null ? null : identifyControls(left))),
-            IconButton.filledTonal(
-              onPressed: onSwap,
-              icon: const Icon(Icons.swap_horiz),
-              tooltip: 'Swap sides',
-            ),
-            Expanded(
-                child: SpeakerSideCard(
-                    side: rightLabel,
-                    device: right,
-                    controls: right == null ? null : identifyControls(right))),
-          ],
-        ),
-        Gap.s,
-        Text('Tap swap if the sides are reversed.',
-            style: Theme.of(context).textTheme.bodySmall),
+        for (var i = 0; i < 2; i++) _row(context, i),
+        Gap.xs,
+        Text('Tap a side to swap which speaker plays left or right.',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
       ],
+    );
+  }
+
+  Widget _row(BuildContext context, int i) {
+    final theme = Theme.of(context);
+    final device = system.device(selected[i]);
+    final isRight = i == 1;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(Icons.speaker, color: theme.colorScheme.onSurfaceVariant),
+          Gap.s,
+          Expanded(
+            child: Text(device?.roomName ?? '—',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall),
+          ),
+          SegmentedButton<bool>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: false, label: Text('Left')),
+              ButtonSegment(value: true, label: Text('Right')),
+            ],
+            selected: {isRight},
+            // Only two speakers, so picking the other side swaps the pair.
+            onSelectionChanged: (s) {
+              if (s.first != isRight) onSwap();
+            },
+          ),
+        ],
+      ),
     );
   }
 }

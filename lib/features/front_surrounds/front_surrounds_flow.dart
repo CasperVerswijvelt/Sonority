@@ -196,12 +196,9 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                       AssignSides(
                         system: system,
                         selected: _fronts,
-                        leftLabel: 'LEFT',
-                        rightLabel: 'RIGHT',
                         onSwap: () => setState(
                           () => _fronts.setAll(0, [_fronts[1], _fronts[0]]),
                         ),
-                        identifyControls: idControls,
                       ),
                     ],
                   ],
@@ -234,15 +231,12 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                       AssignSides(
                         system: system,
                         selected: _surrounds,
-                        leftLabel: 'REAR LEFT',
-                        rightLabel: 'REAR RIGHT',
                         onSwap: () => setState(
                           () => _surrounds.setAll(0, [
                             _surrounds[1],
                             _surrounds[0],
                           ]),
                         ),
-                        identifyControls: idControls,
                       ),
                     ],
                   ],
