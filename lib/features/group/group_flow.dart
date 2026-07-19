@@ -84,6 +84,18 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     Widget idControls(SonosDevice d) =>
         identifyButtons(d, chime: system.isStandalone(d.uuid));
 
+    // A step's subtitle: the picked speaker types when it has a selection (so a
+    // collapsed step summarizes itself), else "Optional".
+    Widget stepSubtitle(List<String> uuids) => uuids.isEmpty
+        ? const Text('Optional')
+        : Text(
+            uuids
+                .map((u) => system.device(u)?.typeLabel ?? 'Speaker')
+                .join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          );
+
     return Scaffold(
       // No scroll-under elevation: the steps tuck behind the segmented-control
       // header (with its own divider), so a second line under the app bar would
@@ -153,6 +165,9 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                         steps: [
                           Step(
                             title: const Text('Select speakers'),
+                            subtitle: _selected.isEmpty
+                                ? null
+                                : stepSubtitle(_selected),
                             isActive: _step >= _stepSpeakers,
                             state: _selected.length >= 2
                                 ? StepState.complete
@@ -177,7 +192,9 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                           ),
                           Step(
                             title: const Text('Add a Sub'),
-                            subtitle: const Text('Optional'),
+                            subtitle: stepSubtitle([
+                              if (_subUuid != null) _subUuid!,
+                            ]),
                             isActive: _step >= _stepSub,
                             state: _subUuid != null
                                 ? StepState.complete
@@ -364,11 +381,7 @@ class _SelectStep extends StatelessWidget {
         }),
         if (mode == _Mode.stereo && selected.length == 2) ...[
           Gap.m,
-          AssignSides(
-            system: system,
-            selected: selected,
-            onSwap: onSwap,
-          ),
+          AssignSides(system: system, selected: selected, onSwap: onSwap),
         ],
       ],
     );

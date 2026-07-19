@@ -146,9 +146,35 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     Widget idControls(SonosDevice d) =>
         identifyButtons(d, chime: system.isStandalone(d.uuid));
 
+    // A step's subtitle: the picked speaker types when it has a selection (so a
+    // collapsed step summarizes itself), else "Optional".
+    Widget stepSubtitle(List<String> uuids) => uuids.isEmpty
+        ? const Text('Optional')
+        : Text(
+            uuids
+                .map((u) => system.device(u)?.typeLabel ?? 'Speaker')
+                .join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          );
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Set up home theater'),
+        // Name the soundbar this is being built around (the flow otherwise jumps
+        // straight into front selection with no indication of the target).
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Set up home theater'),
+            Text(
+              '${member.zoneName} · ${soundbar.typeLabel}',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
           child: ScrolledUnderDivider(),
@@ -165,7 +191,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
             steps: [
               Step(
                 title: const Text('Front speakers'),
-                subtitle: const Text('Optional'),
+                subtitle: stepSubtitle(_fronts),
                 isActive: _step >= 0,
                 state: _fronts.isNotEmpty && _frontsValid
                     ? StepState.complete
@@ -206,7 +232,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
               ),
               Step(
                 title: const Text('Rear surrounds'),
-                subtitle: const Text('Optional'),
+                subtitle: stepSubtitle(_surrounds),
                 isActive: _step >= 1,
                 state: _surrounds.length == 2
                     ? StepState.complete
@@ -244,7 +270,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
               ),
               Step(
                 title: const Text('Subwoofer'),
-                subtitle: const Text('Optional'),
+                subtitle: stepSubtitle(_subs),
                 isActive: _step >= 2,
                 state: _subs.isNotEmpty
                     ? StepState.complete
