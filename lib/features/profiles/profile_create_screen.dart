@@ -240,9 +240,14 @@ class _State extends ConsumerState<ProfileCreateScreen> {
       // an unsaved change — it commits them on Save, no overwrite here.
       router.pop(chosen);
     } else {
-      final id = DateTime.now().microsecondsSinceEpoch.toString();
+      final now = DateTime.now();
       await notifier.add(Profile(
-          id: id, name: name, entities: chosen, iconId: _iconId, color: _color));
+          id: now.microsecondsSinceEpoch.toString(),
+          name: name,
+          entities: chosen,
+          iconId: _iconId,
+          color: _color,
+          updatedAt: now));
       router.go('/profiles');
     }
   }

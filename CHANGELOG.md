@@ -12,6 +12,8 @@ section into the GitHub Release notes regardless of the build suffix
 ## [Unreleased]
 
 ### Added
+- The overview now leads with quick actions — "Build a home theater" and "Create a group" cards — shown only when your system can actually do them (a soundbar is present; there are at least two groupable speakers).
+- Profile tiles are roomier: the capture summary now sits on its own line and spells out what a profile does NOT store ("No audio settings" / "No volume") as well as what it does, shows "Updated X ago", and has a full-width Apply button.
 - Responsive desktop layout: on a wide window the bottom tabs become a left navigation rail, content is centered at a readable width, and the System overview lays its cards out in multiple columns. The macOS window is now freely resizable (it was locked to a fixed phone size) — resize it and the layout adapts live. Phones are unchanged.
 - Diagnostics is now its own bottom-bar tab (a full page) instead of a button tucked in the overview's app bar.
 - Standalone rooms can now jump straight into a setup: the room sheet has "Group with another speaker" and "Add to a home theater" shortcuts.

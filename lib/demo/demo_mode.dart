@@ -226,6 +226,7 @@ List<Profile> demoProfiles() => [
         name: 'Movie night',
         iconId: 'movie',
         color: 2,
+        updatedAt: DateTime.now().subtract(const Duration(days: 3)),
         entities: [EntitySnapshot.fromMember(demoHomeTheater)],
       ),
       Profile(
@@ -233,6 +234,7 @@ List<Profile> demoProfiles() => [
         name: 'Music everywhere',
         iconId: 'music',
         color: 1,
+        updatedAt: DateTime.now().subtract(const Duration(days: 14)),
         entities: [
           EntitySnapshot.fromMember(demoStereoPair),
           EntitySnapshot.fromMember(demoZone),

@@ -74,27 +74,21 @@ class _RoomSheet extends ConsumerWidget {
             ),
           // Put this speaker to use: shortcuts into the bonding flows so a
           // standalone room isn't a dead end (the flows do their own validation).
-          Padding(
-            padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => _leaveTo(context, '/group'),
-                  icon: const Icon(Icons.speaker_group_outlined),
-                  label: const Text('Group with another speaker'),
-                ),
-                if (soundbars.isNotEmpty) ...[
-                  Gap.s,
-                  OutlinedButton.icon(
-                    onPressed: () => _addToHomeTheater(context, soundbars),
-                    icon: const Icon(Icons.surround_sound),
-                    label: const Text('Add to a home theater'),
-                  ),
-                ],
-              ],
-            ),
+          // Descriptive rows (title + what it does), not bare buttons.
+          _ActionRow(
+            icon: Icons.speaker_group_outlined,
+            title: 'Group with another speaker',
+            subtitle: 'Stereo pair, full-range zone, or custom L/R',
+            onTap: () => _leaveTo(context, '/group'),
           ),
+          if (soundbars.isNotEmpty)
+            _ActionRow(
+              icon: Icons.surround_sound,
+              title: 'Add to a home theater',
+              subtitle: 'As a front, surround, or sub',
+              onTap: () => _addToHomeTheater(context, soundbars),
+            ),
+          Gap.s,
           // Settings: a flat, sectioned Trueplay row, not another card.
           SettingsSection(children: [TrueplayControl(devices: devices)]),
         ],
@@ -135,6 +129,34 @@ Future<void> _addToHomeTheater(
   }
   if (target == null || !context.mounted) return;
   _leaveTo(context, '/theater/$target/fronts');
+}
+
+/// A flat, tappable "do something with this speaker" row: icon + title + a line
+/// describing where it leads, with a chevron. Reads as an action, distinct from
+/// the content card above and the settings section below.
+class _ActionRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _ActionRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: kPageGutter),
+      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
+    );
+  }
 }
 
 Future<void> _rename(BuildContext context, WidgetRef ref, SonosDevice device,

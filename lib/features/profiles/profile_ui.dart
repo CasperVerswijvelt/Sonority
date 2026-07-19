@@ -234,16 +234,20 @@ class ProfileNameField extends StatelessWidget {
 }
 
 /// The profile card used in the Profiles overview and the widget picker — the
-/// same card everywhere. [trailing] swaps the actions (Apply + menu on the
-/// overview, a selection indicator in the picker); [selected] highlights it.
+/// same card everywhere. [trailing] is the top-right slot (a selection dot in
+/// the picker); [actions] is an optional bottom row (the overview's big Apply
+/// button + menu). [selected] highlights it. Capture chips (what the snapshot
+/// stores, including what it does NOT) sit on their own line, and "updated X
+/// ago" shows when known.
 class ProfileCard extends StatelessWidget {
   final Profile profile;
   final VoidCallback? onTap;
   final Widget? trailing;
+  final Widget? actions;
   final bool selected;
 
-  /// Vertical placement of the row's children — the overview centres its Apply
-  /// button; the picker top-aligns so its selection dot sits in the top-right.
+  /// Vertical placement of the header row's children — the picker top-aligns so
+  /// its selection dot sits in the top-right.
   final CrossAxisAlignment crossAxisAlignment;
 
   const ProfileCard({
@@ -251,6 +255,7 @@ class ProfileCard extends StatelessWidget {
     required this.profile,
     this.onTap,
     this.trailing,
+    this.actions,
     this.selected = false,
     this.crossAxisAlignment = CrossAxisAlignment.center,
   });
@@ -276,39 +281,51 @@ class ProfileCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(kCardRadius),
         onTap: onTap,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, trailing == null ? 16 : 8, 16),
-          child: Row(
-            crossAxisAlignment: crossAxisAlignment,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              EntityGlyph(
-                background: tonal.card,
-                child: profileGlyph(profile.iconId,
-                    size: 22, color: tonal.icon),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(profile.name, style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 4),
-                    Text(
-                      summary.isEmpty ? 'No entities' : summary,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.mutedText,
+              Row(
+                crossAxisAlignment: crossAxisAlignment,
+                children: [
+                  EntityGlyph(
+                    size: 48,
+                    background: tonal.card,
+                    child: profileGlyph(profile.iconId,
+                        size: 24, color: tonal.icon),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(profile.name, style: theme.textTheme.titleMedium),
+                        const SizedBox(height: 2),
+                        Text(
+                          summary.isEmpty ? 'No entities' : summary,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.mutedText,
+                        ),
+                      ],
                     ),
-                    if (settingsBadges(context,
-                            audio: profile.hasAudioSettings,
-                            volume: profile.hasVolume)
-                        case final badges?) ...[
-                      const SizedBox(height: 8),
-                      badges,
-                    ],
-                  ],
-                ),
+                  ),
+                  if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+                ],
               ),
-              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+              const SizedBox(height: 12),
+              // Capture chips on their own line so they never crowd the glyph or
+              // wrap awkwardly beside it; includes what is NOT captured.
+              profileCaptureChips(context,
+                  audio: profile.hasAudioSettings, volume: profile.hasVolume),
+              if (profile.updatedAt case final t?) ...[
+                const SizedBox(height: 8),
+                Text('Updated ${timeAgo(t)}',
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: scheme.onSurfaceVariant)),
+              ],
+              if (actions != null) ...[const SizedBox(height: 14), actions!],
             ],
           ),
         ),
@@ -334,6 +351,45 @@ Widget? settingsBadges(BuildContext context,
       if (volume) PillChip(icon: Icons.volume_up, text: 'Volume', color: color),
     ],
   );
+}
+
+/// The profile TILE's capture summary: what the snapshot stores. Layout & names
+/// are always captured; audio/volume are opt-in, so those show a positive
+/// (`secondary`) chip when captured and a muted (`onSurfaceVariant`) "not saved"
+/// chip when not — so the tile states plainly what applying will and won't
+/// restore. (The per-entity detail footer keeps [settingsBadges], positive-only.)
+Widget profileCaptureChips(BuildContext context,
+    {required bool audio, required bool volume}) {
+  final scheme = Theme.of(context).colorScheme;
+  final on = scheme.secondary;
+  final off = scheme.onSurfaceVariant;
+  return Wrap(
+    spacing: 6,
+    runSpacing: 6,
+    children: [
+      PillChip(icon: Icons.check, text: 'Layout + names', color: scheme.primary),
+      audio
+          ? PillChip(icon: Icons.tune, text: 'Audio settings', color: on)
+          : PillChip(icon: Icons.tune, text: 'No audio settings', color: off),
+      volume
+          ? PillChip(icon: Icons.volume_up, text: 'Volume', color: on)
+          : PillChip(icon: Icons.volume_off, text: 'No volume', color: off),
+    ],
+  );
+}
+
+/// Compact relative time ("just now", "3 days ago", "2 weeks ago") for the
+/// profile tile's "updated X ago" line. No date dependency — a small ladder.
+String timeAgo(DateTime t) {
+  final d = DateTime.now().difference(t);
+  String p(int n, String unit) => '$n $unit${n == 1 ? '' : 's'} ago';
+  if (d.inMinutes < 1) return 'just now';
+  if (d.inMinutes < 60) return p(d.inMinutes, 'minute');
+  if (d.inHours < 24) return p(d.inHours, 'hour');
+  if (d.inDays < 7) return p(d.inDays, 'day');
+  if (d.inDays < 30) return p(d.inDays ~/ 7, 'week');
+  if (d.inDays < 365) return p(d.inDays ~/ 30, 'month');
+  return p(d.inDays ~/ 365, 'year');
 }
 
 /// Icon + colour picker dialog. Returns the chosen `(iconId, color)`, or null if

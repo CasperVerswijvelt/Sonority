@@ -112,6 +112,26 @@ class _SystemView extends ConsumerWidget {
     final singleRooms = system.allMembers
         .where((m) => !theaters.contains(m) && !m.isGroup)
         .toList();
+    // Flagship actions, shown only when the system can actually do them: a home
+    // theater needs a soundbar; a group needs ≥2 standalone groupable speakers.
+    final canGroup =
+        system.zoneableSpeakers.where((d) => d.reachable).length >= 2;
+    final ctas = <Widget>[
+      if (theaters.isNotEmpty)
+        _ActionCard(
+          icon: Icons.surround_sound,
+          title: 'Build a home theater',
+          subtitle: 'Dedicated fronts, rears & a sub around a soundbar',
+          onTap: () => _buildHomeTheater(context, theaters),
+        ),
+      if (canGroup)
+        _ActionCard(
+          icon: Icons.speaker_group_outlined,
+          title: 'Create a group',
+          subtitle: 'Stereo pair, full-range zone, or custom L/R',
+          onTap: () => context.push('/group'),
+        ),
+    ];
     // Owns its own scroll, filling the screen-sized body. The app bar is fixed,
     // so there's no collapse to lose; Rescan / pull-to-refresh cover refresh.
     return SingleChildScrollView(
@@ -119,6 +139,10 @@ class _SystemView extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (ctas.isNotEmpty) ...[
+            _cardGrid(ctas),
+            Gap.l,
+          ],
           SectionHeader('Home theaters', icon: Icons.theaters_outlined),
           if (theaters.isEmpty)
             const _EmptyHint(
@@ -184,6 +208,87 @@ class _SystemView extends ConsumerWidget {
             ]),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Routes into home-theater setup — straight to the fronts flow with one
+/// soundbar, or a small chooser when there are several.
+Future<void> _buildHomeTheater(
+    BuildContext context, List<ZoneGroupMember> soundbars) async {
+  if (soundbars.length == 1) {
+    context.push('/theater/${soundbars.first.uuid}/fronts');
+    return;
+  }
+  final target = await showDialog<String>(
+    context: context,
+    builder: (ctx) => SimpleDialog(
+      title: const Text('Which soundbar?'),
+      children: [
+        for (final s in soundbars)
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, s.uuid),
+            child: Text(s.zoneName),
+          ),
+      ],
+    ),
+  );
+  if (target != null && context.mounted) {
+    context.push('/theater/$target/fronts');
+  }
+}
+
+/// A flagship action card at the top of the overview: a tonal glyph, a title,
+/// a one-line description of what it builds, and a chevron.
+class _ActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _ActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: kCardGap),
+      child: Card(
+        color: theme.colorScheme.primaryContainer,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(kCardRadius),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(icon, color: theme.colorScheme.onPrimaryContainer),
+                Gap.m,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer)),
+                      Text(subtitle,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer
+                                  .withValues(alpha: 0.8))),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right,
+                    color: theme.colorScheme.onPrimaryContainer),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

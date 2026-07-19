@@ -53,16 +53,19 @@ class ProfilesScreen extends ConsumerWidget {
                     child: ProfileCard(
                       profile: p,
                       onTap: () => context.go('/profiles/edit/${p.id}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
+                      actions: Row(
                         children: [
-                          IconButton.filled(
-                            onPressed: () =>
-                                applyProfileInteractive(context, ref, p),
-                            tooltip: 'Apply',
-                            icon: const Icon(Icons.play_arrow),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: () =>
+                                  applyProfileInteractive(context, ref, p),
+                              icon: const Icon(Icons.play_arrow),
+                              label: const Text('Apply'),
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           PopupMenuButton<String>(
+                            tooltip: 'More',
                             onSelected: (v) => v == 'edit'
                                 ? context.go('/profiles/edit/${p.id}')
                                 : _confirmDelete(context, ref, p),

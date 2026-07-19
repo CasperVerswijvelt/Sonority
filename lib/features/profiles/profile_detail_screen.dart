@@ -144,6 +144,9 @@ class _State extends ConsumerState<ProfileDetailScreen> {
           iconId: _iconId,
           color: _color,
           entities: _pendingEntities ?? profile.entities,
+          // Bump the "updated X ago" stamp only when the snapshot was recaptured
+          // (a name/appearance edit leaves the capture time alone).
+          updatedAt: _pendingEntities != null ? DateTime.now() : null,
         ));
     if (!mounted) return;
     // Stay on the page: clearing pending + the provider update make `changed`
