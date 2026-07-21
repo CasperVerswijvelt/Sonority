@@ -6,11 +6,12 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/assign_sides.dart';
-import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/bonding_progress_screen.dart';
+import '../widgets/card_grid.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/max_width_body.dart';
 import '../widgets/member_channel_card.dart';
+import '../widgets/selectable_speaker_card.dart';
 
 /// How the segmented control frames the bond. All three build a `ChannelMapSet`
 /// and go through the same `AddBondedZones` engine path.
@@ -365,20 +366,7 @@ class _SelectStep extends StatelessWidget {
       children: [
         Text(_hint, style: Theme.of(context).textTheme.bodySmall),
         Gap.s,
-        ...candidates.map((d) {
-          final isSel = selected.contains(d.uuid);
-          final disabled = !isSel && selected.length >= cap;
-          return _CandidateTile(
-            device: d,
-            selected: isSel,
-            enabled: !disabled,
-            showChannel: mode == _Mode.custom && isSel,
-            channel: channels[d.uuid] ?? GroupChannel.both,
-            onToggle: () => onToggle(d.uuid),
-            onChannel: (c) => onChannel(d.uuid, c),
-            identify: identifyControls(d),
-          );
-        }),
+        CardGrid([for (final d in candidates) _card(context, d, cap)]),
         if (mode == _Mode.stereo && selected.length == 2) ...[
           Gap.m,
           AssignSides(system: system, selected: selected, onSwap: onSwap),
@@ -386,86 +374,32 @@ class _SelectStep extends StatelessWidget {
       ],
     );
   }
-}
 
-/// A selectable speaker row (the shared card-less selection register), plus — in
-/// custom mode when selected — an animated Left/Both/Right control beneath it.
-class _CandidateTile extends StatelessWidget {
-  final SonosDevice device;
-  final bool selected;
-  final bool enabled;
-  final bool showChannel;
-  final GroupChannel channel;
-  final VoidCallback onToggle;
-  final void Function(GroupChannel) onChannel;
-  final Widget identify;
-
-  const _CandidateTile({
-    required this.device,
-    required this.selected,
-    required this.enabled,
-    required this.showChannel,
-    required this.channel,
-    required this.onToggle,
-    required this.onChannel,
-    required this.identify,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Outlined card wrapping the row + its (custom-mode) channel control, so each
-    // selectable speaker reads as its own panel.
-    return Card(
-      margin: const EdgeInsets.only(bottom: kCardGap),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          BondableSpeakerTile(
-            device: device,
-            selected: selected,
-            onChanged: enabled ? (_) => onToggle() : null,
-            subtitle: device.typeLabel,
-            secondary: identify,
-          ),
-          // CrossFade (not just AnimatedSize) so the control fades out WHILE the
-          // height collapses on deselect, instead of vanishing instantly.
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 200),
-            sizeCurve: Curves.easeInOut,
-            alignment: Alignment.topCenter,
-            crossFadeState: showChannel
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            firstChild: const SizedBox(width: double.infinity, height: 0),
-            secondChild: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<GroupChannel>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(
-                      value: GroupChannel.left,
-                      label: Text('Left'),
-                    ),
-                    ButtonSegment(
-                      value: GroupChannel.both,
-                      label: Text('Both'),
-                    ),
-                    ButtonSegment(
-                      value: GroupChannel.right,
-                      label: Text('Right'),
-                    ),
-                  ],
-                  selected: {channel},
-                  onSelectionChanged: (s) => onChannel(s.first),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+  /// One selectable speaker — with an in-card Left/Both/Right selector in custom
+  /// mode (revealed once selected). Zone/stereo modes have no per-speaker choice.
+  Widget _card(BuildContext context, SonosDevice d, int cap) {
+    final isSel = selected.contains(d.uuid);
+    final disabled = !isSel && selected.length >= cap;
+    return SelectableSpeakerCard(
+      device: d,
+      selected: isSel,
+      enabled: !disabled,
+      onToggle: () => onToggle(d.uuid),
+      subtitle: d.typeLabel,
+      identify: identifyControls(d),
+      showControl: mode == _Mode.custom && isSel,
+      control: mode == _Mode.custom
+          ? SegmentedButton<GroupChannel>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: GroupChannel.left, label: Text('Left')),
+                ButtonSegment(value: GroupChannel.both, label: Text('Both')),
+                ButtonSegment(value: GroupChannel.right, label: Text('Right')),
+              ],
+              selected: {channels[d.uuid] ?? GroupChannel.both},
+              onSelectionChanged: (s) => onChannel(d.uuid, s.first),
+            )
+          : null,
     );
   }
 }

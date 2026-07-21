@@ -445,8 +445,8 @@ Run on the same Wi-Fi as the Sonos system:
   **resizable** (`MainFlutterWindow.swift`: default ~1100×900, min ~380×640,
   clamped to the screen's visible frame — App Review G4). The UI is **responsive**
   (see Conventions): a phone-width window shows the bottom nav + single column; a
-  wide window shows a `NavigationRail` + centered/multi-column content, driven by
-  `kWideLayoutBreakpoint`. (macOS "Resume" may restore a previously-saved small
+  wide window shows a `NavigationRail` + full-width, multi-column content, driven by
+  `kWideLayoutBreakpoint` (the window is width-capped rather than centering content). (macOS "Resume" may restore a previously-saved small
   window frame on relaunch; the window is resizable, and fresh installs open at
   the default.)
 - Phones stay **portrait-only** (`SystemChrome` + iOS plist + Android manifest);
@@ -662,12 +662,17 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   identify / group / add-to-HT / Trueplay actions). **Sheets are reserved for
   read-only peeks** — currently just the profile-entity detail
   (`showEntitySheet`), which only displays a stored snapshot. So the split is by
-  *interactivity*, not weight. **Guided flows** (`/group`, `/theater/:uuid/fronts`)
-  are **top-level routes** (siblings of the `StatefulShellRoute`, NOT inside a
-  branch) so they render on the root navigator and cover the tab bar — a wizard is
-  commit-or-cancel, like the bonding progress screen. (go_router **asserts** if you
-  put `parentNavigatorKey: rootNavigatorKey` on a route *inside* a branch — that
-  red-screens at runtime, caught only on-device; top-level placement is the fix.)
+  *interactivity*, not weight. **Guided flows** differ by origin: the from-scratch
+  **group flow** (`/group`) is a **top-level route** (sibling of the
+  `StatefulShellRoute`, NOT inside a branch) so it renders on the root navigator and
+  covers the tab bar — a from-nothing wizard is commit-or-cancel, like the bonding
+  progress screen. The **HT setup flow** (`/theater/:uuid/fronts`) is instead a
+  **nested in-shell route** (child of `/theater/:uuid` in the System branch) so the
+  rail/tab bar stay visible and Back works — it's a step within an existing home
+  theater's page, not a modal wizard. (go_router **asserts** if you put
+  `parentNavigatorKey: rootNavigatorKey` on a route *inside* a branch — that
+  red-screens at runtime, caught only on-device; a top-level route or a plain nested
+  route are the two valid placements.)
   Don't route an actionable detail as a sheet again (it reintroduces the
   page-on-sheet stack when Separate/apply pushes the bonding screen). The
   **room page** offers shortcuts INTO the flows ("Group with another speaker" →
@@ -683,12 +688,16 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   `Padding` — sharing one left inset; `NavigationRail`'s own leading/trailing
   centre their slots, so they're not used). The System app bar then just reads
   "System" (discovery flips its title/actions on `MediaQuery.sizeOf(context).width
-  >= kWideLayoutBreakpoint`). `AppScaffold` wraps its body in `MaxWidthBody`
-  (centered, clamped to `kContentMaxWidth`; the overview passes the wider
-  `kOverviewMaxWidth` and lays cards out in a `_cardGrid` of columns). The three
-  tabs (System / Profiles / **Diagnostics**) share one `_destinations` list so the
-  rail and bar can't drift. Guided flows + the bonding screen also clamp via
-  `MaxWidthBody`. Keep new pages on `AppScaffold` so they inherit the clamp for free.
+  >= kWideLayoutBreakpoint`). **Content is NOT centered/clamped** — `AppScaffold`
+  bodies **fill the full width**; the desktop window is instead width-capped
+  (`MainFlutterWindow.swift` `contentMaxSize`) so cards fill without stretching.
+  Card lists use the shared **`CardGrid`** (`features/widgets/card_grid.dart`) —
+  one column on a phone, 2–3 columns when wide — on the overview, Profiles (grid
+  when wide, drag-reorder list when narrow), the group/HT detail pages, and the
+  setup-flow pickers. The three tabs (System / Profiles / **Diagnostics**) share
+  one `_destinations` list so the rail and bar can't drift. The **modal wizards**
+  (group flow + bonding screen) still clamp to `kContentMaxWidth` via `MaxWidthBody`
+  (a full-window form stays readable); tab/detail pages don't.
 - **Names vs. types in the UI.** Once a speaker is bonded into an HT or stereo
   entity its individual room name stops mattering — Sonos absorbs it into the
   entity name (a satellite/hidden half just echoes the HT/pair name), so showing

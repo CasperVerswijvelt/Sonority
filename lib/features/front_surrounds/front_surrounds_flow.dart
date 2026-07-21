@@ -7,13 +7,14 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
-import '../widgets/assign_sides.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
+import '../widgets/card_grid.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/info_note.dart';
 import '../widgets/max_width_body.dart';
+import '../widgets/selectable_speaker_card.dart';
 import '../widgets/speaker_diagram.dart';
 
 /// Seeds the configure-HT selectors from [member]'s current bond: front uuids
@@ -204,7 +205,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   children: [
                     Text(
                       'Pick two speakers (or a single Amp) for the front '
-                      'left & right, then set which is which.',
+                      'left & right, then set which plays which side.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Gap.s,
@@ -212,6 +213,9 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                       candidates: avail(_fronts),
                       selected: _fronts,
                       onToggle: _toggleFront,
+                      onSwap: () => setState(
+                        () => _fronts.setAll(0, [_fronts[1], _fronts[0]]),
+                      ),
                       identifyControls: idControls,
                     ),
                     if (_ampMode) ...[
@@ -219,15 +223,6 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                       _AmpWiringNote(
                         amp: system.device(_fronts.first),
                         identifyControls: idControls,
-                      ),
-                    ] else if (_fronts.length == 2) ...[
-                      Gap.m,
-                      AssignSides(
-                        system: system,
-                        selected: _fronts,
-                        onSwap: () => setState(
-                          () => _fronts.setAll(0, [_fronts[1], _fronts[0]]),
-                        ),
                       ),
                     ],
                   ],
@@ -244,7 +239,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Pick two speakers for the rear left & right surrounds.',
+                      'Pick two speakers for the rear left & right surrounds, '
+                      'then set which plays which side.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Gap.s,
@@ -252,22 +248,15 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                       candidates: avail(_surrounds),
                       selected: _surrounds,
                       onToggle: _toggleSurround,
+                      onSwap: () => setState(
+                        () => _surrounds.setAll(0, [
+                          _surrounds[1],
+                          _surrounds[0],
+                        ]),
+                      ),
                       identifyControls: idControls,
                       allowAmp: false,
                     ),
-                    if (_surrounds.length == 2) ...[
-                      Gap.m,
-                      AssignSides(
-                        system: system,
-                        selected: _surrounds,
-                        onSwap: () => setState(
-                          () => _surrounds.setAll(0, [
-                            _surrounds[1],
-                            _surrounds[0],
-                          ]),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -490,8 +479,13 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
 
 class _ChooseSpeakers extends StatelessWidget {
   final List<SonosDevice> candidates;
+
+  /// The chosen uuids, ordered `[left, right]` (or `[amp]`).
   final List<String> selected;
   final void Function(SonosDevice device) onToggle;
+
+  /// Swap which chosen speaker is left vs right (there are only two).
+  final VoidCallback onSwap;
   final Widget Function(SonosDevice device) identifyControls;
   final bool allowAmp;
 
@@ -499,6 +493,7 @@ class _ChooseSpeakers extends StatelessWidget {
     required this.candidates,
     required this.selected,
     required this.onToggle,
+    required this.onSwap,
     required this.identifyControls,
     this.allowAmp = true,
   });
@@ -523,22 +518,44 @@ class _ChooseSpeakers extends StatelessWidget {
           style: Theme.of(context).textTheme.bodySmall,
         ),
         Gap.s,
-        ...candidates.map((d) {
-          final isSel = selected.contains(d.uuid);
-          final isAmp = allowAmp && d.isAmp;
-          final disabled = !isSel && !isAmp && selected.length >= 2;
-          return BondableSpeakerTile(
-            device: d,
-            selected: isSel,
-            onChanged: disabled ? null : (_) => onToggle(d),
-            subtitle: isAmp
-                ? '${d.typeLabel} — drives both fronts (L + R)'
-                : d.typeLabel,
-            secondary: identifyControls(d),
-            outlined: true,
-          );
-        }),
+        CardGrid([for (final d in candidates) _card(context, d)]),
       ],
+    );
+  }
+
+  Widget _card(BuildContext context, SonosDevice d) {
+    final isSel = selected.contains(d.uuid);
+    final isAmp = allowAmp && d.isAmp;
+    final disabled = !isSel && !isAmp && selected.length >= 2;
+    // The side is the speaker's slot in [selected] (0 = left, 1 = right). The
+    // in-card toggle only appears once BOTH are chosen — before that there's no
+    // other speaker to swap sides with. Picking a side swaps the pair, so both
+    // cards update together.
+    final idx = selected.indexOf(d.uuid);
+    final showLR = isSel && !isAmp && selected.length == 2;
+    return SelectableSpeakerCard(
+      device: d,
+      selected: isSel,
+      enabled: !disabled,
+      onToggle: () => onToggle(d),
+      subtitle: isAmp
+          ? '${d.typeLabel} — drives both fronts (L + R)'
+          : d.typeLabel,
+      identify: identifyControls(d),
+      showControl: showLR,
+      control: showLR
+          ? SegmentedButton<bool>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: false, label: Text('Left')),
+                ButtonSegment(value: true, label: Text('Right')),
+              ],
+              selected: {idx == 1},
+              onSelectionChanged: (s) {
+                if (s.first != (idx == 1)) onSwap();
+              },
+            )
+          : null,
     );
   }
 }

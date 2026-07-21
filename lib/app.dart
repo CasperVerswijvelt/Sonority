@@ -52,6 +52,17 @@ final _router = GoRouter(
               path: '/theater/:uuid',
               builder: (_, s) =>
                   HomeTheaterScreen(soundbarUuid: s.pathParameters['uuid']!),
+              routes: [
+                // The HT setup flow is a regular in-shell route (nav rail / tab
+                // bar stay visible, back works normally) — it's a step in the
+                // detail page, not a modal wizard, so it shouldn't block nav.
+                GoRoute(
+                  path: 'fronts',
+                  builder: (_, s) => FrontSurroundsFlow(
+                    soundbarUuid: s.pathParameters['uuid']!,
+                  ),
+                ),
+              ],
             ),
             GoRoute(
               path: '/group/:uuid',
@@ -108,17 +119,11 @@ final _router = GoRouter(
         ),
       ],
     ),
-    // Guided flows live at the ROOT (siblings of the shell, not inside a branch)
-    // so they cover the tab bar — a wizard is a task you commit or cancel, not
-    // somewhere to tab away from mid-Stepper (matches the bonding progress
-    // screen). go_router forbids parentNavigatorKey on a route inside a branch,
-    // so top-level placement is how they render on the root navigator.
+    // The group-creation flow lives at the ROOT (a sibling of the shell) so it
+    // covers the tab bar — a from-scratch wizard is a task you commit or cancel.
+    // (The HT setup flow, by contrast, is a nested in-shell route — it's a step
+    // within an existing home theater's detail page, so nav stays available.)
     GoRoute(path: '/group', builder: (_, __) => const GroupFlow()),
-    GoRoute(
-      path: '/theater/:uuid/fronts',
-      builder: (_, s) =>
-          FrontSurroundsFlow(soundbarUuid: s.pathParameters['uuid']!),
-    ),
   ],
 );
 
