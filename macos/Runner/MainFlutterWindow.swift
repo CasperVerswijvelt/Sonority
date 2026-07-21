@@ -7,13 +7,18 @@ class MainFlutterWindow: NSWindow {
     self.contentViewController = flutterViewController
 
     // Resizable: the Flutter UI is now responsive (a bottom nav bar when narrow,
-    // a NavigationRail + centered/multi-column content when wide — see
+    // a NavigationRail + multi-column content when wide — see
     // kWideLayoutBreakpoint). Open at a comfortable desktop size that shows the
     // wide layout, allow shrinking down to a phone-width minimum, and never
     // exceed the screen's visible area (excludes menu bar + Dock) or the window
     // clips behind the Dock — App Review rejects that (G4).
     let preferred = NSSize(width: 1100, height: 900)
     let minimum = NSSize(width: 380, height: 640)
+    // Cap the width: content fills the window (Flutter no longer centers/clamps
+    // it), so a wider window would only stretch the mobile-style cards. Height
+    // stays free — a taller window just shows more list.
+    self.contentMaxSize = NSSize(
+      width: preferred.width, height: .greatestFiniteMagnitude)
     let visible = self.screen?.visibleFrame
       ?? NSScreen.main?.visibleFrame
       ?? NSRect(x: 0, y: 0, width: preferred.width, height: preferred.height)

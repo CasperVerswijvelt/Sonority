@@ -107,7 +107,8 @@ class AppTheme {
       // few px low in tiles/cards there; "even" splits the leading top/bottom so
       // it looks vertically centered cross-platform (Android already does this).
       textTheme: _evenLeading(
-          ThemeData(useMaterial3: true, colorScheme: scheme).textTheme),
+        ThemeData(useMaterial3: true, colorScheme: scheme).textTheme,
+      ),
       scaffoldBackgroundColor: pageBg,
       appBarTheme: AppBarTheme(
         backgroundColor: pageBg,
@@ -147,8 +148,9 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(54),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
@@ -156,7 +158,8 @@ class AppTheme {
         // Match the card radius so a tile's hover/tap ink follows the card
         // outline instead of a tighter, more-rounded corner inside it.
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(kCardRadius))),
+          borderRadius: BorderRadius.all(Radius.circular(kCardRadius)),
+        ),
       ),
     );
   }
@@ -205,14 +208,11 @@ const double kCardGap = 12;
 /// only responsive breakpoint in the app — keep width branches keyed to it.
 const double kWideLayoutBreakpoint = 720;
 
-/// Max width a single-column page clamps to on a wide layout, so lists don't
-/// stretch edge-to-edge across a desktop window. The System overview overrides
-/// this with a wider cap (it lays cards out in multiple columns instead).
+/// Max width the guided-flow wizards + bonding-progress screen clamp to on a
+/// wide layout (via [MaxWidthBody]) so a modal, full-window form stays readable
+/// instead of stretching edge-to-edge. Tab/detail pages fill the full width
+/// (the desktop window is capped instead — see MainFlutterWindow.swift).
 const double kContentMaxWidth = 720;
-
-/// Wide-overview cap — roomier than [kContentMaxWidth] so the entity-card grid
-/// gets several columns.
-const double kOverviewMaxWidth = 1100;
 
 /// A zone with at least this many bonded speakers gets a "can drop out" warning.
 /// Heuristic from hardware: an 8-speaker Play:1-era zone kept dropping even after

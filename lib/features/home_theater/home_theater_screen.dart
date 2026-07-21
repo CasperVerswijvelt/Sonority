@@ -8,6 +8,7 @@ import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/busy_view.dart';
+import '../widgets/card_grid.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/destructive_button.dart';
@@ -261,14 +262,14 @@ class _Content extends StatelessWidget {
                   style: theme.mutedText,
                 )
               else
-                for (final g in present) ...[
-                  _GroupCard(
-                    group: g,
-                    models: _models(g.channels),
-                    onRemove: () => onRemoveGroup(g.channels, g.label),
-                  ),
-                  Gap.s,
-                ],
+                CardGrid([
+                  for (final g in present)
+                    _GroupCard(
+                      group: g,
+                      models: _models(g.channels),
+                      onRemove: () => onRemoveGroup(g.channels, g.label),
+                    ),
+                ]),
             ],
           ),
         ),

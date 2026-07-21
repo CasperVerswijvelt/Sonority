@@ -8,6 +8,7 @@ import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/busy_view.dart';
+import '../widgets/card_grid.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/destructive_button.dart';
 import '../widgets/identify_controls.dart';
@@ -73,27 +74,25 @@ class GroupDetailScreen extends ConsumerWidget {
         ),
         children: [
           const SectionHeader('Speakers'),
-          for (final e in group.groupChannels.entries) ...[
-            MemberChannelCard(
-              icon: Icons.speaker,
-              type: system.device(e.key)?.typeLabel ?? 'Speaker',
-              channel: groupChannelShort(e.value),
-              // Bonded member → LED only (chiming one plays the whole group).
-              trailing: speakerIdentifyButton(system.device(e.key)),
-            ),
-            Gap.s,
-          ],
-          if (group.subUuid != null) ...[
-            MemberChannelCard(
-              icon: Icons.graphic_eq,
-              type: system.device(group.subUuid!)?.typeLabel ?? 'Sub',
-              channel: 'Sub',
-              trailing: speakerIdentifyButton(system.device(group.subUuid!)),
-            ),
-            Gap.s,
-          ],
+          CardGrid([
+            for (final e in group.groupChannels.entries)
+              MemberChannelCard(
+                icon: Icons.speaker,
+                type: system.device(e.key)?.typeLabel ?? 'Speaker',
+                channel: groupChannelShort(e.value),
+                // Bonded member → LED only (chiming one plays the whole group).
+                trailing: speakerIdentifyButton(system.device(e.key)),
+              ),
+            if (group.subUuid != null)
+              MemberChannelCard(
+                icon: Icons.graphic_eq,
+                type: system.device(group.subUuid!)?.typeLabel ?? 'Sub',
+                channel: 'Sub',
+                trailing: speakerIdentifyButton(system.device(group.subUuid!)),
+              ),
+          ]),
           if (group.isZone && group.groupChannels.length >= kZoneWarnSize) ...[
-            Gap.s,
+            Gap.m,
             const InfoNote(
               'Large zones can drop out for the first minute after audio '
               'starts, and mixed or older speakers may keep dropping. Play '

@@ -8,6 +8,7 @@ import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/brand_wordmark.dart';
+import '../widgets/card_grid.dart';
 import '../widgets/entity_cards.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/member_channel_card.dart';
@@ -51,9 +52,6 @@ class DiscoveryScreen extends ConsumerWidget {
       title: 'System',
       titleWidget: wide ? null : const BrandWordmark(),
       onRefresh: state.value != null ? () => controller.scan() : null,
-      // Roomier cap than a single-column page — the overview lays entity cards
-      // out in multiple columns on a wide window (see `_cardGrid`).
-      maxContentWidth: kOverviewMaxWidth,
       actions: [
         if (!wide) const VersionBadge(),
         // Diagnostics now lives in the bottom nav (see app.dart), not here.
@@ -119,7 +117,7 @@ class _SystemView extends ConsumerWidget {
               'No soundbar found. Dedicated fronts need an Arc, Beam, Ray, '
               'Playbar or Playbase.',
             ),
-          _cardGrid(context, [
+          _cardGrid([
             for (final m in theaters)
               EntityCard(
                 model: EntityCardModel.fromMember(system, m),
@@ -138,7 +136,7 @@ class _SystemView extends ConsumerWidget {
           if (groups.isEmpty)
             const _EmptyHint('No speaker groups yet')
           else
-            _cardGrid(context, [
+            _cardGrid([
               for (final m in groups)
                 EntityCard(
                   model: EntityCardModel.fromMember(system, m),
@@ -148,9 +146,11 @@ class _SystemView extends ConsumerWidget {
           // Single speaker rooms — hidden entirely when there are none.
           if (singleRooms.isNotEmpty) ...[
             Gap.l,
-            SectionHeader('Single speaker rooms',
-                icon: Icons.meeting_room_outlined),
-            _cardGrid(context, [
+            SectionHeader(
+              'Single speaker rooms',
+              icon: Icons.meeting_room_outlined,
+            ),
+            _cardGrid([
               for (final m in singleRooms)
                 EntityCard(
                   model: EntityCardModel.fromMember(system, m),
@@ -165,7 +165,7 @@ class _SystemView extends ConsumerWidget {
           if (system.bondableSubs.isNotEmpty) ...[
             Gap.l,
             SectionHeader('Other devices', icon: Icons.devices_other_outlined),
-            _cardGrid(context, [
+            _cardGrid([
               for (final sub in system.bondableSubs)
                 EntityCard(
                   model: EntityCardModel(
@@ -183,60 +183,41 @@ class _SystemView extends ConsumerWidget {
   }
 }
 
-/// Lays a section's entity cards out responsively: one full-width column on a
-/// phone, a multi-column grid on a wide window. The wide/narrow switch keys off
-/// the WINDOW width (like the nav rail), not the post-rail content width — so the
-/// grid goes multi-column at exactly the same breakpoint the bottom bar becomes a
-/// rail. Each [EntityCard] carries its own bottom gap, so the grid uses
-/// `runSpacing: 0` and only adds horizontal spacing between columns.
-Widget _cardGrid(BuildContext context, List<Widget> cards) {
-  if (cards.isEmpty) return const SizedBox.shrink();
-  if (MediaQuery.sizeOf(context).width < kWideLayoutBreakpoint) {
-    return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch, children: cards);
-  }
-  return LayoutBuilder(
-    builder: (context, c) {
-      final cols = (c.maxWidth / 360).floor().clamp(2, 3);
-      final w = (c.maxWidth - (cols - 1) * kCardGap) / cols;
-      return Wrap(
-        spacing: kCardGap,
-        runSpacing: 0,
-        children: [for (final card in cards) SizedBox(width: w, child: card)],
-      );
-    },
-  );
-}
+/// The overview's entity cards each carry their own bottom gap, so the shared
+/// [CardGrid] runs with `runSpacing: 0` here (it adds only column spacing).
+Widget _cardGrid(List<Widget> cards) => CardGrid(cards, runSpacing: 0);
 
 /// Opens a standalone (unbonded) Sub as a small sheet: identify it by ear/LED and
 /// a note on how to put it to use (it has no config of its own).
-Future<void> _showSubSheet(BuildContext context, SonosDevice sub) =>
-    showSheet<void>(
-      context,
-      SheetScaffold(
-        title: 'Subwoofer',
-        subtitle: sub.typeLabel,
-        body: Padding(
-          padding: const EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              MemberChannelCard(
-                icon: Icons.graphic_eq,
-                type: sub.typeLabel,
-                trailing: speakerIdentifyButton(sub),
-              ),
-              Gap.m,
-              Text(
-                'This Sub isn’t bonded to anything yet. Add it to a home theater '
-                '(Configure home theater) or a speaker group to use it.',
-                style: Theme.of(context).mutedText,
-              ),
-            ],
+Future<void> _showSubSheet(
+  BuildContext context,
+  SonosDevice sub,
+) => showSheet<void>(
+  context,
+  SheetScaffold(
+    title: 'Subwoofer',
+    subtitle: sub.typeLabel,
+    body: Padding(
+      padding: const EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MemberChannelCard(
+            icon: Icons.graphic_eq,
+            type: sub.typeLabel,
+            trailing: speakerIdentifyButton(sub),
           ),
-        ),
+          Gap.m,
+          Text(
+            'This Sub isn’t bonded to anything yet. Add it to a home theater '
+            '(Configure home theater) or a speaker group to use it.',
+            style: Theme.of(context).mutedText,
+          ),
+        ],
       ),
-    );
+    ),
+  ),
+);
 
 class _EmptyHint extends StatelessWidget {
   final String text;
@@ -244,10 +225,7 @@ class _EmptyHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: kCardGap),
-    child: Text(
-      text,
-      style: Theme.of(context).mutedText,
-    ),
+    child: Text(text, style: Theme.of(context).mutedText),
   );
 }
 

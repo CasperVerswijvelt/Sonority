@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/card_grid.dart';
 import '../widgets/confirm_dialog.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
@@ -23,71 +24,48 @@ class ProfilesScreen extends ConsumerWidget {
     final body = profiles.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Couldn’t load profiles: $e')),
-      data: (list) => list.isEmpty
-          ? const _EmptyState()
-          : ReorderableListView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
-              itemCount: list.length,
-              // No default drag handles: on desktop they draw a trailing ≡ icon
-              // (clashes with the card's ⋮ menu) and make dragging start only
-              // from that handle. We wrap each item in a delayed listener below
-              // so long-press-to-drag works on every platform (incl. macOS).
-              buildDefaultDragHandles: false,
-              // Drop the default elevated-Material drag proxy (it draws a square
-              // highlight/shadow behind the rounded card); the card lifts as-is.
-              proxyDecorator: (child, index, animation) =>
-                  Material(color: Colors.transparent, child: child),
-              // Long-press a card to drag it — this order is what the widgets use.
-              // onReorderItem (not the deprecated onReorder): newIndex is already
-              // adjusted for the removed item, so reorder() must not re-adjust it.
-              onReorderItem: (oldIndex, newIndex) => ref
-                  .read(profilesProvider.notifier)
-                  .reorder(oldIndex, newIndex),
-              itemBuilder: (context, i) {
-                final p = list[i];
-                return ReorderableDelayedDragStartListener(
-                  key: ValueKey(p.id),
-                  index: i,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: kCardGap),
-                    child: ProfileCard(
-                      profile: p,
-                      onTap: () => context.go('/profiles/edit/${p.id}'),
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      // Overflow menu (destructive Delete) tucked top-right.
-                      trailing: PopupMenuButton<String>(
-                        tooltip: 'More',
-                        onSelected: (_) => _confirmDelete(context, ref, p),
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'delete', child: Text('Delete')),
-                        ],
-                      ),
-                      // Split actions: Edit (muted) + Apply (prominent).
-                      actions: Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton.tonal(
-                              onPressed: () =>
-                                  context.go('/profiles/edit/${p.id}'),
-                              child: const Text('Edit'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: FilledButton.icon(
-                              onPressed: () =>
-                                  applyProfileInteractive(context, ref, p),
-                              icon: const Icon(Icons.play_arrow),
-                              label: const Text('Apply'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+      data: (list) {
+        if (list.isEmpty) return const _EmptyState();
+        // Wide window → a multi-column grid (drag-reorder is a 1D-list gesture,
+        // so it's dropped there); phones keep the long-press-drag reorder list.
+        if (MediaQuery.sizeOf(context).width >= kWideLayoutBreakpoint) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
+            child: CardGrid([
+              for (final p in list) _profileCard(context, ref, p),
+            ]),
+          );
+        }
+        return ReorderableListView.builder(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
+          itemCount: list.length,
+          // No default drag handles: on desktop they draw a trailing ≡ icon
+          // (clashes with the card's ⋮ menu) and make dragging start only
+          // from that handle. We wrap each item in a delayed listener below
+          // so long-press-to-drag works on every platform (incl. macOS).
+          buildDefaultDragHandles: false,
+          // Drop the default elevated-Material drag proxy (it draws a square
+          // highlight/shadow behind the rounded card); the card lifts as-is.
+          proxyDecorator: (child, index, animation) =>
+              Material(color: Colors.transparent, child: child),
+          // Long-press a card to drag it — this order is what the widgets use.
+          // onReorderItem (not the deprecated onReorder): newIndex is already
+          // adjusted for the removed item, so reorder() must not re-adjust it.
+          onReorderItem: (oldIndex, newIndex) =>
+              ref.read(profilesProvider.notifier).reorder(oldIndex, newIndex),
+          itemBuilder: (context, i) {
+            final p = list[i];
+            return ReorderableDelayedDragStartListener(
+              key: ValueKey(p.id),
+              index: i,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: kCardGap),
+                child: _profileCard(context, ref, p),
+              ),
+            );
+          },
+        );
+      },
     );
 
     return AppScaffold(
@@ -104,6 +82,43 @@ class ProfilesScreen extends ConsumerWidget {
         label: const Text('New profile'),
       ),
       body: body,
+    );
+  }
+
+  /// One profile tile — shared by the reorderable list (narrow) and the grid
+  /// (wide). No outer padding; the caller adds row/grid spacing.
+  Widget _profileCard(BuildContext context, WidgetRef ref, Profile p) {
+    return ProfileCard(
+      profile: p,
+      onTap: () => context.go('/profiles/edit/${p.id}'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      // Overflow menu (destructive Delete) tucked top-right.
+      trailing: PopupMenuButton<String>(
+        tooltip: 'More',
+        onSelected: (_) => _confirmDelete(context, ref, p),
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'delete', child: Text('Delete')),
+        ],
+      ),
+      // Split actions: Edit (muted) + Apply (prominent).
+      actions: Row(
+        children: [
+          Expanded(
+            child: FilledButton.tonal(
+              onPressed: () => context.go('/profiles/edit/${p.id}'),
+              child: const Text('Edit'),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: () => applyProfileInteractive(context, ref, p),
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Apply'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -127,7 +142,10 @@ class ProfilesScreen extends ConsumerWidget {
 /// issues (missing / conflicting speakers) — a clean apply goes straight to the
 /// progress screen.
 Future<void> applyProfileInteractive(
-    BuildContext context, WidgetRef ref, Profile profile) async {
+  BuildContext context,
+  WidgetRef ref,
+  Profile profile,
+) async {
   final system = ref.read(sonosControllerProvider).value;
   if (system == null) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -136,8 +154,9 @@ Future<void> applyProfileInteractive(
     return;
   }
   final issues = preflightProfile(profile, system);
-  final hasIssues =
-      issues.any((i) => i.missing.isNotEmpty || i.conflicts.isNotEmpty);
+  final hasIssues = issues.any(
+    (i) => i.missing.isNotEmpty || i.conflicts.isNotEmpty,
+  );
   if (hasIssues) {
     final ok = await showDialog<bool>(
       context: context,
@@ -164,7 +183,10 @@ Future<void> applyProfileInteractive(
 /// dialog as an in-app apply pops over the progress screen; otherwise it applies
 /// straight through.
 Future<void> applyProfileFromLaunch(
-    BuildContext context, WidgetRef ref, Profile profile) async {
+  BuildContext context,
+  WidgetRef ref,
+  Profile profile,
+) async {
   final ctrl = ref.read(sonosControllerProvider.notifier);
   await showBondingProgress(
     context,
@@ -175,7 +197,8 @@ Future<void> applyProfileFromLaunch(
         if (!context.mounted) return false;
         final ok = await showDialog<bool>(
           context: context,
-          builder: (ctx) => _ApplyConfirmDialog(profile: profile, issues: issues),
+          builder: (ctx) =>
+              _ApplyConfirmDialog(profile: profile, issues: issues),
         );
         return ok == true;
       },
