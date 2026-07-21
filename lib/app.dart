@@ -20,6 +20,9 @@ import 'features/profiles/profile_create_screen.dart';
 import 'features/profiles/profile_detail_screen.dart';
 import 'features/group/group_detail_screen.dart';
 import 'features/group/group_flow.dart';
+import 'features/room/room_screen.dart';
+import 'features/widgets/brand_wordmark.dart';
+import 'features/widgets/version_badge.dart';
 
 /// Root navigator key — lets an out-of-app launch (app shortcut / widget) reach
 /// a BuildContext to run the apply flow even when no widget context is handy.
@@ -41,10 +44,10 @@ final _router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(path: '/', builder: (_, __) => const DiscoveryScreen()),
-            // Detail pages stay in the shell (tab bar visible), matching the
-            // rule: a bonded config (home theater / group) opens as a page; a
-            // single standalone room opens as a sheet (showRoomSheet, not a
-            // route).
+            // Detail pages stay in the shell (tab bar visible). The rule:
+            // anything you can act on (home theater, group, single room) opens
+            // as a pushed page; sheets are reserved for read-only peeks (the
+            // profile entity detail).
             GoRoute(
               path: '/theater/:uuid',
               builder: (_, s) =>
@@ -54,6 +57,10 @@ final _router = GoRouter(
               path: '/group/:uuid',
               builder: (_, s) =>
                   GroupDetailScreen(uuid: s.pathParameters['uuid']!),
+            ),
+            GoRoute(
+              path: '/room/:uuid',
+              builder: (_, s) => RoomScreen(uuid: s.pathParameters['uuid']!),
             ),
           ],
         ),
@@ -150,32 +157,49 @@ class _HomeShell extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= kWideLayoutBreakpoint) {
-          // Wide: rail on the left, hairline divider, then the branch content.
-          // Roomy windows get the extended rail (icon + label side by side);
-          // the tighter rail-vs-bar range keeps the compact labelled rail.
-          final extendedRail = constraints.maxWidth >= 1000;
+          // Wide: an extended rail (icon + label) on the left, hairline divider,
+          // then the branch content. There's no icon-only middle state; below
+          // the breakpoint it's the bottom bar. The rail column is built by hand
+          // (not NavigationRail's leading/trailing, which it centers) so the
+          // wordmark (top) and version pill (bottom) share one left inset — the
+          // System app bar then just reads "System" (see discovery_screen).
           return Scaffold(
             body: Row(
               // Stretch so the rail and content fill the full height (default
               // is center, which would float short content vertically).
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                NavigationRail(
-                  selectedIndex: shell.currentIndex,
-                  onDestinationSelected: _go,
-                  extended: extendedRail,
-                  labelType: extendedRail
-                      ? NavigationRailLabelType.none
-                      : NavigationRailLabelType.all,
-                  backgroundColor: scheme.surfaceContainerHigh,
-                  destinations: [
-                    for (final d in _destinations)
-                      NavigationRailDestination(
-                        icon: Icon(d.icon),
-                        selectedIcon: Icon(d.selectedIcon),
-                        label: Text(d.label),
+                ColoredBox(
+                  color: scheme.surfaceContainerHigh,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(24, 24, 16, 20),
+                        child: BrandWordmark(height: 22),
                       ),
-                  ],
+                      Expanded(
+                        child: NavigationRail(
+                          selectedIndex: shell.currentIndex,
+                          onDestinationSelected: _go,
+                          extended: true,
+                          backgroundColor: Colors.transparent,
+                          destinations: [
+                            for (final d in _destinations)
+                              NavigationRailDestination(
+                                icon: Icon(d.icon),
+                                selectedIcon: Icon(d.selectedIcon),
+                                label: Text(d.label),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(24, 8, 16, 16),
+                        child: VersionBadge(padding: EdgeInsets.zero),
+                      ),
+                    ],
+                  ),
                 ),
                 VerticalDivider(width: 1, color: scheme.outlineVariant),
                 Expanded(child: shell),

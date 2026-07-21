@@ -5,22 +5,20 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
 import '../widgets/settings_section.dart';
-import '../widgets/sheet_scaffold.dart';
 import '../widgets/trueplay_control.dart';
 
-/// Opens a standalone room (or stereo pair) as a modal sheet. Currently hosts the
-/// Trueplay control (kept off the main list to avoid clutter) plus rename.
-Future<void> showRoomSheet(BuildContext context, String uuid) =>
-    showSheet<void>(context, _RoomSheet(uuid: uuid));
-
-class _RoomSheet extends ConsumerWidget {
+/// A single standalone room shown as a pushed page: the speaker, shortcuts into
+/// the bonding flows, and the Trueplay control. A page (not a sheet) so the rule
+/// is uniform — sheets are read-only peeks; anything you can act on is a page.
+class RoomScreen extends ConsumerWidget {
   final String uuid;
-  const _RoomSheet({required this.uuid});
+  const RoomScreen({super.key, required this.uuid});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,7 +29,7 @@ class _RoomSheet extends ConsumerWidget {
         .firstOrNull;
 
     if (member == null) {
-      return const SheetScaffold(
+      return const AppScaffold(
         title: 'Room',
         body: Padding(padding: EdgeInsets.all(24), child: MissingRoomView()),
       );
@@ -47,18 +45,19 @@ class _RoomSheet extends ConsumerWidget {
             m.isHomeTheater || (system.device(m.uuid)?.isSoundbar ?? false))
         .toList();
 
-    return SheetScaffold(
+    return AppScaffold(
       title: member.zoneName,
       subtitle: 'Room',
-      trailing: device == null
-          ? null
-          : IconButton(
-              icon: const Icon(Icons.drive_file_rename_outline),
-              tooltip: 'Rename room',
-              onPressed: () => _rename(context, ref, device, member.zoneName),
-            ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      actions: [
+        if (device != null)
+          IconButton(
+            icon: const Icon(Icons.drive_file_rename_outline),
+            tooltip: 'Rename room',
+            onPressed: () => _rename(context, ref, device, member.zoneName),
+          ),
+      ],
+      body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
           // Content: the speaker itself — a standalone speaker has no channel,
           // so no chip (parallels the group sheet's per-speaker cards).
@@ -97,11 +96,12 @@ class _RoomSheet extends ConsumerWidget {
   }
 }
 
-/// Closes the room sheet, then pushes [location] — pop-then-push so a root-level
-/// guided flow doesn't stack on top of the modal sheet.
+/// Pops the room page, then pushes [location] — pop-then-push so that after the
+/// guided flow completes we land back on the overview (the room is no longer
+/// standalone), not on a now-stale room page.
 void _leaveTo(BuildContext context, String location) {
   final router = GoRouter.of(context);
-  Navigator.of(context).pop();
+  context.pop();
   router.push(location);
 }
 

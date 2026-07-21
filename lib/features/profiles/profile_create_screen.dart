@@ -95,7 +95,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
 
     if (system == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(isResnapshot ? 'Re-snapshot' : 'New profile')),
+        appBar: AppBar(title: Text(isResnapshot ? 'Re-capture' : 'New profile')),
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(32),
@@ -120,7 +120,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     final canSave = name.isNotEmpty && !taken && anyIncluded && !_saving;
 
     return AppScaffold(
-      title: isResnapshot ? 'Re-snapshot' : 'New profile',
+      title: isResnapshot ? 'Re-capture' : 'New profile',
       bottomOverlay: _BottomButtonBar(
         label: _saving
             ? 'Reading settings…'

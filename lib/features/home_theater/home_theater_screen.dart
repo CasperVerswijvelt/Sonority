@@ -14,6 +14,7 @@ import '../widgets/destructive_button.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
+import '../widgets/scroll_footer.dart';
 import '../widgets/section_header.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/trueplay_control.dart';
@@ -208,9 +209,24 @@ class _Content extends StatelessWidget {
     ];
     // Edge-to-edge list so the Trueplay settings section can be full-bleed
     // (flat, sectioned — a setting, not another content card); content blocks
-    // carry their own horizontal padding.
-    return ListView(
+    // carry their own horizontal padding. Separate sits pinned at the bottom
+    // (via ScrollFooter) so the destructive action is always at the end.
+    return ScrollFooter(
       padding: const EdgeInsets.symmetric(vertical: 20),
+      footer: present.isEmpty
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(kPageGutter, 20, kPageGutter, 0),
+              child: DestructiveButton(
+                icon: Icons.link_off,
+                label: 'Separate',
+                onPressed: () => onRemoveGroup(
+                  {for (final g in present) ...g.channels},
+                  'all extra speakers',
+                  separateAll: true,
+                ),
+              ),
+            ),
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
@@ -225,14 +241,14 @@ class _Content extends StatelessWidget {
                 // glyph (Icons.tune) is reserved for the audio/Trueplay surfaces
                 // so a layout action never looks like EQ (which we don't do).
                 icon: const Icon(Icons.settings),
-                label: const Text('Configure home theater'),
+                label: const Text('Configure'),
               ),
               Gap.l,
               const SectionHeader('Bonded speakers'),
               if (present.isEmpty)
                 Text(
                   'Just the soundbar — no fronts, surrounds or sub bonded yet. '
-                  'Tap “Configure home theater” to add some.',
+                  'Tap “Configure” to add some.',
                   style: theme.mutedText,
                 )
               else
@@ -249,38 +265,19 @@ class _Content extends StatelessWidget {
         ),
         Gap.m,
         SettingsSection(children: [TrueplayControl(devices: bonded)]),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (member.hasDedicatedFronts) ...[
-                Gap.s,
-                Text(
-                  'Trueplay can only be measured from the Sonos app on iOS — '
-                  'tune the home theater, and the fronts separately as a stereo '
-                  'pair. Heads-up: Sonos often clears a tuning when speakers are '
-                  'bonded/unbonded, so you may see “Not tuned” after changing the '
-                  'layout and have to redo it. Sonority only toggles a stored '
-                  'tuning.',
-                  style: theme.mutedText,
-                ),
-              ],
-              if (present.isNotEmpty) ...[
-                Gap.l,
-                DestructiveButton(
-                  icon: Icons.link_off,
-                  label: 'Separate',
-                  onPressed: () => onRemoveGroup(
-                    {for (final g in present) ...g.channels},
-                    'all extra speakers',
-                    separateAll: true,
-                  ),
-                ),
-              ],
-            ],
+        if (member.hasDedicatedFronts)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),
+            child: Text(
+              'Trueplay can only be measured from the Sonos app on iOS — '
+              'tune the home theater, and the fronts separately as a stereo '
+              'pair. Heads-up: Sonos often clears a tuning when speakers are '
+              'bonded/unbonded, so you may see “Not tuned” after changing the '
+              'layout and have to redo it. Sonority only toggles a stored '
+              'tuning.',
+              style: theme.mutedText,
+            ),
           ),
-        ),
       ],
     );
   }

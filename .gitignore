@@ -13,6 +13,9 @@ fastlane/Preview.html
 fastlane/test_output/
 **/.fastlane/
 
+# Dev scratch — ad-hoc UI screenshots (real marketing shots live in design/shots/)
+.shots/
+
 # Miscellaneous
 *.class
 *.log

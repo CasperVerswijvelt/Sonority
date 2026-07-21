@@ -8,11 +8,14 @@ import 'sheet_scaffold.dart';
 
 const _repoUrl = 'https://github.com/CasperVerswijvelt/Sonority';
 
-/// Muted `v<version>` label for an app-bar `actions:` slot. Reads the built
-/// package version at runtime so it tracks pubspec automatically. Tapping it
-/// opens a bottom sheet with the changelog and a GitHub link.
+/// Muted `v<version>` label. Reads the built package version at runtime so it
+/// tracks pubspec automatically. Tapping it opens a bottom sheet with the
+/// changelog and a GitHub link. Shown in the app-bar `actions:` slot on a phone
+/// and pinned to the bottom of the nav rail on a wide window (which passes its
+/// own [padding]).
 class VersionBadge extends StatelessWidget {
-  const VersionBadge({super.key});
+  final EdgeInsetsGeometry padding;
+  const VersionBadge({super.key, this.padding = const EdgeInsets.only(right: 12)});
 
   static final Future<PackageInfo> _info = PackageInfo.fromPlatform();
 
@@ -23,13 +26,13 @@ class VersionBadge extends StatelessWidget {
       builder: (context, snap) {
         final info = snap.data;
         if (info == null) return const SizedBox.shrink();
+        // No Center — the pill shrink-wraps so callers position it (the app-bar
+        // actions Row centers it vertically; the nav rail bottom-left-aligns it).
         return Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: Center(
-            child: _VersionPill(
-              'v${info.version}',
-              onTap: () => showVersionSheet(context, info),
-            ),
+          padding: padding,
+          child: _VersionPill(
+            'v${info.version}',
+            onTap: () => showVersionSheet(context, info),
           ),
         );
       },

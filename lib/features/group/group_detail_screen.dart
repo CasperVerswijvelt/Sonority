@@ -14,6 +14,7 @@ import '../widgets/identify_controls.dart';
 import '../widgets/info_note.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
+import '../widgets/scroll_footer.dart';
 
 /// A bonded speaker group (stereo pair / zone / custom) shown as a pushed page:
 /// the group kind, one card per member speaker (type + channel), a rename action,
@@ -60,8 +61,15 @@ class GroupDetailScreen extends ConsumerWidget {
             onPressed: () => _rename(context, ref, device, group.zoneName),
           ),
       ],
-      body: ListView(
+      // Separate is pinned to the bottom (via ScrollFooter) — always the last
+      // thing on the page, whether the member list fits or has to scroll.
+      body: ScrollFooter(
         padding: const EdgeInsets.fromLTRB(kPageGutter, 20, kPageGutter, 20),
+        footer: DestructiveButton(
+          icon: Icons.link_off,
+          label: 'Separate',
+          onPressed: () => _confirmSeparate(context, ref, group),
+        ),
         children: [
           for (final e in group.groupChannels.entries) ...[
             MemberChannelCard(
@@ -90,12 +98,6 @@ class GroupDetailScreen extends ConsumerWidget {
               'something to confirm it stays stable for you.',
             ),
           ],
-          Gap.l,
-          DestructiveButton(
-            icon: Icons.link_off,
-            label: 'Separate',
-            onPressed: () => _confirmSeparate(context, ref, group),
-          ),
         ],
       ),
     );

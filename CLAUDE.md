@@ -654,30 +654,40 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   identity** (the user-chosen swatch); system entity glyphs stay tonal-neutral
   (`primaryContainer`) so the two axes never compete. When adding UI, reuse the
   matching form — don't invent a new card variant for an existing concept.
-- **Presentation rule — "tap a thing" is predictable.** A **bonded config**
-  (home theater `HomeTheaterScreen`, speaker group `GroupDetailScreen`) opens as a
-  **pushed page** (route in the System shell branch, tab bar visible); a **single
-  standalone room** opens as a **sheet** (`showRoomSheet`). Read-only profile-entity
-  detail stays a sheet (`showEntitySheet`) — the one allowed exception, since it's a
-  light read-only view. **Guided flows** (`/group`, `/theater/:uuid/fronts`) are
-  **top-level routes** (siblings of the `StatefulShellRoute`, NOT inside a branch)
-  so they render on the root navigator and cover the tab bar — a wizard is
+- **Presentation rule — "tap a thing" is predictable. Sheet = read-only peek;
+  pushed page = anything you can act on.** Every actionable detail opens as a
+  **pushed page** (route in the System shell branch, tab bar visible): a bonded
+  config (home theater `HomeTheaterScreen`, speaker group `GroupDetailScreen`)
+  AND a **single standalone room** (`RoomScreen`, `/room/:uuid` — it has rename /
+  identify / group / add-to-HT / Trueplay actions). **Sheets are reserved for
+  read-only peeks** — currently just the profile-entity detail
+  (`showEntitySheet`), which only displays a stored snapshot. So the split is by
+  *interactivity*, not weight. **Guided flows** (`/group`, `/theater/:uuid/fronts`)
+  are **top-level routes** (siblings of the `StatefulShellRoute`, NOT inside a
+  branch) so they render on the root navigator and cover the tab bar — a wizard is
   commit-or-cancel, like the bonding progress screen. (go_router **asserts** if you
   put `parentNavigatorKey: rootNavigatorKey` on a route *inside* a branch — that
   red-screens at runtime, caught only on-device; top-level placement is the fix.)
-  Don't route a bonded-config detail as a sheet again (it reintroduces the
+  Don't route an actionable detail as a sheet again (it reintroduces the
   page-on-sheet stack when Separate/apply pushes the bonding screen). The
-  **standalone-room sheet** offers shortcuts INTO these flows ("Group with another
-  speaker" → `/group`; "Add to a home theater" → the fronts flow for a chosen
-  soundbar) via pop-then-push, so a room isn't a dead end.
+  **room page** offers shortcuts INTO the flows ("Group with another speaker" →
+  `/group`; "Add to a home theater" → the fronts flow for a chosen soundbar) via
+  pop-then-push, so a room isn't a dead end.
 - **Responsive layout (macOS / wide windows).** One breakpoint,
-  `kWideLayoutBreakpoint` (`core/theme.dart`). Below it: the phone layout (bottom
-  `NavigationBar`, single column) — unchanged. At/above it: `_HomeShell` swaps the
-  bottom bar for a `NavigationRail`, and `AppScaffold` wraps its body in
-  `MaxWidthBody` (centered, clamped to `kContentMaxWidth`; the overview passes the
-  wider `kOverviewMaxWidth` and lays cards out in a `_cardGrid` of columns). The
-  three tabs (System / Profiles / **Diagnostics**) share one `_destinations` list
-  so the rail and bar can't drift. Guided flows + the bonding screen also clamp via
+  `kWideLayoutBreakpoint` (`core/theme.dart`), two states only — no icon-only
+  middle. Below it: the phone layout (bottom `NavigationBar`, single column) —
+  unchanged, and the System app bar shows the `BrandWordmark` + `VersionBadge`.
+  At/above it: `_HomeShell` swaps the bottom bar for an **always-`extended`
+  `NavigationRail`** in a by-hand `ColoredBox > Column` (the wordmark in a top
+  `Padding`, the rail `Expanded` in the middle, the version pill in a bottom
+  `Padding` — sharing one left inset; `NavigationRail`'s own leading/trailing
+  centre their slots, so they're not used). The System app bar then just reads
+  "System" (discovery flips its title/actions on `MediaQuery.sizeOf(context).width
+  >= kWideLayoutBreakpoint`). `AppScaffold` wraps its body in `MaxWidthBody`
+  (centered, clamped to `kContentMaxWidth`; the overview passes the wider
+  `kOverviewMaxWidth` and lays cards out in a `_cardGrid` of columns). The three
+  tabs (System / Profiles / **Diagnostics**) share one `_destinations` list so the
+  rail and bar can't drift. Guided flows + the bonding screen also clamp via
   `MaxWidthBody`. Keep new pages on `AppScaffold` so they inherit the clamp for free.
 - **Names vs. types in the UI.** Once a speaker is bonded into an HT or stereo
   entity its individual room name stops mattering — Sonos absorbs it into the

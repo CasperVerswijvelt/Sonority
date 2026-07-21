@@ -105,15 +105,18 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     // surround would vanish and couldn't be re-added. A speaker chosen in another
     // role here is hidden from this one.
     final chosenElsewhere = <String>{..._fronts, ..._surrounds, ..._subs};
-    final htOwn = <String>{
-      ...member.channelAssignments.values,
-      ...member.subUuids,
-    };
+    // This HT's own front/surround speakers (so a pre-selected one doesn't vanish
+    // when deselected). channelAssignments includes the SW channel, so a bonded
+    // Sub's uuid slips in here — the `isSub` guard in consider() keeps it out of
+    // the front/surround pickers (subs have their own list, `freeSubs`).
+    final htOwn = <String>{...member.channelAssignments.values};
     List<SonosDevice> avail(List<String> keepFor) {
       final seen = <String>{};
       final out = <SonosDevice>[];
       void consider(String id) {
         if (!seen.add(id)) return;
+        // A Sub is never a front/surround candidate (it has its own picker).
+        if (system.device(id)?.isSub ?? false) return;
         // Show it unless it's currently assigned to a *different* role.
         if (!keepFor.contains(id) && chosenElsewhere.contains(id)) return;
         if (system.device(id) case final d?) out.add(d);

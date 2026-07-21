@@ -33,9 +33,15 @@ class SpeakerDiagram extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return AspectRatio(
-      aspectRatio: 1.3,
-      child: Container(
+    // Cap the height so a wide desktop window doesn't blow the diagram up to
+    // half the page — a phone-width column stays well under 320, so mobile is
+    // unaffected; wider layouts get a centered, sensibly-sized diagram.
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 320),
+        child: AspectRatio(
+          aspectRatio: 1.3,
+          child: Container(
         decoration: BoxDecoration(
           color: scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(kCardRadius),
@@ -89,6 +95,8 @@ class SpeakerDiagram extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
         ),
       ),
     );

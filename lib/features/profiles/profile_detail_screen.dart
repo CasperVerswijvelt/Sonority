@@ -14,7 +14,7 @@ import 'profile_entity_detail_screen.dart';
 import 'profile_ui.dart';
 
 /// A profile's detail view and single save surface: edit the name/appearance,
-/// review what each captured entity will restore, and re-snapshot to replace the
+/// review what each captured entity will restore, and re-capture to replace the
 /// captured layout from the current setup. All edits are unsaved until Save.
 class ProfileDetailScreen extends ConsumerStatefulWidget {
   final String profileId;
@@ -98,23 +98,28 @@ class _State extends ConsumerState<ProfileDetailScreen> {
             }),
           ),
           Gap.l,
+          // Re-capture sits above the list it replaces — a light-weight tonal
+          // action, not a heavy CTA.
+          FilledButton.tonalIcon(
+            onPressed: system == null ? null : () => _resnapshot(profile),
+            icon: const Icon(Icons.cameraswitch),
+            label: const Text('Re-capture from current setup'),
+            style: FilledButton.styleFrom(
+              textStyle: theme.textTheme.labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w400),
+            ),
+          ),
+          Gap.l,
           const SectionHeader('Included'),
           Text(
             entitiesChanged
-                ? 'Recaptured from your current setup — press Save to keep it.'
-                : 'Captured when the profile was created. Re-snapshot to '
-                      'recapture the layout from your current setup.',
+                ? 'Re-captured from your current setup — press Save to keep it.'
+                : 'Captured when the profile was created.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: entitiesChanged
                   ? theme.colorScheme.primary
                   : theme.colorScheme.onSurfaceVariant,
             ),
-          ),
-          Gap.m,
-          FilledButton.tonalIcon(
-            onPressed: system == null ? null : () => _resnapshot(profile),
-            icon: const Icon(Icons.cameraswitch),
-            label: const Text('Re-snapshot from current setup'),
           ),
           Gap.m,
           // Same cards as the system overview, fed a throwaway member built from

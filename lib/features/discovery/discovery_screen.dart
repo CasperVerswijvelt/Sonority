@@ -6,8 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
-import '../room/room_screen.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/brand_wordmark.dart';
 import '../widgets/entity_cards.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/member_channel_card.dart';
@@ -43,25 +43,19 @@ class DiscoveryScreen extends ConsumerWidget {
           : _SystemView(system: system),
     );
 
+    // Wide layout carries the wordmark + version in the nav rail, so the app
+    // bar shows a plain "System" title; narrow (no rail) keeps the wordmark as
+    // the title and the version badge in the actions.
+    final wide = MediaQuery.sizeOf(context).width >= kWideLayoutBreakpoint;
     return AppScaffold(
-      title: 'Sonority',
-      // White glyphs on alpha → srcIn tint recolors them to the theme text
-      // colour, so the one asset works in light and dark. ColorFiltered (not
-      // Image(color:)) because CanvasKit renders an image `color` tint blank on
-      // web — this path tints correctly on every platform (the screenshot host).
-      titleWidget: ColorFiltered(
-        colorFilter: ColorFilter.mode(
-          Theme.of(context).colorScheme.onSurface,
-          BlendMode.srcIn,
-        ),
-        child: Image.asset('assets/brand/sonority_wordmark.png', height: 20),
-      ),
+      title: 'System',
+      titleWidget: wide ? null : const BrandWordmark(),
       onRefresh: state.value != null ? () => controller.scan() : null,
       // Roomier cap than a single-column page — the overview lays entity cards
       // out in multiple columns on a wide window (see `_cardGrid`).
       maxContentWidth: kOverviewMaxWidth,
       actions: [
-        const VersionBadge(),
+        if (!wide) const VersionBadge(),
         // Diagnostics now lives in the bottom nav (see app.dart), not here.
         // Only when there's a discovered system to refresh; the error state
         // uses its own CTA button to scan.
@@ -112,26 +106,6 @@ class _SystemView extends ConsumerWidget {
     final singleRooms = system.allMembers
         .where((m) => !theaters.contains(m) && !m.isGroup)
         .toList();
-    // Flagship actions, shown only when the system can actually do them: a home
-    // theater needs a soundbar; a group needs ≥2 standalone groupable speakers.
-    final canGroup =
-        system.zoneableSpeakers.where((d) => d.reachable).length >= 2;
-    final ctas = <Widget>[
-      if (theaters.isNotEmpty)
-        _ActionCard(
-          icon: Icons.surround_sound,
-          title: 'Build a home theater',
-          subtitle: 'Dedicated fronts, rears & a sub around a soundbar',
-          onTap: () => _buildHomeTheater(context, theaters),
-        ),
-      if (canGroup)
-        _ActionCard(
-          icon: Icons.speaker_group_outlined,
-          title: 'Create a group',
-          subtitle: 'Stereo pair, full-range zone, or custom L/R',
-          onTap: () => context.push('/group'),
-        ),
-    ];
     // Owns its own scroll, filling the screen-sized body. The app bar is fixed,
     // so there's no collapse to lose; Rescan / pull-to-refresh cover refresh.
     return SingleChildScrollView(
@@ -139,10 +113,6 @@ class _SystemView extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (ctas.isNotEmpty) ...[
-            _quickActions(context, ctas),
-            Gap.l,
-          ],
           SectionHeader('Home theaters', icon: Icons.theaters_outlined),
           if (theaters.isEmpty)
             const _EmptyHint(
@@ -184,7 +154,7 @@ class _SystemView extends ConsumerWidget {
               for (final m in singleRooms)
                 EntityCard(
                   model: EntityCardModel.fromMember(system, m),
-                  onTap: () => showRoomSheet(context, m.uuid),
+                  onTap: () => context.push('/room/${m.uuid}'),
                 ),
             ]),
           ],
@@ -208,108 +178,6 @@ class _SystemView extends ConsumerWidget {
             ]),
           ],
         ],
-      ),
-    );
-  }
-}
-
-/// Routes into home-theater setup — straight to the fronts flow with one
-/// soundbar, or a small chooser when there are several.
-Future<void> _buildHomeTheater(
-    BuildContext context, List<ZoneGroupMember> soundbars) async {
-  if (soundbars.length == 1) {
-    context.push('/theater/${soundbars.first.uuid}/fronts');
-    return;
-  }
-  final target = await showDialog<String>(
-    context: context,
-    builder: (ctx) => SimpleDialog(
-      title: const Text('Which soundbar?'),
-      children: [
-        for (final s in soundbars)
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, s.uuid),
-            child: Text(s.zoneName),
-          ),
-      ],
-    ),
-  );
-  if (target != null && context.mounted) {
-    context.push('/theater/$target/fronts');
-  }
-}
-
-/// Lays the overview's quick-action cards out: stacked full-width on a phone, a
-/// single equal-height row on a wide window (so mismatched description lengths
-/// don't leave one card taller than the other).
-Widget _quickActions(BuildContext context, List<Widget> cards) {
-  if (MediaQuery.sizeOf(context).width < kWideLayoutBreakpoint) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var i = 0; i < cards.length; i++) ...[
-          if (i > 0) const SizedBox(height: kCardGap),
-          cards[i],
-        ],
-      ],
-    );
-  }
-  return IntrinsicHeight(
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var i = 0; i < cards.length; i++) ...[
-          if (i > 0) const SizedBox(width: kCardGap),
-          Expanded(child: cards[i]),
-        ],
-      ],
-    ),
-  );
-}
-
-/// A quick-action card at the top of the overview: a primary-tinted icon, a
-/// title, a one-line description of what it builds, and a chevron. A calm
-/// outlined card (not a filled accent) so it leads without shouting.
-class _ActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  const _ActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(kCardRadius),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(icon, color: theme.colorScheme.primary, size: 26),
-              Gap.m,
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: theme.textTheme.titleMedium),
-                    Text(subtitle, style: theme.mutedText),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right),
-            ],
-          ),
-        ),
       ),
     );
   }
