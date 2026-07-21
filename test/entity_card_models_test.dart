@@ -21,7 +21,7 @@ void main() {
       expect(model.icon, Icons.surround_sound);
       expect(model.title, 'Woonkamer');
       expect(model.subtitle, 'Soundbar'); // type falls back sans system
-      expect(chipLabels(model), ['Fronts', 'Subwoofer']);
+      expect(chipLabels(model), ['Fronts', 'Sub']);
     });
 
     test('home theater with no extras: placeholder chip, no flag', () {

@@ -171,34 +171,39 @@ class _HomeShell extends StatelessWidget {
               children: [
                 ColoredBox(
                   color: scheme.surfaceContainerHigh,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(24, 24, 16, 20),
-                        child: BrandWordmark(height: 22),
-                      ),
-                      Expanded(
-                        child: NavigationRail(
-                          selectedIndex: shell.currentIndex,
-                          onDestinationSelected: _go,
-                          extended: true,
-                          backgroundColor: Colors.transparent,
-                          destinations: [
-                            for (final d in _destinations)
-                              NavigationRailDestination(
-                                icon: Icon(d.icon),
-                                selectedIcon: Icon(d.selectedIcon),
-                                label: Text(d.label),
-                              ),
-                          ],
+                  // SafeArea so the wordmark/rail/version clear the top inset — on
+                  // the demo web build that's the 50px faux status bar (native ~0,
+                  // so no visual change there).
+                  child: SafeArea(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(24, 24, 16, 20),
+                          child: BrandWordmark(height: 22),
                         ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(24, 8, 16, 16),
-                        child: VersionBadge(padding: EdgeInsets.zero),
-                      ),
-                    ],
+                        Expanded(
+                          child: NavigationRail(
+                            selectedIndex: shell.currentIndex,
+                            onDestinationSelected: _go,
+                            extended: true,
+                            backgroundColor: Colors.transparent,
+                            destinations: [
+                              for (final d in _destinations)
+                                NavigationRailDestination(
+                                  icon: Icon(d.icon),
+                                  selectedIcon: Icon(d.selectedIcon),
+                                  label: Text(d.label),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(24, 8, 16, 16),
+                          child: VersionBadge(padding: EdgeInsets.zero),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 VerticalDivider(width: 1, color: scheme.outlineVariant),
@@ -332,7 +337,11 @@ class _AnimatedBranchContainerState extends State<_AnimatedBranchContainer>
       secondaryAnimation: outgoing
           ? (_reverse ? kAlwaysDismissedAnimation : _controller)
           : (_reverse ? rev : kAlwaysDismissedAnimation),
-      transitionType: SharedAxisTransitionType.horizontal,
+      // In the wide rail layout the nav entries stack vertically, so slide tabs
+      // up/down to match; the bottom-bar (narrow) layout keeps horizontal.
+      transitionType: MediaQuery.sizeOf(context).width >= kWideLayoutBreakpoint
+          ? SharedAxisTransitionType.vertical
+          : SharedAxisTransitionType.horizontal,
       fillColor: Colors.transparent,
       child: child,
     );

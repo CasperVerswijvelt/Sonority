@@ -9,9 +9,15 @@ import 'profile.dart';
 /// True if [name] (trimmed, case-insensitive) is already used by another
 /// profile in [existing], excluding the profile with [exceptId] (the one being
 /// edited). Used to keep profile names unique on create/rename.
-bool isProfileNameTaken(List<Profile> existing, String name, {String? exceptId}) {
+bool isProfileNameTaken(
+  List<Profile> existing,
+  String name, {
+  String? exceptId,
+}) {
   final n = name.trim().toLowerCase();
-  return existing.any((p) => p.id != exceptId && p.name.trim().toLowerCase() == n);
+  return existing.any(
+    (p) => p.id != exceptId && p.name.trim().toLowerCase() == n,
+  );
 }
 
 /// Curated icon ids a user can pick for a profile, in picker order. Stored in
@@ -69,13 +75,17 @@ Set<String> get sfSymbolNameKeys => _sfSymbolNames.keys.toSet();
 
 /// The SF Symbol [IconData] for a profile icon (falls back to a star). Used on
 /// every platform now — profiles are visualised with SF Symbols throughout.
-IconData profileSfIcon(String iconId) => _profileSfIcons[iconId] ?? SFIcons.sf_star;
+IconData profileSfIcon(String iconId) =>
+    _profileSfIcons[iconId] ?? SFIcons.sf_star;
 
 /// The profile glyph as a widget — an SF Symbol on all platforms (profiles use
 /// SF Symbols everywhere). SF renders larger/tighter than a Material icon at the
 /// same point size, so scale down for the same visual weight + padding.
-Widget profileGlyph(String iconId, {required double size, required Color color}) =>
-    SFIcon(profileSfIcon(iconId), fontSize: size * 0.82, color: color);
+Widget profileGlyph(
+  String iconId, {
+  required double size,
+  required Color color,
+}) => SFIcon(profileSfIcon(iconId), fontSize: size * 0.82, color: color);
 
 /// Fixed accent palette a user can pick for a profile. [Profile.color] stores an
 /// index into this list; white foreground reads well on every entry.
@@ -107,7 +117,11 @@ ProfileTonal profileTonal(int colorIndex, Brightness brightness) {
     final card = Color.alphaBlend(a.withValues(alpha: 0.30), surface);
     return (
       card: card,
-      icon: _ensureContrast(_mix(a, Colors.white, 0.30), card, toward: Colors.white),
+      icon: _ensureContrast(
+        _mix(a, Colors.white, 0.30),
+        card,
+        toward: Colors.white,
+      ),
       label: const Color(0xFFECECEF),
     );
   }
@@ -149,11 +163,12 @@ class AppearanceButton extends StatelessWidget {
   final String iconId;
   final int color;
   final VoidCallback onTap;
-  const AppearanceButton(
-      {super.key,
-      required this.iconId,
-      required this.color,
-      required this.onTap});
+  const AppearanceButton({
+    super.key,
+    required this.iconId,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -209,8 +224,11 @@ class ProfileNameField extends StatelessWidget {
           iconId: iconId,
           color: color,
           onTap: () async {
-            final result =
-                await showAppearanceDialog(context, iconId: iconId, color: color);
+            final result = await showAppearanceDialog(
+              context,
+              iconId: iconId,
+              color: color,
+            );
             if (result != null) onAppearanceChanged(result.$1, result.$2);
           },
         ),
@@ -269,13 +287,16 @@ class ProfileCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       color: selected
-          ? Color.alphaBlend(scheme.primary.withValues(alpha: 0.12),
-              scheme.surfaceContainerHigh)
+          ? Color.alphaBlend(
+              scheme.primary.withValues(alpha: 0.12),
+              scheme.surfaceContainerHigh,
+            )
           : null,
       shape: selected
           ? RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(kCardRadius),
-              side: BorderSide(color: scheme.primary, width: 1.5))
+              side: BorderSide(color: scheme.primary, width: 1.5),
+            )
           : null,
       child: InkWell(
         borderRadius: BorderRadius.circular(kCardRadius),
@@ -292,8 +313,11 @@ class ProfileCard extends StatelessWidget {
                   EntityGlyph(
                     size: 48,
                     background: tonal.card,
-                    child: profileGlyph(profile.iconId,
-                        size: 24, color: tonal.icon),
+                    child: profileGlyph(
+                      profile.iconId,
+                      size: 24,
+                      color: tonal.icon,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -316,26 +340,38 @@ class ProfileCard extends StatelessWidget {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.schedule,
-                                  size: 13, color: scheme.onSurfaceVariant),
+                              Icon(
+                                Icons.schedule,
+                                size: 13,
+                                color: scheme.onSurfaceVariant,
+                              ),
                               const SizedBox(width: 4),
-                              Text('Updated ${timeAgo(t)}',
-                                  style: theme.textTheme.labelSmall
-                                      ?.copyWith(color: scheme.onSurfaceVariant)),
+                              Text(
+                                'Updated ${timeAgo(t)}',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
                             ],
                           ),
                         ],
                       ],
                     ),
                   ),
-                  if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+                  if (trailing != null) ...[
+                    const SizedBox(width: 8),
+                    trailing!,
+                  ],
                 ],
               ),
               const SizedBox(height: 12),
               // Capture chips on their own line so they never crowd the glyph or
               // wrap awkwardly beside it; includes what is NOT captured.
-              profileCaptureChips(context,
-                  audio: profile.hasAudioSettings, volume: profile.hasVolume),
+              profileCaptureChips(
+                context,
+                audio: profile.hasAudioSettings,
+                volume: profile.hasVolume,
+              ),
               if (actions != null) ...[const SizedBox(height: 14), actions!],
             ],
           ),
@@ -350,15 +386,18 @@ class ProfileCard extends StatelessWidget {
 /// cards on the detail screen. Uses the shared [PillChip] (the app's one tag
 /// pill), tinted `secondary` so a captured-setting tag reads distinct from a
 /// composition chip (which is `primary`).
-Widget? settingsBadges(BuildContext context,
-    {required bool audio, required bool volume}) {
+Widget? settingsBadges(
+  BuildContext context, {
+  required bool audio,
+  required bool volume,
+}) {
   if (!audio && !volume) return null;
   final color = Theme.of(context).colorScheme.secondary;
   return Wrap(
     spacing: 6,
     runSpacing: 6,
     children: [
-      if (audio) PillChip(icon: Icons.tune, text: 'Audio settings', color: color),
+      if (audio) PillChip(icon: Icons.tune, text: 'Settings', color: color),
       if (volume) PillChip(icon: Icons.volume_up, text: 'Volume', color: color),
     ],
   );
@@ -369,8 +408,11 @@ Widget? settingsBadges(BuildContext context,
 /// (`secondary`) chip when captured and a muted (`onSurfaceVariant`) "not saved"
 /// chip when not — so the tile states plainly what applying will and won't
 /// restore. (The per-entity detail footer keeps [settingsBadges], positive-only.)
-Widget profileCaptureChips(BuildContext context,
-    {required bool audio, required bool volume}) {
+Widget profileCaptureChips(
+  BuildContext context, {
+  required bool audio,
+  required bool volume,
+}) {
   final scheme = Theme.of(context).colorScheme;
   final on = scheme.secondary;
   final off = scheme.onSurfaceVariant;
@@ -378,10 +420,14 @@ Widget profileCaptureChips(BuildContext context,
     spacing: 6,
     runSpacing: 6,
     children: [
-      PillChip(icon: Icons.check, text: 'Layout + names', color: scheme.primary),
+      PillChip(
+        icon: Icons.check,
+        text: 'Layout + names',
+        color: scheme.primary,
+      ),
       audio
-          ? PillChip(icon: Icons.tune, text: 'Audio settings', color: on)
-          : PillChip(icon: Icons.tune, text: 'No audio settings', color: off),
+          ? PillChip(icon: Icons.tune, text: 'Settings', color: on)
+          : PillChip(icon: Icons.tune, text: 'No settings', color: off),
       volume
           ? PillChip(icon: Icons.volume_up, text: 'Volume', color: on)
           : PillChip(icon: Icons.volume_off, text: 'No volume', color: off),
@@ -405,8 +451,11 @@ String timeAgo(DateTime t) {
 
 /// Icon + colour picker dialog. Returns the chosen `(iconId, color)`, or null if
 /// cancelled. Shared by the create and edit screens.
-Future<(String, int)?> showAppearanceDialog(BuildContext context,
-    {required String iconId, required int color}) {
+Future<(String, int)?> showAppearanceDialog(
+  BuildContext context, {
+  required String iconId,
+  required int color,
+}) {
   var icon = iconId;
   var col = color;
   return showDialog<(String, int)>(
@@ -424,11 +473,13 @@ Future<(String, int)?> showAppearanceDialog(BuildContext context,
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, (icon, col)),
-              child: const Text('Done')),
+            onPressed: () => Navigator.pop(ctx, (icon, col)),
+            child: const Text('Done'),
+          ),
         ],
       ),
     ),
@@ -519,8 +570,9 @@ class _Swatch extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Icon swatches fill only when selected; colour swatches are always filled.
-    final fill =
-        filled || selected ? color : theme.colorScheme.surfaceContainerHighest;
+    final fill = filled || selected
+        ? color
+        : theme.colorScheme.surfaceContainerHighest;
     return InkWell(
       borderRadius: BorderRadius.circular(22),
       onTap: onTap,
@@ -539,4 +591,3 @@ class _Swatch extends StatelessWidget {
     );
   }
 }
-

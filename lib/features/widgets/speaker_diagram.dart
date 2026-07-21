@@ -33,15 +33,12 @@ class SpeakerDiagram extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    // Cap the height so a wide desktop window doesn't blow the diagram up to
-    // half the page — a phone-width column stays well under 320, so mobile is
-    // unaffected; wider layouts get a centered, sensibly-sized diagram.
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 320),
-        child: AspectRatio(
-          aspectRatio: 1.3,
-          child: Container(
+    // Fill the available width (already clamped by MaxWidthBody on wide layouts)
+    // but keep a fixed height so the diagram doesn't grow on larger screens — no
+    // forced aspect ratio. The fixed height also bounds the inner Expanded rows.
+    return SizedBox(
+      height: 320,
+      child: Container(
         decoration: BoxDecoration(
           color: scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(kCardRadius),
@@ -59,11 +56,12 @@ class SpeakerDiagram extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text(soundbarLabel ?? 'TV / Soundbar',
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: scheme.onSurfaceVariant)),
+            Text(
+              soundbarLabel ?? 'TV / Soundbar',
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
             const SizedBox(height: 4),
             Expanded(
               child: Row(
@@ -78,9 +76,10 @@ class SpeakerDiagram extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: PillChip(
-                    icon: Icons.graphic_eq,
-                    text: subCount > 1 ? 'SUB ×$subCount' : 'SUB',
-                    color: scheme.tertiary),
+                  icon: Icons.graphic_eq,
+                  text: subCount > 1 ? 'SUB ×$subCount' : 'SUB',
+                  color: scheme.tertiary,
+                ),
               ),
             Expanded(
               child: Row(
@@ -88,15 +87,16 @@ class SpeakerDiagram extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   _dot(context, 'LS', rearLeftLabel, scheme.secondary),
-                  Icon(Icons.weekend_outlined,
-                      color: scheme.onSurfaceVariant, size: 28),
+                  Icon(
+                    Icons.weekend_outlined,
+                    color: scheme.onSurfaceVariant,
+                    size: 28,
+                  ),
                   _dot(context, 'RS', rearRightLabel, scheme.secondary),
                 ],
               ),
             ),
           ],
-        ),
-      ),
         ),
       ),
     );
@@ -120,12 +120,14 @@ class SpeakerDiagram extends StatelessWidget {
             ),
           ),
           alignment: Alignment.center,
-          child: Text(pos,
-              style: TextStyle(
-                color: active ? scheme.onPrimary : scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-              )),
+          child: Text(
+            pos,
+            style: TextStyle(
+              color: active ? scheme.onPrimary : scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
         ),
         const SizedBox(height: 4),
         SizedBox(
@@ -136,8 +138,8 @@ class SpeakerDiagram extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: active ? scheme.onSurface : scheme.onSurfaceVariant,
-                ),
+              color: active ? scheme.onSurface : scheme.onSurfaceVariant,
+            ),
           ),
         ),
       ],

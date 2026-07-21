@@ -10,6 +10,8 @@ import '../widgets/busy_view.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
+import '../widgets/scroll_footer.dart';
+import '../widgets/section_header.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/trueplay_control.dart';
 
@@ -41,8 +43,10 @@ class RoomScreen extends ConsumerWidget {
     // Soundbars this speaker could join as a front/surround (same rule the
     // overview uses to list home theaters).
     final soundbars = system.allMembers
-        .where((m) =>
-            m.isHomeTheater || (system.device(m.uuid)?.isSoundbar ?? false))
+        .where(
+          (m) =>
+              m.isHomeTheater || (system.device(m.uuid)?.isSoundbar ?? false),
+        )
         .toList();
 
     return AppScaffold(
@@ -56,14 +60,47 @@ class RoomScreen extends ConsumerWidget {
             onPressed: () => _rename(context, ref, device, member.zoneName),
           ),
       ],
-      body: ListView(
+      // The speaker sits at the top; the shortcuts + Trueplay float to the
+      // bottom of the page (via ScrollFooter), matching the group page's
+      // Separate button.
+      body: ScrollFooter(
         padding: const EdgeInsets.symmetric(vertical: 8),
+        footer: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Put this speaker to use: shortcuts into the bonding flows so a
+            // standalone room isn't a dead end (the flows do their own
+            // validation). Descriptive rows (title + what it does), not bare
+            // buttons.
+            _ActionRow(
+              icon: Icons.speaker_group_outlined,
+              title: 'Group with another speaker',
+              subtitle: 'Stereo pair, full-range zone, or custom L/R',
+              onTap: () => _leaveTo(context, '/group'),
+            ),
+            if (soundbars.isNotEmpty)
+              _ActionRow(
+                icon: Icons.surround_sound,
+                title: 'Add to a home theater',
+                subtitle: 'As a front, surround, or sub',
+                onTap: () => _addToHomeTheater(context, soundbars),
+              ),
+            Gap.s,
+            // Settings: a flat, sectioned Trueplay row, not another card.
+            SettingsSection(children: [TrueplayControl(devices: devices)]),
+          ],
+        ),
         children: [
           // Content: the speaker itself — a standalone speaker has no channel,
-          // so no chip (parallels the group sheet's per-speaker cards).
-          if (device != null)
+          // so no chip (parallels the group's per-speaker cards).
+          if (device != null) ...[
+            const Padding(
+              padding: EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 0),
+              child: SectionHeader('Speakers'),
+            ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 16),
+              padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
               child: MemberChannelCard(
                 icon: Icons.speaker,
                 type: device.typeLabel,
@@ -71,25 +108,7 @@ class RoomScreen extends ConsumerWidget {
                 trailing: speakerIdentifyButton(device, allowChime: true),
               ),
             ),
-          // Put this speaker to use: shortcuts into the bonding flows so a
-          // standalone room isn't a dead end (the flows do their own validation).
-          // Descriptive rows (title + what it does), not bare buttons.
-          _ActionRow(
-            icon: Icons.speaker_group_outlined,
-            title: 'Group with another speaker',
-            subtitle: 'Stereo pair, full-range zone, or custom L/R',
-            onTap: () => _leaveTo(context, '/group'),
-          ),
-          if (soundbars.isNotEmpty)
-            _ActionRow(
-              icon: Icons.surround_sound,
-              title: 'Add to a home theater',
-              subtitle: 'As a front, surround, or sub',
-              onTap: () => _addToHomeTheater(context, soundbars),
-            ),
-          Gap.s,
-          // Settings: a flat, sectioned Trueplay row, not another card.
-          SettingsSection(children: [TrueplayControl(devices: devices)]),
+          ],
         ],
       ),
     );
@@ -108,7 +127,9 @@ void _leaveTo(BuildContext context, String location) {
 /// "Add to a home theater": route into the HT setup flow keyed to a soundbar —
 /// straight through with one soundbar, or a small chooser when there are several.
 Future<void> _addToHomeTheater(
-    BuildContext context, List<ZoneGroupMember> soundbars) async {
+  BuildContext context,
+  List<ZoneGroupMember> soundbars,
+) async {
   String? target;
   if (soundbars.length == 1) {
     target = soundbars.first.uuid;
@@ -159,8 +180,12 @@ class _ActionRow extends StatelessWidget {
   }
 }
 
-Future<void> _rename(BuildContext context, WidgetRef ref, SonosDevice device,
-    String current) async {
+Future<void> _rename(
+  BuildContext context,
+  WidgetRef ref,
+  SonosDevice device,
+  String current,
+) async {
   final name = await showRenameDialog(context, current);
   if (name == null || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);

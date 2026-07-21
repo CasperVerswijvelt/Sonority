@@ -33,8 +33,7 @@ class EntityChip {
   final IconData icon;
   final String label;
   final EntityChipTone tone;
-  const EntityChip(this.icon, this.label,
-      {this.tone = EntityChipTone.normal});
+  const EntityChip(this.icon, this.label, {this.tone = EntityChipTone.normal});
 }
 
 /// The compact tile for any entity kind — the overview (home theaters, groups &
@@ -64,11 +63,16 @@ class EntityCardModel {
     return _build(system, m, reachable: d == null || d.reachable);
   }
 
-  factory EntityCardModel.fromSnapshot(SonosSystem? system, ZoneGroupMember m) =>
-      _build(system, m, reachable: true);
+  factory EntityCardModel.fromSnapshot(
+    SonosSystem? system,
+    ZoneGroupMember m,
+  ) => _build(system, m, reachable: true);
 
-  static EntityCardModel _build(SonosSystem? system, ZoneGroupMember m,
-      {required bool reachable}) {
+  static EntityCardModel _build(
+    SonosSystem? system,
+    ZoneGroupMember m, {
+    required bool reachable,
+  }) {
     if (m.isHomeTheater) {
       final type = system?.device(m.uuid)?.typeLabel ?? 'Soundbar';
       final chips = <EntityChip>[
@@ -79,7 +83,7 @@ class EntityCardModel {
             hasChannel(m, SonosChannel.rightRear))
           const EntityChip(Icons.surround_sound, 'Surrounds'),
         if (hasChannel(m, SonosChannel.sub))
-          const EntityChip(Icons.graphic_eq, 'Subwoofer'),
+          const EntityChip(Icons.graphic_eq, 'Sub'),
       ];
       return EntityCardModel(
         icon: Icons.surround_sound,
@@ -121,10 +125,13 @@ class EntityCardModel {
   /// Trailing status chips shared by HT + group cards: a drop-out caution for a
   /// large zone.
   static List<EntityChip> _metaChips(ZoneGroupMember m) => [
-        if (m.isZone && m.groupChannels.length >= kZoneWarnSize)
-          const EntityChip(Icons.warning_amber_rounded, 'Can drop out',
-              tone: EntityChipTone.warning),
-      ];
+    if (m.isZone && m.groupChannels.length >= kZoneWarnSize)
+      const EntityChip(
+        Icons.warning_amber_rounded,
+        'Can drop out',
+        tone: EntityChipTone.warning,
+      ),
+  ];
 }
 
 /// Shown wherever an unreachable speaker ([SonosDevice.reachable] == false)
@@ -173,13 +180,19 @@ class EntityCard extends StatelessWidget {
                     children: [
                       Text(model.title, style: theme.textTheme.bodyLarge),
                       if (unreachable)
-                        Text(unreachableSpeakerHint,
-                            style: theme.textTheme.bodyMedium
-                                ?.copyWith(color: scheme.error))
+                        Text(
+                          unreachableSpeakerHint,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: scheme.error,
+                          ),
+                        )
                       else if (model.subtitle != null)
-                        Text(model.subtitle!,
-                            style: theme.textTheme.bodyMedium
-                                ?.copyWith(color: scheme.onSurfaceVariant)),
+                        Text(
+                          model.subtitle!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
                       if (!unreachable && model.chips.isNotEmpty) ...[
                         Gap.s,
                         Wrap(
@@ -188,12 +201,13 @@ class EntityCard extends StatelessWidget {
                           children: [
                             for (final c in model.chips)
                               PillChip(
-                                  icon: c.icon,
-                                  text: c.label,
-                                  color: switch (c.tone) {
-                                    EntityChipTone.normal => scheme.primary,
-                                    EntityChipTone.warning => scheme.error,
-                                  }),
+                                icon: c.icon,
+                                text: c.label,
+                                color: switch (c.tone) {
+                                  EntityChipTone.normal => scheme.primary,
+                                  EntityChipTone.warning => scheme.error,
+                                },
+                              ),
                           ],
                         ),
                       ],

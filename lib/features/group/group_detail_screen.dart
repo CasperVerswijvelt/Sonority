@@ -15,6 +15,7 @@ import '../widgets/info_note.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
 import '../widgets/scroll_footer.dart';
+import '../widgets/section_header.dart';
 
 /// A bonded speaker group (stereo pair / zone / custom) shown as a pushed page:
 /// the group kind, one card per member speaker (type + channel), a rename action,
@@ -71,6 +72,7 @@ class GroupDetailScreen extends ConsumerWidget {
           onPressed: () => _confirmSeparate(context, ref, group),
         ),
         children: [
+          const SectionHeader('Speakers'),
           for (final e in group.groupChannels.entries) ...[
             MemberChannelCard(
               icon: Icons.speaker,
@@ -104,8 +106,12 @@ class GroupDetailScreen extends ConsumerWidget {
   }
 }
 
-Future<void> _rename(BuildContext context, WidgetRef ref, SonosDevice device,
-    String current) async {
+Future<void> _rename(
+  BuildContext context,
+  WidgetRef ref,
+  SonosDevice device,
+  String current,
+) async {
   final name = await showRenameDialog(context, current);
   if (name == null || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
@@ -120,12 +126,16 @@ Future<void> _rename(BuildContext context, WidgetRef ref, SonosDevice device,
 }
 
 Future<void> _confirmSeparate(
-    BuildContext context, WidgetRef ref, ZoneGroupMember group) async {
+  BuildContext context,
+  WidgetRef ref,
+  ZoneGroupMember group,
+) async {
   final ok = await confirmDialog(
     context,
     icon: Icons.link_off,
     title: 'Separate group?',
-    message: 'The speakers become standalone rooms again. Their original room '
+    message:
+        'The speakers become standalone rooms again. Their original room '
         'names will be restored.',
     confirmLabel: 'Separate',
   );

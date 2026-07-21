@@ -80,14 +80,14 @@ class HomeTheaterScreen extends ConsumerWidget {
               bonded: bonded,
               onRemoveGroup: (channels, label, {bool separateAll = false}) =>
                   _confirmRemoveGroup(
-                context,
-                ref,
-                member,
-                device,
-                channels,
-                label,
-                separateAll: separateAll,
-              ),
+                    context,
+                    ref,
+                    member,
+                    device,
+                    channels,
+                    label,
+                    separateAll: separateAll,
+                  ),
               onConfigure: () => context.push('/theater/$soundbarUuid/fronts'),
             ),
     );
@@ -127,9 +127,9 @@ class HomeTheaterScreen extends ConsumerWidget {
       title: separateAll ? 'Separate home theater?' : 'Remove $label?',
       message: separateAll
           ? 'All extra speakers will be un-bonded and become standalone rooms '
-              'again, leaving just the soundbar.'
+                'again, leaving just the soundbar.'
           : 'These speakers will be un-bonded and become standalone rooms '
-              'again. The rest of your home theater stays as it is.',
+                'again. The rest of your home theater stays as it is.',
       confirmLabel: separateAll ? 'Separate' : 'Remove',
     );
     if (!ok || !context.mounted) return;
@@ -166,15 +166,19 @@ const _htGroups = [
     SonosChannel.leftRear,
     SonosChannel.rightRear,
   }),
-  _Group('Subwoofer', Icons.graphic_eq, {SonosChannel.sub}),
+  _Group('Sub', Icons.graphic_eq, {SonosChannel.sub}),
 ];
 
 class _Content extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember member;
   final List<SonosDevice> bonded;
-  final void Function(Set<SonosChannel> channels, String label,
-      {bool separateAll}) onRemoveGroup;
+  final void Function(
+    Set<SonosChannel> channels,
+    String label, {
+    bool separateAll,
+  })
+  onRemoveGroup;
   final VoidCallback onConfigure;
 
   const _Content({
@@ -216,7 +220,12 @@ class _Content extends StatelessWidget {
       footer: present.isEmpty
           ? const SizedBox.shrink()
           : Padding(
-              padding: const EdgeInsets.fromLTRB(kPageGutter, 20, kPageGutter, 0),
+              padding: const EdgeInsets.fromLTRB(
+                kPageGutter,
+                20,
+                kPageGutter,
+                0,
+              ),
               child: DestructiveButton(
                 icon: Icons.link_off,
                 label: 'Separate',
