@@ -429,9 +429,11 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
           routerConfig: _router,
           // The screenshot-only web demo build has no OS chrome, which looks
           // bare — so paint a faux iOS status bar and reserve its height as the
-          // top inset (the AppBar renders below it). Small left/right/bottom
-          // insets keep cards off the phone frame without crowding. app_scaffold's
-          // body SafeArea turns bottom/left/right into margins. Native untouched.
+          // top inset (the AppBar renders below it), plus a small bottom inset for
+          // the home-indicator area. NO left/right inset — a real phone in
+          // portrait has none, and faking one would push full-bleed surfaces
+          // (settings dividers) off the edge. Cards keep their own kPageGutter.
+          // Native untouched.
           builder: (kDemoMode && kIsWeb)
               ? (context, child) {
                   const statusBarH = 50.0;
@@ -440,14 +442,10 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
                     data: mq.copyWith(
                       padding: mq.padding.copyWith(
                         top: statusBarH,
-                        left: 8,
-                        right: 8,
                         bottom: 10,
                       ),
                       viewPadding: mq.viewPadding.copyWith(
                         top: statusBarH,
-                        left: 8,
-                        right: 8,
                         bottom: 10,
                       ),
                     ),
