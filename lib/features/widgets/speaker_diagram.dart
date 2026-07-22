@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
 import '../../core/theme.dart';
+import 'pill_chip.dart';
 
 /// A simple top-down room diagram showing the soundbar and the currently
 /// assigned channels around it. Purely illustrative — communicates layout at a
@@ -33,8 +34,11 @@ class SpeakerDiagram extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return AspectRatio(
-      aspectRatio: 1.3,
+    // Fill the available width (already clamped by MaxWidthBody on wide layouts)
+    // but keep a fixed height so the diagram doesn't grow on larger screens — no
+    // forced aspect ratio. The fixed height also bounds the inner Expanded rows.
+    return SizedBox(
+      height: 320,
       child: Container(
         decoration: BoxDecoration(
           color: scheme.surfaceContainerLow,
@@ -53,11 +57,12 @@ class SpeakerDiagram extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text(soundbarLabel ?? context.l10n.widgetsTvSoundbar,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: scheme.onSurfaceVariant)),
+            Text(
+              soundbarLabel ?? context.l10n.widgetsTvSoundbar,
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
             const SizedBox(height: 4),
             Expanded(
               child: Row(
@@ -71,8 +76,11 @@ class SpeakerDiagram extends StatelessWidget {
             if (subCount > 0)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                child: _chip(context, subCount > 1 ? 'SUB ×$subCount' : 'SUB',
-                    scheme.tertiary),
+                child: PillChip(
+                  icon: Icons.graphic_eq,
+                  text: subCount > 1 ? 'SUB ×$subCount' : 'SUB',
+                  color: scheme.tertiary,
+                ),
               ),
             Expanded(
               child: Row(
@@ -80,8 +88,11 @@ class SpeakerDiagram extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   _dot(context, 'LS', rearLeftLabel, scheme.secondary),
-                  Icon(Icons.weekend_outlined,
-                      color: scheme.onSurfaceVariant, size: 28),
+                  Icon(
+                    Icons.weekend_outlined,
+                    color: scheme.onSurfaceVariant,
+                    size: 28,
+                  ),
                   _dot(context, 'RS', rearRightLabel, scheme.secondary),
                 ],
               ),
@@ -110,12 +121,14 @@ class SpeakerDiagram extends StatelessWidget {
             ),
           ),
           alignment: Alignment.center,
-          child: Text(pos,
-              style: TextStyle(
-                color: active ? scheme.onPrimary : scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-              )),
+          child: Text(
+            pos,
+            style: TextStyle(
+              color: active ? scheme.onPrimary : scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
         ),
         const SizedBox(height: 4),
         SizedBox(
@@ -126,23 +139,11 @@ class SpeakerDiagram extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: active ? scheme.onSurface : scheme.onSurfaceVariant,
-                ),
+              color: active ? scheme.onSurface : scheme.onSurfaceVariant,
+            ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _chip(BuildContext context, String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(text,
-          style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 11)),
     );
   }
 }

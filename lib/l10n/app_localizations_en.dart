@@ -15,6 +15,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabProfiles => 'Profiles';
 
   @override
+  String get tabDiagnostics => 'Diagnostics';
+
+  @override
   String get actionCancel => 'Cancel';
 
   @override
@@ -63,6 +66,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionAborting => 'Aborting…';
 
   @override
+  String get actionMore => 'More';
+
+  @override
   String get bondingCopyLogs => 'Copy logs';
 
   @override
@@ -76,6 +82,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bondingNoLogOutput => 'No log output yet.';
+
+  @override
+  String get bondingSafeStateNote =>
+      'It’s safe to retry — re-applying picks up where it left off and finishes the layout.';
 
   @override
   String get errSystemNotFound =>
@@ -406,13 +416,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get widgetsSurrounds => 'Surrounds';
 
   @override
-  String get widgetsSubwoofer => 'Subwoofer';
-
-  @override
   String get widgetsSub => 'Sub';
 
   @override
   String get widgetsStandaloneSpeaker => 'Standalone speaker';
+
+  @override
+  String get widgetsAmp => 'Amp';
 
   @override
   String get widgetsNoExtraSpeakers => 'No extra speakers';
@@ -634,8 +644,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Recaptured from your current setup — press Save to keep it.';
 
   @override
-  String get profileCapturedNote =>
-      'Captured when the profile was created. Use the re-snapshot button (top right) to recapture from your current setup.';
+  String get profileCapturedNote => 'Captured when the profile was created.';
+
+  @override
+  String get profileResnapshotAction => 'Re-capture from current setup';
 
   @override
   String get profileSaved => 'Profile saved';
@@ -670,6 +682,92 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileBadgeVolume => 'Volume';
+
+  @override
+  String profileUpdatedAgo(String time) {
+    return 'Updated $time';
+  }
+
+  @override
+  String get profileChipLayoutNames => 'Layout + names';
+
+  @override
+  String get profileChipSettings => 'Settings';
+
+  @override
+  String get profileChipNoSettings => 'No settings';
+
+  @override
+  String get profileChipNoVolume => 'No volume';
+
+  @override
+  String get profileTimeJustNow => 'just now';
+
+  @override
+  String profileTimeMinutesAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count minutes ago',
+      one: '1 minute ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String profileTimeHoursAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hours ago',
+      one: '1 hour ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String profileTimeDaysAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days ago',
+      one: '1 day ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String profileTimeWeeksAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count weeks ago',
+      one: '1 week ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String profileTimeMonthsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count months ago',
+      one: '1 month ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String profileTimeYearsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count years ago',
+      one: '1 year ago',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get profileAppearance => 'Appearance';
@@ -725,6 +823,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoverySubwoofer => 'Subwoofer';
 
   @override
+  String get discoverySubUnbondedNote =>
+      'This Sub isn’t bonded to anything yet. Add it to a home theater (Configure home theater) or a speaker group to use it.';
+
+  @override
   String get discoveryScanning => 'Scanning your network…';
 
   @override
@@ -750,7 +852,29 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get roomGroupWith => 'Group with another speaker';
+
+  @override
+  String get roomGroupWithSubtitle =>
+      'Stereo pair, full-range zone, or custom L/R';
+
+  @override
+  String get roomAddToHomeTheater => 'Add to a home theater';
+
+  @override
+  String get roomAddToHomeTheaterSubtitle => 'As a front, surround, or sub';
+
+  @override
+  String get roomAddToWhichHomeTheater => 'Add to which home theater?';
+
+  @override
+  String get sectionSpeakers => 'Speakers';
+
+  @override
   String get groupSheetTitle => 'Speaker group';
+
+  @override
+  String get groupUpdating => 'Updating…';
 
   @override
   String get groupRenameTooltip => 'Rename group';
@@ -839,15 +963,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get groupHintCustom =>
       'Pick 2–16 speakers and set each to Left, Right, or Both.';
-
-  @override
-  String get groupSideLeft => 'LEFT';
-
-  @override
-  String get groupSideRight => 'RIGHT';
-
-  @override
-  String get groupSwapSides => 'Swap sides';
 
   @override
   String get groupChannelLeft => 'Left';
@@ -972,14 +1087,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get htGroupSubwoofer => 'Subwoofer';
 
   @override
-  String get htConfigure => 'Configure home theater';
+  String get htConfigure => 'Configure';
 
   @override
   String get htBondedSpeakers => 'Bonded speakers';
 
   @override
   String get htNoBonded =>
-      'Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure home theater” to add some.';
+      'Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure” to add some.';
 
   @override
   String get htSpeakerFallback => 'Speaker';
@@ -1008,23 +1123,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Pick two speakers (or a single Amp) for the front left & right, then set which is which.';
 
   @override
-  String get frontSurroundsLeft => 'LEFT';
-
-  @override
-  String get frontSurroundsRight => 'RIGHT';
-
-  @override
   String get frontSurroundsStepSurrounds => 'Rear surrounds';
 
   @override
   String get frontSurroundsSurroundsHint =>
       'Pick two speakers for the rear left & right surrounds.';
-
-  @override
-  String get frontSurroundsRearLeft => 'REAR LEFT';
-
-  @override
-  String get frontSurroundsRearRight => 'REAR RIGHT';
 
   @override
   String get frontSurroundsStepSub => 'Subwoofer';
@@ -1083,9 +1186,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get frontSurroundsChooseTwoFirst => 'Choose two speakers first.';
-
-  @override
-  String get frontSurroundsSwapSides => 'Swap sides';
 
   @override
   String get frontSurroundsTapSwap => 'Tap swap if the sides are reversed.';

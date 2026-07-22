@@ -15,7 +15,7 @@ import 'profile_entity_detail_screen.dart';
 import 'profile_ui.dart';
 
 /// A profile's detail view and single save surface: edit the name/appearance,
-/// review what each captured entity will restore, and re-snapshot to replace the
+/// review what each captured entity will restore, and re-capture to replace the
 /// captured layout from the current setup. All edits are unsaved until Save.
 class ProfileDetailScreen extends ConsumerStatefulWidget {
   final String profileId;
@@ -68,19 +68,13 @@ class _State extends ConsumerState<ProfileDetailScreen> {
         _iconId != profile.iconId || _color != profile.color;
     final nameChanged = name != profile.name;
     final entitiesChanged = _pendingEntities != null;
-    final changed = (nameChanged || appearanceChanged || entitiesChanged) &&
+    final changed =
+        (nameChanged || appearanceChanged || entitiesChanged) &&
         name.isNotEmpty &&
         !taken;
 
     return AppScaffold(
       title: context.l10n.profileTitle,
-      actions: [
-        IconButton(
-          tooltip: context.l10n.profileResnapshotTooltip,
-          onPressed: system == null ? null : () => _resnapshot(profile),
-          icon: const Icon(Icons.cameraswitch),
-        ),
-      ],
       // Save appears once the name, appearance (icon/colour), or a re-snapshot
       // differs from what's stored.
       floatingActionButton: changed
@@ -103,6 +97,18 @@ class _State extends ConsumerState<ProfileDetailScreen> {
               _iconId = icon;
               _color = color;
             }),
+          ),
+          Gap.l,
+          // Re-capture sits above the list it replaces — a light-weight tonal
+          // action, not a heavy CTA.
+          FilledButton.tonalIcon(
+            onPressed: system == null ? null : () => _resnapshot(profile),
+            icon: const Icon(Icons.cameraswitch),
+            label: Text(context.l10n.profileResnapshotAction),
+            style: FilledButton.styleFrom(
+              textStyle: theme.textTheme.labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w400),
+            ),
           ),
           Gap.l,
           SectionHeader(context.l10n.profileIncludedHeader),
@@ -131,7 +137,8 @@ class _State extends ConsumerState<ProfileDetailScreen> {
   /// change (committed only when the user taps Save).
   Future<void> _resnapshot(Profile profile) async {
     final result = await context.push<List<EntitySnapshot>>(
-        '/profiles/edit/${profile.id}/resnapshot');
+      '/profiles/edit/${profile.id}/resnapshot',
+    );
     if (result != null && mounted) {
       setState(() => _pendingEntities = result);
     }
@@ -139,12 +146,19 @@ class _State extends ConsumerState<ProfileDetailScreen> {
 
   Future<void> _save(Profile profile, String name) async {
     final messenger = ScaffoldMessenger.of(context);
-    await ref.read(profilesProvider.notifier).replace(profile.copyWith(
-          name: name,
-          iconId: _iconId,
-          color: _color,
-          entities: _pendingEntities ?? profile.entities,
-        ));
+    await ref
+        .read(profilesProvider.notifier)
+        .replace(
+          profile.copyWith(
+            name: name,
+            iconId: _iconId,
+            color: _color,
+            entities: _pendingEntities ?? profile.entities,
+            // Bump the "updated X ago" stamp only when the snapshot was recaptured
+            // (a name/appearance edit leaves the capture time alone).
+            updatedAt: _pendingEntities != null ? DateTime.now() : null,
+          ),
+        );
     if (!mounted) return;
     // Stay on the page: clearing pending + the provider update make `changed`
     // false, so the Save FAB hides itself.
@@ -158,11 +172,17 @@ class _State extends ConsumerState<ProfileDetailScreen> {
 /// unlike the overview's rich HT card), built from the stored snapshot with a
 /// "settings saved" footer and a tap that opens the entity detail sheet.
 Widget _entityCard(
-    BuildContext context, EntitySnapshot e, SonosSystem? system) {
+  BuildContext context,
+  EntitySnapshot e,
+  SonosSystem? system,
+) {
   return EntityCard(
     model: EntityCardModel.fromSnapshot(system, e.toMember()),
     onTap: () => showEntitySheet(context, e, system),
-    footer: settingsBadges(context,
-        audio: e.hasAudioSettings, volume: e.hasVolume),
+    footer: settingsBadges(
+      context,
+      audio: e.hasAudioSettings,
+      volume: e.hasVolume,
+    ),
   );
 }

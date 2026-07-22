@@ -8,12 +8,14 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
-import '../diagnostics/diagnostics_sheet.dart';
-import '../group/group_detail_screen.dart';
-import '../room/room_screen.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/brand_wordmark.dart';
+import '../widgets/card_grid.dart';
 import '../widgets/entity_cards.dart';
+import '../widgets/identify_controls.dart';
+import '../widgets/member_channel_card.dart';
 import '../widgets/section_header.dart';
+import '../widgets/sheet_scaffold.dart';
 import '../widgets/version_badge.dart';
 
 /// Entry screen: auto-scans the LAN on launch and presents the system, leading
@@ -44,27 +46,17 @@ class DiscoveryScreen extends ConsumerWidget {
           : _SystemView(system: system),
     );
 
+    // Wide layout carries the wordmark + version in the nav rail, so the app
+    // bar shows a plain "System" title; narrow (no rail) keeps the wordmark as
+    // the title and the version badge in the actions.
+    final wide = MediaQuery.sizeOf(context).width >= kWideLayoutBreakpoint;
     return AppScaffold(
-      title: 'Sonority',
-      // White glyphs on alpha → srcIn tint recolors them to the theme text
-      // colour, so the one asset works in light and dark. ColorFiltered (not
-      // Image(color:)) because CanvasKit renders an image `color` tint blank on
-      // web — this path tints correctly on every platform (the screenshot host).
-      titleWidget: ColorFiltered(
-        colorFilter: ColorFilter.mode(
-          Theme.of(context).colorScheme.onSurface,
-          BlendMode.srcIn,
-        ),
-        child: Image.asset('assets/brand/sonority_wordmark.png', height: 20),
-      ),
+      title: context.l10n.tabSystem,
+      titleWidget: wide ? null : const BrandWordmark(),
       onRefresh: state.value != null ? () => controller.scan() : null,
       actions: [
-        const VersionBadge(),
-        IconButton(
-          tooltip: context.l10n.discoveryDiagnostics,
-          onPressed: () => showDiagnosticsSheet(context),
-          icon: const Icon(Icons.bug_report_outlined),
-        ),
+        if (!wide) const VersionBadge(),
+        // Diagnostics now lives in the bottom nav (see app.dart), not here.
         // Only when there's a discovered system to refresh; the error state
         // uses its own CTA button to scan.
         if (state.value != null)
@@ -124,10 +116,13 @@ class _SystemView extends ConsumerWidget {
           SectionHeader(context.l10n.discoveryHomeTheaters,
               icon: Icons.theaters_outlined),
           if (theaters.isEmpty) _EmptyHint(context.l10n.discoveryNoSoundbar),
-          ...theaters.map((m) => TheaterEntityCard(
-                model: TheaterCardModel.fromMember(system, m),
+          _cardGrid([
+            for (final m in theaters)
+              EntityCard(
+                model: EntityCardModel.fromMember(system, m),
                 onTap: () => context.push('/theater/${m.uuid}'),
-              )),
+              ),
+          ]),
           Gap.l,
           // The "+" lives in the header; the flow itself explains if there
           // aren't two free speakers to bond.
@@ -138,74 +133,90 @@ class _SystemView extends ConsumerWidget {
             addTooltip: context.l10n.discoveryGroupSpeakers,
           ),
           if (groups.isEmpty)
-            _EmptySectionCard(context.l10n.discoveryNoGroups)
+            _EmptyHint(context.l10n.discoveryNoGroups)
           else
-            ...groups.map((m) => EntityCard(
+            _cardGrid([
+              for (final m in groups)
+                EntityCard(
                   model: EntityCardModel.fromMember(system, m),
-                  onTap: () => showGroupSheet(context, m.uuid),
-                )),
+                  onTap: () => context.push('/group/${m.uuid}'),
+                ),
+            ]),
           // Single speaker rooms — hidden entirely when there are none.
           if (singleRooms.isNotEmpty) ...[
             Gap.l,
-            SectionHeader(context.l10n.discoverySingleRooms,
-                icon: Icons.meeting_room_outlined),
-            ...singleRooms.map((m) => EntityCard(
+            SectionHeader(
+              context.l10n.discoverySingleRooms,
+              icon: Icons.meeting_room_outlined,
+            ),
+            _cardGrid([
+              for (final m in singleRooms)
+                EntityCard(
                   model: EntityCardModel.fromMember(system, m),
-                  onTap: () => showRoomSheet(context, m.uuid),
-                )),
+                  onTap: () => context.push('/room/${m.uuid}'),
+                ),
+            ]),
           ],
           // Other devices: unbonded Subs are shown so they're visible (they're
-          // Invisible members with no room), but not tappable — there's nothing
-          // to configure for a standalone sub; add it to a home theater from the
-          // HT setup flow.
+          // Invisible members with no room). Tapping opens a small sheet to
+          // identify it and explains how to bond it — a standalone sub has no
+          // config of its own, so this is the only affordance.
           if (system.bondableSubs.isNotEmpty) ...[
             Gap.l,
             SectionHeader(context.l10n.discoveryOtherDevices,
                 icon: Icons.devices_other_outlined),
+            _cardGrid([
+              for (final sub in system.bondableSubs)
+                EntityCard(
+                  model: EntityCardModel(
+                    icon: Icons.graphic_eq,
+                    title: context.l10n.discoverySubwoofer,
+                    subtitle: sub.typeLabel,
+                  ),
+                  onTap: () => _showSubSheet(context, sub),
+                ),
+            ]),
           ],
-          ...system.bondableSubs.map(
-            (sub) => Card(
-              margin: const EdgeInsets.only(bottom: kCardGap),
-              child: ListTile(
-                leading: const Icon(Icons.graphic_eq),
-                title: Text(context.l10n.discoverySubwoofer),
-                subtitle: Text(sub.typeLabel),
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 }
 
-/// A subtle, fill-free outlined card with centered text for an empty section.
-/// Uses a transparent [Card] so its shape + hairline outline come straight from
-/// `cardTheme` (theme.dart) — radius stays in sync with the real cards, nothing
-/// hardcoded.
-class _EmptySectionCard extends StatelessWidget {
-  final String text;
-  const _EmptySectionCard(this.text);
+/// The overview's entity cards each carry their own bottom gap, so the shared
+/// [CardGrid] runs with `runSpacing: 0` here (it adds only column spacing).
+Widget _cardGrid(List<Widget> cards) => CardGrid(cards, runSpacing: 0);
 
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: Colors.transparent,
-      margin: const EdgeInsets.only(bottom: kCardGap),
-      child: SizedBox(
-        width: double.infinity,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
+/// Opens a standalone (unbonded) Sub as a small sheet: identify it by ear/LED and
+/// a note on how to put it to use (it has no config of its own).
+Future<void> _showSubSheet(
+  BuildContext context,
+  SonosDevice sub,
+) => showSheet<void>(
+  context,
+  SheetScaffold(
+    title: context.l10n.discoverySubwoofer,
+    subtitle: sub.typeLabel,
+    body: Padding(
+      padding: const EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MemberChannelCard(
+            icon: Icons.graphic_eq,
+            type: sub.typeLabel,
+            trailing: speakerIdentifyButton(sub),
+          ),
+          Gap.m,
+          Text(
+            context.l10n.discoverySubUnbondedNote,
             style: Theme.of(context).mutedText,
           ),
-        ),
+        ],
       ),
-    );
-  }
-}
+    ),
+  ),
+);
 
 class _EmptyHint extends StatelessWidget {
   final String text;
@@ -213,10 +224,7 @@ class _EmptyHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: kCardGap),
-    child: Text(
-      text,
-      style: Theme.of(context).mutedText,
-    ),
+    child: Text(text, style: Theme.of(context).mutedText),
   );
 }
 

@@ -1,7 +1,6 @@
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
@@ -22,11 +21,11 @@ void main() {
     DiagnosticsLog.add('Uncaught: $error');
     return false; // not handled — let the platform log it too.
   };
-  // Single portrait layout everywhere (no landscape to design for).
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  // Orientation is governed per-platform, not locked here: iPhone stays
+  // portrait (Info.plist UISupportedInterfaceOrientations), iPad allows all
+  // orientations + Split View (…~ipad), Android phones stay portrait
+  // (AndroidManifest screenOrientation), macOS is a fixed-size window. The
+  // responsive layout (kWideLayoutBreakpoint) adapts to whatever size results.
   runApp(ProviderScope(
     overrides: kDemoMode ? demoOverrides() : const [],
     child: const SonorityApp(),

@@ -6,13 +6,21 @@ import 'package:sonority/demo/demo_mode.dart';
 /// fake system classifies exactly as the screenshots need it to.
 void main() {
   test('demo system classifies as intended', () {
-    expect(demoSystem.homeTheaters, hasLength(1));
-    final ht = demoSystem.homeTheaters.single;
-    expect(ht.zoneName, 'Living Room');
+    // Two home theaters: the flagship 5.1 (Living Room) + a lighter Beam +
+    // rears setup (Bedroom).
+    expect(demoSystem.homeTheaters.map((m) => m.zoneName).toSet(),
+        {'Living Room', 'Bedroom'});
+    final ht =
+        demoSystem.homeTheaters.firstWhere((m) => m.zoneName == 'Living Room');
     expect(ht.hasDedicatedFronts, isTrue);
     expect(ht.channelAssignments.keys,
         containsAll(SonosChannel.values.where((c) => c != SonosChannel.center)));
     expect(ht.subUuids, hasLength(1));
+    // Bedroom is surrounds-only — no dedicated fronts, no sub.
+    final bedroom =
+        demoSystem.homeTheaters.firstWhere((m) => m.zoneName == 'Bedroom');
+    expect(bedroom.hasDedicatedFronts, isFalse);
+    expect(bedroom.subUuids, isEmpty);
 
     expect(demoSystem.stereoPairs.map((m) => m.zoneName), ['Office']);
     expect(demoSystem.zones.map((m) => m.zoneName), ['Upstairs']);
@@ -23,7 +31,7 @@ void main() {
     final standalone =
         demoSystem.allMembers.where((m) => !m.isHomeTheater && !m.isGroup);
     expect(standalone.map((m) => m.zoneName).toSet(),
-        {'Kitchen', 'Bedroom', 'Bathroom'});
+        {'Kitchen', 'Guest Room', 'Bathroom'});
     expect(demoSystem.zoneableSpeakers, hasLength(3));
     // The Sub is bonded into the HT, so nothing should be offered as bondable.
     expect(demoSystem.bondableSubs, isEmpty);

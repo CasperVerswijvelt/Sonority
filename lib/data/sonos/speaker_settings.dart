@@ -55,10 +55,17 @@ const _eqLabels = {
 /// EQType tokens whose value is a boolean toggle (0/1) — shown as On/Off. Every
 /// other token is a numeric level shown as-is (except `SubPolarity`, a 0/1 sub
 /// *phase* rendered as 0°/180° — see [SpeakerSettings.describe]).
-const _eqBoolTokens = {
-  'NightMode',
-  'SubEnable',
-  'SurroundEnable',
+const _eqBoolTokens = {'NightMode', 'SubEnable', 'SurroundEnable'};
+
+/// EQType tokens whose value is a signed level (−/+), shown with an explicit sign
+/// like bass/treble: sub gain, the TV & music surround levels, and height level.
+/// (Crossover is a frequency, delays/distances are non-negative — those stay
+/// unsigned.)
+const _eqSignedTokens = {
+  'SubGain',
+  'SurroundLevel',
+  'MusicSurroundLevel',
+  'HeightChannelLevel',
 };
 
 /// A snapshot of one speaker's audio settings, read from the `RenderingControl`
@@ -108,10 +115,12 @@ class SpeakerSettings {
   /// snapshot captured, in a stable order. Bass/treble/loudness first, then the
   /// EQ tokens in [eqTypes] order, then volume/mute.
   ///
-  /// ponytail: per-token value semantics are approximate — bass/treble/gains are
-  /// signed levels, a few tokens are 0/1 toggles ([_eqBoolTokens]), the rest are
-  /// shown as raw ints. This is display-only; captured values are written back
-  /// verbatim, never derived from these labels.
+  /// ponytail: per-token value semantics are approximate — bass/treble plus the
+  /// sub/surround/height levels ([_eqSignedTokens]) show a signed level, a few
+  /// tokens are 0/1 toggles ([_eqBoolTokens]), SubPolarity is a phase,
+  /// SurroundMode/DialogLevel map their known values (raw fallback for anything
+  /// unexpected), and every other token shows a raw int. This is display-only;
+  /// captured values are written back verbatim, never derived from these labels.
   List<({String label, String value})> describe() {
     String signed(int v) => v > 0 ? '+$v' : '$v';
     String onOff(bool b) => b ? 'On' : 'Off';
@@ -126,8 +135,25 @@ class SpeakerSettings {
       final String value;
       if (token == 'SubPolarity') {
         value = v == 0 ? '0°' : '180°'; // sub phase, not an on/off toggle
+      } else if (token == 'SurroundMode') {
+        // Sonos surround-music mode: 0 = ambient, 1 = full. Raw for anything else.
+        value = switch (v) {
+          0 => 'Ambient',
+          1 => 'Full',
+          _ => '$v',
+        };
+      } else if (token == 'DialogLevel') {
+        // Speech enhancement — a 0/1 toggle on the models that expose it. Raw for
+        // anything else (some models may report a level rather than a toggle).
+        value = switch (v) {
+          0 => 'Off',
+          1 => 'On',
+          _ => '$v',
+        };
       } else if (_eqBoolTokens.contains(token)) {
         value = onOff(v != 0);
+      } else if (_eqSignedTokens.contains(token)) {
+        value = signed(v);
       } else {
         value = '$v';
       }
@@ -141,22 +167,22 @@ class SpeakerSettings {
   /// Serializes only the non-null/non-empty fields, so an EQ-only capture
   /// doesn't store bogus volume keys and old profiles round-trip cleanly.
   Map<String, dynamic> toJson() => {
-        if (bass != null) 'bass': bass,
-        if (treble != null) 'treble': treble,
-        if (loudness != null) 'loudness': loudness,
-        if (eq.isNotEmpty) 'eq': eq,
-        if (volume != null) 'volume': volume,
-        if (mute != null) 'mute': mute,
-      };
+    if (bass != null) 'bass': bass,
+    if (treble != null) 'treble': treble,
+    if (loudness != null) 'loudness': loudness,
+    if (eq.isNotEmpty) 'eq': eq,
+    if (volume != null) 'volume': volume,
+    if (mute != null) 'mute': mute,
+  };
 
   factory SpeakerSettings.fromJson(Map<String, dynamic> j) => SpeakerSettings(
-        bass: j['bass'] as int?,
-        treble: j['treble'] as int?,
-        loudness: j['loudness'] as bool?,
-        eq: Map<String, int>.from((j['eq'] as Map?) ?? const {}),
-        volume: j['volume'] as int?,
-        mute: j['mute'] as bool?,
-      );
+    bass: j['bass'] as int?,
+    treble: j['treble'] as int?,
+    loudness: j['loudness'] as bool?,
+    eq: Map<String, int>.from((j['eq'] as Map?) ?? const {}),
+    volume: j['volume'] as int?,
+    mute: j['mute'] as bool?,
+  );
 }
 
 /// Reads and applies per-speaker audio settings. Both directions are
@@ -166,7 +192,7 @@ class SpeakerSettings {
 class SpeakerSettingsClient {
   final SonosSoapClient _soap;
   SpeakerSettingsClient([SonosSoapClient? client])
-      : _soap = client ?? SonosSoapClient();
+    : _soap = client ?? SonosSoapClient();
 
   static const _service = 'urn:schemas-upnp-org:service:RenderingControl:1';
   static const _control = '/MediaRenderer/RenderingControl/Control';
@@ -181,13 +207,21 @@ class SpeakerSettingsClient {
   /// (SubGain 0, SubEnable On, …), which is just noise to capture and show. So
   /// callers pass `extendedEq: false` for plain speakers and only bass / treble /
   /// loudness (the universally-meaningful controls) are read.
-  Future<SpeakerSettings> read(String ip,
-      {bool audio = true, bool volume = false, bool extendedEq = true}) async {
+  Future<SpeakerSettings> read(
+    String ip, {
+    bool audio = true,
+    bool volume = false,
+    bool extendedEq = true,
+  }) async {
     final eqValues = <String, int>{};
     if (audio && extendedEq) {
       for (final t in eqTypes) {
-        final v = await _readInt(ip, 'GetEQ', 'CurrentValue',
-            extra: {'EQType': t});
+        final v = await _readInt(
+          ip,
+          'GetEQ',
+          'CurrentValue',
+          extra: {'EQType': t},
+        );
         if (v != null) eqValues[t] = v;
       }
     }
@@ -195,17 +229,29 @@ class SpeakerSettingsClient {
       bass: audio ? await _readInt(ip, 'GetBass', 'CurrentBass') : null,
       treble: audio ? await _readInt(ip, 'GetTreble', 'CurrentTreble') : null,
       loudness: audio
-          ? await _readBool(ip, 'GetLoudness', 'CurrentLoudness',
-              extra: const {'Channel': 'Master'})
+          ? await _readBool(
+              ip,
+              'GetLoudness',
+              'CurrentLoudness',
+              extra: const {'Channel': 'Master'},
+            )
           : null,
       eq: eqValues,
       volume: volume
-          ? await _readInt(ip, 'GetVolume', 'CurrentVolume',
-              extra: const {'Channel': 'Master'})
+          ? await _readInt(
+              ip,
+              'GetVolume',
+              'CurrentVolume',
+              extra: const {'Channel': 'Master'},
+            )
           : null,
       mute: volume
-          ? await _readBool(ip, 'GetMute', 'CurrentMute',
-              extra: const {'Channel': 'Master'})
+          ? await _readBool(
+              ip,
+              'GetMute',
+              'CurrentMute',
+              extra: const {'Channel': 'Master'},
+            )
           : null,
     );
   }
@@ -227,25 +273,37 @@ class SpeakerSettingsClient {
       await set('SetTreble', {'DesiredTreble': '${s.treble}'});
     }
     if (s.loudness != null) {
-      await set('SetLoudness',
-          {'Channel': 'Master', 'DesiredLoudness': s.loudness! ? '1' : '0'});
+      await set('SetLoudness', {
+        'Channel': 'Master',
+        'DesiredLoudness': s.loudness! ? '1' : '0',
+      });
     }
     for (final e in s.eq.entries) {
       await set('SetEQ', {'EQType': e.key, 'DesiredValue': '${e.value}'});
     }
     if (s.volume != null) {
-      await set('SetVolume', {'Channel': 'Master', 'DesiredVolume': '${s.volume}'});
+      await set('SetVolume', {
+        'Channel': 'Master',
+        'DesiredVolume': '${s.volume}',
+      });
     }
     if (s.mute != null) {
-      await set('SetMute', {'Channel': 'Master', 'DesiredMute': s.mute! ? '1' : '0'});
+      await set('SetMute', {
+        'Channel': 'Master',
+        'DesiredMute': s.mute! ? '1' : '0',
+      });
     }
     return failed;
   }
 
   // ---- read helpers (null on any fault so unsupported settings are skipped) ----
 
-  Future<String?> _rawRead(String ip, String action, String outEl,
-      Map<String, String> extra) async {
+  Future<String?> _rawRead(
+    String ip,
+    String action,
+    String outEl,
+    Map<String, String> extra,
+  ) async {
     try {
       final body = await _soap.call(
         ip: ip,
@@ -261,12 +319,19 @@ class SpeakerSettingsClient {
     }
   }
 
-  Future<int?> _readInt(String ip, String action, String outEl,
-          {Map<String, String> extra = const {}}) async =>
-      int.tryParse(await _rawRead(ip, action, outEl, extra) ?? '');
+  Future<int?> _readInt(
+    String ip,
+    String action,
+    String outEl, {
+    Map<String, String> extra = const {},
+  }) async => int.tryParse(await _rawRead(ip, action, outEl, extra) ?? '');
 
-  Future<bool?> _readBool(String ip, String action, String outEl,
-      {Map<String, String> extra = const {}}) async {
+  Future<bool?> _readBool(
+    String ip,
+    String action,
+    String outEl, {
+    Map<String, String> extra = const {},
+  }) async {
     final v = await _rawRead(ip, action, outEl, extra);
     return v == null ? null : v == '1';
   }

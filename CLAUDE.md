@@ -480,10 +480,23 @@ Run on the same Wi-Fi as the Sonos system:
   falls back to a unicast TCP :1400 sweep of each interface's /24 (assumed /24 —
   `dart:io` exposes no netmask; ~600ms, one hit suffices since topology recovers
   the rest), which also helps multicast-filtering mesh/guest networks.
-- macOS: entitlements include `network.client` + `network.server`; window is locked
-  to a fixed **420×880 portrait** (`MainFlutterWindow.swift`) so the UI only ever
-  handles one mobile layout.
-- All platforms: portrait-only (`SystemChrome` + iOS plist + Android manifest).
+- macOS: entitlements include `network.client` + `network.server`; the window is
+  **resizable** (`MainFlutterWindow.swift`: default ~1100×900, min ~380×640,
+  clamped to the screen's visible frame — App Review G4). The UI is **responsive**
+  (see Conventions): a phone-width window shows the bottom nav + single column; a
+  wide window shows a `NavigationRail` + full-width, multi-column content, driven by
+  `kWideLayoutBreakpoint` (the window is width-capped rather than centering content). (macOS "Resume" may restore a previously-saved small
+  window frame on relaunch; the window is resizable, and fresh installs open at
+  the default.)
+- **Orientation is per-platform, not locked in Dart** (the old global
+  `SystemChrome.setPreferredOrientations` portrait lock was removed): iPhone stays
+  portrait (`Info.plist UISupportedInterfaceOrientations`), **iPad allows all
+  orientations + Split View** (`…~ipad` lists all four; no `UIRequiresFullScreen`;
+  `TARGETED_DEVICE_FAMILY = "1,2"`), Android phones stay portrait
+  (`AndroidManifest screenOrientation`), macOS is a fixed-size window. The
+  width-driven responsive layout (`kWideLayoutBreakpoint`) therefore renders on
+  **iPad (landscape and portrait ≥720pt) and wide macOS**; phone-width windows
+  (incl. iPad narrow Split View) fall back to the bottom-nav single column.
 - Emulators/simulators usually can't reach the LAN's SSDP multicast (this Android
   AVD happens to). Use a **physical device** for real discovery.
 
@@ -531,8 +544,8 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   single **Sonos Amp** driving passive fronts (`AMP:LF,RF`; exclusive selection).
 - ✅ Identify a speaker by **blinking its status LED** (`led_identify.dart`, default,
   all platforms incl. macOS) with the audio chime as a mobile-only extra. Offered
-  in the pick-a-speaker flows AND per-speaker in the room / group detail sheets
-  (`SpeakerIdentifyButton`); chime is gated to standalone speakers via
+  in the pick-a-speaker flows AND per-speaker in the room detail sheet / group &
+  HT detail pages (`SpeakerIdentifyButton`); chime is gated to standalone speakers via
   `SonosSystem.isStandalone` (a bonded member blinks only — a chime plays the
   whole bond).
 - ✅ **Speaker groups** (`features/group/group_flow.dart`, `zone_layout.dart`) —
@@ -568,8 +581,9 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   ⚠️ action names/EQType tokens assumed standard-UPnP — **verify with
   `tool/eq_probe.dart` on hardware** before shipping.
 - ✅ **Room renaming** from the room / HT detail pages (`renameRoom` + `rename_dialog`).
-- ✅ **Diagnostics** (`features/diagnostics/`) — a bug-icon app-bar action opens a
-  modal bottom sheet with a hide-nothing technical topology view (invisible
+- ✅ **Diagnostics** (`features/diagnostics/diagnostics_screen.dart`) — a
+  **bottom-nav tab** (`DiagnosticsScreen`, `AppScaffold` page) with a
+  hide-nothing technical topology view (invisible
   members, IP/MAC/serial/firmware, raw channel maps — reads `system.groups[].members`
   unfiltered + `devicesByUuid`, and the new `SonosDevice.mac/serial/software/
   hardwareVersion` parsed in `device_description.dart`). Packages a **structured
@@ -664,10 +678,74 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   or helper is being copy-pasted across features/tools, extract it. Established
   shared pieces to reuse (don't reinvent): `features/widgets/identify_controls.dart`
   (`IdentifyButtons` + `IdentifyMixin` — speaker blink/chime), `features/widgets/
-  speaker_side_card.dart` (the L/R card), and `tool/discover_util.dart`
-  (`resolveSpeaker` — CLI room/uuid/IP resolution). Prefer a shared widget/mixin/
-  helper over a second copy; only keep a bespoke variant when forcing it into the
-  shared shape would genuinely hurt readability.
+  selectable_speaker_card.dart` (`SelectableSpeakerCard` — a checkbox speaker row
+  with an in-card channel selector; `SideSelector` — the Left/Right pair toggle
+  used by the HT fronts/surrounds AND stereo-group flows), `features/widgets/
+  card_grid.dart` (`CardGrid` — the responsive 1→2–3 column card layout),
+  `features/widgets/entity_glyph.dart` (`EntityGlyph` — the one rounded-square icon
+  tile) and `tool/discover_util.dart` (`resolveSpeaker` — CLI room/uuid/IP
+  resolution). Prefer a shared widget/mixin/helper over a second copy; only keep a
+  bespoke variant when forcing it into the shared shape would genuinely hurt readability.
+- **Visual grammar — one form per concept (don't blur them).** The UI deliberately
+  maps each concept to ONE component so a screen isn't a wall of identical cards:
+  **entity** (a thing you open/act on: HT/group/room/profile) = a rounded content
+  card via the single `EntityCard`/`EntityCardModel` (glyph + title + composition
+  **`PillChip`s**, never a `·`-joined subtitle string) or `ProfileCard`;
+  **settings** (toggle/read: Trueplay, capture toggles, saved settings) = the
+  card-less `SettingsSection` (flat divider-led rows), NOT a card; **selection** (a
+  transient multi-select pick) = a `CheckboxListTile` via `BondableSpeakerTile`,
+  the same style in every flow — the speaker pickers wrap each in an outlined
+  `Card` (`BondableSpeakerTile(outlined: true)`), so each candidate reads as its
+  own panel; **spatial layout** = `SpeakerDiagram`; **progress** =
+  `ApplyProgressView`; **tag** = the one
+  `PillChip` (there is no second pill widget). **Color is reserved for profile
+  identity** (the user-chosen swatch); system entity glyphs stay tonal-neutral
+  (`primaryContainer`) so the two axes never compete. When adding UI, reuse the
+  matching form — don't invent a new card variant for an existing concept.
+- **Presentation rule — "tap a thing" is predictable. Sheet = read-only peek;
+  pushed page = anything you can act on.** Every actionable detail opens as a
+  **pushed page** (route in the System shell branch, tab bar visible): a bonded
+  config (home theater `HomeTheaterScreen`, speaker group `GroupDetailScreen`)
+  AND a **single standalone room** (`RoomScreen`, `/room/:uuid` — it has rename /
+  identify / group / add-to-HT / Trueplay actions). **Sheets are reserved for
+  read-only peeks** — currently just the profile-entity detail
+  (`showEntitySheet`), which only displays a stored snapshot. So the split is by
+  *interactivity*, not weight. **Guided flows** differ by origin: the from-scratch
+  **group flow** (`/group`) is a **top-level route** (sibling of the
+  `StatefulShellRoute`, NOT inside a branch) so it renders on the root navigator and
+  covers the tab bar — a from-nothing wizard is commit-or-cancel, like the bonding
+  progress screen. The **HT setup flow** (`/theater/:uuid/fronts`) is instead a
+  **nested in-shell route** (child of `/theater/:uuid` in the System branch) so the
+  rail/tab bar stay visible and Back works — it's a step within an existing home
+  theater's page, not a modal wizard. (go_router **asserts** if you put
+  `parentNavigatorKey: rootNavigatorKey` on a route *inside* a branch — that
+  red-screens at runtime, caught only on-device; a top-level route or a plain nested
+  route are the two valid placements.)
+  Don't route an actionable detail as a sheet again (it reintroduces the
+  page-on-sheet stack when Separate/apply pushes the bonding screen). The
+  **room page** offers shortcuts INTO the flows ("Group with another speaker" →
+  `/group`; "Add to a home theater" → the fronts flow for a chosen soundbar) via
+  pop-then-push, so a room isn't a dead end.
+- **Responsive layout (macOS / wide windows).** One breakpoint,
+  `kWideLayoutBreakpoint` (`core/theme.dart`), two states only — no icon-only
+  middle. Below it: the phone layout (bottom `NavigationBar`, single column) —
+  unchanged, and the System app bar shows the `BrandWordmark` + `VersionBadge`.
+  At/above it: `_HomeShell` swaps the bottom bar for an **always-`extended`
+  `NavigationRail`** in a by-hand `ColoredBox > Column` (the wordmark in a top
+  `Padding`, the rail `Expanded` in the middle, the version pill in a bottom
+  `Padding` — sharing one left inset; `NavigationRail`'s own leading/trailing
+  centre their slots, so they're not used). The System app bar then just reads
+  "System" (discovery flips its title/actions on `MediaQuery.sizeOf(context).width
+  >= kWideLayoutBreakpoint`). **Content is NOT centered/clamped** — `AppScaffold`
+  bodies **fill the full width**; the desktop window is instead width-capped
+  (`MainFlutterWindow.swift` `contentMaxSize`) so cards fill without stretching.
+  Card lists use the shared **`CardGrid`** (`features/widgets/card_grid.dart`) —
+  one column on a phone, 2–3 columns when wide — on the overview, Profiles (grid
+  when wide, drag-reorder list when narrow), the group/HT detail pages, and the
+  setup-flow pickers. The three tabs (System / Profiles / **Diagnostics**) share
+  one `_destinations` list so the rail and bar can't drift. The **modal wizards**
+  (group flow + bonding screen) still clamp to `kContentMaxWidth` via `MaxWidthBody`
+  (a full-window form stays readable); tab/detail pages don't.
 - **Names vs. types in the UI.** Once a speaker is bonded into an HT or stereo
   entity its individual room name stops mattering — Sonos absorbs it into the
   entity name (a satellite/hidden half just echoes the HT/pair name), so showing

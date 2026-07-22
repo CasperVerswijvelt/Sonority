@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,23 +6,24 @@ import 'package:go_router/go_router.dart';
 import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
-import '../../data/sonos/front_layout.dart' as front_layout;
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
+import '../widgets/card_grid.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/info_note.dart';
+import '../widgets/max_width_body.dart';
+import '../widgets/selectable_speaker_card.dart';
 import '../widgets/speaker_diagram.dart';
-import '../widgets/speaker_side_card.dart';
 
 /// Seeds the configure-HT selectors from [member]'s current bond: front uuids
 /// ordered [left, right] (a single device on both fronts — an Amp — collapses to
 /// one), rear surrounds [rearLeft, rearRight], sub uuids (up to two), and the
 /// first step that still needs attention (fronts → surrounds → sub, else 0).
 ({List<String> fronts, List<String> surrounds, List<String> subs, int step})
-    seedHtRoles(ZoneGroupMember member) {
+seedHtRoles(ZoneGroupMember member) {
   final ca = member.channelAssignments;
   final fronts = <String>[];
   final lf = ca[SonosChannel.leftFront], rf = ca[SonosChannel.rightFront];
@@ -39,10 +41,10 @@ import '../widgets/speaker_side_card.dart';
   final step = fronts.isEmpty
       ? 0
       : surrounds.isEmpty
-          ? 1
-          : subs.isEmpty
-              ? 2
-              : 0;
+      ? 1
+      : subs.isEmpty
+      ? 2
+      : 0;
   return (fronts: fronts, surrounds: surrounds, subs: subs, step: step);
 }
 
@@ -74,7 +76,10 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     final member = ref
         .read(sonosControllerProvider)
         .value
-        ?.memberByUuid(widget.soundbarUuid);
+        ?.allMembers
+        .where((m) => m.uuid == widget.soundbarUuid)
+        .cast<ZoneGroupMember?>()
+        .firstOrNull;
     if (member == null) return;
     final seed = seedHtRoles(member);
     _fronts.addAll(seed.fronts);
@@ -86,33 +91,57 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   @override
   Widget build(BuildContext context) {
     final system = ref.watch(sonosControllerProvider).value;
-    final member = system?.memberByUuid(widget.soundbarUuid);
+    final member = system?.allMembers
+        .where((m) => m.uuid == widget.soundbarUuid)
+        .cast<ZoneGroupMember?>()
+        .firstOrNull;
     final soundbar = system?.device(widget.soundbarUuid);
 
     if (system == null || member == null || soundbar == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // Speakers free to assign, minus ones already chosen in another role here.
-    // Already-bonded speakers of *this* HT aren't in `bondableSpeakers`, so add
-    // the current-role picks explicitly — they must show selected & deselectable.
+    // Candidate speakers for a role: everything standalone, PLUS the speakers
+    // already bonded to *this* HT — those aren't in `bondableSpeakers`, but they
+    // must stay in the list even after you deselect one, or a pre-selected front/
+    // surround would vanish and couldn't be re-added. A speaker chosen in another
+    // role here is hidden from this one.
     final chosenElsewhere = <String>{..._fronts, ..._surrounds, ..._subs};
+    // This HT's own front/surround speakers (so a pre-selected one doesn't vanish
+    // when deselected). channelAssignments includes the SW channel, so a bonded
+    // Sub's uuid slips in here — the `isSub` guard in consider() keeps it out of
+    // the front/surround pickers (subs have their own list, `freeSubs`).
+    final htOwn = <String>{...member.channelAssignments.values};
     List<SonosDevice> avail(List<String> keepFor) {
-      final out = <SonosDevice>[
-        for (final d in system.bondableSpeakers)
-          if (keepFor.contains(d.uuid) || !chosenElsewhere.contains(d.uuid)) d,
-      ];
+      final seen = <String>{};
+      final out = <SonosDevice>[];
+      void consider(String id) {
+        if (!seen.add(id)) return;
+        // A Sub is never a front/surround candidate (it has its own picker).
+        if (system.device(id)?.isSub ?? false) return;
+        // Show it unless it's currently assigned to a *different* role.
+        if (!keepFor.contains(id) && chosenElsewhere.contains(id)) return;
+        if (system.device(id) case final d?) out.add(d);
+      }
+
+      for (final d in system.bondableSpeakers) {
+        consider(d.uuid);
+      }
+      for (final id in htOwn) {
+        consider(id);
+      }
       for (final id in keepFor) {
-        if (out.any((d) => d.uuid == id)) continue;
-        final d = system.device(id);
-        if (d != null) out.add(d);
+        consider(id);
       }
       return out;
     }
 
+    // Free subs PLUS this HT's own subs — including its own means a pre-selected
+    // sub stays in the list after you deselect it (so it can be re-added),
+    // matching the fronts/surrounds behaviour.
     final freeSubs = <SonosDevice>[
       ...system.bondableSubs,
-      for (final id in _subs)
+      for (final id in {..._subs, ...member.subUuids})
         if (!system.bondableSubs.any((d) => d.uuid == id))
           if (system.device(id) case final d?) d,
     ];
@@ -122,117 +151,140 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     Widget idControls(SonosDevice d) =>
         identifyButtons(d, chime: system.isStandalone(d.uuid));
 
+    // A step's subtitle: the picked speaker types when it has a selection (so a
+    // collapsed step summarizes itself), else "Optional".
+    Widget stepSubtitle(List<String> uuids) => uuids.isEmpty
+        ? Text(context.l10n.frontSurroundsOptional)
+        : Text(
+            uuids
+                .map((u) => system.device(u)?.typeLabel ?? context.l10n.widgetsSpeaker)
+                .join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          );
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.l10n.frontSurroundsTitle),
+        // Name the soundbar this is being built around (the flow otherwise jumps
+        // straight into front selection with no indication of the target).
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(context.l10n.frontSurroundsTitle),
+            Text(
+              '${member.zoneName} · ${soundbar.typeLabel}',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
           child: ScrolledUnderDivider(),
         ),
       ),
       body: SafeArea(
-        child: Stepper(
-          currentStep: _step,
-          type: StepperType.vertical,
-          onStepTapped: (i) => setState(() => _step = i),
-          controlsBuilder: (context, _) =>
-              _controls(context, system, member, soundbar),
-          steps: [
-            Step(
-              title: Text(context.l10n.frontSurroundsStepFronts),
-              subtitle: Text(context.l10n.frontSurroundsOptional),
-              isActive: _step >= 0,
-              state: _fronts.isNotEmpty && _frontsValid
-                  ? StepState.complete
-                  : StepState.indexed,
-              content: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(context.l10n.frontSurroundsFrontsHint,
-                      style: Theme.of(context).textTheme.bodySmall),
-                  Gap.s,
-                  _ChooseSpeakers(
-                    candidates: avail(_fronts),
-                    selected: _fronts,
-                    onToggle: _toggleFront,
-                    identifyControls: idControls,
-                  ),
-                  if (_ampMode) ...[
-                    Gap.m,
-                    _AmpWiringNote(
-                      amp: system.device(_fronts.first),
-                      identifyControls: idControls,
+        child: MaxWidthBody(
+          child: Stepper(
+            currentStep: _step,
+            type: StepperType.vertical,
+            onStepTapped: (i) => setState(() => _step = i),
+            controlsBuilder: (context, _) =>
+                _controls(context, system, member, soundbar),
+            steps: [
+              Step(
+                title: Text(context.l10n.frontSurroundsStepFronts),
+                subtitle: stepSubtitle(_fronts),
+                isActive: _step >= 0,
+                state: _fronts.isNotEmpty && _frontsValid
+                    ? StepState.complete
+                    : StepState.indexed,
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.l10n.frontSurroundsFrontsHint,
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
-                  ] else if (_fronts.length == 2) ...[
-                    Gap.m,
-                    _AssignSides(
-                      system: system,
+                    Gap.s,
+                    _ChooseSpeakers(
+                      candidates: avail(_fronts),
                       selected: _fronts,
-                      leftLabel: context.l10n.frontSurroundsLeft,
-                      rightLabel: context.l10n.frontSurroundsRight,
+                      onToggle: _toggleFront,
                       onSwap: () => setState(
-                          () => _fronts.setAll(0, [_fronts[1], _fronts[0]])),
+                        () => _fronts.setAll(0, [_fronts[1], _fronts[0]]),
+                      ),
                       identifyControls: idControls,
                     ),
+                    if (_ampMode) ...[
+                      Gap.m,
+                      _AmpWiringNote(
+                        amp: system.device(_fronts.first),
+                        identifyControls: idControls,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            Step(
-              title: Text(context.l10n.frontSurroundsStepSurrounds),
-              subtitle: Text(context.l10n.frontSurroundsOptional),
-              isActive: _step >= 1,
-              state: _surrounds.length == 2 ? StepState.complete : StepState.indexed,
-              content: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(context.l10n.frontSurroundsSurroundsHint,
-                      style: Theme.of(context).textTheme.bodySmall),
-                  Gap.s,
-                  _ChooseSpeakers(
-                    candidates: avail(_surrounds),
-                    selected: _surrounds,
-                    onToggle: _toggleSurround,
-                    identifyControls: idControls,
-                    allowAmp: false,
-                  ),
-                  if (_surrounds.length == 2) ...[
-                    Gap.m,
-                    _AssignSides(
-                      system: system,
+              Step(
+                title: Text(context.l10n.frontSurroundsStepSurrounds),
+                subtitle: stepSubtitle(_surrounds),
+                isActive: _step >= 1,
+                state: _surrounds.length == 2
+                    ? StepState.complete
+                    : StepState.indexed,
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.l10n.frontSurroundsSurroundsHint,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Gap.s,
+                    _ChooseSpeakers(
+                      candidates: avail(_surrounds),
                       selected: _surrounds,
-                      leftLabel: context.l10n.frontSurroundsRearLeft,
-                      rightLabel: context.l10n.frontSurroundsRearRight,
-                      onSwap: () => setState(() =>
-                          _surrounds.setAll(0, [_surrounds[1], _surrounds[0]])),
+                      onToggle: _toggleSurround,
+                      onSwap: () => setState(
+                        () => _surrounds.setAll(0, [
+                          _surrounds[1],
+                          _surrounds[0],
+                        ]),
+                      ),
                       identifyControls: idControls,
+                      allowAmp: false,
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
-            Step(
-              title: Text(context.l10n.frontSurroundsStepSub),
-              subtitle: Text(context.l10n.frontSurroundsOptional),
-              isActive: _step >= 2,
-              state: _subs.isNotEmpty ? StepState.complete : StepState.indexed,
-              content: _ChooseSub(
-                subs: freeSubs,
-                selected: _subs,
-                onToggle: _toggleSub,
-                identifyControls: idControls,
+              Step(
+                title: Text(context.l10n.frontSurroundsStepSub),
+                subtitle: stepSubtitle(_subs),
+                isActive: _step >= 2,
+                state: _subs.isNotEmpty
+                    ? StepState.complete
+                    : StepState.indexed,
+                content: _ChooseSub(
+                  subs: freeSubs,
+                  selected: _subs,
+                  onToggle: _toggleSub,
+                  identifyControls: idControls,
+                ),
               ),
-            ),
-            Step(
-              title: Text(context.l10n.frontSurroundsStepReview),
-              isActive: _step >= 3,
-              content: _Review(
+              Step(
+                title: Text(context.l10n.frontSurroundsStepReview),
+                isActive: _step >= 3,
+                content: _Review(
                   system: system,
                   member: member,
                   additions: _additions(system),
-                  subCount: _subs.length),
-            ),
-          ],
+                  subCount: _subs.length,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -247,51 +299,54 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
 
   /// The selection differs from what's currently bonded — the only case worth
   /// applying (an unchanged layout is a zero-write no-op, so we disable Apply for
-  /// it). Reuses the engine diff so "worth applying" matches exactly what the
-  /// controller will write on Apply (same target build + no-op check).
+  /// it). Compares fronts/surrounds channel→uuid and the sub set to the live map.
   bool _differs(SonosSystem system, ZoneGroupMember member) {
-    final device = system.device(member.uuid);
-    if (device == null) return false;
-    final target = front_layout.buildLayoutMap(
-      soundbar: member,
-      soundbarDevice: device,
-      desired: {for (final e in _additions(system).entries) e.key: e.value.uuid},
-      subUuids: _subs,
-      preserveExisting: false,
-    );
-    return !front_layout.diffHtLayout(current: member, target: target).isNoOp;
+    final desired = {
+      for (final e in _additions(system).entries) e.key: e.value.uuid,
+    };
+    final current = {
+      for (final c in const [
+        SonosChannel.leftFront,
+        SonosChannel.rightFront,
+        SonosChannel.leftRear,
+        SonosChannel.rightRear,
+      ])
+        if (member.channelAssignments[c] case final u?) c: u,
+    };
+    if (!mapEquals(desired, current)) return true;
+    return !setEquals(_subs.toSet(), member.subUuids.toSet());
   }
 
   void _toggleFront(SonosDevice d) => setState(() {
-        if (_fronts.contains(d.uuid)) {
-          _fronts.remove(d.uuid);
-          return;
-        }
-        if (d.isAmp) {
-          _fronts
-            ..clear()
-            ..add(d.uuid);
-          return;
-        }
-        if (_ampMode) _fronts.clear();
-        if (_fronts.length < 2) _fronts.add(d.uuid);
-      });
+    if (_fronts.contains(d.uuid)) {
+      _fronts.remove(d.uuid);
+      return;
+    }
+    if (d.isAmp) {
+      _fronts
+        ..clear()
+        ..add(d.uuid);
+      return;
+    }
+    if (_ampMode) _fronts.clear();
+    if (_fronts.length < 2) _fronts.add(d.uuid);
+  });
 
   void _toggleSurround(SonosDevice d) => setState(() {
-        if (_surrounds.contains(d.uuid)) {
-          _surrounds.remove(d.uuid);
-        } else if (_surrounds.length < 2) {
-          _surrounds.add(d.uuid);
-        }
-      });
+    if (_surrounds.contains(d.uuid)) {
+      _surrounds.remove(d.uuid);
+    } else if (_surrounds.length < 2) {
+      _surrounds.add(d.uuid);
+    }
+  });
 
   void _toggleSub(SonosDevice d) => setState(() {
-        if (_subs.contains(d.uuid)) {
-          _subs.remove(d.uuid);
-        } else if (_subs.length < 2) {
-          _subs.add(d.uuid); // HT supports up to two Subs
-        }
-      });
+    if (_subs.contains(d.uuid)) {
+      _subs.remove(d.uuid);
+    } else if (_subs.length < 2) {
+      _subs.add(d.uuid); // HT supports up to two Subs
+    }
+  });
 
   /// The role → speaker map this flow will bond.
   Map<SonosChannel, SonosDevice> _additions(SonosSystem system) {
@@ -323,11 +378,16 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   }
 
   /// The chosen Sub device(s) — up to two for a dual-sub HT.
-  List<SonosDevice> _subDevices(SonosSystem system) =>
-      [for (final u in _subs) system.device(u)].whereType<SonosDevice>().toList();
+  List<SonosDevice> _subDevices(SonosSystem system) => [
+    for (final u in _subs) system.device(u),
+  ].whereType<SonosDevice>().toList();
 
-  Widget _controls(BuildContext context, SonosSystem system,
-      ZoneGroupMember member, SonosDevice soundbar) {
+  Widget _controls(
+    BuildContext context,
+    SonosSystem system,
+    ZoneGroupMember member,
+    SonosDevice soundbar,
+  ) {
     final canNext = switch (_step) {
       0 => _frontsValid,
       1 => _surroundsValid,
@@ -386,7 +446,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     final router = GoRouter.of(context);
     final outcome = await showBondingProgress(
       context,
-      title: context.l10n.frontSurroundsTitle,
+      title: context.l10n.stepSetUpHomeTheater,
       run: () => controller.applyHomeTheaterLayout(
         soundbar: member,
         soundbarDevice: soundbar,
@@ -402,7 +462,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   /// rooms again). Shows their type since a bonded speaker's name is absorbed.
   Future<bool> _confirmRemoval(SonosSystem system, Set<String> removed) async {
     final types = [
-      for (final u in removed) system.device(u)?.typeLabel ?? 'Speaker',
+      for (final u in removed)
+        system.device(u)?.typeLabel ?? context.l10n.widgetsSpeaker,
     ].join(', ');
     return confirmDialog(
       context,
@@ -416,8 +477,13 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
 
 class _ChooseSpeakers extends StatelessWidget {
   final List<SonosDevice> candidates;
+
+  /// The chosen uuids, ordered `[left, right]` (or `[amp]`).
   final List<String> selected;
   final void Function(SonosDevice device) onToggle;
+
+  /// Swap which chosen speaker is left vs right (there are only two).
+  final VoidCallback onSwap;
   final Widget Function(SonosDevice device) identifyControls;
   final bool allowAmp;
 
@@ -425,6 +491,7 @@ class _ChooseSpeakers extends StatelessWidget {
     required this.candidates,
     required this.selected,
     required this.onToggle,
+    required this.onSwap,
     required this.identifyControls,
     this.allowAmp = true,
   });
@@ -439,26 +506,38 @@ class _ChooseSpeakers extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-            hasAmp
-                ? context.l10n.frontSurroundsPickWithAmp
-                : context.l10n.frontSurroundsPickExactlyTwo,
-            style: Theme.of(context).textTheme.bodySmall),
+          hasAmp
+              ? context.l10n.frontSurroundsPickWithAmp
+              : context.l10n.frontSurroundsPickExactlyTwo,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         Gap.s,
-        ...candidates.map((d) {
-          final isSel = selected.contains(d.uuid);
-          final isAmp = allowAmp && d.isAmp;
-          final disabled = !isSel && !isAmp && selected.length >= 2;
-          return BondableSpeakerTile(
-            device: d,
-            selected: isSel,
-            onChanged: disabled ? null : (_) => onToggle(d),
-            subtitle: isAmp
-                ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel)
-                : d.typeLabel,
-            secondary: identifyControls(d),
-          );
-        }),
+        CardGrid([for (final d in candidates) _card(context, d)]),
       ],
+    );
+  }
+
+  Widget _card(BuildContext context, SonosDevice d) {
+    final isSel = selected.contains(d.uuid);
+    final isAmp = allowAmp && d.isAmp;
+    final disabled = !isSel && !isAmp && selected.length >= 2;
+    // The side is the speaker's slot in [selected] (0 = left, 1 = right). The
+    // in-card toggle only appears once BOTH are chosen — before that there's no
+    // other speaker to swap sides with. Picking a side swaps the pair, so both
+    // cards update together.
+    final idx = selected.indexOf(d.uuid);
+    final showLR = isSel && !isAmp && selected.length == 2;
+    return SelectableSpeakerCard(
+      device: d,
+      selected: isSel,
+      enabled: !disabled,
+      onToggle: () => onToggle(d),
+      subtitle: isAmp
+          ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel)
+          : d.typeLabel,
+      identify: identifyControls(d),
+      showControl: showLR,
+      control: showLR ? SideSelector(isRight: idx == 1, onSwap: onSwap) : null,
     );
   }
 }
@@ -484,17 +563,22 @@ class _ChooseSub extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(context.l10n.frontSurroundsSubHint,
-            style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          context.l10n.frontSurroundsSubHint,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         Gap.s,
         ...subs.map((d) {
           final isSel = selected.contains(d.uuid);
           return BondableSpeakerTile(
             device: d,
             selected: isSel,
-            onChanged: (!isSel && selected.length >= 2) ? null : (_) => onToggle(d),
+            onChanged: (!isSel && selected.length >= 2)
+                ? null
+                : (_) => onToggle(d),
             subtitle: d.typeLabel,
             secondary: identifyControls(d),
+            outlined: true,
           );
         }),
       ],
@@ -516,66 +600,11 @@ class _AmpWiringNote extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          context.l10n.frontSurroundsAmpWiring(amp?.modelName ?? 'Amp'),
+          context.l10n.frontSurroundsAmpWiring(
+              amp?.modelName ?? context.l10n.widgetsAmp),
           style: Theme.of(context).textTheme.bodySmall,
         ),
-        if (amp != null) ...[
-          Gap.s,
-          identifyControls(amp),
-        ],
-      ],
-    );
-  }
-}
-
-class _AssignSides extends StatelessWidget {
-  final SonosSystem system;
-  final List<String> selected;
-  final String leftLabel;
-  final String rightLabel;
-  final VoidCallback onSwap;
-  final Widget Function(SonosDevice device) identifyControls;
-
-  const _AssignSides({
-    required this.system,
-    required this.selected,
-    required this.leftLabel,
-    required this.rightLabel,
-    required this.onSwap,
-    required this.identifyControls,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (selected.length != 2) {
-      return Text(context.l10n.frontSurroundsChooseTwoFirst);
-    }
-    final left = system.device(selected[0]);
-    final right = system.device(selected[1]);
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-                child: SpeakerSideCard(
-                    side: leftLabel,
-                    device: left,
-                    controls: left == null ? null : identifyControls(left))),
-            IconButton.filledTonal(
-              onPressed: onSwap,
-              icon: const Icon(Icons.swap_horiz),
-              tooltip: context.l10n.frontSurroundsSwapSides,
-            ),
-            Expanded(
-                child: SpeakerSideCard(
-                    side: rightLabel,
-                    device: right,
-                    controls: right == null ? null : identifyControls(right))),
-          ],
-        ),
-        Gap.s,
-        Text(context.l10n.frontSurroundsTapSwap,
-            style: Theme.of(context).textTheme.bodySmall),
+        if (amp != null) ...[Gap.s, identifyControls(amp)],
       ],
     );
   }
@@ -588,11 +617,12 @@ class _Review extends StatelessWidget {
 
   /// Resulting Sub count (existing ∪ newly picked) — for the diagram chip.
   final int subCount;
-  const _Review(
-      {required this.system,
-      required this.member,
-      required this.additions,
-      required this.subCount});
+  const _Review({
+    required this.system,
+    required this.member,
+    required this.additions,
+    required this.subCount,
+  });
 
   @override
   Widget build(BuildContext context) {

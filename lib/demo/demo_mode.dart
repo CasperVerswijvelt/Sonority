@@ -129,6 +129,11 @@ const _up3 = 'RINCON_DEMO_UP3000001400';
 const _kitchen = 'RINCON_DEMO_KIT000001400';
 const _bedroom = 'RINCON_DEMO_BED000001400';
 const _bathroom = 'RINCON_DEMO_BATH00001400';
+// A second, simpler home theater (Bedroom): a Beam with two rear surrounds and
+// no dedicated fronts, so the overview shows a main viewing area plus a bedroom.
+const _beam = 'RINCON_DEMO_BEAM00001400';
+const _bedRearL = 'RINCON_DEMO_BEDL00001400';
+const _bedRearR = 'RINCON_DEMO_BEDR00001400';
 
 const _devices = <SonosDevice>[
   SonosDevice(uuid: _arc, roomName: 'Living Room', modelName: 'Sonos Arc', ip: '192.0.2.10'),
@@ -143,8 +148,11 @@ const _devices = <SonosDevice>[
   SonosDevice(uuid: _up2, roomName: 'Upstairs', modelName: 'Sonos Play:1', ip: '192.0.2.31'),
   SonosDevice(uuid: _up3, roomName: 'Upstairs', modelName: 'Sonos Play:1', ip: '192.0.2.32'),
   SonosDevice(uuid: _kitchen, roomName: 'Kitchen', modelName: 'Sonos One', ip: '192.0.2.40'),
-  SonosDevice(uuid: _bedroom, roomName: 'Bedroom', modelName: 'Sonos Five', ip: '192.0.2.41'),
+  SonosDevice(uuid: _bedroom, roomName: 'Guest Room', modelName: 'Sonos Five', ip: '192.0.2.41'),
   SonosDevice(uuid: _bathroom, roomName: 'Bathroom', modelName: 'Sonos One SL', ip: '192.0.2.42'),
+  SonosDevice(uuid: _beam, roomName: 'Bedroom', modelName: 'Sonos Beam', modelNumber: 'S31', ip: '192.0.2.50'),
+  SonosDevice(uuid: _bedRearL, roomName: 'Bedroom', modelName: 'Sonos One', ip: '192.0.2.51'),
+  SonosDevice(uuid: _bedRearR, roomName: 'Bedroom', modelName: 'Sonos One', ip: '192.0.2.52'),
 ];
 
 String _location(String ip) => 'http://$ip:1400/xml/device_description.xml';
@@ -169,6 +177,24 @@ final demoHomeTheater = ZoneGroupMember(
     for (final s in _htSatellites) ChannelMapEntry.fromChannels(s.uuid, s.channels),
   ]).encode(),
   satellites: _htSatellites,
+);
+
+const _bedroomSatellites = [
+  SonosSatellite(uuid: _bedRearL, zoneName: 'Bedroom', channels: [SonosChannel.leftRear], ip: '192.0.2.51'),
+  SonosSatellite(uuid: _bedRearR, zoneName: 'Bedroom', channels: [SonosChannel.rightRear], ip: '192.0.2.52'),
+];
+
+/// Bedroom: a Beam as center + two Sonos One rear surrounds (no dedicated
+/// fronts, no sub) — a lighter second home theater alongside the flagship one.
+final demoBedroomTheater = ZoneGroupMember(
+  uuid: _beam,
+  zoneName: 'Bedroom',
+  location: _location('192.0.2.50'),
+  htSatChanMapSet: ChannelMap([
+    ChannelMapEntry.fromChannels(_beam, [SonosChannel.center]),
+    for (final s in _bedroomSatellites) ChannelMapEntry.fromChannels(s.uuid, s.channels),
+  ]).encode(),
+  satellites: _bedroomSatellites,
 );
 
 /// Office: a stereo pair of two Sonos Ones (right half hidden, as on hardware).
@@ -196,6 +222,7 @@ final demoZone = ZoneGroupMember(
 final demoSystem = SonosSystem(
   groups: [
     ZoneGroup(coordinatorUuid: _arc, members: [demoHomeTheater]),
+    ZoneGroup(coordinatorUuid: _beam, members: [demoBedroomTheater]),
     ZoneGroup(coordinatorUuid: _officeL, members: [
       demoStereoPair,
       ZoneGroupMember(uuid: _officeR, zoneName: 'Office', location: _location('192.0.2.21'), invisible: true),
@@ -209,7 +236,7 @@ final demoSystem = SonosSystem(
       ZoneGroupMember(uuid: _kitchen, zoneName: 'Kitchen', location: _location('192.0.2.40')),
     ]),
     ZoneGroup(coordinatorUuid: _bedroom, members: [
-      ZoneGroupMember(uuid: _bedroom, zoneName: 'Bedroom', location: _location('192.0.2.41')),
+      ZoneGroupMember(uuid: _bedroom, zoneName: 'Guest Room', location: _location('192.0.2.41')),
     ]),
     ZoneGroup(coordinatorUuid: _bathroom, members: [
       ZoneGroupMember(uuid: _bathroom, zoneName: 'Bathroom', location: _location('192.0.2.42')),
@@ -226,6 +253,7 @@ List<Profile> demoProfiles() => [
         name: 'Movie night',
         iconId: 'movie',
         color: 2,
+        updatedAt: DateTime.now().subtract(const Duration(days: 3)),
         entities: [EntitySnapshot.fromMember(demoHomeTheater)],
       ),
       Profile(
@@ -233,6 +261,7 @@ List<Profile> demoProfiles() => [
         name: 'Music everywhere',
         iconId: 'music',
         color: 1,
+        updatedAt: DateTime.now().subtract(const Duration(days: 14)),
         entities: [
           EntitySnapshot.fromMember(demoStereoPair),
           EntitySnapshot.fromMember(demoZone),

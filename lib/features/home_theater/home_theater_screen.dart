@@ -10,12 +10,14 @@ import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/busy_view.dart';
+import '../widgets/card_grid.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/destructive_button.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
+import '../widgets/scroll_footer.dart';
 import '../widgets/section_header.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/trueplay_control.dart';
@@ -76,14 +78,14 @@ class HomeTheaterScreen extends ConsumerWidget {
               bonded: bonded,
               onRemoveGroup: (channels, label, {bool separateAll = false}) =>
                   _confirmRemoveGroup(
-                context,
-                ref,
-                member,
-                device,
-                channels,
-                label,
-                separateAll: separateAll,
-              ),
+                    context,
+                    ref,
+                    member,
+                    device,
+                    channels,
+                    label,
+                    separateAll: separateAll,
+                  ),
               onConfigure: () => context.push('/theater/$soundbarUuid/fronts'),
             ),
     );
@@ -173,8 +175,12 @@ class _Content extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember member;
   final List<SonosDevice> bonded;
-  final void Function(Set<SonosChannel> channels, String label,
-      {bool separateAll}) onRemoveGroup;
+  final void Function(
+    Set<SonosChannel> channels,
+    String label, {
+    bool separateAll,
+  })
+  onRemoveGroup;
   final VoidCallback onConfigure;
 
   const _Content({
@@ -210,9 +216,29 @@ class _Content extends StatelessWidget {
     ];
     // Edge-to-edge list so the Trueplay settings section can be full-bleed
     // (flat, sectioned — a setting, not another content card); content blocks
-    // carry their own horizontal padding.
-    return ListView(
+    // carry their own horizontal padding. Separate sits pinned at the bottom
+    // (via ScrollFooter) so the destructive action is always at the end.
+    return ScrollFooter(
       padding: const EdgeInsets.symmetric(vertical: 20),
+      footer: present.isEmpty
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(
+                kPageGutter,
+                20,
+                kPageGutter,
+                0,
+              ),
+              child: DestructiveButton(
+                icon: Icons.link_off,
+                label: l10n.htSeparate,
+                onPressed: () => onRemoveGroup(
+                  {for (final g in present) ...g.channels},
+                  l10n.htAllExtraSpeakers,
+                  separateAll: true,
+                ),
+              ),
+            ),
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
@@ -237,46 +263,27 @@ class _Content extends StatelessWidget {
                   style: theme.mutedText,
                 )
               else
-                for (final g in present) ...[
-                  _GroupCard(
-                    group: g,
-                    models: _models(g.channels, l10n.htSpeakerFallback),
-                    onRemove: () => onRemoveGroup(g.channels, g.label),
-                  ),
-                  Gap.s,
-                ],
+                CardGrid([
+                  for (final g in present)
+                    _GroupCard(
+                      group: g,
+                      models: _models(g.channels, l10n.htSpeakerFallback),
+                      onRemove: () => onRemoveGroup(g.channels, g.label),
+                    ),
+                ]),
             ],
           ),
         ),
         Gap.m,
         SettingsSection(children: [TrueplayControl(devices: bonded)]),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (member.hasDedicatedFronts) ...[
-                Gap.s,
-                Text(
-                  l10n.htTrueplayNote,
-                  style: theme.mutedText,
-                ),
-              ],
-              if (present.isNotEmpty) ...[
-                Gap.l,
-                DestructiveButton(
-                  icon: Icons.link_off,
-                  label: l10n.htSeparate,
-                  onPressed: () => onRemoveGroup(
-                    {for (final g in present) ...g.channels},
-                    l10n.htAllExtraSpeakers,
-                    separateAll: true,
-                  ),
-                ),
-              ],
-            ],
+        if (member.hasDedicatedFronts)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),
+            child: Text(
+              l10n.htTrueplayNote,
+              style: theme.mutedText,
+            ),
           ),
-        ),
       ],
     );
   }

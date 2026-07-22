@@ -8,6 +8,7 @@ import '../../data/sonos/cancellation.dart';
 import '../../state/sonos_controller.dart';
 import 'app_scaffold.dart';
 import 'apply_progress_view.dart';
+import 'max_width_body.dart';
 
 /// How a bonding operation ended, returned by [showBondingProgress].
 enum BondingOutcome { success, failed, aborted }
@@ -30,12 +31,13 @@ Future<BondingOutcome> showBondingProgress(
   container.read(operationLogProvider.notifier).clear();
   // Push on the ROOT navigator so the dialog covers the bottom nav bar too —
   // bonding must fully block navigation while it runs.
-  final outcome = await Navigator.of(context, rootNavigator: true).push<BondingOutcome>(
-    MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => BondingProgressScreen(title: title, run: run),
-    ),
-  );
+  final outcome = await Navigator.of(context, rootNavigator: true)
+      .push<BondingOutcome>(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => BondingProgressScreen(title: title, run: run),
+        ),
+      );
   return outcome ?? BondingOutcome.aborted;
 }
 
@@ -114,7 +116,8 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
     await Clipboard.setData(ClipboardData(text: log));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.bondingLogsCopied)));
+        SnackBar(content: Text(context.l10n.bondingLogsCopied)),
+      );
     }
   }
 
@@ -143,15 +146,17 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
                   ? context.l10n.bondingShowSteps
                   : context.l10n.bondingShowRawLog,
               onPressed: () => setState(() => _showLogs = !_showLogs),
-              icon: Icon(_showLogs
-                  ? Icons.view_timeline_outlined
-                  : Icons.terminal),
+              icon: Icon(
+                _showLogs ? Icons.view_timeline_outlined : Icons.terminal,
+              ),
             ),
           ],
         ),
-        body: _showLogs
-            ? const _RawLogView()
-            : ApplyProgressView(steps: steps, aborted: _aborted),
+        body: MaxWidthBody(
+          child: _showLogs
+              ? const _RawLogView()
+              : ApplyProgressView(steps: steps, aborted: _aborted),
+        ),
         bottomNavigationBar: SafeArea(
           child: _BottomBar(
             finished: _finished,
@@ -159,11 +164,13 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
             aborting: _aborting,
             onAbort: _abort,
             onRetry: _retry,
-            onDone: () => Navigator.of(context).pop(_aborted
-                ? BondingOutcome.aborted
-                : _failed
-                    ? BondingOutcome.failed
-                    : BondingOutcome.success),
+            onDone: () => Navigator.of(context).pop(
+              _aborted
+                  ? BondingOutcome.aborted
+                  : _failed
+                  ? BondingOutcome.failed
+                  : BondingOutcome.success,
+            ),
           ),
         ),
       ),
@@ -210,7 +217,11 @@ class _RawLogViewState extends ConsumerState<_RawLogView> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: SelectableText(
           lines.join('\n'),
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 12, height: 1.5),
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 12,
+            height: 1.5,
+          ),
         ),
       ),
     );
@@ -244,7 +255,9 @@ class _BottomBar extends StatelessWidget {
       child = FilledButton(
         onPressed: aborting ? null : onAbort,
         style: FilledButton.styleFrom(
-            backgroundColor: scheme.error, foregroundColor: scheme.onError),
+          backgroundColor: scheme.error,
+          foregroundColor: scheme.onError,
+        ),
         child: Text(
             aborting ? context.l10n.actionAborting : context.l10n.actionAbort),
       );
@@ -258,8 +271,11 @@ class _BottomBar extends StatelessWidget {
             child: FilledButton(
               onPressed: onDone,
               style: FilledButton.styleFrom(
-                  backgroundColor: doneColor,
-                  foregroundColor: failed ? scheme.onError : Colors.white),
+                backgroundColor: doneColor,
+                foregroundColor: failed
+                    ? scheme.onError
+                    : onSuccessGreen(theme),
+              ),
               child: Text(context.l10n.actionDone),
             ),
           ),
@@ -278,7 +294,27 @@ class _BottomBar extends StatelessWidget {
     }
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: SizedBox(width: double.infinity, child: child),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Reassure on failure/abort: our writes are diff-based and
+          // idempotent, so a partial run is recoverable — re-applying (Retry)
+          // converges to the target. (Deliberately doesn't claim "nothing was
+          // half-applied": a failure mid-reshuffle can briefly leave one
+          // speaker per side; Retry is what makes it whole.)
+          if (finished && failed) ...[
+            Text(
+              context.l10n.bondingSafeStateNote,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            Gap.s,
+          ],
+          SizedBox(width: double.infinity, child: child),
+        ],
+      ),
     );
   }
 }

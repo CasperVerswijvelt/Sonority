@@ -7,8 +7,11 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
+import '../widgets/card_grid.dart';
 import '../widgets/identify_controls.dart';
-import '../widgets/speaker_side_card.dart';
+import '../widgets/max_width_body.dart';
+import '../widgets/member_channel_card.dart';
+import '../widgets/selectable_speaker_card.dart';
 
 /// How the segmented control frames the bond. All three build a `ChannelMapSet`
 /// and go through the same `AddBondedZones` engine path.
@@ -48,23 +51,23 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
   }
 
   void _toggle(String uuid) => setState(() {
-        if (_selected.remove(uuid)) {
-          _channels.remove(uuid);
-        } else if (_selected.length < _cap) {
-          _selected.add(uuid);
-          _channels[uuid] = GroupChannel.both;
-        }
-      });
+    if (_selected.remove(uuid)) {
+      _channels.remove(uuid);
+    } else if (_selected.length < _cap) {
+      _selected.add(uuid);
+      _channels[uuid] = GroupChannel.both;
+    }
+  });
 
   void _onModeChanged(_Mode m) => setState(() {
-        _mode = m;
-        if (m == _Mode.stereo && _selected.length > 2) {
-          for (final u in _selected.sublist(2)) {
-            _channels.remove(u);
-          }
-          _selected.removeRange(2, _selected.length);
-        }
-      });
+    _mode = m;
+    if (m == _Mode.stereo && _selected.length > 2) {
+      for (final u in _selected.sublist(2)) {
+        _channels.remove(u);
+      }
+      _selected.removeRange(2, _selected.length);
+    }
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -72,14 +75,27 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     if (system == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final candidates =
-        system.zoneableSpeakers.where((d) => d.reachable).toList();
+    final candidates = system.zoneableSpeakers
+        .where((d) => d.reachable)
+        .toList();
     final subs = system.bondableSubs.where((d) => d.reachable).toList();
     final scheme = Theme.of(context).colorScheme;
     // Candidates here are all standalone, so chime applies; gate per-device
     // anyway so the rule stays consistent with the HT flow.
     Widget idControls(SonosDevice d) =>
         identifyButtons(d, chime: system.isStandalone(d.uuid));
+
+    // A step's subtitle: the picked speaker types when it has a selection (so a
+    // collapsed step summarizes itself), else "Optional".
+    Widget stepSubtitle(List<String> uuids) => uuids.isEmpty
+        ? Text(context.l10n.groupOptional)
+        : Text(
+            uuids
+                .map((u) => system.device(u)?.typeLabel ?? context.l10n.widgetsSpeaker)
+                .join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          );
 
     return Scaffold(
       // No scroll-under elevation: the steps tuck behind the segmented-control
@@ -91,6 +107,8 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
         surfaceTintColor: Colors.transparent,
       ),
       body: SafeArea(
+        // The segmented-mode header + its divider stay full-width; only the
+        // scrolling Stepper below is clamped/centered on a wide window.
         child: candidates.length < 2
             ? Center(
                 child: Padding(
@@ -118,14 +136,17 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                           ),
                           segments: [
                             ButtonSegment(
-                                value: _Mode.stereo,
-                                label: Text(context.l10n.groupModeStereo)),
+                              value: _Mode.stereo,
+                              label: Text(context.l10n.groupModeStereo),
+                            ),
                             ButtonSegment(
-                                value: _Mode.zone,
-                                label: Text(context.l10n.groupModeZone)),
+                              value: _Mode.zone,
+                              label: Text(context.l10n.groupModeZone),
+                            ),
                             ButtonSegment(
-                                value: _Mode.custom,
-                                label: Text(context.l10n.groupModeCustom)),
+                              value: _Mode.custom,
+                              label: Text(context.l10n.groupModeCustom),
+                            ),
                           ],
                           selected: {_mode},
                           onSelectionChanged: (s) => _onModeChanged(s.first),
@@ -135,76 +156,87 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                   ),
                   Divider(height: 1, color: scheme.outlineVariant),
                   Expanded(
-                    child: Stepper(
-                      currentStep: _step,
-                      type: StepperType.vertical,
-                      onStepTapped: (i) => setState(() => _step = i),
-                      controlsBuilder: (context, _) => _controls(system),
-                      steps: [
-                        Step(
-                          title: Text(context.l10n.groupStepSelect),
-                          isActive: _step >= _stepSpeakers,
-                          state: _selected.length >= 2
-                              ? StepState.complete
-                              : StepState.indexed,
-                          content: _SelectStep(
-                            mode: _mode,
-                            system: system,
-                            candidates: candidates,
-                            selected: _selected,
-                            channels: _channels,
-                            onToggle: _toggle,
-                            onChannel: (u, c) =>
-                                setState(() => _channels[u] = c),
-                            onSwap: () => setState(() => _selected
-                                .setAll(0, [_selected[1], _selected[0]])),
-                            identifyControls: idControls,
+                    child: MaxWidthBody(
+                      child: Stepper(
+                        currentStep: _step,
+                        type: StepperType.vertical,
+                        onStepTapped: (i) => setState(() => _step = i),
+                        controlsBuilder: (context, _) => _controls(system),
+                        steps: [
+                          Step(
+                            title: Text(context.l10n.groupStepSelect),
+                            subtitle: _selected.isEmpty
+                                ? null
+                                : stepSubtitle(_selected),
+                            isActive: _step >= _stepSpeakers,
+                            state: _selected.length >= 2
+                                ? StepState.complete
+                                : StepState.indexed,
+                            content: _SelectStep(
+                              mode: _mode,
+                              candidates: candidates,
+                              selected: _selected,
+                              channels: _channels,
+                              onToggle: _toggle,
+                              onChannel: (u, c) =>
+                                  setState(() => _channels[u] = c),
+                              onSwap: () => setState(
+                                () => _selected.setAll(0, [
+                                  _selected[1],
+                                  _selected[0],
+                                ]),
+                              ),
+                              identifyControls: idControls,
+                            ),
                           ),
-                        ),
-                        Step(
-                          title: Text(context.l10n.groupStepAddSub),
-                          subtitle: Text(context.l10n.groupOptional),
-                          isActive: _step >= _stepSub,
-                          state: _subUuid != null
-                              ? StepState.complete
-                              : StepState.indexed,
-                          content: _SubStep(
-                            subs: subs,
-                            selected: _subUuid,
-                            onChanged: (u) => setState(() => _subUuid = u),
+                          Step(
+                            title: Text(context.l10n.groupStepAddSub),
+                            subtitle: stepSubtitle([
+                              if (_subUuid != null) _subUuid!,
+                            ]),
+                            isActive: _step >= _stepSub,
+                            state: _subUuid != null
+                                ? StepState.complete
+                                : StepState.indexed,
+                            content: _SubStep(
+                              subs: subs,
+                              selected: _subUuid,
+                              onChanged: (u) => setState(() => _subUuid = u),
+                            ),
                           ),
-                        ),
-                        Step(
-                          title: Text(context.l10n.groupStepName),
-                          subtitle: Text(context.l10n.groupOptional),
-                          isActive: _step >= _stepName,
-                          content: Padding(
-                            // Top room for the floating label (else it clips).
-                            padding: const EdgeInsets.only(top: 8),
-                            child: TextField(
-                              controller: _nameController,
-                              textCapitalization: TextCapitalization.sentences,
-                              decoration: InputDecoration(
-                                labelText: context.l10n.groupNameLabel,
-                                hintText: context.l10n.groupNameHint,
-                                border: const OutlineInputBorder(),
+                          Step(
+                            title: Text(context.l10n.groupStepName),
+                            subtitle: Text(context.l10n.groupOptional),
+                            isActive: _step >= _stepName,
+                            content: Padding(
+                              // Top room for the floating label (else it clips).
+                              padding: const EdgeInsets.only(top: 8),
+                              child: TextField(
+                                controller: _nameController,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                                decoration: InputDecoration(
+                                  labelText: context.l10n.groupNameLabel,
+                                  hintText: context.l10n.groupNameHint,
+                                  border: const OutlineInputBorder(),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        Step(
-                          title: Text(context.l10n.groupStepReview),
-                          isActive: _step >= _stepReview,
-                          content: _ReviewStep(
-                            mode: _mode,
-                            system: system,
-                            selected: _selected,
-                            channels: _channels,
-                            subUuid: _subUuid,
-                            name: _nameController.text.trim(),
+                          Step(
+                            title: Text(context.l10n.groupStepReview),
+                            isActive: _step >= _stepReview,
+                            content: _ReviewStep(
+                              mode: _mode,
+                              system: system,
+                              selected: _selected,
+                              channels: _channels,
+                              subUuid: _subUuid,
+                              name: _nameController.text.trim(),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -238,8 +270,8 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
               onPressed: !canAdvance
                   ? null
                   : isLast
-                      ? () => _create(system)
-                      : () => setState(() => _step++),
+                  ? () => _create(system)
+                  : () => setState(() => _step++),
               child: Text(label),
             ),
           ),
@@ -250,10 +282,15 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
 
   Future<void> _create(SonosSystem system) async {
     final members = <({SonosDevice device, GroupChannel channel})>[];
-    for (final r in _resolveChannels(_mode, _selected, _channels)) {
-      final d = system.device(r.uuid);
+    for (var i = 0; i < _selected.length; i++) {
+      final d = system.device(_selected[i]);
       if (d == null) continue;
-      members.add((device: d, channel: r.channel));
+      final channel = switch (_mode) {
+        _Mode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
+        _Mode.zone => GroupChannel.both,
+        _Mode.custom => _channels[_selected[i]] ?? GroupChannel.both,
+      };
+      members.add((device: d, channel: channel));
     }
     if (members.length < 2) return;
     final sub = _subUuid == null ? null : system.device(_subUuid!);
@@ -266,40 +303,27 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
       context,
       title: l10n.groupFlowTitle,
       run: () => controller.createGroup(
-          members: members, sub: sub, name: name.isEmpty ? null : name),
+        members: members,
+        sub: sub,
+        name: name.isEmpty ? null : name,
+      ),
     );
     if (outcome == BondingOutcome.success) {
       router.pop();
     } else if (outcome == BondingOutcome.failed) {
-      messenger.showSnackBar(SnackBar(
-        content: Text(l10n.groupCreateFailed),
-        duration: const Duration(seconds: 6),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.groupCreateFailed),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     }
   }
 }
 
-/// Each selected speaker's channel for [mode], in selection order. Stereo derives
-/// L/R from order; zone is always full-range; custom reads the per-speaker map.
-/// The single source of truth for both the review summary and the actual bond.
-List<({String uuid, GroupChannel channel})> _resolveChannels(
-        _Mode mode, List<String> selected, Map<String, GroupChannel> channels) =>
-    [
-      for (var i = 0; i < selected.length; i++)
-        (
-          uuid: selected[i],
-          channel: switch (mode) {
-            _Mode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
-            _Mode.zone => GroupChannel.both,
-            _Mode.custom => channels[selected[i]] ?? GroupChannel.both,
-          },
-        ),
-    ];
-
 /// Step 1 — pick speakers, with per-mode assignment.
 class _SelectStep extends StatelessWidget {
   final _Mode mode;
-  final SonosSystem system;
   final List<SonosDevice> candidates;
   final List<String> selected;
   final Map<String, GroupChannel> channels;
@@ -310,7 +334,6 @@ class _SelectStep extends StatelessWidget {
 
   const _SelectStep({
     required this.mode,
-    required this.system,
     required this.candidates,
     required this.selected,
     required this.channels,
@@ -321,10 +344,10 @@ class _SelectStep extends StatelessWidget {
   });
 
   String _hint(BuildContext context) => switch (mode) {
-        _Mode.stereo => context.l10n.groupHintStereo,
-        _Mode.zone => context.l10n.groupHintZone,
-        _Mode.custom => context.l10n.groupHintCustom,
-      };
+    _Mode.stereo => context.l10n.groupHintStereo,
+    _Mode.zone => context.l10n.groupHintZone,
+    _Mode.custom => context.l10n.groupHintCustom,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -333,130 +356,55 @@ class _SelectStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(_hint(context), style: Theme.of(context).textTheme.bodySmall),
-        Gap.m,
-        ...candidates.map((d) {
-          final isSel = selected.contains(d.uuid);
-          final disabled = !isSel && selected.length >= cap;
-          return _CandidateCard(
-            device: d,
-            selected: isSel,
-            enabled: !disabled,
-            showChannel: mode == _Mode.custom && isSel,
-            channel: channels[d.uuid] ?? GroupChannel.both,
-            onToggle: () => onToggle(d.uuid),
-            onChannel: (c) => onChannel(d.uuid, c),
-            identify: identifyControls(d),
-          );
-        }),
-        if (mode == _Mode.stereo && selected.length == 2) ...[
-          Gap.m,
-          Row(
-            children: [
-              Expanded(
-                  child: SpeakerSideCard(
-                      side: context.l10n.groupSideLeft,
-                      device: system.device(selected[0]),
-                      controls: identifyControls(system.device(selected[0])!))),
-              IconButton.filledTonal(
-                onPressed: onSwap,
-                icon: const Icon(Icons.swap_horiz),
-                tooltip: context.l10n.groupSwapSides,
-              ),
-              Expanded(
-                  child: SpeakerSideCard(
-                      side: context.l10n.groupSideRight,
-                      device: system.device(selected[1]),
-                      controls: identifyControls(system.device(selected[1])!))),
-            ],
-          ),
-        ],
+        Gap.s,
+        CardGrid([for (final d in candidates) _card(context, d, cap)]),
       ],
     );
   }
-}
 
-/// A selectable speaker card. The whole card is the tap target (so hover/press
-/// highlights all of it); in custom mode a selected card reveals an animated
-/// Left/Both/Right control inside it.
-class _CandidateCard extends StatelessWidget {
-  final SonosDevice device;
-  final bool selected;
-  final bool enabled;
-  final bool showChannel;
-  final GroupChannel channel;
-  final VoidCallback onToggle;
-  final void Function(GroupChannel) onChannel;
-  final Widget identify;
-
-  const _CandidateCard({
-    required this.device,
-    required this.selected,
-    required this.enabled,
-    required this.showChannel,
-    required this.channel,
-    required this.onToggle,
-    required this.onChannel,
-    required this.identify,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: kCardGap),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: enabled ? onToggle : null,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // No onTap: taps fall through to the whole-card InkWell above; the
-            // Checkbox + identify button still handle their own taps.
-            ListTile(
-              titleAlignment: ListTileTitleAlignment.center,
-              leading: Checkbox(
-                value: selected,
-                onChanged: enabled ? (_) => onToggle() : null,
-              ),
-              title: Text(device.roomName),
-              subtitle: Text(device.typeLabel),
-              trailing: identify,
-            ),
-            // CrossFade (not just AnimatedSize) so the control fades out WHILE
-            // the height collapses on deselect, instead of vanishing instantly.
-            AnimatedCrossFade(
-              duration: const Duration(milliseconds: 200),
-              sizeCurve: Curves.easeInOut,
-              alignment: Alignment.topCenter,
-              crossFadeState: showChannel
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              firstChild: const SizedBox(width: double.infinity, height: 0),
-              secondChild: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<GroupChannel>(
-                    showSelectedIcon: false,
-                    segments: [
-                      ButtonSegment(
-                          value: GroupChannel.left,
-                          label: Text(context.l10n.groupChannelLeft)),
-                      ButtonSegment(
-                          value: GroupChannel.both,
-                          label: Text(context.l10n.groupChannelBoth)),
-                      ButtonSegment(
-                          value: GroupChannel.right,
-                          label: Text(context.l10n.groupChannelRight)),
-                    ],
-                    selected: {channel},
-                    onSelectionChanged: (s) => onChannel(s.first),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+  /// One selectable speaker, with an in-card channel selector revealed once
+  /// selected: custom → per-speaker Left/Both/Right; stereo → a Left/Right that
+  /// swaps the pair (only once both are chosen, since there's nothing to swap
+  /// with before that). Zone has no per-speaker choice.
+  Widget _card(BuildContext context, SonosDevice d, int cap) {
+    final isSel = selected.contains(d.uuid);
+    final disabled = !isSel && selected.length >= cap;
+    Widget? control;
+    var showControl = false;
+    if (mode == _Mode.custom && isSel) {
+      showControl = true;
+      control = SegmentedButton<GroupChannel>(
+        showSelectedIcon: false,
+        segments: [
+          ButtonSegment(
+              value: GroupChannel.left,
+              label: Text(context.l10n.groupChannelLeft)),
+          ButtonSegment(
+              value: GroupChannel.both,
+              label: Text(context.l10n.groupChannelBoth)),
+          ButtonSegment(
+              value: GroupChannel.right,
+              label: Text(context.l10n.groupChannelRight)),
+        ],
+        selected: {channels[d.uuid] ?? GroupChannel.both},
+        onSelectionChanged: (s) => onChannel(d.uuid, s.first),
+      );
+    } else if (mode == _Mode.stereo && isSel && selected.length == 2) {
+      showControl = true;
+      control = SideSelector(
+        isRight: selected.indexOf(d.uuid) == 1,
+        onSwap: onSwap,
+      );
+    }
+    return SelectableSpeakerCard(
+      device: d,
+      selected: isSel,
+      enabled: !disabled,
+      onToggle: () => onToggle(d.uuid),
+      subtitle: d.typeLabel,
+      identify: identifyControls(d),
+      showControl: showControl,
+      control: control,
     );
   }
 }
@@ -480,24 +428,24 @@ class _SubStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (subs.isEmpty)
-          Text(
-            context.l10n.groupNoSub,
-            style: muted,
-          )
+          Text(context.l10n.groupNoSub, style: muted)
         else ...[
           Text(context.l10n.groupAddSubHint, style: muted),
           Gap.s,
-          ...subs.map((s) => Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: CheckboxListTile(
-                  value: selected == s.uuid,
-                  onChanged: (v) => onChanged((v ?? false) ? s.uuid : null),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  title: Text(context.l10n.groupSubwoofer),
-                  subtitle: Text(s.typeLabel),
-                  secondary: const Icon(Icons.graphic_eq),
-                ),
-              )),
+          ...subs.map(
+            (s) => Card(
+              margin: const EdgeInsets.only(bottom: kCardGap),
+              clipBehavior: Clip.antiAlias,
+              child: CheckboxListTile(
+                value: selected == s.uuid,
+                onChanged: (v) => onChanged((v ?? false) ? s.uuid : null),
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(context.l10n.groupSubwoofer),
+                subtitle: Text(s.typeLabel),
+                secondary: const Icon(Icons.graphic_eq),
+              ),
+            ),
+          ),
         ],
       ],
     );
@@ -522,7 +470,14 @@ class _ReviewStep extends StatelessWidget {
     required this.name,
   });
 
-  String _room(String uuid) => system.device(uuid)?.roomName ?? uuid;
+  String _type(BuildContext context, String uuid) =>
+      system.device(uuid)?.typeLabel ?? context.l10n.widgetsSpeaker;
+
+  GroupChannel _channelFor(int i) => switch (mode) {
+    _Mode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
+    _Mode.zone => GroupChannel.both,
+    _Mode.custom => channels[selected[i]] ?? GroupChannel.both,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -534,19 +489,8 @@ class _ReviewStep extends StatelessWidget {
       _Mode.zone => l10n.groupKindZone(selected.length),
       _Mode.custom => l10n.groupKindCustom(selected.length),
     };
-    final lines = [
-      for (final r in _resolveChannels(mode, selected, channels))
-        l10n.groupReviewMemberLine(
-          _room(r.uuid),
-          switch (r.channel) {
-            GroupChannel.left => l10n.groupChannelLeft,
-            GroupChannel.right => l10n.groupChannelRight,
-            GroupChannel.both => l10n.groupChannelBoth,
-          },
-        ),
-    ];
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(kind, style: theme.textTheme.titleMedium),
         if (name.isNotEmpty) ...[
@@ -554,20 +498,26 @@ class _ReviewStep extends StatelessWidget {
           Text(l10n.groupReviewName(name), style: muted),
         ],
         Gap.s,
-        ...lines.map((l) => Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Text(l, style: muted),
-            )),
-        if (subUuid != null)
-          Text(
-              l10n.groupReviewSub(
-                  system.device(subUuid!)?.typeLabel ?? l10n.groupSubwoofer),
-              style: muted),
-        Gap.m,
-        Text(
-          l10n.groupReviewNote,
-          style: muted,
-        ),
+        // The bonded layout, shown the same way as a group's detail view: one
+        // card per member with its channel role.
+        for (var i = 0; i < selected.length; i++) ...[
+          MemberChannelCard(
+            icon: Icons.speaker,
+            type: _type(context, selected[i]),
+            channel: groupChannelShort(_channelFor(i)),
+          ),
+          Gap.s,
+        ],
+        if (subUuid != null) ...[
+          MemberChannelCard(
+            icon: Icons.graphic_eq,
+            type: system.device(subUuid!)?.typeLabel ?? l10n.groupSubwoofer,
+            channel: l10n.widgetsSub,
+          ),
+          Gap.s,
+        ],
+        Gap.s,
+        Text(l10n.groupReviewNote, style: muted),
       ],
     );
   }

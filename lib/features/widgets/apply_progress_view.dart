@@ -11,6 +11,12 @@ Color successGreen(ThemeData theme) => theme.brightness == Brightness.dark
     ? Colors.green.shade400
     : Colors.green.shade600;
 
+/// Readable foreground on [successGreen] — the success counterpart to
+/// `scheme.onError`. shade600 (light) reads with white; shade400 (dark) is light
+/// enough that black reads better.
+Color onSuccessGreen(ThemeData theme) =>
+    theme.brightness == Brightness.dark ? Colors.black : Colors.white;
+
 /// Renders the live [ApplyStep] list of a multi-step bonding operation as a
 /// minimal vertical timeline: a bare checkmark for done steps, a colored
 /// pulsing dot for the active step, a grey dot for to-do steps, and a thin
@@ -28,7 +34,11 @@ class ApplyProgressView extends StatelessWidget {
   /// "something went wrong".
   final bool aborted;
 
-  const ApplyProgressView({super.key, required this.steps, this.aborted = false});
+  const ApplyProgressView({
+    super.key,
+    required this.steps,
+    this.aborted = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -52,8 +62,12 @@ class ApplyProgressView extends StatelessWidget {
         ),
         Expanded(
           child: SingleChildScrollView(
-            padding:
-                const EdgeInsets.fromLTRB(kPageGutter, 28, kPageGutter, 16),
+            padding: const EdgeInsets.fromLTRB(
+              kPageGutter,
+              28,
+              kPageGutter,
+              16,
+            ),
             child: Column(
               children: [
                 for (var i = 0; i < steps.length; i++)
@@ -61,13 +75,15 @@ class ApplyProgressView extends StatelessWidget {
                     step: steps[i],
                     isLast: i == steps.length - 1,
                     // Extra gap before the next entity groups its section.
-                    nextIsParent:
-                        i + 1 < steps.length && !steps[i + 1].isChild,
-                    hasChildren: !steps[i].isChild &&
+                    nextIsParent: i + 1 < steps.length && !steps[i + 1].isChild,
+                    hasChildren:
+                        !steps[i].isChild &&
                         steps.any((s) => s.parentId == steps[i].id),
-                    hasFailedChild: !steps[i].isChild &&
+                    hasFailedChild:
+                        !steps[i].isChild &&
                         steps.any(
-                            (s) => s.parentId == steps[i].id && s.isFailed),
+                          (s) => s.parentId == steps[i].id && s.isFailed,
+                        ),
                   ),
               ],
             ),
@@ -89,12 +105,13 @@ class _TimelineRow extends StatelessWidget {
   final bool nextIsParent;
   final bool hasChildren;
   final bool hasFailedChild;
-  const _TimelineRow(
-      {required this.step,
-      required this.isLast,
-      required this.nextIsParent,
-      required this.hasChildren,
-      required this.hasFailedChild});
+  const _TimelineRow({
+    required this.step,
+    required this.isLast,
+    required this.nextIsParent,
+    required this.hasChildren,
+    required this.hasFailedChild,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -123,8 +140,11 @@ class _TimelineRow extends StatelessWidget {
             child: Column(
               children: [
                 SizedBox(
-                    height: 24,
-                    child: Center(child: _Node(step: step, small: child))),
+                  height: 24,
+                  child: Center(
+                    child: _Node(step: step, small: child),
+                  ),
+                ),
                 if (!isLast)
                   Expanded(
                     child: Center(
@@ -148,16 +168,16 @@ class _TimelineRow extends StatelessWidget {
                       child: Text(
                         step.label,
                         style: (child
-                                ? theme.textTheme.bodyMedium?.copyWith(
-                                    color: labelColor,
-                                    fontWeight: active
-                                        ? FontWeight.w600
-                                        : FontWeight.w400,
-                                  )
-                                : theme.textTheme.titleMedium?.copyWith(
-                                    color: labelColor,
-                                    fontWeight: FontWeight.w600,
-                                  )),
+                            ? theme.textTheme.bodyMedium?.copyWith(
+                                color: labelColor,
+                                fontWeight: active
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              )
+                            : theme.textTheme.titleMedium?.copyWith(
+                                color: labelColor,
+                                fontWeight: FontWeight.w600,
+                              )),
                       ),
                     ),
                   ),
@@ -167,9 +187,12 @@ class _TimelineRow extends StatelessWidget {
                   if (step.isFailed && !hasFailedChild)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
-                      child: Text(step.detail ?? context.l10n.widgetsStepFailed,
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(color: scheme.error)),
+                      child: Text(
+                        step.detail ?? context.l10n.widgetsStepFailed,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: scheme.error,
+                        ),
+                      ),
                     )
                   else if (active && !hasChildren)
                     Padding(
@@ -179,9 +202,12 @@ class _TimelineRow extends StatelessWidget {
                           const BusySpinner(size: 14),
                           Gap.s,
                           Expanded(
-                            child: Text(step.detail ?? context.l10n.widgetsStepWorking,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: scheme.onSurfaceVariant)),
+                            child: Text(
+                              step.detail ?? context.l10n.widgetsStepWorking,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -192,10 +218,13 @@ class _TimelineRow extends StatelessWidget {
                       step.detail != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
-                      child: Text(step.detail!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w300)),
+                      child: Text(
+                        step.detail!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -234,27 +263,31 @@ class _Node extends StatelessWidget {
     }
     return switch (step.status) {
       ApplyStatus.done => _circle(
-          fill: green,
-          child: const Icon(Icons.check, size: 14, color: Colors.white)),
+        fill: green,
+        child: const Icon(Icons.check, size: 14, color: Colors.white),
+      ),
       ApplyStatus.failed => _circle(
-          fill: scheme.error,
-          child: const Icon(Icons.close, size: 14, color: Colors.white)),
+        fill: scheme.error,
+        child: const Icon(Icons.close, size: 14, color: Colors.white),
+      ),
       ApplyStatus.active => _circle(
-          border: scheme.primary, child: const _PulsingDot(size: 10)),
+        border: scheme.primary,
+        child: const _PulsingDot(size: 10),
+      ),
       ApplyStatus.pending => _circle(border: pendingColor),
       // Skipped only occurs on sub-steps; defensive rendering for parents.
       ApplyStatus.skipped => _circle(
-          border: pendingColor,
-          child:
-              Icon(Icons.remove, size: 14, color: scheme.onSurfaceVariant)),
+        border: pendingColor,
+        child: Icon(Icons.remove, size: 14, color: scheme.onSurfaceVariant),
+      ),
     };
   }
 
   static Widget _dot(Color color, double size) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-      );
+    width: size,
+    height: size,
+    decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+  );
 
   static Widget _circle({Color? fill, Color? border, Widget? child}) =>
       Container(
@@ -296,8 +329,10 @@ class _PulsingDotState extends State<_PulsingDot>
     final color = Theme.of(context).colorScheme.primary;
     // Fixed size; pulse opacity only.
     return FadeTransition(
-      opacity: Tween(begin: 0.3, end: 1.0)
-          .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
+      opacity: Tween(
+        begin: 0.3,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
       child: Container(
         width: widget.size,
         height: widget.size,

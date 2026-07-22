@@ -165,12 +165,18 @@ class Profile {
   final String iconId;
   final int color;
 
+  /// When the profile's snapshot was last (re)captured — set on create and on
+  /// re-snapshot, shown as "updated X ago" on the tile. Null for profiles saved
+  /// before this field existed (the tile just omits the line).
+  final DateTime? updatedAt;
+
   const Profile({
     required this.id,
     required this.name,
     required this.entities,
     this.iconId = kDefaultProfileIcon,
     this.color = 0,
+    this.updatedAt,
   });
 
   /// Aggregated across entities — drive the badges on the profile tile.
@@ -182,6 +188,7 @@ class Profile {
     List<EntitySnapshot>? entities,
     String? iconId,
     int? color,
+    DateTime? updatedAt,
   }) =>
       Profile(
         id: id,
@@ -189,6 +196,7 @@ class Profile {
         entities: entities ?? this.entities,
         iconId: iconId ?? this.iconId,
         color: color ?? this.color,
+        updatedAt: updatedAt ?? this.updatedAt,
       );
 
   Map<String, dynamic> toJson() => {
@@ -196,6 +204,7 @@ class Profile {
         'name': name,
         'iconId': iconId,
         'color': color,
+        if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
         'entities': entities.map((e) => e.toJson()).toList(),
       };
 
@@ -205,6 +214,7 @@ class Profile {
         // Absent in pre-feature profiles → curated defaults.
         iconId: j['iconId'] as String? ?? kDefaultProfileIcon,
         color: j['color'] as int? ?? 0,
+        updatedAt: DateTime.tryParse(j['updatedAt'] as String? ?? ''),
         entities: [
           for (final e in (j['entities'] as List))
             EntitySnapshot.fromJson(e as Map<String, dynamic>)

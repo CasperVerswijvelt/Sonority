@@ -52,7 +52,8 @@ class AppScaffold extends StatelessWidget {
           preferredSize: Size.fromHeight(1),
           child: ScrolledUnderDivider(),
         ),
-        title: titleWidget ??
+        title:
+            titleWidget ??
             (subtitle == null
                 ? Text(title)
                 : Column(
@@ -62,9 +63,11 @@ class AppScaffold extends StatelessWidget {
                       Text(title),
                       Text(
                         subtitle!,
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color:
-                                  Theme.of(context).colorScheme.onSurfaceVariant,
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                       ),
                     ],
@@ -73,6 +76,8 @@ class AppScaffold extends StatelessWidget {
       ),
       floatingActionButton: floatingActionButton,
       // AppBar owns the top inset, so the body only needs the bottom safe area.
+      // Content fills the full width (the desktop window is capped instead of
+      // centering the content — see MainFlutterWindow.swift).
       body: SafeArea(
         top: false,
         child: bottomOverlay == null

@@ -12,8 +12,8 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/l10n.dart';
 import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/app_scaffold.dart';
 import '../widgets/busy_spinner.dart';
-import '../widgets/sheet_scaffold.dart';
 import 'diagnostics_bundle.dart';
 
 const _devEmail = 'casperverswijveltdev@gmail.com';
@@ -22,19 +22,17 @@ const _devEmail = 'casperverswijveltdev@gmail.com';
 /// was actually pressed (not always the primary one).
 enum _Action { email, share, save }
 
-/// Opens the diagnostics bottom sheet: a hide-nothing technical topology view
-/// plus a way to package it (+ raw data, logs) into a zip and escalate it.
-Future<void> showDiagnosticsSheet(BuildContext context) =>
-    showSheet<void>(context, const _DiagnosticsSheet());
-
-class _DiagnosticsSheet extends ConsumerStatefulWidget {
-  const _DiagnosticsSheet();
+/// The Diagnostics tab: a hide-nothing technical topology view plus a way to
+/// package it (+ raw data, logs) into a zip and escalate it. A bottom-bar
+/// destination (see `app.dart`), so it's a full page — not a modal.
+class DiagnosticsScreen extends ConsumerStatefulWidget {
+  const DiagnosticsScreen({super.key});
 
   @override
-  ConsumerState<_DiagnosticsSheet> createState() => _DiagnosticsSheetState();
+  ConsumerState<DiagnosticsScreen> createState() => _DiagnosticsScreenState();
 }
 
-class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
+class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   bool _includeLogs = true;
   bool _includeNetwork = true;
   _Action? _busy; // null = idle; else the action currently running
@@ -124,7 +122,7 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
 
   Future<void> _share(String path) {
     // iPad requires a non-null sharePositionOrigin or share_plus throws/crashes;
-    // anchor the popover to the sheet. Ignored on other platforms.
+    // anchor the popover to this widget. Ignored on other platforms.
     final box = context.findRenderObject() as RenderBox?;
     final origin = box != null && box.hasSize
         ? box.localToGlobal(Offset.zero) & box.size
@@ -147,31 +145,33 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final system = ref.watch(sonosControllerProvider).value;
+    final hasSystem = system != null;
 
-    return SheetScaffold(
-      fill: true,
-      icon: Icons.bug_report_outlined,
+    return AppScaffold(
       title: context.l10n.diagTitle,
-      body: system == null
-          ? Center(child: Text(context.l10n.diagNoSystem))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: SelectableText(
-                  topologyText(system),
-                  selectionWidthStyle: ui.BoxWidthStyle.tight,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 11,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-            ),
-      footer: Column(
-        mainAxisSize: MainAxisSize.min,
+      body: Column(
         children: [
+          Expanded(
+            child: system == null
+                ? Center(child: Text(context.l10n.diagNoSystem))
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: SelectableText(
+                        topologyText(system),
+                        selectionWidthStyle: ui.BoxWidthStyle.tight,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+          // Bundle-content toggles + note + escalation actions, pinned below the
+          // scrolling topology.
           const Divider(height: 1),
           SwitchListTile(
             value: _includeLogs,
@@ -179,95 +179,85 @@ class _DiagnosticsSheetState extends ConsumerState<_DiagnosticsSheet> {
             title: Text(context.l10n.diagIncludeLogs),
             subtitle: Text(context.l10n.diagIncludeLogsSubtitle),
             dense: true,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.zero,
-            ),
+            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
           ),
           SwitchListTile(
             value: _includeNetwork,
-            onChanged: _isBusy
-                ? null
-                : (v) => setState(() => _includeNetwork = v),
+            onChanged:
+                _isBusy ? null : (v) => setState(() => _includeNetwork = v),
             title: Text(context.l10n.diagIncludeNetwork),
             subtitle: Text(context.l10n.diagIncludeNetworkSubtitle),
             dense: true,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.zero,
-            ),
+            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             child: Text(
               context.l10n.diagAlwaysIncluded,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ),
           Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: (_isBusy || system == null)
-                          ? null
-                          : () => _run(
-                              _emailSupported ? _Action.email : _Action.share,
-                              _emailSupported ? _email : _share,
-                            ),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 52),
-                      ),
-                      icon: _busyIcon(
-                        _emailSupported ? _Action.email : _Action.share,
-                        _emailSupported ? Icons.mail_outline : Icons.share,
-                      ),
-                      label: Text(
-                        _busy ==
-                                (_emailSupported
-                                    ? _Action.email
-                                    : _Action.share)
-                            ? context.l10n.diagCollecting
-                            : _emailSupported
-                            ? context.l10n.diagEmailToDeveloper
-                            : context.l10n.diagShareDiagnostics,
-                      ),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: (_isBusy || !hasSystem)
+                        ? null
+                        : () => _run(
+                            _emailSupported ? _Action.email : _Action.share,
+                            _emailSupported ? _email : _share,
+                          ),
+                    style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
+                    icon: _busyIcon(
+                      _emailSupported ? _Action.email : _Action.share,
+                      _emailSupported ? Icons.mail_outline : Icons.share,
+                    ),
+                    label: Text(
+                      _busy ==
+                              (_emailSupported ? _Action.email : _Action.share)
+                          ? context.l10n.diagCollecting
+                          : _emailSupported
+                              ? context.l10n.diagEmailToDeveloper
+                              : context.l10n.diagShareDiagnostics,
                     ),
                   ),
-                  // The generic share sheet as a secondary action — redundant with
-                  // the primary button when email isn't supported, so drop it there.
-                  if (_emailSupported) ...[
-                    const SizedBox(width: 8),
-                    FilledButton.tonal(
-                      onPressed: (_isBusy || system == null)
-                          ? null
-                          : () => _run(_Action.share, _share),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        minimumSize: const Size(0, 52),
-                      ),
-                      child: _busyIcon(_Action.share, Icons.share),
+                ),
+                // The generic share sheet as a secondary action — redundant with
+                // the primary button when email isn't supported, so drop it there.
+                if (_emailSupported) ...[
+                  const SizedBox(width: 8),
+                  FilledButton.tonal(
+                    onPressed: (_isBusy || !hasSystem)
+                        ? null
+                        : () => _run(_Action.share, _share),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      minimumSize: const Size(0, 52),
                     ),
-                  ],
-                  // Explicit save-to-disk (native save dialog). Off on web,
-                  // where the bundle build (dart:io) can't run anyway.
-                  if (!kIsWeb) ...[
-                    const SizedBox(width: 8),
-                    FilledButton.tonal(
-                      onPressed: (_isBusy || system == null)
-                          ? null
-                          : () => _run(_Action.save, _save),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        minimumSize: const Size(0, 52),
-                      ),
-                      child: _busyIcon(_Action.save, Icons.save_alt),
-                    ),
-                  ],
+                    child: _busyIcon(_Action.share, Icons.share),
+                  ),
                 ],
-              ),
+                // Explicit save-to-disk (native save dialog). Off on web, where
+                // the bundle build (dart:io) can't run anyway.
+                if (!kIsWeb) ...[
+                  const SizedBox(width: 8),
+                  FilledButton.tonal(
+                    onPressed: (_isBusy || !hasSystem)
+                        ? null
+                        : () => _run(_Action.save, _save),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      minimumSize: const Size(0, 52),
+                    ),
+                    child: _busyIcon(_Action.save, Icons.save_alt),
+                  ),
+                ],
+              ],
             ),
+          ),
         ],
       ),
     );

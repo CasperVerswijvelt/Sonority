@@ -10,15 +10,18 @@ void main() {
   // right half is a separate Invisible member (the case the normal UI hides).
   final system = SonosSystem(
     groups: const [
-      ZoneGroup(coordinatorUuid: 'L', members: [
-        ZoneGroupMember(
-          uuid: 'L',
-          zoneName: 'Bedroom',
-          location: 'http://192.168.1.10:1400/xml/device_description.xml',
-          channelMapSet: 'L:LF,LF;R:RF,RF',
-        ),
-        ZoneGroupMember(uuid: 'R', zoneName: 'Bedroom', invisible: true),
-      ]),
+      ZoneGroup(
+        coordinatorUuid: 'L',
+        members: [
+          ZoneGroupMember(
+            uuid: 'L',
+            zoneName: 'Bedroom',
+            location: 'http://192.168.1.10:1400/xml/device_description.xml',
+            channelMapSet: 'L:LF,LF;R:RF,RF',
+          ),
+          ZoneGroupMember(uuid: 'R', zoneName: 'Bedroom', invisible: true),
+        ],
+      ),
     ],
     devicesByUuid: {
       'L': const SonosDevice(
@@ -77,22 +80,36 @@ void main() {
   test('topologyText does not mislabel a bonded HT satellite as an orphan', () {
     final ht = SonosSystem(
       groups: const [
-        ZoneGroup(coordinatorUuid: 'BAR', members: [
-          ZoneGroupMember(
-            uuid: 'BAR',
-            zoneName: 'Living',
-            htSatChanMapSet: 'BAR:CC;SAT:LR',
-            satellites: [
-              SonosSatellite(
-                  uuid: 'SAT', zoneName: 'Living', channels: [SonosChannel.leftRear]),
-            ],
-          ),
-        ]),
+        ZoneGroup(
+          coordinatorUuid: 'BAR',
+          members: [
+            ZoneGroupMember(
+              uuid: 'BAR',
+              zoneName: 'Living',
+              htSatChanMapSet: 'BAR:CC;SAT:LR',
+              satellites: [
+                SonosSatellite(
+                  uuid: 'SAT',
+                  zoneName: 'Living',
+                  channels: [SonosChannel.leftRear],
+                ),
+              ],
+            ),
+          ],
+        ),
       ],
       devicesByUuid: {
-        'BAR': const SonosDevice(uuid: 'BAR', roomName: 'Living', modelName: 'Sonos Beam'),
+        'BAR': const SonosDevice(
+          uuid: 'BAR',
+          roomName: 'Living',
+          modelName: 'Sonos Beam',
+        ),
         // The satellite is a discovered device but NOT a ZoneGroupMember.
-        'SAT': const SonosDevice(uuid: 'SAT', roomName: 'Living', modelName: 'Sonos One'),
+        'SAT': const SonosDevice(
+          uuid: 'SAT',
+          roomName: 'Living',
+          modelName: 'Sonos One',
+        ),
       },
     );
     expect(topologyText(ht), isNot(contains('not in topology groups')));
@@ -101,23 +118,31 @@ void main() {
   test('topologyText folds an HT satellite IP into its map line (no └ dup)', () {
     final ht = SonosSystem(
       groups: const [
-        ZoneGroup(coordinatorUuid: 'BAR', members: [
-          ZoneGroupMember(
-            uuid: 'BAR',
-            zoneName: 'Living',
-            htSatChanMapSet: 'BAR:CC;SAT:LR',
-            satellites: [
-              SonosSatellite(
+        ZoneGroup(
+          coordinatorUuid: 'BAR',
+          members: [
+            ZoneGroupMember(
+              uuid: 'BAR',
+              zoneName: 'Living',
+              htSatChanMapSet: 'BAR:CC;SAT:LR',
+              satellites: [
+                SonosSatellite(
                   uuid: 'SAT',
                   zoneName: 'Living',
                   channels: [SonosChannel.leftRear],
-                  ip: '192.168.1.50'),
-            ],
-          ),
-        ]),
+                  ip: '192.168.1.50',
+                ),
+              ],
+            ),
+          ],
+        ),
       ],
       devicesByUuid: {
-        'BAR': const SonosDevice(uuid: 'BAR', roomName: 'Living', modelName: 'Sonos Beam'),
+        'BAR': const SonosDevice(
+          uuid: 'BAR',
+          roomName: 'Living',
+          modelName: 'Sonos Beam',
+        ),
       },
     );
     final text = topologyText(ht);
@@ -129,48 +154,76 @@ void main() {
     expect(text, isNot(contains('└')));
   });
 
-  test('topologyText keeps a residual └ line for a satellite absent from the map', () {
-    final ht = SonosSystem(
-      groups: const [
-        ZoneGroup(coordinatorUuid: 'BAR', members: [
-          ZoneGroupMember(
-            uuid: 'BAR',
-            zoneName: 'Living',
-            htSatChanMapSet: 'BAR:CC',
-            satellites: [
-              SonosSatellite(
-                  uuid: 'GHOST',
-                  zoneName: 'Living',
-                  channels: [SonosChannel.rightRear],
-                  ip: '192.168.1.51'),
+  test(
+    'topologyText keeps a residual └ line for a satellite absent from the map',
+    () {
+      final ht = SonosSystem(
+        groups: const [
+          ZoneGroup(
+            coordinatorUuid: 'BAR',
+            members: [
+              ZoneGroupMember(
+                uuid: 'BAR',
+                zoneName: 'Living',
+                htSatChanMapSet: 'BAR:CC',
+                satellites: [
+                  SonosSatellite(
+                    uuid: 'GHOST',
+                    zoneName: 'Living',
+                    channels: [SonosChannel.rightRear],
+                    ip: '192.168.1.51',
+                  ),
+                ],
+              ),
             ],
           ),
-        ]),
-      ],
-      devicesByUuid: {
-        'BAR': const SonosDevice(uuid: 'BAR', roomName: 'Living', modelName: 'Sonos Beam'),
-      },
-    );
-    expect(topologyText(ht), contains('└ [RR] GHOST · 192.168.1.51'));
-  });
+        ],
+        devicesByUuid: {
+          'BAR': const SonosDevice(
+            uuid: 'BAR',
+            roomName: 'Living',
+            modelName: 'Sonos Beam',
+          ),
+        },
+      );
+      expect(topologyText(ht), contains('└ [RR] GHOST · 192.168.1.51'));
+    },
+  );
 
   test('inlineJsonPrefs inlines JSON string values as real nested JSON', () {
     final out = inlineJsonPrefs({
       'profiles': '[{"id":"1","name":"My setup"}]',
-      'pair_snapshot_X': '{"left":{"name":"Keuken"}}',
+      'zone_snapshot_X': '{"left":{"name":"Keuken"}}',
       'plain': 'not json',
       'count': 3,
     });
     // JSON strings become real structures (not escaped strings)...
     expect(out['profiles'], isA<List<dynamic>>());
     expect((out['profiles'] as List).first['name'], 'My setup');
-    expect(out['pair_snapshot_X'], isA<Map<String, dynamic>>());
-    expect((out['pair_snapshot_X'] as Map)['left']['name'], 'Keuken');
+    expect(out['zone_snapshot_X'], isA<Map<String, dynamic>>());
+    expect((out['zone_snapshot_X'] as Map)['left']['name'], 'Keuken');
     // ...while non-JSON strings and non-string values pass through unchanged.
     expect(out['plain'], 'not json');
     expect(out['count'], 3);
     // The whole thing re-encodes without escaped-JSON-in-string.
     expect(jsonEncode(out), isNot(contains(r'\"')));
+  });
+
+  test('isAppOwnedPrefKey allows only the profiles blob + zone snapshots', () {
+    // The diagnostics bundle dumps only these; a stray framework/plugin key or a
+    // sibling of `profiles` must NOT ride along into an emailed bundle.
+    expect(isAppOwnedPrefKey('profiles'), isTrue);
+    expect(isAppOwnedPrefKey('zone_snapshot_RINCON_A_RINCON_B'), isTrue);
+    expect(
+      isAppOwnedPrefKey('profiles_backup'),
+      isFalse,
+    ); // exact match, not prefix
+    expect(isAppOwnedPrefKey('flutter.someFrameworkKey'), isFalse);
+    expect(
+      isAppOwnedPrefKey('widget_profiles'),
+      isFalse,
+    ); // home_widget's own store
+    expect(isAppOwnedPrefKey('anything_else'), isFalse);
   });
 
   group('settingsReadPlan role-gating', () {

@@ -2,6 +2,7 @@
   "@@locale": "en",
   "tabSystem": "System",
   "tabProfiles": "Profiles",
+  "tabDiagnostics": "Diagnostics",
   "actionCancel": "Cancel",
   "actionDone": "Done",
   "actionDelete": "Delete",
@@ -18,11 +19,13 @@
   "actionOk": "OK",
   "actionAbort": "Abort",
   "actionAborting": "Aborting…",
+  "actionMore": "More",
   "bondingCopyLogs": "Copy logs",
   "bondingShowSteps": "Show steps",
   "bondingShowRawLog": "Show raw log",
   "bondingLogsCopied": "Logs copied to clipboard.",
   "bondingNoLogOutput": "No log output yet.",
+  "bondingSafeStateNote": "It’s safe to retry — re-applying picks up where it left off and finishes the layout.",
   "errSystemNotFound": "Couldn’t find your Sonos system on the network.",
   "errNoDevicesFound": "No Sonos devices found. Check Wi-Fi and local network access.",
   "errDescriptionsUnreadable": "Found Sonos players but could not read their descriptions.",
@@ -247,9 +250,9 @@
   "widgetsSoundbar": "Soundbar",
   "widgetsFronts": "Fronts",
   "widgetsSurrounds": "Surrounds",
-  "widgetsSubwoofer": "Subwoofer",
   "widgetsSub": "Sub",
   "widgetsStandaloneSpeaker": "Standalone speaker",
+  "widgetsAmp": "Amp",
   "widgetsNoExtraSpeakers": "No extra speakers",
   "widgetsNSpeakers": "{count, plural, one{{count} speaker} other{{count} speakers}}",
   "@widgetsNSpeakers": {
@@ -420,7 +423,8 @@
   "profileResnapshotTooltip": "Re-snapshot from current setup",
   "profileIncludedHeader": "Included",
   "profileRecapturedNote": "Recaptured from your current setup — press Save to keep it.",
-  "profileCapturedNote": "Captured when the profile was created. Use the re-snapshot button (top right) to recapture from your current setup.",
+  "profileCapturedNote": "Captured when the profile was created.",
+  "profileResnapshotAction": "Re-capture from current setup",
   "profileSaved": "Profile saved",
   "profileNoSettingsSaved": "No speaker settings saved in this profile.",
   "profileRoleSoundbar": "Soundbar",
@@ -432,6 +436,67 @@
   "profileNoEntities": "No entities",
   "profileBadgeAudio": "Audio settings",
   "profileBadgeVolume": "Volume",
+  "profileUpdatedAgo": "Updated {time}",
+  "@profileUpdatedAgo": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "profileChipLayoutNames": "Layout + names",
+  "profileChipSettings": "Settings",
+  "profileChipNoSettings": "No settings",
+  "profileChipNoVolume": "No volume",
+  "profileTimeJustNow": "just now",
+  "profileTimeMinutesAgo": "{count, plural, one{1 minute ago} other{{count} minutes ago}}",
+  "@profileTimeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTimeHoursAgo": "{count, plural, one{1 hour ago} other{{count} hours ago}}",
+  "@profileTimeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTimeDaysAgo": "{count, plural, one{1 day ago} other{{count} days ago}}",
+  "@profileTimeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTimeWeeksAgo": "{count, plural, one{1 week ago} other{{count} weeks ago}}",
+  "@profileTimeWeeksAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTimeMonthsAgo": "{count, plural, one{1 month ago} other{{count} months ago}}",
+  "@profileTimeMonthsAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTimeYearsAgo": "{count, plural, one{1 year ago} other{{count} years ago}}",
+  "@profileTimeYearsAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "profileAppearance": "Appearance",
   "profileWidgetPickTitle": "Pick profiles",
   "profileWidgetEmpty": "No profiles yet — create one in Sonority first.",
@@ -455,6 +520,7 @@
   "discoverySingleRooms": "Single speaker rooms",
   "discoveryOtherDevices": "Other devices",
   "discoverySubwoofer": "Subwoofer",
+  "discoverySubUnbondedNote": "This Sub isn’t bonded to anything yet. Add it to a home theater (Configure home theater) or a speaker group to use it.",
   "discoveryScanning": "Scanning your network…",
   "discoveryErrorTitle": "Couldn’t find your system",
   "discoveryTryAgain": "Try again",
@@ -476,7 +542,14 @@
       }
     }
   },
+  "roomGroupWith": "Group with another speaker",
+  "roomGroupWithSubtitle": "Stereo pair, full-range zone, or custom L/R",
+  "roomAddToHomeTheater": "Add to a home theater",
+  "roomAddToHomeTheaterSubtitle": "As a front, surround, or sub",
+  "roomAddToWhichHomeTheater": "Add to which home theater?",
+  "sectionSpeakers": "Speakers",
   "groupSheetTitle": "Speaker group",
+  "groupUpdating": "Updating…",
   "groupRenameTooltip": "Rename group",
   "groupSeparate": "Separate",
   "groupRenamedTo": "Renamed to “{name}”.",
@@ -517,9 +590,6 @@
   "groupHintStereo": "Pick two speakers — one plays left, the other right (swap below). Mismatched models are fine.",
   "groupHintZone": "Pick 2–16 speakers. They all play full stereo (L+R) as one room.",
   "groupHintCustom": "Pick 2–16 speakers and set each to Left, Right, or Both.",
-  "groupSideLeft": "LEFT",
-  "groupSideRight": "RIGHT",
-  "groupSwapSides": "Swap sides",
   "groupChannelLeft": "Left",
   "groupChannelBoth": "Both",
   "groupChannelRight": "Right",
@@ -615,9 +685,9 @@
   "htGroupFronts": "Fronts",
   "htGroupSurrounds": "Surrounds",
   "htGroupSubwoofer": "Subwoofer",
-  "htConfigure": "Configure home theater",
+  "htConfigure": "Configure",
   "htBondedSpeakers": "Bonded speakers",
-  "htNoBonded": "Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure home theater” to add some.",
+  "htNoBonded": "Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure” to add some.",
   "htSpeakerFallback": "Speaker",
   "htTrueplayNote": "Trueplay can only be measured from the Sonos app on iOS — tune the home theater, and the fronts separately as a stereo pair. Heads-up: Sonos often clears a tuning when speakers are bonded/unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.",
   "htAllExtraSpeakers": "all extra speakers",
@@ -626,12 +696,8 @@
   "frontSurroundsStepFronts": "Front speakers",
   "frontSurroundsOptional": "Optional",
   "frontSurroundsFrontsHint": "Pick two speakers (or a single Amp) for the front left & right, then set which is which.",
-  "frontSurroundsLeft": "LEFT",
-  "frontSurroundsRight": "RIGHT",
   "frontSurroundsStepSurrounds": "Rear surrounds",
   "frontSurroundsSurroundsHint": "Pick two speakers for the rear left & right surrounds.",
-  "frontSurroundsRearLeft": "REAR LEFT",
-  "frontSurroundsRearRight": "REAR RIGHT",
   "frontSurroundsStepSub": "Subwoofer",
   "frontSurroundsStepReview": "Review & apply",
   "frontSurroundsUnbondTitle": "{count, plural, one{Unbond {count} speaker?} other{Unbond {count} speakers?}}",
@@ -673,7 +739,6 @@
     }
   },
   "frontSurroundsChooseTwoFirst": "Choose two speakers first.",
-  "frontSurroundsSwapSides": "Swap sides",
   "frontSurroundsTapSwap": "Tap swap if the sides are reversed.",
   "frontSurroundsNothingSelected": "Nothing selected yet — choose speakers above.",
   "frontSurroundsReviewNote": "The chosen speakers become hidden satellites of the soundbar (which stays the center channel). Bonding runs in steps and can take a little while; Trueplay may need re-tuning afterward. You can change this anytime.",

@@ -106,6 +106,12 @@ abstract class AppLocalizations {
   /// **'Profiles'**
   String get tabProfiles;
 
+  /// No description provided for @tabDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get tabDiagnostics;
+
   /// No description provided for @actionCancel.
   ///
   /// In en, this message translates to:
@@ -202,6 +208,12 @@ abstract class AppLocalizations {
   /// **'Aborting…'**
   String get actionAborting;
 
+  /// No description provided for @actionMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get actionMore;
+
   /// No description provided for @bondingCopyLogs.
   ///
   /// In en, this message translates to:
@@ -231,6 +243,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No log output yet.'**
   String get bondingNoLogOutput;
+
+  /// No description provided for @bondingSafeStateNote.
+  ///
+  /// In en, this message translates to:
+  /// **'It’s safe to retry — re-applying picks up where it left off and finishes the layout.'**
+  String get bondingSafeStateNote;
 
   /// No description provided for @errSystemNotFound.
   ///
@@ -700,12 +718,6 @@ abstract class AppLocalizations {
   /// **'Surrounds'**
   String get widgetsSurrounds;
 
-  /// No description provided for @widgetsSubwoofer.
-  ///
-  /// In en, this message translates to:
-  /// **'Subwoofer'**
-  String get widgetsSubwoofer;
-
   /// No description provided for @widgetsSub.
   ///
   /// In en, this message translates to:
@@ -717,6 +729,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Standalone speaker'**
   String get widgetsStandaloneSpeaker;
+
+  /// No description provided for @widgetsAmp.
+  ///
+  /// In en, this message translates to:
+  /// **'Amp'**
+  String get widgetsAmp;
 
   /// No description provided for @widgetsNoExtraSpeakers.
   ///
@@ -1063,8 +1081,14 @@ abstract class AppLocalizations {
   /// No description provided for @profileCapturedNote.
   ///
   /// In en, this message translates to:
-  /// **'Captured when the profile was created. Use the re-snapshot button (top right) to recapture from your current setup.'**
+  /// **'Captured when the profile was created.'**
   String get profileCapturedNote;
+
+  /// No description provided for @profileResnapshotAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-capture from current setup'**
+  String get profileResnapshotAction;
 
   /// No description provided for @profileSaved.
   ///
@@ -1131,6 +1155,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Volume'**
   String get profileBadgeVolume;
+
+  /// No description provided for @profileUpdatedAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {time}'**
+  String profileUpdatedAgo(String time);
+
+  /// No description provided for @profileChipLayoutNames.
+  ///
+  /// In en, this message translates to:
+  /// **'Layout + names'**
+  String get profileChipLayoutNames;
+
+  /// No description provided for @profileChipSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get profileChipSettings;
+
+  /// No description provided for @profileChipNoSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'No settings'**
+  String get profileChipNoSettings;
+
+  /// No description provided for @profileChipNoVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'No volume'**
+  String get profileChipNoVolume;
+
+  /// No description provided for @profileTimeJustNow.
+  ///
+  /// In en, this message translates to:
+  /// **'just now'**
+  String get profileTimeJustNow;
+
+  /// No description provided for @profileTimeMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 minute ago} other{{count} minutes ago}}'**
+  String profileTimeMinutesAgo(int count);
+
+  /// No description provided for @profileTimeHoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 hour ago} other{{count} hours ago}}'**
+  String profileTimeHoursAgo(int count);
+
+  /// No description provided for @profileTimeDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 day ago} other{{count} days ago}}'**
+  String profileTimeDaysAgo(int count);
+
+  /// No description provided for @profileTimeWeeksAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 week ago} other{{count} weeks ago}}'**
+  String profileTimeWeeksAgo(int count);
+
+  /// No description provided for @profileTimeMonthsAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 month ago} other{{count} months ago}}'**
+  String profileTimeMonthsAgo(int count);
+
+  /// No description provided for @profileTimeYearsAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 year ago} other{{count} years ago}}'**
+  String profileTimeYearsAgo(int count);
 
   /// No description provided for @profileAppearance.
   ///
@@ -1228,6 +1324,12 @@ abstract class AppLocalizations {
   /// **'Subwoofer'**
   String get discoverySubwoofer;
 
+  /// No description provided for @discoverySubUnbondedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This Sub isn’t bonded to anything yet. Add it to a home theater (Configure home theater) or a speaker group to use it.'**
+  String get discoverySubUnbondedNote;
+
   /// No description provided for @discoveryScanning.
   ///
   /// In en, this message translates to:
@@ -1270,11 +1372,53 @@ abstract class AppLocalizations {
   /// **'Failed: {error}'**
   String roomRenameFailed(String error);
 
+  /// No description provided for @roomGroupWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Group with another speaker'**
+  String get roomGroupWith;
+
+  /// No description provided for @roomGroupWithSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stereo pair, full-range zone, or custom L/R'**
+  String get roomGroupWithSubtitle;
+
+  /// No description provided for @roomAddToHomeTheater.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to a home theater'**
+  String get roomAddToHomeTheater;
+
+  /// No description provided for @roomAddToHomeTheaterSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'As a front, surround, or sub'**
+  String get roomAddToHomeTheaterSubtitle;
+
+  /// No description provided for @roomAddToWhichHomeTheater.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to which home theater?'**
+  String get roomAddToWhichHomeTheater;
+
+  /// No description provided for @sectionSpeakers.
+  ///
+  /// In en, this message translates to:
+  /// **'Speakers'**
+  String get sectionSpeakers;
+
   /// No description provided for @groupSheetTitle.
   ///
   /// In en, this message translates to:
   /// **'Speaker group'**
   String get groupSheetTitle;
+
+  /// No description provided for @groupUpdating.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating…'**
+  String get groupUpdating;
 
   /// No description provided for @groupRenameTooltip.
   ///
@@ -1431,24 +1575,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pick 2–16 speakers and set each to Left, Right, or Both.'**
   String get groupHintCustom;
-
-  /// No description provided for @groupSideLeft.
-  ///
-  /// In en, this message translates to:
-  /// **'LEFT'**
-  String get groupSideLeft;
-
-  /// No description provided for @groupSideRight.
-  ///
-  /// In en, this message translates to:
-  /// **'RIGHT'**
-  String get groupSideRight;
-
-  /// No description provided for @groupSwapSides.
-  ///
-  /// In en, this message translates to:
-  /// **'Swap sides'**
-  String get groupSwapSides;
 
   /// No description provided for @groupChannelLeft.
   ///
@@ -1627,7 +1753,7 @@ abstract class AppLocalizations {
   /// No description provided for @htConfigure.
   ///
   /// In en, this message translates to:
-  /// **'Configure home theater'**
+  /// **'Configure'**
   String get htConfigure;
 
   /// No description provided for @htBondedSpeakers.
@@ -1639,7 +1765,7 @@ abstract class AppLocalizations {
   /// No description provided for @htNoBonded.
   ///
   /// In en, this message translates to:
-  /// **'Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure home theater” to add some.'**
+  /// **'Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure” to add some.'**
   String get htNoBonded;
 
   /// No description provided for @htSpeakerFallback.
@@ -1690,18 +1816,6 @@ abstract class AppLocalizations {
   /// **'Pick two speakers (or a single Amp) for the front left & right, then set which is which.'**
   String get frontSurroundsFrontsHint;
 
-  /// No description provided for @frontSurroundsLeft.
-  ///
-  /// In en, this message translates to:
-  /// **'LEFT'**
-  String get frontSurroundsLeft;
-
-  /// No description provided for @frontSurroundsRight.
-  ///
-  /// In en, this message translates to:
-  /// **'RIGHT'**
-  String get frontSurroundsRight;
-
   /// No description provided for @frontSurroundsStepSurrounds.
   ///
   /// In en, this message translates to:
@@ -1713,18 +1827,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pick two speakers for the rear left & right surrounds.'**
   String get frontSurroundsSurroundsHint;
-
-  /// No description provided for @frontSurroundsRearLeft.
-  ///
-  /// In en, this message translates to:
-  /// **'REAR LEFT'**
-  String get frontSurroundsRearLeft;
-
-  /// No description provided for @frontSurroundsRearRight.
-  ///
-  /// In en, this message translates to:
-  /// **'REAR RIGHT'**
-  String get frontSurroundsRearRight;
 
   /// No description provided for @frontSurroundsStepSub.
   ///
@@ -1803,12 +1905,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose two speakers first.'**
   String get frontSurroundsChooseTwoFirst;
-
-  /// No description provided for @frontSurroundsSwapSides.
-  ///
-  /// In en, this message translates to:
-  /// **'Swap sides'**
-  String get frontSurroundsSwapSides;
 
   /// No description provided for @frontSurroundsTapSwap.
   ///

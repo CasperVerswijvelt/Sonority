@@ -56,7 +56,8 @@ class ApplyProgressNotifier extends Notifier<List<ApplyStep>> {
 
 final applyProgressProvider =
     NotifierProvider<ApplyProgressNotifier, List<ApplyStep>>(
-        ApplyProgressNotifier.new);
+      ApplyProgressNotifier.new,
+    );
 
 /// Accumulating raw log of the in-flight bonding operation — the same step/note
 /// events as [applyProgressProvider], kept as timestamped lines for the
@@ -77,18 +78,16 @@ class OperationLogNotifier extends Notifier<List<String>> {
 
 final operationLogProvider =
     NotifierProvider<OperationLogNotifier, List<String>>(
-        OperationLogNotifier.new);
+      OperationLogNotifier.new,
+    );
 
 /// Plays a chime on a speaker to help identify Left vs Right. Holds a local
 /// HTTP server, so it's torn down when the provider is disposed.
 final identifyServiceProvider = Provider<IdentifyServiceClient>((ref) {
-  final service = IdentifyServiceClient(
-    null,
-    (m) {
-      if (kDebugMode) debugPrint('[identify] $m');
-      DiagnosticsLog.add('[identify] $m');
-    },
-  );
+  final service = IdentifyServiceClient(null, (m) {
+    if (kDebugMode) debugPrint('[identify] $m');
+    DiagnosticsLog.add('[identify] $m');
+  });
   ref.onDispose(service.dispose);
   return service;
 });
@@ -97,13 +96,10 @@ final identifyServiceProvider = Provider<IdentifyServiceClient>((ref) {
 /// silent, non-intrusive, and works on every platform (including the sandboxed
 /// macOS app, where the chime can't).
 final ledIdentifyProvider = Provider<LedIdentifyClient>((ref) {
-  return LedIdentifyClient(
-    null,
-    (m) {
-      if (kDebugMode) debugPrint('[led] $m');
-      DiagnosticsLog.add('[led] $m');
-    },
-  );
+  return LedIdentifyClient(null, (m) {
+    if (kDebugMode) debugPrint('[led] $m');
+    DiagnosticsLog.add('[led] $m');
+  });
 });
 
 final sonosControllerProvider =
@@ -138,18 +134,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// SOAP reads off the widget. Speakers not currently on the network are simply
   /// skipped (nothing to read).
   Future<List<EntitySnapshot>> captureSettings(
-      List<EntitySnapshot> entities,
-      {required bool audio, required bool volume}) async {
+    List<EntitySnapshot> entities, {
+    required bool audio,
+    required bool volume,
+  }) async {
     final sys = state.value;
     if (sys == null || (!audio && !volume)) return entities;
     final out = <EntitySnapshot>[];
     for (final e in entities) {
-      // The extended EQ bundle (sub/surround/night/speech/height) only applies
-      // in a home theater or when a sub is bonded; a plain speaker still answers
-      // those GetEQ calls with meaningless defaults, so skip them there (a
-      // soundbar always gets them — a bare bar has night/speech/height).
-      final entityHtOrSub =
-          e.kind == EntityKind.homeTheater || e.toMember().subUuid != null;
       final map = <String, SpeakerSettings>{};
       for (final uuid in e.involvedUuids) {
         final dev = sys.device(uuid);
@@ -160,9 +152,21 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // reads entirely rather than fire ~17 calls that all fault.
         final isHtSatellite =
             e.kind == EntityKind.homeTheater && uuid != e.primaryUuid;
-        final extendedEq = entityHtOrSub || (dev?.isSoundbar ?? false);
-        final s = await _settings.read(ip,
-            audio: audio && !isHtSatellite, volume: volume, extendedEq: extendedEq);
+        // The extended EQ bundle (sub/surround/night/speech/height) is only
+        // meaningful on a soundbar, a sub, or an HT coordinator — a plain speaker
+        // answers those GetEQ calls with junk defaults. Gate it per DEVICE, not
+        // per entity, so a plain member of a group that merely CONTAINS a sub
+        // isn't swept in (it still captures bass/treble/loudness).
+        final extendedEq =
+            (dev?.isSoundbar ?? false) ||
+            (dev?.isSub ?? false) ||
+            (e.kind == EntityKind.homeTheater && uuid == e.primaryUuid);
+        final s = await _settings.read(
+          ip,
+          audio: audio && !isHtSatellite,
+          volume: volume,
+          extendedEq: extendedEq,
+        );
         if (!s.isEmpty) map[uuid] = s;
       }
       out.add(map.isEmpty ? e : e.copyWith(settings: map));
@@ -174,7 +178,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// can reset EQ, so this must run last). Best-effort + a no-op when [e] carries
   /// no settings (old profiles / toggles off) → zero extra writes.
   Future<void> _restoreSettings(
-      EntitySnapshot e, SonosSystem sys, Phases ph) async {
+    EntitySnapshot e,
+    SonosSystem sys,
+    Phases ph,
+  ) async {
     if (e.settings.isEmpty) return;
     final l10n = appL10n();
     ph.phase('settings', l10n.stepRestoreSettings);
@@ -238,7 +245,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     required Map<SonosChannel, SonosDevice> layout,
     List<SonosDevice> subs = const [],
   }) async {
-    if (state.isLoading) return; // ponytail: single in-flight op; queue only if users hit it
+    // ponytail: single in-flight op; queue only if users hit it.
+    if (state.isLoading) return;
     // The layout IS the target — no `preserveExisting` overlay, so deselected
     // roles drop out and get unbonded. Subs go via [subUuids] (repeatable channel).
     final target = front_layout.buildLayoutMap(
@@ -284,12 +292,17 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// in [skip] (e.g. a speaker the pre-flight found missing). Each entity frees
   /// conflicting speakers, re-bonds (staged for HT), and restores its room
   /// names. Emits per-step progress via [applyProgressProvider].
-  Future<void> applyProfile(Profile profile, {Set<String> skip = const {}}) async {
-    if (state.isLoading) return; // ponytail: single in-flight op; queue only if users hit it
+  Future<void> applyProfile(
+    Profile profile, {
+    Set<String> skip = const {},
+  }) async {
+    // ponytail: single in-flight op; queue only if users hit it.
+    if (state.isLoading) return;
     final current = state.value;
     if (current == null) return;
-    final entities =
-        profile.entities.where((e) => !skip.contains(e.primaryUuid)).toList();
+    final entities = profile.entities
+        .where((e) => !skip.contains(e.primaryUuid))
+        .toList();
     if (entities.isEmpty) return;
 
     final l10n = appL10n();
@@ -302,8 +315,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
 
     final previous = current;
     state = const AsyncValue.loading();
-    final result =
-        await AsyncValue.guard(() => _runEntitySteps(entities, previous, tracker));
+    final result = await AsyncValue.guard(
+      () => _runEntitySteps(entities, previous, tracker),
+    );
     _commit(result, previous);
   }
 
@@ -346,14 +360,18 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       // socket self-closes in the background — the throwIfCancelled right after
       // turns that into a clean stop before any write.)
       tracker.start(_scanStepId);
-      final scanFuture =
-          state.isLoading ? future : scan().then((_) => state.value);
+      final scanFuture = state.isLoading
+          ? future
+          : scan().then((_) => state.value);
       SonosSystem? scanned;
       try {
         scanned = await untilCancelled(scanFuture, cancel);
-      } catch (_) {/* aborted → rethrown by throwIfCancelled below; other errors
-                       → scanned stays null → handled below */}
-      cancel.throwIfCancelled(); // aborted during the scan? stop before any write
+      } catch (_) {
+        /* aborted → rethrown by throwIfCancelled below; other errors
+                       → scanned stays null → handled below */
+      }
+      cancel
+          .throwIfCancelled(); // aborted during the scan? stop before any write
       if (scanned == null) {
         tracker.fail(_scanStepId, l10n.errSystemNotFound);
         throw state.error ??
@@ -364,8 +382,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       // Step 2 — pre-flight. If anything's missing/conflicting, confirm before
       // any write (declining aborts cleanly — nothing bonded yet).
       final issues = preflightProfile(profile, scanned);
-      final hasIssues =
-          issues.any((i) => i.missing.isNotEmpty || i.conflicts.isNotEmpty);
+      final hasIssues = issues.any(
+        (i) => i.missing.isNotEmpty || i.conflicts.isNotEmpty,
+      );
       if (hasIssues && confirmIssues != null) {
         final proceed = await confirmIssues(issues);
         if (!proceed) throw const OperationCancelled();
@@ -399,7 +418,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     // (reusing the cancel token set up top so Abort stays wired throughout).
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(
-        () => _runEntitySteps(applicable, previous, tracker));
+      () => _runEntitySteps(applicable, previous, tracker),
+    );
     _commit(result, previous);
   }
 
@@ -499,8 +519,11 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           }
         }
         // Resolve members (coordinator-first) + sub from the stored map.
-        final parsed =
-            ZoneGroupMember(uuid: e.primaryUuid, zoneName: '', channelMapSet: map);
+        final parsed = ZoneGroupMember(
+          uuid: e.primaryUuid,
+          zoneName: '',
+          channelMapSet: map,
+        );
         final memberEntries = <({SonosDevice device, GroupChannel channel})>[];
         for (final entry in parsed.groupChannels.entries) {
           final d = sys.device(entry.key);
@@ -629,11 +652,12 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     // otherwise even though it's normal Sonos settling.
     ph.note(l10n.stepApplyingSettle);
     return _repo.bondAndVerify(
-        coordinator: bar,
-        target: target,
-        previous: sys,
-        onNote: ph.log,
-        cancel: _activeOp);
+      coordinator: bar,
+      target: target,
+      previous: sys,
+      onNote: ph.log,
+      cancel: _activeOp,
+    );
   }
 
   Future<SonosSystem> _settleRead(SonosSystem sys, String ip) async {
@@ -659,7 +683,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final previous = state.value;
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
-      await _repo.setRoomName(ip: ip, name: name);
+      try {
+        await _repo.setRoomName(ip: ip, name: name);
+      } catch (e) {
+        // This path has no progress tracker, so a fault would otherwise only
+        // reach the UI as an AsyncError and never the diagnostics bundle.
+        DiagnosticsLog.add('[rename] "$name" @ $ip failed: $e');
+        rethrow;
+      }
       bool propagated(SonosSystem s) =>
           s.allMembers.any((m) => m.uuid == device.uuid && m.zoneName == name);
       var system = await _pollUntil(
@@ -675,7 +706,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       if (propagated(system)) {
         final patched = {
           for (final e in system.devicesByUuid.entries)
-            e.key: e.key == device.uuid ? e.value.copyWith(roomName: name) : e.value
+            e.key: e.key == device.uuid
+                ? e.value.copyWith(roomName: name)
+                : e.value,
         };
         system = SonosSystem(groups: system.groups, devicesByUuid: patched);
       }
@@ -730,7 +763,11 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           return channels.every((c) => !m.channelAssignments.containsKey(c));
         }
 
-        final sys = await _pollUntil(previous: previous, ip: ip, until: rolesGone);
+        final sys = await _pollUntil(
+          previous: previous,
+          ip: ip,
+          until: rolesGone,
+        );
         // Sonos can 200-OK an unbond yet silently no-op — re-assert before done.
         if (!rolesGone(sys)) {
           throw SonorityError(SonorityErrorCode.didNotRemove, lbl);
@@ -755,7 +792,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     SonosDevice? sub,
     String? name,
   }) async {
-    assert(members.length >= 2, 'createGroup needs ≥2 members (UI must gate this)');
+    assert(
+      members.length >= 2,
+      'createGroup needs ≥2 members (UI must gate this)',
+    );
     if (members.length < 2) {
       throw const SonorityError(SonorityErrorCode.groupNeedsTwo);
     }
@@ -809,8 +849,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             previous: system,
             ip: coord.ip,
             attempts: 6,
-            until: (s) => s.allMembers
-                .any((m) => m.uuid == coord.uuid && m.zoneName == wanted),
+            until: (s) => s.allMembers.any(
+              (m) => m.uuid == coord.uuid && m.zoneName == wanted,
+            ),
           );
         }
         tracker.done('group');
@@ -836,15 +877,18 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       group.uuid,
       ...group.channelMapUuids.where((u) => u != group.uuid),
     ];
-    final members =
-        ordered.map((u) => sys.device(u)).whereType<SonosDevice>().toList();
+    final members = ordered
+        .map((u) => sys.device(u))
+        .whereType<SonosDevice>()
+        .toList();
     if (members.isEmpty) return;
     final coord = members.first;
     final involved = group.channelMapUuids;
     final subU = group.subUuid;
     // Audio members reappear as rooms after separation; a Sub stays Invisible.
-    final audioReappear =
-        members.where((m) => m.uuid != coord.uuid && m.uuid != subU);
+    final audioReappear = members.where(
+      (m) => m.uuid != coord.uuid && m.uuid != subU,
+    );
 
     final l10n = appL10n();
     final tracker =
@@ -883,7 +927,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           attempts: 8,
           until: (s) =>
               !_isGroupFormed(s, coord.uuid, involved) &&
-              audioReappear.every((m) => s.allMembers.any((x) => x.uuid == m.uuid)),
+              audioReappear.every(
+                (m) => s.allMembers.any((x) => x.uuid == m.uuid),
+              ),
         );
         if (_isGroupFormed(system, coord.uuid, involved)) {
           throw const SonorityError(SonorityErrorCode.didNotSeparate);
@@ -961,15 +1007,15 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// ([operationLogProvider]) — every bonding op uses this so the shared
   /// progress screen shows both views from one source.
   ApplyProgress _newTracker(List<ApplyStep> steps) => ApplyProgress(
-        steps,
-        onChange: ref.read(applyProgressProvider.notifier).set,
-        onLog: (line) {
-          // The per-op log drives the progress screen (cleared each op); the
-          // app-wide DiagnosticsLog keeps a rolling copy for the bundle.
-          ref.read(operationLogProvider.notifier).add(line);
-          DiagnosticsLog.add(line);
-        },
-      );
+    steps,
+    onChange: ref.read(applyProgressProvider.notifier).set,
+    onLog: (line) {
+      // The per-op log drives the progress screen (cleared each op); the
+      // app-wide DiagnosticsLog keeps a rolling copy for the bundle.
+      ref.read(operationLogProvider.notifier).add(line);
+      DiagnosticsLog.add(line);
+    },
+  );
 
   /// Phase emitters bound to one parent (entity) step, so call sites don't
   /// thread the parent id: [seed] pre-lists the phases knowable upfront as
@@ -979,13 +1025,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// unchanged"). Child ids are prefixed with the parent id to stay unique in
   /// the flat step list.
   Phases _phases(ApplyProgress t, String parentId) => (
-        seed: (subs) => t.seedSubs(parentId,
-            [for (final (id, label) in subs) ('$parentId/$id', label)]),
-        phase: (id, label) => t.startSub(parentId, '$parentId/$id', label),
-        note: t.noteActive,
-        log: t.logActive,
-        skipPhase: t.skipSub,
-      );
+    seed: (subs) => t.seedSubs(parentId, [
+      for (final (id, label) in subs) ('$parentId/$id', label),
+    ]),
+    phase: (id, label) => t.startSub(parentId, '$parentId/$id', label),
+    note: t.noteActive,
+    log: t.logActive,
+    skipPhase: t.skipSub,
+  );
 
   /// Finalizes a bonding op's [result] against the pre-op [previous] state.
   /// On ANY error (a user **abort** or a real failure like [SonosSoapException])
