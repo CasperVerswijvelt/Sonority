@@ -3,6 +3,30 @@ import 'package:flutter/material.dart';
 import '../../data/models/sonos_models.dart';
 import 'bondable_speaker_tile.dart';
 
+/// The in-card Left/Right toggle for a two-speaker pair (home-theater fronts /
+/// surrounds, and a stereo group). There are only two speakers, so choosing the
+/// opposite side swaps the pair — [onSwap] fires whenever the shown side is
+/// toggled, and both cards re-derive their side from the new order. Meant to
+/// live in a [SelectableSpeakerCard.control] slot, shown once both are chosen.
+class SideSelector extends StatelessWidget {
+  final bool isRight;
+  final VoidCallback onSwap;
+  const SideSelector({super.key, required this.isRight, required this.onSwap});
+
+  @override
+  Widget build(BuildContext context) => SegmentedButton<bool>(
+    showSelectedIcon: false,
+    segments: const [
+      ButtonSegment(value: false, label: Text('Left')),
+      ButtonSegment(value: true, label: Text('Right')),
+    ],
+    selected: {isRight},
+    onSelectionChanged: (s) {
+      if (s.first != isRight) onSwap();
+    },
+  );
+}
+
 /// A selectable speaker in the setup flows: an outlined card wrapping the
 /// [BondableSpeakerTile] checkbox row, with an optional [control] (a channel
 /// selector — L/R for home-theater fronts/surrounds, L/Both/R for a custom

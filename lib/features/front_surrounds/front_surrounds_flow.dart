@@ -543,19 +543,7 @@ class _ChooseSpeakers extends StatelessWidget {
           : d.typeLabel,
       identify: identifyControls(d),
       showControl: showLR,
-      control: showLR
-          ? SegmentedButton<bool>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: false, label: Text('Left')),
-                ButtonSegment(value: true, label: Text('Right')),
-              ],
-              selected: {idx == 1},
-              onSelectionChanged: (s) {
-                if (s.first != (idx == 1)) onSwap();
-              },
-            )
-          : null,
+      control: showLR ? SideSelector(isRight: idx == 1, onSwap: onSwap) : null,
     );
   }
 }

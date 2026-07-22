@@ -633,7 +633,10 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   or helper is being copy-pasted across features/tools, extract it. Established
   shared pieces to reuse (don't reinvent): `features/widgets/identify_controls.dart`
   (`IdentifyButtons` + `IdentifyMixin` — speaker blink/chime), `features/widgets/
-  assign_sides.dart` (`AssignSides` — per-speaker Left/Right rows that swap the pair),
+  selectable_speaker_card.dart` (`SelectableSpeakerCard` — a checkbox speaker row
+  with an in-card channel selector; `SideSelector` — the Left/Right pair toggle
+  used by the HT fronts/surrounds AND stereo-group flows), `features/widgets/
+  card_grid.dart` (`CardGrid` — the responsive 1→2–3 column card layout),
   `features/widgets/entity_glyph.dart` (`EntityGlyph` — the one rounded-square icon
   tile) and `tool/discover_util.dart` (`resolveSpeaker` — CLI room/uuid/IP
   resolution). Prefer a shared widget/mixin/helper over a second copy; only keep a

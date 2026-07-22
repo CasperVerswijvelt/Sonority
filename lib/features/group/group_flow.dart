@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
-import '../widgets/assign_sides.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/card_grid.dart';
 import '../widgets/identify_controls.dart';
@@ -175,7 +174,6 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                                 : StepState.indexed,
                             content: _SelectStep(
                               mode: _mode,
-                              system: system,
                               candidates: candidates,
                               selected: _selected,
                               channels: _channels,
@@ -328,7 +326,6 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
 /// Step 1 — pick speakers, with per-mode assignment.
 class _SelectStep extends StatelessWidget {
   final _Mode mode;
-  final SonosSystem system;
   final List<SonosDevice> candidates;
   final List<String> selected;
   final Map<String, GroupChannel> channels;
@@ -339,7 +336,6 @@ class _SelectStep extends StatelessWidget {
 
   const _SelectStep({
     required this.mode,
-    required this.system,
     required this.candidates,
     required this.selected,
     required this.channels,
@@ -351,8 +347,8 @@ class _SelectStep extends StatelessWidget {
 
   String get _hint => switch (mode) {
     _Mode.stereo =>
-      'Pick two speakers — one plays left, the other right (swap below). '
-          'Mismatched models are fine.',
+      'Pick two speakers — one plays left, the other right (set which on the '
+          'card). Mismatched models are fine.',
     _Mode.zone =>
       'Pick 2–16 speakers. They all play full stereo (L+R) as one room.',
     _Mode.custom => 'Pick 2–16 speakers and set each to Left, Right, or Both.',
@@ -367,19 +363,38 @@ class _SelectStep extends StatelessWidget {
         Text(_hint, style: Theme.of(context).textTheme.bodySmall),
         Gap.s,
         CardGrid([for (final d in candidates) _card(context, d, cap)]),
-        if (mode == _Mode.stereo && selected.length == 2) ...[
-          Gap.m,
-          AssignSides(system: system, selected: selected, onSwap: onSwap),
-        ],
       ],
     );
   }
 
-  /// One selectable speaker — with an in-card Left/Both/Right selector in custom
-  /// mode (revealed once selected). Zone/stereo modes have no per-speaker choice.
+  /// One selectable speaker, with an in-card channel selector revealed once
+  /// selected: custom → per-speaker Left/Both/Right; stereo → a Left/Right that
+  /// swaps the pair (only once both are chosen, since there's nothing to swap
+  /// with before that). Zone has no per-speaker choice.
   Widget _card(BuildContext context, SonosDevice d, int cap) {
     final isSel = selected.contains(d.uuid);
     final disabled = !isSel && selected.length >= cap;
+    Widget? control;
+    var showControl = false;
+    if (mode == _Mode.custom && isSel) {
+      showControl = true;
+      control = SegmentedButton<GroupChannel>(
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(value: GroupChannel.left, label: Text('Left')),
+          ButtonSegment(value: GroupChannel.both, label: Text('Both')),
+          ButtonSegment(value: GroupChannel.right, label: Text('Right')),
+        ],
+        selected: {channels[d.uuid] ?? GroupChannel.both},
+        onSelectionChanged: (s) => onChannel(d.uuid, s.first),
+      );
+    } else if (mode == _Mode.stereo && isSel && selected.length == 2) {
+      showControl = true;
+      control = SideSelector(
+        isRight: selected.indexOf(d.uuid) == 1,
+        onSwap: onSwap,
+      );
+    }
     return SelectableSpeakerCard(
       device: d,
       selected: isSel,
@@ -387,19 +402,8 @@ class _SelectStep extends StatelessWidget {
       onToggle: () => onToggle(d.uuid),
       subtitle: d.typeLabel,
       identify: identifyControls(d),
-      showControl: mode == _Mode.custom && isSel,
-      control: mode == _Mode.custom
-          ? SegmentedButton<GroupChannel>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: GroupChannel.left, label: Text('Left')),
-                ButtonSegment(value: GroupChannel.both, label: Text('Both')),
-                ButtonSegment(value: GroupChannel.right, label: Text('Right')),
-              ],
-              selected: {channels[d.uuid] ?? GroupChannel.both},
-              onSelectionChanged: (s) => onChannel(d.uuid, s.first),
-            )
-          : null,
+      showControl: showControl,
+      control: control,
     );
   }
 }
