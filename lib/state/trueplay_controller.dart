@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/sonos_models.dart';
+import '../data/sonos/diagnostics_log.dart';
 import '../data/sonos/room_calibration.dart';
 import '../data/sonos/sonos_repository.dart';
 import 'sonos_controller.dart' show sonosRepositoryProvider;
@@ -19,8 +20,7 @@ class TrueplayState {
   TrueplayState copyWith({
     Map<String, RoomCalibration>? byUuid,
     Set<String>? busy,
-  }) =>
-      TrueplayState(byUuid: byUuid ?? this.byUuid, busy: busy ?? this.busy);
+  }) => TrueplayState(byUuid: byUuid ?? this.byUuid, busy: busy ?? this.busy);
 }
 
 final trueplayControllerProvider =
@@ -41,15 +41,19 @@ class TrueplayController extends Notifier<TrueplayState> {
     state = state.copyWith(busy: next);
   }
 
-  Future<Map<String, RoomCalibration>> _readAll(List<SonosDevice> targets) async {
+  Future<Map<String, RoomCalibration>> _readAll(
+    List<SonosDevice> targets,
+  ) async {
     final results = <String, RoomCalibration>{};
-    await Future.wait(targets.map((d) async {
-      try {
-        results[d.uuid] = await _repo.roomCalibration(d.ip!);
-      } catch (_) {
-        // unreachable / unsupported speaker — leave it out of the map
-      }
-    }));
+    await Future.wait(
+      targets.map((d) async {
+        try {
+          results[d.uuid] = await _repo.roomCalibration(d.ip!);
+        } catch (_) {
+          // unreachable / unsupported speaker — leave it out of the map
+        }
+      }),
+    );
     return results;
   }
 
@@ -71,11 +75,18 @@ class TrueplayController extends Notifier<TrueplayState> {
     if (targets.isEmpty) return;
     _setBusy(targets.map((d) => d.uuid), true);
     try {
-      await Future.wait(targets.map((d) async {
-        try {
-          await _repo.setRoomCalibration(d.ip!, on);
-        } catch (_) {}
-      }));
+      await Future.wait(
+        targets.map((d) async {
+          try {
+            await _repo.setRoomCalibration(d.ip!, on);
+          } catch (e) {
+            // Per-device best-effort (one speaker faulting never sinks the rest),
+            // but record it — this path has no progress tracker, so otherwise the
+            // fault would be invisible in the diagnostics bundle.
+            DiagnosticsLog.add('[trueplay] set $on @ ${d.ip} failed: $e');
+          }
+        }),
+      );
       final results = await _readAll(targets);
       state = state.copyWith(byUuid: {...state.byUuid, ...results});
     } finally {

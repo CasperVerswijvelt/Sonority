@@ -30,12 +30,13 @@ Future<BondingOutcome> showBondingProgress(
   container.read(operationLogProvider.notifier).clear();
   // Push on the ROOT navigator so the dialog covers the bottom nav bar too —
   // bonding must fully block navigation while it runs.
-  final outcome = await Navigator.of(context, rootNavigator: true).push<BondingOutcome>(
-    MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => BondingProgressScreen(title: title, run: run),
-    ),
-  );
+  final outcome = await Navigator.of(context, rootNavigator: true)
+      .push<BondingOutcome>(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => BondingProgressScreen(title: title, run: run),
+        ),
+      );
   return outcome ?? BondingOutcome.aborted;
 }
 
@@ -114,7 +115,8 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
     await Clipboard.setData(ClipboardData(text: log));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logs copied to clipboard.')));
+        const SnackBar(content: Text('Logs copied to clipboard.')),
+      );
     }
   }
 
@@ -141,9 +143,9 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
             IconButton(
               tooltip: _showLogs ? 'Show steps' : 'Show raw log',
               onPressed: () => setState(() => _showLogs = !_showLogs),
-              icon: Icon(_showLogs
-                  ? Icons.view_timeline_outlined
-                  : Icons.terminal),
+              icon: Icon(
+                _showLogs ? Icons.view_timeline_outlined : Icons.terminal,
+              ),
             ),
           ],
         ),
@@ -159,11 +161,13 @@ class _BondingProgressScreenState extends ConsumerState<BondingProgressScreen> {
             aborting: _aborting,
             onAbort: _abort,
             onRetry: _retry,
-            onDone: () => Navigator.of(context).pop(_aborted
-                ? BondingOutcome.aborted
-                : _failed
-                    ? BondingOutcome.failed
-                    : BondingOutcome.success),
+            onDone: () => Navigator.of(context).pop(
+              _aborted
+                  ? BondingOutcome.aborted
+                  : _failed
+                  ? BondingOutcome.failed
+                  : BondingOutcome.success,
+            ),
           ),
         ),
       ),
@@ -199,9 +203,7 @@ class _RawLogViewState extends ConsumerState<_RawLogView> {
       }
     });
     if (lines.isEmpty) {
-      return Center(
-        child: Text('No log output yet.', style: theme.mutedText),
-      );
+      return Center(child: Text('No log output yet.', style: theme.mutedText));
     }
     return Scrollbar(
       controller: _scroll,
@@ -210,7 +212,11 @@ class _RawLogViewState extends ConsumerState<_RawLogView> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: SelectableText(
           lines.join('\n'),
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 12, height: 1.5),
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 12,
+            height: 1.5,
+          ),
         ),
       ),
     );
@@ -244,7 +250,9 @@ class _BottomBar extends StatelessWidget {
       child = FilledButton(
         onPressed: aborting ? null : onAbort,
         style: FilledButton.styleFrom(
-            backgroundColor: scheme.error, foregroundColor: scheme.onError),
+          backgroundColor: scheme.error,
+          foregroundColor: scheme.onError,
+        ),
         child: Text(aborting ? 'Aborting…' : 'Abort'),
       );
     } else {
@@ -257,8 +265,11 @@ class _BottomBar extends StatelessWidget {
             child: FilledButton(
               onPressed: onDone,
               style: FilledButton.styleFrom(
-                  backgroundColor: doneColor,
-                  foregroundColor: failed ? scheme.onError : Colors.white),
+                backgroundColor: doneColor,
+                foregroundColor: failed
+                    ? scheme.onError
+                    : onSuccessGreen(theme),
+              ),
               child: const Text('Done'),
             ),
           ),
@@ -288,8 +299,9 @@ class _BottomBar extends StatelessWidget {
               'Your speakers are in a safe state — nothing was left '
               'half-applied. Fix the issue and retry.',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
             ),
             Gap.s,
           ],

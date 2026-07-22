@@ -19,7 +19,10 @@ class MainFlutterWindow: NSWindow {
       ?? NSRect(x: 0, y: 0, width: preferred.width, height: preferred.height)
 
     self.setContentSize(preferred)
-    let titleBarOverhead = self.frame.height - preferred.height
+    // max(0, …): on a display too short to fit `preferred`, AppKit constrains the
+    // frame so the raw difference can go negative — which would make maxH LARGER
+    // than the visible frame (the behind-Dock G4 case). Clamp it out.
+    let titleBarOverhead = max(0, self.frame.height - preferred.height)
     // Max content the visible frame (excludes menu bar + Dock) can hold.
     let maxW = min(preferred.width, visible.width)
     let maxH = visible.height - titleBarOverhead

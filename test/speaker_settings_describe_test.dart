@@ -32,11 +32,12 @@ void main() {
           },
         ).describe();
         // Emitted in eqTypes order (SubGain precedes SubEnable), not map order.
+        // Sub level / surround level are signed (like bass/treble).
         expect(rows, [
           (label: 'Night sound', value: 'On'),
           (label: 'Sub level', value: '-4'),
           (label: 'Sub', value: 'Off'),
-          (label: 'Surround level (TV)', value: '5'),
+          (label: 'Surround level (TV)', value: '+5'),
         ]);
       },
     );
@@ -73,6 +74,25 @@ void main() {
           (SpeakerSettings(eq: {'SubPolarity': v}).describe()).single.value;
       expect(phase(0), '0°');
       expect(phase(1), '180°');
+    });
+
+    test('signed levels (sub/surround/height) show an explicit + sign', () {
+      final rows = const SpeakerSettings(
+        eq: {
+          'SubGain': 5,
+          'SurroundLevel': -3,
+          'MusicSurroundLevel': 0,
+          'HeightChannelLevel': 2,
+          'SubCrossover': 90, // a frequency — stays unsigned
+        },
+      ).describe();
+      expect(rows, [
+        (label: 'Sub level', value: '+5'),
+        (label: 'Sub crossover', value: '90'),
+        (label: 'Surround level (TV)', value: '-3'),
+        (label: 'Surround level (music)', value: '0'),
+        (label: 'Height level', value: '+2'),
+      ]);
     });
 
     test('SurroundMode maps 0→Ambient, 1→Full, else raw', () {

@@ -57,6 +57,17 @@ const _eqLabels = {
 /// *phase* rendered as 0°/180° — see [SpeakerSettings.describe]).
 const _eqBoolTokens = {'NightMode', 'SubEnable', 'SurroundEnable'};
 
+/// EQType tokens whose value is a signed level (−/+), shown with an explicit sign
+/// like bass/treble: sub gain, the TV & music surround levels, and height level.
+/// (Crossover is a frequency, delays/distances are non-negative — those stay
+/// unsigned.)
+const _eqSignedTokens = {
+  'SubGain',
+  'SurroundLevel',
+  'MusicSurroundLevel',
+  'HeightChannelLevel',
+};
+
 /// A snapshot of one speaker's audio settings, read from the `RenderingControl`
 /// service. Every field is nullable / possibly absent: it means "not captured"
 /// (the profile toggle was off, or the [eqTypes] bundle was skipped for a plain
@@ -104,12 +115,12 @@ class SpeakerSettings {
   /// snapshot captured, in a stable order. Bass/treble/loudness first, then the
   /// EQ tokens in [eqTypes] order, then volume/mute.
   ///
-  /// ponytail: per-token value semantics are approximate — bass/treble/gains are
-  /// signed levels, a few tokens are 0/1 toggles ([_eqBoolTokens]), SubPolarity is
-  /// a phase, SurroundMode/DialogLevel map their known values (with a raw
-  /// fallback for anything unexpected), and every other token shows a raw int.
-  /// This is display-only; captured values are written back verbatim, never
-  /// derived from these labels.
+  /// ponytail: per-token value semantics are approximate — bass/treble plus the
+  /// sub/surround/height levels ([_eqSignedTokens]) show a signed level, a few
+  /// tokens are 0/1 toggles ([_eqBoolTokens]), SubPolarity is a phase,
+  /// SurroundMode/DialogLevel map their known values (raw fallback for anything
+  /// unexpected), and every other token shows a raw int. This is display-only;
+  /// captured values are written back verbatim, never derived from these labels.
   List<({String label, String value})> describe() {
     String signed(int v) => v > 0 ? '+$v' : '$v';
     String onOff(bool b) => b ? 'On' : 'Off';
@@ -141,6 +152,8 @@ class SpeakerSettings {
         };
       } else if (_eqBoolTokens.contains(token)) {
         value = onOff(v != 0);
+      } else if (_eqSignedTokens.contains(token)) {
+        value = signed(v);
       } else {
         value = '$v';
       }

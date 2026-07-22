@@ -252,19 +252,21 @@ void _writeMap(
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-/// Key prefixes the app itself owns: the profiles blob (`profiles`), the
-/// zone/pair name snapshots (`zone_snapshot_…`, [SonosRepository._zoneKey]), and
-/// the home-widget mirror (`widget_`/`tileName_`). Everything else in
-/// SharedPreferences is framework/plugin noise we deliberately DON'T dump into a
-/// bundle the user emails us — an allow-list so a future dependency storing
-/// something sensitive can't silently ride along.
-const _appPrefPrefixes = ['profiles', 'zone_snapshot_', 'widget_', 'tileName_'];
+/// True for a SharedPreferences key the app itself owns: the profiles blob
+/// (exactly `profiles`) and the per-bond room-name snapshots (`zone_snapshot_…`,
+/// see [SonosRepository]). Everything else in the store is framework/plugin noise
+/// we deliberately keep OUT of a bundle the user emails us — an allow-list so a
+/// future dependency storing something sensitive can't silently ride along.
+/// (The home-widget tiles live in home_widget's own store, not here, so they
+/// never surface via [SharedPreferences.getKeys] — no prefix for them.)
+bool isAppOwnedPrefKey(String key) =>
+    key == 'profiles' || key.startsWith('zone_snapshot_');
 
 Future<String> _appStateJson() async {
   final prefs = await SharedPreferences.getInstance();
   final raw = {
     for (final k in prefs.getKeys())
-      if (_appPrefPrefixes.any(k.startsWith)) k: prefs.get(k),
+      if (isAppOwnedPrefKey(k)) k: prefs.get(k),
   };
   return const JsonEncoder.withIndent('  ').convert(inlineJsonPrefs(raw));
 }
