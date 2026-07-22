@@ -407,6 +407,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn’t read this speaker’s details — check it’s powered on and on the same network.';
 
   @override
+  String get widgetsUnreachable => 'Unreachable';
+
+  @override
   String get widgetsSoundbar => 'Soundbar';
 
   @override

@@ -700,6 +700,12 @@ abstract class AppLocalizations {
   /// **'Couldn’t read this speaker’s details — check it’s powered on and on the same network.'**
   String get widgetsUnreachableSpeakerHint;
 
+  /// No description provided for @widgetsUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unreachable'**
+  String get widgetsUnreachable;
+
   /// No description provided for @widgetsSoundbar.
   ///
   /// In en, this message translates to:
