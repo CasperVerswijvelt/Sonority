@@ -81,7 +81,12 @@ class SonosSoapClient {
             ? res.reasonPhrase
             : fault.first.innerText,
       );
-      DiagnosticsLog.add('SOAP fault @ $ip: $ex');
+      // Deliberately NOT logged to DiagnosticsLog: a SOAP fault is a structured
+      // exception that always propagates to a caller, which either narrates it
+      // with context (the bond re-assert note) or handles it as expected (a
+      // role-gated EQ 803). Logging it here just duplicated the former and
+      // spammed the latter. Timeouts + transport errors above ARE logged (opaque,
+      // easily lost); a genuinely unhandled fault still reaches main.dart's sink.
       throw ex;
     }
 
