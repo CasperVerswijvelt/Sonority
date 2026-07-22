@@ -359,6 +359,22 @@ class _AnimatedBranchContainerState extends State<_AnimatedBranchContainer>
   }
 }
 
+/// macOS defaults to iOS-style [BouncingScrollPhysics], so overscrolling
+/// rubber-bands — and on a trackpad (pan/zoom events overscroll, unlike a mouse
+/// wheel which clamps) short content springs back to the top, reading as a
+/// jitter. Clamp on macOS like the other desktops (Android/Windows/Linux
+/// already do); a wrapping [AlwaysScrollableScrollPhysics] still parents onto
+/// this, so pull-to-refresh keeps firing without the bounce.
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      getPlatform(context) == TargetPlatform.macOS
+      ? const ClampingScrollPhysics(parent: RangeMaintainingScrollPhysics())
+      : super.getScrollPhysics(context);
+}
+
 class SonorityApp extends ConsumerStatefulWidget {
   const SonorityApp({super.key});
 
@@ -432,6 +448,7 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
             useDynamic ? darkDynamic?.harmonized() : null,
           ).copyWith(platform: platform),
           themeMode: ThemeMode.system,
+          scrollBehavior: const AppScrollBehavior(),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           routerConfig: _router,
