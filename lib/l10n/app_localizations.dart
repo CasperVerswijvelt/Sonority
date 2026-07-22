@@ -718,12 +718,6 @@ abstract class AppLocalizations {
   /// **'Surrounds'**
   String get widgetsSurrounds;
 
-  /// No description provided for @widgetsSubwoofer.
-  ///
-  /// In en, this message translates to:
-  /// **'Subwoofer'**
-  String get widgetsSubwoofer;
-
   /// No description provided for @widgetsSub.
   ///
   /// In en, this message translates to:
@@ -1594,24 +1588,6 @@ abstract class AppLocalizations {
   /// **'Pick 2–16 speakers and set each to Left, Right, or Both.'**
   String get groupHintCustom;
 
-  /// No description provided for @groupSideLeft.
-  ///
-  /// In en, this message translates to:
-  /// **'LEFT'**
-  String get groupSideLeft;
-
-  /// No description provided for @groupSideRight.
-  ///
-  /// In en, this message translates to:
-  /// **'RIGHT'**
-  String get groupSideRight;
-
-  /// No description provided for @groupSwapSides.
-  ///
-  /// In en, this message translates to:
-  /// **'Swap sides'**
-  String get groupSwapSides;
-
   /// No description provided for @groupChannelLeft.
   ///
   /// In en, this message translates to:
@@ -1852,18 +1828,6 @@ abstract class AppLocalizations {
   /// **'Pick two speakers (or a single Amp) for the front left & right, then set which is which.'**
   String get frontSurroundsFrontsHint;
 
-  /// No description provided for @frontSurroundsLeft.
-  ///
-  /// In en, this message translates to:
-  /// **'LEFT'**
-  String get frontSurroundsLeft;
-
-  /// No description provided for @frontSurroundsRight.
-  ///
-  /// In en, this message translates to:
-  /// **'RIGHT'**
-  String get frontSurroundsRight;
-
   /// No description provided for @frontSurroundsStepSurrounds.
   ///
   /// In en, this message translates to:
@@ -1875,18 +1839,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pick two speakers for the rear left & right surrounds.'**
   String get frontSurroundsSurroundsHint;
-
-  /// No description provided for @frontSurroundsRearLeft.
-  ///
-  /// In en, this message translates to:
-  /// **'REAR LEFT'**
-  String get frontSurroundsRearLeft;
-
-  /// No description provided for @frontSurroundsRearRight.
-  ///
-  /// In en, this message translates to:
-  /// **'REAR RIGHT'**
-  String get frontSurroundsRearRight;
 
   /// No description provided for @frontSurroundsStepSub.
   ///
@@ -1965,12 +1917,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose two speakers first.'**
   String get frontSurroundsChooseTwoFirst;
-
-  /// No description provided for @frontSurroundsSwapSides.
-  ///
-  /// In en, this message translates to:
-  /// **'Swap sides'**
-  String get frontSurroundsSwapSides;
 
   /// No description provided for @frontSurroundsTapSwap.
   ///

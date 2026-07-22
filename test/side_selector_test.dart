@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sonority/l10n/app_localizations.dart';
 import 'package:sonority/features/widgets/selectable_speaker_card.dart';
 
 /// The in-card Left/Right toggle for a two-speaker pair (HT fronts/surrounds,
@@ -14,6 +15,8 @@ void main() {
     var swaps = 0;
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: SideSelector(isRight: isRight, onSwap: () => swaps++),
         ),

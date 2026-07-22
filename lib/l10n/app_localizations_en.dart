@@ -416,9 +416,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get widgetsSurrounds => 'Surrounds';
 
   @override
-  String get widgetsSubwoofer => 'Subwoofer';
-
-  @override
   String get widgetsSub => 'Sub';
 
   @override
@@ -975,15 +972,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Pick 2–16 speakers and set each to Left, Right, or Both.';
 
   @override
-  String get groupSideLeft => 'LEFT';
-
-  @override
-  String get groupSideRight => 'RIGHT';
-
-  @override
-  String get groupSwapSides => 'Swap sides';
-
-  @override
   String get groupChannelLeft => 'Left';
 
   @override
@@ -1142,23 +1130,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Pick two speakers (or a single Amp) for the front left & right, then set which is which.';
 
   @override
-  String get frontSurroundsLeft => 'LEFT';
-
-  @override
-  String get frontSurroundsRight => 'RIGHT';
-
-  @override
   String get frontSurroundsStepSurrounds => 'Rear surrounds';
 
   @override
   String get frontSurroundsSurroundsHint =>
       'Pick two speakers for the rear left & right surrounds.';
-
-  @override
-  String get frontSurroundsRearLeft => 'REAR LEFT';
-
-  @override
-  String get frontSurroundsRearRight => 'REAR RIGHT';
 
   @override
   String get frontSurroundsStepSub => 'Subwoofer';
@@ -1217,9 +1193,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get frontSurroundsChooseTwoFirst => 'Choose two speakers first.';
-
-  @override
-  String get frontSurroundsSwapSides => 'Swap sides';
 
   @override
   String get frontSurroundsTapSwap => 'Tap swap if the sides are reversed.';

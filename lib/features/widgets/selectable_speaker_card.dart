@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
 import '../../data/models/sonos_models.dart';
 import 'bondable_speaker_tile.dart';
 
@@ -16,9 +17,9 @@ class SideSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SegmentedButton<bool>(
     showSelectedIcon: false,
-    segments: const [
-      ButtonSegment(value: false, label: Text('Left')),
-      ButtonSegment(value: true, label: Text('Right')),
+    segments: [
+      ButtonSegment(value: false, label: Text(context.l10n.groupChannelLeft)),
+      ButtonSegment(value: true, label: Text(context.l10n.groupChannelRight)),
     ],
     selected: {isRight},
     onSelectionChanged: (s) {

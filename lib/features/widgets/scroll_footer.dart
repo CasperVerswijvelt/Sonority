@@ -24,11 +24,11 @@ class ScrollFooter extends StatelessWidget {
     // after it when content is tall).
     //
     // Why the split instead of one IntrinsicHeight/Spacer column: a child can be
-    // a LayoutBuilder (CardGrid on wide layouts), and anything that queries
-    // intrinsic dimensions on a LayoutBuilder throws. Content goes under a
+    // a LayoutBuilder (CardGrid on wide layouts), and querying intrinsic
+    // dimensions on a LayoutBuilder throws. Content goes under a
     // SliverToBoxAdapter (plain box layout, no intrinsic query); only the footer
-    // — always a simple button/text — sits under SliverFillRemaining, which
-    // does query intrinsics but only ever sees the footer.
+    // — always a simple button/text — sits under SliverFillRemaining, whose
+    // trial layout only ever measures the footer.
     return CustomScrollView(
       slivers: [
         SliverPadding(
