@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_sficon/flutter_sficon.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import 'profile.dart';
 
@@ -219,9 +220,9 @@ class ProfileNameField extends StatelessWidget {
             onChanged: (_) => onChanged(),
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
-              labelText: 'Profile name',
+              labelText: context.l10n.profileNameLabel,
               border: const OutlineInputBorder(),
-              errorText: nameTaken ? 'A profile with this name exists' : null,
+              errorText: nameTaken ? context.l10n.profileNameTaken : null,
               visualDensity: VisualDensity.standard,
             ),
           ),
@@ -296,12 +297,12 @@ class ProfileCard extends StatelessWidget {
                     Text(profile.name, style: theme.textTheme.titleMedium),
                     const SizedBox(height: 4),
                     Text(
-                      summary.isEmpty ? 'No entities' : summary,
+                      summary.isEmpty ? context.l10n.profileNoEntities : summary,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.mutedText,
                     ),
-                    if (settingsBadges(
+                    if (settingsBadges(context,
                             audio: profile.hasAudioSettings,
                             volume: profile.hasVolume)
                         case final badges?) ...[
@@ -323,14 +324,19 @@ class ProfileCard extends StatelessWidget {
 /// The captured-settings chips ("Audio settings" / "Volume"), or null when
 /// neither is set. Shared by the profile tile (aggregate) and the per-entity
 /// cards on the detail screen.
-Widget? settingsBadges({required bool audio, required bool volume}) {
+Widget? settingsBadges(BuildContext context,
+    {required bool audio, required bool volume}) {
   if (!audio && !volume) return null;
   return Wrap(
     spacing: 6,
     runSpacing: 6,
     children: [
-      if (audio) const SettingsBadge(icon: Icons.tune, label: 'Audio settings'),
-      if (volume) const SettingsBadge(icon: Icons.volume_up, label: 'Volume'),
+      if (audio)
+        SettingsBadge(
+            icon: Icons.tune, label: context.l10n.profileBadgeAudio),
+      if (volume)
+        SettingsBadge(
+            icon: Icons.volume_up, label: context.l10n.profileBadgeVolume),
     ],
   );
 }
@@ -377,7 +383,7 @@ Future<(String, int)?> showAppearanceDialog(BuildContext context,
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setLocal) => AlertDialog(
-        title: const Text('Appearance'),
+        title: Text(context.l10n.profileAppearance),
         content: SingleChildScrollView(
           child: _AppearancePicker(
             iconId: icon,
@@ -389,10 +395,10 @@ Future<(String, int)?> showAppearanceDialog(BuildContext context,
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              child: Text(context.l10n.actionCancel)),
           TextButton(
               onPressed: () => Navigator.pop(ctx, (icon, col)),
-              child: const Text('Done')),
+              child: Text(context.l10n.actionDone)),
         ],
       ),
     ),

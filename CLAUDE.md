@@ -138,6 +138,28 @@ zone/pair name snapshots through an injected `KeyValueStore` port
 `lib/data/sonos/` file imports Flutter. CLI tools still build on the pure recipes
 (`front_layout.dart` / `zone_layout.dart`) rather than the orchestrator.
 
+### Localization (i18n)
+All user-facing strings go through Flutter `gen-l10n`. Source of truth:
+`lib/l10n/app_en.arb` (config `l10n.yaml`, generated `lib/l10n/app_localizations*.dart`,
+`generate: true`). **English is the only bundled locale**; add a language by
+dropping in `app_<lang>.arb` + one `supportedLocales` entry — no code changes.
+Adding a new string = add an ARB key (with `@key` placeholder/plural metadata if
+interpolated) then use it.
+- Widgets: `context.l10n.<key>` (extension in `core/l10n.dart`).
+- Context-less code (state/model helpers, e.g. progress step labels): `appL10n()`
+  (resolves the system locale synchronously).
+- **The engine (`lib/data/sonos/`) must stay Flutter-free**, so it never holds a
+  *translated* string. User-facing engine/state failures throw a coded
+  **`SonorityError(SonorityErrorCode, [arg])`** (identity, not prose). Two
+  renderers: `friendlyError()` (engine, English — for CLI tools + the diagnostics
+  bundle, and the fallback) and `localizedError(AppLocalizations, e)`
+  (`lib/state/localized_error.dart` — the UI wording chokepoint; also maps
+  Timeout/SOAP-fault/`OperationCancelled`/`SpeakerUnreachable`, falls back to
+  `friendlyError`). The raw op log + diagnostics bundle stay English by design.
+- Model-layer English getters (`kindLabel`, `groupKindLabel`, `groupChannelShort`)
+  stay English (CLI/pure); the UI maps the enum to `entityKind*` keys at the call
+  site (`_kindLabel` in the controller, `groupKindL10n` in `entity_cards.dart`).
+
 ## Sonos local API — the knowledge that matters
 
 - **Discovery**: SSDP `M-SEARCH` to `239.255.255.250:1900` (ST

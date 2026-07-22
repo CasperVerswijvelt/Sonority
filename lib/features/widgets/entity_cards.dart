@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
-import 'bondable_speaker_tile.dart';
 import 'diagram_labels.dart';
 import 'entity_icons.dart';
 import 'pill_chip.dart';
+
+/// Localized label for a group's [GroupKind] (card subtitles). The engine's
+/// [groupKindLabel] stays English for CLI tools / logs.
+String groupKindL10n(AppLocalizations l10n, GroupKind k) => switch (k) {
+      GroupKind.stereoPair => l10n.entityKindStereoPair,
+      GroupKind.zone => l10n.entityKindZone,
+      GroupKind.custom => l10n.entityKindCustom,
+      GroupKind.none => l10n.entityKindGroup,
+    };
 
 // -----------------------------------------------------------------------------
 // View models
@@ -41,7 +50,7 @@ class TheaterCardModel {
   factory TheaterCardModel.fromMember(SonosSystem system, ZoneGroupMember m) =>
       TheaterCardModel(
         title: m.zoneName,
-        soundbarLabel: system.device(m.uuid)?.modelName ?? 'Soundbar',
+        soundbarLabel: system.device(m.uuid)?.modelName ?? appL10n().widgetsSoundbar,
         hasFronts: hasChannel(m, SonosChannel.leftFront) ||
             hasChannel(m, SonosChannel.rightFront),
         hasSurrounds: hasChannel(m, SonosChannel.leftRear) ||
@@ -81,16 +90,17 @@ class EntityCardModel {
 
   static EntityCardModel _build(SonosSystem? system, ZoneGroupMember m,
       {required bool reachable}) {
+    final l10n = appL10n();
     if (m.isHomeTheater) {
-      final type = system?.device(m.uuid)?.typeLabel ?? 'Soundbar';
+      final type = system?.device(m.uuid)?.typeLabel ?? l10n.widgetsSoundbar;
       final features = [
         if (hasChannel(m, SonosChannel.leftFront) ||
             hasChannel(m, SonosChannel.rightFront))
-          'Fronts',
+          l10n.widgetsFronts,
         if (hasChannel(m, SonosChannel.leftRear) ||
             hasChannel(m, SonosChannel.rightRear))
-          'Surrounds',
-        if (hasChannel(m, SonosChannel.sub)) 'Subwoofer',
+          l10n.widgetsSurrounds,
+        if (hasChannel(m, SonosChannel.sub)) l10n.widgetsSubwoofer,
       ];
       return EntityCardModel(
         icon: Icons.surround_sound,
@@ -104,9 +114,9 @@ class EntityCardModel {
         title: m.zoneName,
         // No per-speaker type list — tap through for speaker details.
         subtitle: [
-          groupKindLabel(m.groupKind),
-          '${m.groupChannels.length} speakers',
-          if (m.subUuid != null) 'Sub',
+          groupKindL10n(l10n, m.groupKind),
+          l10n.widgetsNSpeakers(m.groupChannels.length),
+          if (m.subUuid != null) l10n.widgetsSub,
         ].join(' · '),
       );
     }
@@ -116,7 +126,7 @@ class EntityCardModel {
       // The device may not be on the LAN (a profile snapshots a config that
       // isn't necessarily live), so fall back to a generic label rather than an
       // empty subtitle.
-      subtitle: system?.device(m.uuid)?.typeLabel ?? 'Standalone speaker',
+      subtitle: system?.device(m.uuid)?.typeLabel ?? l10n.widgetsStandaloneSpeaker,
       reachable: reachable,
     );
   }
@@ -206,7 +216,8 @@ class EntityCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final unreachable = !model.reachable;
     final tap = unreachable ? null : onTap;
-    final text = unreachable ? unreachableSpeakerHint : model.subtitle;
+    final text =
+        unreachable ? context.l10n.widgetsUnreachableSpeakerHint : model.subtitle;
     return Card(
       margin: const EdgeInsets.only(bottom: kCardGap),
       child: ListTile(
@@ -249,22 +260,28 @@ class _GroupChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
     final chips = <Widget>[
       if (hasFronts)
-        PillChip(icon: Icons.speaker, text: 'Fronts', color: scheme.primary),
+        PillChip(
+            icon: Icons.speaker,
+            text: l10n.widgetsFronts,
+            color: scheme.primary),
       if (hasSurrounds)
         PillChip(
             icon: Icons.surround_sound,
-            text: 'Surrounds',
+            text: l10n.widgetsSurrounds,
             color: scheme.primary),
       if (hasSub)
         PillChip(
-            icon: Icons.graphic_eq, text: 'Subwoofer', color: scheme.primary),
+            icon: Icons.graphic_eq,
+            text: l10n.widgetsSubwoofer,
+            color: scheme.primary),
     ];
     if (chips.isEmpty) {
       chips.add(PillChip(
         icon: Icons.info_outline,
-        text: 'No extra speakers',
+        text: l10n.widgetsNoExtraSpeakers,
         color: scheme.onSurfaceVariant,
       ));
     }

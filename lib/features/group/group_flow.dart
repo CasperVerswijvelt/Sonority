@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
@@ -85,18 +86,17 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
       // header (with its own divider), so a second line under the app bar would
       // double up.
       appBar: AppBar(
-        title: const Text('Group speakers'),
+        title: Text(context.l10n.groupFlowTitle),
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
       body: SafeArea(
         child: candidates.length < 2
-            ? const Center(
+            ? Center(
                 child: Padding(
-                  padding: EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(24),
                   child: Text(
-                    'Need at least two standalone speakers (not soundbars, subs, '
-                    'amps, or already bonded).',
+                    context.l10n.groupNeedTwoSpeakers,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -116,13 +116,16 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             textStyle: Theme.of(context).textTheme.titleSmall,
                           ),
-                          segments: const [
+                          segments: [
                             ButtonSegment(
-                                value: _Mode.stereo, label: Text('Stereo')),
+                                value: _Mode.stereo,
+                                label: Text(context.l10n.groupModeStereo)),
                             ButtonSegment(
-                                value: _Mode.zone, label: Text('Zone')),
+                                value: _Mode.zone,
+                                label: Text(context.l10n.groupModeZone)),
                             ButtonSegment(
-                                value: _Mode.custom, label: Text('Custom')),
+                                value: _Mode.custom,
+                                label: Text(context.l10n.groupModeCustom)),
                           ],
                           selected: {_mode},
                           onSelectionChanged: (s) => _onModeChanged(s.first),
@@ -139,7 +142,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                       controlsBuilder: (context, _) => _controls(system),
                       steps: [
                         Step(
-                          title: const Text('Select speakers'),
+                          title: Text(context.l10n.groupStepSelect),
                           isActive: _step >= _stepSpeakers,
                           state: _selected.length >= 2
                               ? StepState.complete
@@ -159,8 +162,8 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                           ),
                         ),
                         Step(
-                          title: const Text('Add a Sub'),
-                          subtitle: const Text('Optional'),
+                          title: Text(context.l10n.groupStepAddSub),
+                          subtitle: Text(context.l10n.groupOptional),
                           isActive: _step >= _stepSub,
                           state: _subUuid != null
                               ? StepState.complete
@@ -172,8 +175,8 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                           ),
                         ),
                         Step(
-                          title: const Text('Name'),
-                          subtitle: const Text('Optional'),
+                          title: Text(context.l10n.groupStepName),
+                          subtitle: Text(context.l10n.groupOptional),
                           isActive: _step >= _stepName,
                           content: Padding(
                             // Top room for the floating label (else it clips).
@@ -181,16 +184,16 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                             child: TextField(
                               controller: _nameController,
                               textCapitalization: TextCapitalization.sentences,
-                              decoration: const InputDecoration(
-                                labelText: 'Group name (optional)',
-                                hintText: 'e.g. Downstairs',
-                                border: OutlineInputBorder(),
+                              decoration: InputDecoration(
+                                labelText: context.l10n.groupNameLabel,
+                                hintText: context.l10n.groupNameHint,
+                                border: const OutlineInputBorder(),
                               ),
                             ),
                           ),
                         ),
                         Step(
-                          title: const Text('Review & create'),
+                          title: Text(context.l10n.groupStepReview),
                           isActive: _step >= _stepReview,
                           content: _ReviewStep(
                             mode: _mode,
@@ -215,11 +218,11 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     final canAdvance = _step != _stepSpeakers || _selected.length >= 2;
     final label = isLast
         ? switch (_mode) {
-            _Mode.stereo => 'Create stereo pair',
-            _Mode.zone => 'Create zone',
-            _Mode.custom => 'Create custom group',
+            _Mode.stereo => context.l10n.groupCreateStereo,
+            _Mode.zone => context.l10n.groupCreateZone,
+            _Mode.custom => context.l10n.groupCreateCustom,
           }
-        : 'Continue';
+        : context.l10n.actionContinue;
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Row(
@@ -227,7 +230,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
           if (_step > 0)
             TextButton(
               onPressed: () => setState(() => _step--),
-              child: const Text('Back'),
+              child: Text(context.l10n.actionBack),
             ),
           Gap.s,
           Expanded(
@@ -258,19 +261,19 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     final controller = ref.read(sonosControllerProvider.notifier);
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
+    final l10n = context.l10n;
     final outcome = await showBondingProgress(
       context,
-      title: 'Group speakers',
+      title: l10n.groupFlowTitle,
       run: () => controller.createGroup(
           members: members, sub: sub, name: name.isEmpty ? null : name),
     );
     if (outcome == BondingOutcome.success) {
       router.pop();
     } else if (outcome == BondingOutcome.failed) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Couldn’t create the group — Sonos may not allow one of '
-            'these speakers. See the log for details.'),
-        duration: Duration(seconds: 6),
+      messenger.showSnackBar(SnackBar(
+        content: Text(l10n.groupCreateFailed),
+        duration: const Duration(seconds: 6),
       ));
     }
   }
@@ -317,14 +320,10 @@ class _SelectStep extends StatelessWidget {
     required this.identifyControls,
   });
 
-  String get _hint => switch (mode) {
-        _Mode.stereo =>
-          'Pick two speakers — one plays left, the other right (swap below). '
-              'Mismatched models are fine.',
-        _Mode.zone =>
-          'Pick 2–16 speakers. They all play full stereo (L+R) as one room.',
-        _Mode.custom =>
-          'Pick 2–16 speakers and set each to Left, Right, or Both.',
+  String _hint(BuildContext context) => switch (mode) {
+        _Mode.stereo => context.l10n.groupHintStereo,
+        _Mode.zone => context.l10n.groupHintZone,
+        _Mode.custom => context.l10n.groupHintCustom,
       };
 
   @override
@@ -333,7 +332,7 @@ class _SelectStep extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(_hint, style: Theme.of(context).textTheme.bodySmall),
+        Text(_hint(context), style: Theme.of(context).textTheme.bodySmall),
         Gap.m,
         ...candidates.map((d) {
           final isSel = selected.contains(d.uuid);
@@ -355,17 +354,17 @@ class _SelectStep extends StatelessWidget {
             children: [
               Expanded(
                   child: SpeakerSideCard(
-                      side: 'LEFT',
+                      side: context.l10n.groupSideLeft,
                       device: system.device(selected[0]),
                       controls: identifyControls(system.device(selected[0])!))),
               IconButton.filledTonal(
                 onPressed: onSwap,
                 icon: const Icon(Icons.swap_horiz),
-                tooltip: 'Swap sides',
+                tooltip: context.l10n.groupSwapSides,
               ),
               Expanded(
                   child: SpeakerSideCard(
-                      side: 'RIGHT',
+                      side: context.l10n.groupSideRight,
                       device: system.device(selected[1]),
                       controls: identifyControls(system.device(selected[1])!))),
             ],
@@ -438,13 +437,16 @@ class _CandidateCard extends StatelessWidget {
                   width: double.infinity,
                   child: SegmentedButton<GroupChannel>(
                     showSelectedIcon: false,
-                    segments: const [
+                    segments: [
                       ButtonSegment(
-                          value: GroupChannel.left, label: Text('Left')),
+                          value: GroupChannel.left,
+                          label: Text(context.l10n.groupChannelLeft)),
                       ButtonSegment(
-                          value: GroupChannel.both, label: Text('Both')),
+                          value: GroupChannel.both,
+                          label: Text(context.l10n.groupChannelBoth)),
                       ButtonSegment(
-                          value: GroupChannel.right, label: Text('Right')),
+                          value: GroupChannel.right,
+                          label: Text(context.l10n.groupChannelRight)),
                     ],
                     selected: {channel},
                     onSelectionChanged: (s) => onChannel(s.first),
@@ -479,12 +481,11 @@ class _SubStep extends StatelessWidget {
       children: [
         if (subs.isEmpty)
           Text(
-            'No standalone Sub available. A Sub bonded to a home theater must be '
-            'removed there first.',
+            context.l10n.groupNoSub,
             style: muted,
           )
         else ...[
-          Text('Optionally add a Sub to the group.', style: muted),
+          Text(context.l10n.groupAddSubHint, style: muted),
           Gap.s,
           ...subs.map((s) => Card(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -492,7 +493,7 @@ class _SubStep extends StatelessWidget {
                   value: selected == s.uuid,
                   onChanged: (v) => onChanged((v ?? false) ? s.uuid : null),
                   controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text('Subwoofer'),
+                  title: Text(context.l10n.groupSubwoofer),
                   subtitle: Text(s.typeLabel),
                   secondary: const Icon(Icons.graphic_eq),
                 ),
@@ -527,14 +528,22 @@ class _ReviewStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = theme.mutedText;
+    final l10n = context.l10n;
     final kind = switch (mode) {
-      _Mode.stereo => 'Stereo pair',
-      _Mode.zone => 'Zone (${selected.length} speakers)',
-      _Mode.custom => 'Custom group (${selected.length} speakers)',
+      _Mode.stereo => l10n.groupKindStereo,
+      _Mode.zone => l10n.groupKindZone(selected.length),
+      _Mode.custom => l10n.groupKindCustom(selected.length),
     };
     final lines = [
       for (final r in _resolveChannels(mode, selected, channels))
-        '${_room(r.uuid)} — ${groupChannelLabel(r.channel)}',
+        l10n.groupReviewMemberLine(
+          _room(r.uuid),
+          switch (r.channel) {
+            GroupChannel.left => l10n.groupChannelLeft,
+            GroupChannel.right => l10n.groupChannelRight,
+            GroupChannel.both => l10n.groupChannelBoth,
+          },
+        ),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,7 +551,7 @@ class _ReviewStep extends StatelessWidget {
         Text(kind, style: theme.textTheme.titleMedium),
         if (name.isNotEmpty) ...[
           Gap.s,
-          Text('Name: $name', style: muted),
+          Text(l10n.groupReviewName(name), style: muted),
         ],
         Gap.s,
         ...lines.map((l) => Padding(
@@ -550,13 +559,13 @@ class _ReviewStep extends StatelessWidget {
               child: Text(l, style: muted),
             )),
         if (subUuid != null)
-          Text('Sub: ${system.device(subUuid!)?.typeLabel ?? 'Subwoofer'}',
+          Text(
+              l10n.groupReviewSub(
+                  system.device(subUuid!)?.typeLabel ?? l10n.groupSubwoofer),
               style: muted),
         Gap.m,
         Text(
-          'Bonded speakers play as one room. Larger or mixed-model groups can '
-          'drop out briefly — play something to confirm it works for you. '
-          'Original room names are restored when you separate the group.',
+          l10n.groupReviewNote,
           style: muted,
         ),
       ],

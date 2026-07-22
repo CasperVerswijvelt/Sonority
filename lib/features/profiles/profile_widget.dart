@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import 'profile.dart';
 import 'profile_store.dart';
@@ -195,6 +196,8 @@ class WidgetConfigApp extends StatelessWidget {
         theme: AppTheme.light(null),
         darkTheme: AppTheme.dark(null),
         themeMode: ThemeMode.system,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: const _WidgetConfigScreen(),
       );
 }
@@ -244,14 +247,14 @@ class _WidgetConfigScreenState extends State<_WidgetConfigScreen> {
   Widget build(BuildContext context) {
     final list = _ordered;
     return Scaffold(
-      appBar: AppBar(title: const Text('Pick profiles')),
+      appBar: AppBar(title: Text(context.l10n.profileWidgetPickTitle)),
       body: list == null
           ? const Center(child: CircularProgressIndicator())
           : list.isEmpty
-              ? const Center(
+              ? Center(
                   child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Text('No profiles yet — create one in Sonority first.',
+                    padding: const EdgeInsets.all(32),
+                    child: Text(context.l10n.profileWidgetEmpty,
                         textAlign: TextAlign.center),
                   ),
                 )
@@ -261,12 +264,9 @@ class _WidgetConfigScreenState extends State<_WidgetConfigScreen> {
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                         children: [
-                          const Padding(
-                            padding: EdgeInsets.fromLTRB(4, 8, 4, 12),
-                            child: Text(
-                              'Pick the profiles to show. Reorder them in the '
-                              'Profiles tab.',
-                            ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 8, 4, 12),
+                            child: Text(context.l10n.profileWidgetPickHelper),
                           ),
                           for (final p in list)
                             Padding(
@@ -292,8 +292,9 @@ class _WidgetConfigScreenState extends State<_WidgetConfigScreen> {
                         child: FilledButton(
                           onPressed: _checked.isEmpty ? null : _confirm,
                           child: Text(_checked.isEmpty
-                              ? 'Select at least one'
-                              : 'Add ${_checked.length} to widget'),
+                              ? context.l10n.profileWidgetSelectAtLeastOne
+                              : context.l10n
+                                  .profileWidgetAddCount(_checked.length)),
                         ),
                       ),
                     ),

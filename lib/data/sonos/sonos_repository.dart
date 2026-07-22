@@ -12,6 +12,7 @@ import 'diagnostics_log.dart';
 import 'key_value_store.dart';
 import 'room_calibration.dart';
 import 'soap_client.dart';
+import 'sonority_error.dart';
 import 'ssdp_discovery.dart';
 import 'zone_layout.dart';
 import 'zone_topology.dart';
@@ -50,7 +51,7 @@ class SonosRepository {
   Future<SonosSystem> discover() async {
     final locations = await _ssdp.discover();
     if (locations.isEmpty) {
-      throw Exception('No Sonos devices found. Check Wi-Fi and local network access.');
+      throw const SonorityError(SonorityErrorCode.noDevicesFound);
     }
 
     final devices = await Future.wait(
@@ -69,7 +70,7 @@ class SonosRepository {
     );
     final found = devices.whereType<SonosDevice>().toList();
     if (found.isEmpty) {
-      throw Exception('Found Sonos players but could not read their descriptions.');
+      throw const SonorityError(SonorityErrorCode.descriptionsUnreadable);
     }
 
     final devicesByUuid = {for (final d in found) d.uuid: d};
@@ -88,7 +89,8 @@ class SonosRepository {
       }
     }
     if (groups == null) {
-      throw Exception('Could not read the Sonos topology from any player: $lastErr');
+      DiagnosticsLog.add('discovery: topology unreadable from any player: $lastErr');
+      throw const SonorityError(SonorityErrorCode.topologyUnreadable);
     }
     DiagnosticsLog.add(
         'discovery: ${found.length} device(s) described, topology has '
@@ -180,7 +182,9 @@ class SonosRepository {
     CancellationToken? cancel,
   }) async {
     final ip = coordinator.ip;
-    if (ip == null) throw Exception('Coordinator IP unknown; rescan and retry.');
+    if (ip == null) {
+      throw const SonorityError(SonorityErrorCode.coordinatorIpUnknown);
+    }
 
     // Desired channel → set of UUIDs, skipping the CC primary
     // (target.entries.first). A set per channel so dual subs (two SW entries)
@@ -238,8 +242,8 @@ class SonosRepository {
       onNote?.call(
           'attempt $attempt: ${missing.map((c) => c.token).join('/')} not bonded yet');
     }
-    throw Exception('Bonding did not complete — these channels never joined: '
-        '${missing.map((c) => c.token).join(', ')}. Try again, or finish in the Sonos app.');
+    throw SonorityError(SonorityErrorCode.bondingIncomplete,
+        missing.map((c) => c.token).join(', '));
   }
 
   /// Unbonds the given satellite [uuids] from the soundbar at [soundbarIp].
@@ -264,11 +268,11 @@ class SonosRepository {
     SonosDevice? sub,
   }) async {
     if (members.length < 2) {
-      throw Exception('A group needs at least 2 speakers.');
+      throw const SonorityError(SonorityErrorCode.groupNeedsTwo);
     }
     final all = [for (final m in members) m.device, if (sub != null) sub];
     if (all.any((d) => d.ip == null)) {
-      throw Exception('Speaker IP unknown; rescan and retry.');
+      throw const SonorityError(SonorityErrorCode.speakerIpUnknown);
     }
     final attrs = <String, ZoneAttributes>{};
     for (final d in all) {
@@ -302,7 +306,9 @@ class SonosRepository {
   }) async {
     if (members.isEmpty) return;
     final coordIp = members.first.ip;
-    if (coordIp == null) throw Exception('Speaker IP unknown; rescan and retry.');
+    if (coordIp == null) {
+      throw const SonorityError(SonorityErrorCode.speakerIpUnknown);
+    }
     await _deviceProps.separateBondedZones(
         ip: coordIp, channelMapSet: channelMapSet);
     await _restoreZoneNames(members);

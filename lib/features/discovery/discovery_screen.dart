@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
+import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import '../diagnostics/diagnostics_sheet.dart';
 import '../group/group_detail_screen.dart';
@@ -32,7 +34,7 @@ class DiscoveryScreen extends ConsumerWidget {
     final content = state.when(
       loading: () => const Center(child: _Scanning()),
       error: (e, _) => _ErrorView(
-        message: e.toString().replaceFirst('Exception: ', ''),
+        message: localizedError(context.l10n, e),
         onRetry: controller.scan,
       ),
       // discover() throws on an empty network, so data is never null here;
@@ -59,7 +61,7 @@ class DiscoveryScreen extends ConsumerWidget {
       actions: [
         const VersionBadge(),
         IconButton(
-          tooltip: 'Diagnostics',
+          tooltip: context.l10n.discoveryDiagnostics,
           onPressed: () => showDiagnosticsSheet(context),
           icon: const Icon(Icons.bug_report_outlined),
         ),
@@ -67,7 +69,7 @@ class DiscoveryScreen extends ConsumerWidget {
         // uses its own CTA button to scan.
         if (state.value != null)
           IconButton(
-            tooltip: 'Rescan',
+            tooltip: context.l10n.discoveryRescan,
             onPressed: state.isLoading ? null : controller.scan,
             icon: const Icon(Icons.refresh),
           ),
@@ -119,12 +121,9 @@ class _SystemView extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionHeader('Home theaters', icon: Icons.theaters_outlined),
-          if (theaters.isEmpty)
-            const _EmptyHint(
-              'No soundbar found. Dedicated fronts need an Arc, Beam, Ray, '
-              'Playbar or Playbase.',
-            ),
+          SectionHeader(context.l10n.discoveryHomeTheaters,
+              icon: Icons.theaters_outlined),
+          if (theaters.isEmpty) _EmptyHint(context.l10n.discoveryNoSoundbar),
           ...theaters.map((m) => TheaterEntityCard(
                 model: TheaterCardModel.fromMember(system, m),
                 onTap: () => context.push('/theater/${m.uuid}'),
@@ -133,13 +132,13 @@ class _SystemView extends ConsumerWidget {
           // The "+" lives in the header; the flow itself explains if there
           // aren't two free speakers to bond.
           SectionHeader(
-            'Speaker groups',
+            context.l10n.discoverySpeakerGroups,
             icon: Icons.speaker_group_outlined,
             onAdd: () => context.push('/group'),
-            addTooltip: 'Group speakers',
+            addTooltip: context.l10n.discoveryGroupSpeakers,
           ),
           if (groups.isEmpty)
-            const _EmptySectionCard('No speaker groups yet')
+            _EmptySectionCard(context.l10n.discoveryNoGroups)
           else
             ...groups.map((m) => EntityCard(
                   model: EntityCardModel.fromMember(system, m),
@@ -148,7 +147,7 @@ class _SystemView extends ConsumerWidget {
           // Single speaker rooms — hidden entirely when there are none.
           if (singleRooms.isNotEmpty) ...[
             Gap.l,
-            SectionHeader('Single speaker rooms',
+            SectionHeader(context.l10n.discoverySingleRooms,
                 icon: Icons.meeting_room_outlined),
             ...singleRooms.map((m) => EntityCard(
                   model: EntityCardModel.fromMember(system, m),
@@ -161,14 +160,15 @@ class _SystemView extends ConsumerWidget {
           // HT setup flow.
           if (system.bondableSubs.isNotEmpty) ...[
             Gap.l,
-            SectionHeader('Other devices', icon: Icons.devices_other_outlined),
+            SectionHeader(context.l10n.discoveryOtherDevices,
+                icon: Icons.devices_other_outlined),
           ],
           ...system.bondableSubs.map(
             (sub) => Card(
               margin: const EdgeInsets.only(bottom: kCardGap),
               child: ListTile(
                 leading: const Icon(Icons.graphic_eq),
-                title: const Text('Subwoofer'),
+                title: Text(context.l10n.discoverySubwoofer),
                 subtitle: Text(sub.typeLabel),
               ),
             ),
@@ -229,7 +229,7 @@ class _Scanning extends StatelessWidget {
       const CircularProgressIndicator(),
       Gap.l,
       Text(
-        'Scanning your network…',
+        context.l10n.discoveryScanning,
         style: Theme.of(context).textTheme.titleMedium,
       ),
     ],
@@ -252,7 +252,7 @@ class _ErrorView extends StatelessWidget {
           Icon(Icons.wifi_off_rounded, size: 64, color: scheme.error),
           Gap.m,
           Text(
-            'Couldn’t find your system',
+            context.l10n.discoveryErrorTitle,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleLarge,
           ),
@@ -268,7 +268,7 @@ class _ErrorView extends StatelessWidget {
           FilledButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh),
-            label: const Text('Try again'),
+            label: Text(context.l10n.discoveryTryAgain),
           ),
         ],
       ),

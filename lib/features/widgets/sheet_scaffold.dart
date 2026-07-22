@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import 'app_scaffold.dart' show ScrolledUnderDivider;
 
@@ -61,7 +62,7 @@ class _SheetHeader extends StatelessWidget {
           if (trailing != null) trailing!,
           IconButton(
             icon: const Icon(Icons.close),
-            tooltip: 'Close',
+            tooltip: context.l10n.actionClose,
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],

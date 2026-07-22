@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
 import '../../data/models/sonos_models.dart';
-
-/// Shown wherever an unreachable speaker ([SonosDevice.reachable] == false)
-/// surfaces — we have it from the topology but couldn't read its description.
-const unreachableSpeakerHint =
-    'Couldn’t read this speaker’s details — check it’s powered on and on the '
-    'same network.';
 
 /// A selectable speaker row used by the "pick speakers" lists (dedicated-fronts
 /// and stereo-pair flows).
@@ -48,7 +43,7 @@ class BondableSpeakerTile extends StatelessWidget {
         onChanged: null,
         title: Text(device.roomName),
         subtitle: Text(
-          unreachableSpeakerHint,
+          context.l10n.widgetsUnreachableSpeakerHint,
           style: TextStyle(color: scheme.error),
         ),
         controlAffinity: ListTileControlAffinity.leading,
