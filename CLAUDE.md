@@ -488,9 +488,15 @@ Run on the same Wi-Fi as the Sonos system:
   `kWideLayoutBreakpoint` (the window is width-capped rather than centering content). (macOS "Resume" may restore a previously-saved small
   window frame on relaunch; the window is resizable, and fresh installs open at
   the default.)
-- Phones stay **portrait-only** (`SystemChrome` + iOS plist + Android manifest);
-  the responsive layout is width-driven, so it's macOS/large-window only for now
-  (iPad/phone landscape is out of scope).
+- **Orientation is per-platform, not locked in Dart** (the old global
+  `SystemChrome.setPreferredOrientations` portrait lock was removed): iPhone stays
+  portrait (`Info.plist UISupportedInterfaceOrientations`), **iPad allows all
+  orientations + Split View** (`…~ipad` lists all four; no `UIRequiresFullScreen`;
+  `TARGETED_DEVICE_FAMILY = "1,2"`), Android phones stay portrait
+  (`AndroidManifest screenOrientation`), macOS is a fixed-size window. The
+  width-driven responsive layout (`kWideLayoutBreakpoint`) therefore renders on
+  **iPad (landscape and portrait ≥720pt) and wide macOS**; phone-width windows
+  (incl. iPad narrow Split View) fall back to the bottom-nav single column.
 - Emulators/simulators usually can't reach the LAN's SSDP multicast (this Android
   AVD happens to). Use a **physical device** for real discovery.
 
