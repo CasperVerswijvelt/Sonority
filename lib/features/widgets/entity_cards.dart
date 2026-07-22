@@ -130,7 +130,7 @@ class EntityCardModel {
 /// The one entity card — a dumb renderer over [EntityCardModel], shared by the
 /// system overview (live) and the profile detail list (snapshot). [onTap] adds a
 /// chevron; [footer] (e.g. saved-settings pills) stacks under the composition. An
-/// unreachable single is flagged with a warning glyph + hint and made
+/// unreachable single is dimmed with a short "Unreachable" subtitle and made
 /// non-tappable regardless of the passed [onTap].
 class EntityCard extends StatelessWidget {
   final EntityCardModel model;
@@ -145,7 +145,9 @@ class EntityCard extends StatelessWidget {
     final unreachable = !model.reachable;
     final tap = unreachable ? null : onTap;
 
-    return Padding(
+    // Unreachable = a dimmed, non-interactive card with a short "Unreachable"
+    // subtitle, rather than an alarming error-red variant.
+    final content = Padding(
       padding: const EdgeInsets.only(bottom: kCardGap),
       child: Card(
         child: InkWell(
@@ -155,11 +157,7 @@ class EntityCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                EntityGlyph(
-                  icon: unreachable ? Icons.warning_amber_rounded : model.icon,
-                  background: unreachable ? scheme.errorContainer : null,
-                  foreground: unreachable ? scheme.onErrorContainer : null,
-                ),
+                EntityGlyph(icon: model.icon),
                 Gap.m,
                 Expanded(
                   child: Column(
@@ -168,9 +166,9 @@ class EntityCard extends StatelessWidget {
                       Text(model.title, style: theme.textTheme.bodyLarge),
                       if (unreachable)
                         Text(
-                          context.l10n.widgetsUnreachableSpeakerHint,
+                          context.l10n.widgetsUnreachable,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: scheme.error,
+                            color: scheme.onSurfaceVariant,
                           ),
                         )
                       else if (model.subtitle != null)
@@ -206,5 +204,7 @@ class EntityCard extends StatelessWidget {
         ),
       ),
     );
+
+    return unreachable ? Opacity(opacity: 0.5, child: content) : content;
   }
 }

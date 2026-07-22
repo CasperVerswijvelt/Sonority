@@ -247,6 +247,7 @@
   "widgetsStepFailed": "Failed.",
   "widgetsStepWorking": "Working…",
   "widgetsUnreachableSpeakerHint": "Couldn’t read this speaker’s details — check it’s powered on and on the same network.",
+  "widgetsUnreachable": "Unreachable",
   "widgetsSoundbar": "Soundbar",
   "widgetsFronts": "Fronts",
   "widgetsSurrounds": "Surrounds",
