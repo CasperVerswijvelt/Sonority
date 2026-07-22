@@ -16,6 +16,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Localization groundwork: every user-facing string now runs through Flutter's localization system (`lib/l10n/app_en.arb`), and the app follows the device language. English is the only bundled language for now — a new one is added by dropping in a translation file, no code changes. No visible change yet.
 
 ### Changed
+- iOS now carries the Apple-approved multicast entitlement, so discovery uses native SSDP multicast on physical iPhones instead of relying on the unicast /24 sweep fallback (which stays as a backstop for multicast-filtering networks).
 - GitHub Pages landing page now deploys automatically on each release tag (via an LFS-aware Actions workflow) and shows the current app version; the page is generated in CI rather than committed.
 - Internal cleanup: deduplicated shared widgets/helpers and removed dead code; the Sonos engine is now fully decoupled from Flutter (persistence via an injected storage port). No user-facing behaviour change.
 - Reconfiguring a home theater (e.g. swapping which speakers are fronts vs surrounds) no longer unbonds speakers that are only moving to a different channel — they're reassigned in place, so the setup no longer briefly drops to one speaker per side. The progress screen shows a single calm "Applying…" step (Sonos can still take up to a minute to settle) instead of a scary per-attempt retry log.

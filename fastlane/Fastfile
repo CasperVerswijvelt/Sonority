@@ -150,8 +150,12 @@ end
 
 platform :ios do
   desc "Create/refresh the shared iOS signing assets in the match repo"
-  lane :certificates do
-    match(type: "appstore", platform: "ios", readonly: false, api_key: asc_key)
+  # Pass force:true to re-issue profiles even when the existing ones are still
+  # valid — needed after enabling a new App ID capability (e.g. multicast),
+  # since match won't otherwise notice the entitlement drift.
+  lane :certificates do |options|
+    match(type: "appstore", platform: "ios", readonly: false, api_key: asc_key,
+          force: options[:force] || false)
   end
 
   desc "Build and upload an iOS build to TestFlight"
