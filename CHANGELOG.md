@@ -35,6 +35,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Identify chime is now a repeated percussive ping (sharp attack, bright harmonics) instead of a soft two-tone sine — it's far easier to tell which speaker it's coming from by ear.
 
 ### Fixed
+- Pull-to-refresh on the System overview and home-theater pages now works even when the content is short enough to fit the screen without scrolling (previously the pull gesture did nothing there).
 - The New/Re-snapshot profile form is now locked and dimmed while it reads a speaker's EQ/volume, so you can no longer flip the capture toggles or change the selection mid-save.
 
 ## [0.6.0] - 2026-07-17

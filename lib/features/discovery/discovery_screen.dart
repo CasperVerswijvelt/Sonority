@@ -109,6 +109,9 @@ class _SystemView extends ConsumerWidget {
     // Owns its own scroll, filling the screen-sized body. The app bar is fixed,
     // so there's no collapse to lose; Rescan / pull-to-refresh cover refresh.
     return SingleChildScrollView(
+      // Always overscrollable so pull-to-refresh fires even when the content
+      // is shorter than the viewport (a sparse system of a few cards).
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

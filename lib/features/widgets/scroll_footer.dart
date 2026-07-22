@@ -30,6 +30,10 @@ class ScrollFooter extends StatelessWidget {
     // — always a simple button/text — sits under SliverFillRemaining, whose
     // trial layout only ever measures the footer.
     return CustomScrollView(
+      // Always overscrollable so a wrapping RefreshIndicator's pull-to-refresh
+      // fires even when the content is shorter than the viewport (the footer's
+      // SliverFillRemaining makes short content fill it exactly).
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverPadding(
           padding: padding.copyWith(bottom: 0),
