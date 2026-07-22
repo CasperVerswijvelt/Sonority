@@ -172,8 +172,12 @@ String topologyText(SonosSystem system) {
       // it's a <Satellite> child, not its own member/device block).
       final satIps = {for (final s in m.satellites) s.uuid: s.ip};
       _writeMap(b, 'HTSatChanMapSet', m.htSatChanMapSet, ips: satIps);
-      _writeMap(b, 'ChannelMapSet', m.channelMapSet,
-          note: m.isGroup ? m.groupKind.name : null);
+      _writeMap(
+        b,
+        'ChannelMapSet',
+        m.channelMapSet,
+        note: m.isGroup ? m.groupKind.name : null,
+      );
       // Lossless residual: surface any <Satellite> the raw map didn't list (a
       // raw-vs-parsed mismatch a diagnostics dump must not hide). Normally none.
       final mapUuids = {
@@ -230,8 +234,13 @@ List<String> _deviceLines(SonosDevice d) {
 /// Writes a channel-map set one `UUID:tokens` entry per line — far more legible
 /// than the raw single-line `;`-joined blob. When [ips] is given, appends ` · IP`
 /// to any entry whose UUID is in the map (used to fold HT satellite IPs in).
-void _writeMap(StringBuffer b, String label, String? map,
-    {String? note, Map<String, String?>? ips}) {
+void _writeMap(
+  StringBuffer b,
+  String label,
+  String? map, {
+  String? note,
+  Map<String, String?>? ips,
+}) {
   if (map == null || map.isEmpty) return;
   b.writeln('      $label:${note != null ? '  ($note)' : ''}');
   for (final entry in map.split(';')) {
@@ -243,9 +252,20 @@ void _writeMap(StringBuffer b, String label, String? map,
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
+/// Key prefixes the app itself owns: the profiles blob (`profiles`), the
+/// zone/pair name snapshots (`zone_snapshot_…`, [SonosRepository._zoneKey]), and
+/// the home-widget mirror (`widget_`/`tileName_`). Everything else in
+/// SharedPreferences is framework/plugin noise we deliberately DON'T dump into a
+/// bundle the user emails us — an allow-list so a future dependency storing
+/// something sensitive can't silently ride along.
+const _appPrefPrefixes = ['profiles', 'zone_snapshot_', 'widget_', 'tileName_'];
+
 Future<String> _appStateJson() async {
   final prefs = await SharedPreferences.getInstance();
-  final raw = {for (final k in prefs.getKeys()) k: prefs.get(k)};
+  final raw = {
+    for (final k in prefs.getKeys())
+      if (_appPrefPrefixes.any(k.startsWith)) k: prefs.get(k),
+  };
   return const JsonEncoder.withIndent('  ').convert(inlineJsonPrefs(raw));
 }
 
@@ -254,9 +274,9 @@ Future<String> _appStateJson() async {
 /// real nested JSON so the dump is readable/parseable instead of a wall of
 /// escaped quotes; plain (non-JSON) strings and non-string prefs pass through.
 Map<String, dynamic> inlineJsonPrefs(Map<String, Object?> raw) => {
-      for (final e in raw.entries)
-        e.key: e.value is String ? _tryJsonDecode(e.value as String) : e.value,
-    };
+  for (final e in raw.entries)
+    e.key: e.value is String ? _tryJsonDecode(e.value as String) : e.value,
+};
 
 Object? _tryJsonDecode(String s) {
   try {

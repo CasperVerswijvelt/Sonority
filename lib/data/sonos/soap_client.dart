@@ -28,28 +28,42 @@ class SonosSoapClient {
     Duration timeout = const Duration(seconds: 8),
   }) async {
     final uri = Uri.parse('http://$ip:$port$controlPath');
-    final body = buildEnvelope(serviceType: serviceType, action: action, args: args);
+    final body = buildEnvelope(
+      serviceType: serviceType,
+      action: action,
+      args: args,
+    );
 
     final http.Response res;
     try {
-      res = await _http.post(
-        uri,
-        headers: {
-          'Content-Type': 'text/xml; charset="utf-8"',
-          'SOAPACTION': '"$serviceType#$action"',
-          // Sonos players are unreliable with HTTP keep-alive: a pooled socket the
-          // player has already closed makes the next request hang until timeout
-          // (very visible when firing many calls in a row, like the LED blink).
-          // Closing per request avoids reusing a dead connection.
-          'Connection': 'close',
-        },
-        body: body,
-      ).timeout(timeout);
+      res = await _http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'text/xml; charset="utf-8"',
+              'SOAPACTION': '"$serviceType#$action"',
+              // Sonos players are unreliable with HTTP keep-alive: a pooled socket the
+              // player has already closed makes the next request hang until timeout
+              // (very visible when firing many calls in a row, like the LED blink).
+              // Closing per request avoids reusing a dead connection.
+              'Connection': 'close',
+            },
+            body: body,
+          )
+          .timeout(timeout);
     } on TimeoutException {
       // Recorded for the diagnostics bundle: outside a bonding op these are just
       // thrown and lost. (In a bonding op a timeout is expected/benign — the
       // write still lands — but capturing it here is harmless.)
-      DiagnosticsLog.add('SOAP $action @ $ip timed out after ${timeout.inSeconds}s');
+      DiagnosticsLog.add(
+        'SOAP $action @ $ip timed out after ${timeout.inSeconds}s',
+      );
+      rethrow;
+    } catch (e) {
+      // Transport-level failure (socket refused/reset, DNS, TLS) — a player
+      // power-cycling or off-network. Capture for the bundle too; caught
+      // generically so we don't import dart:io (keeps the engine web-safe).
+      DiagnosticsLog.add('SOAP $action @ $ip transport error: $e');
       rethrow;
     }
 
@@ -75,7 +89,10 @@ class SonosSoapClient {
     final bodies = doc.findAllElements('Body', namespace: '*');
     if (bodies.isEmpty) {
       DiagnosticsLog.add('SOAP $action @ $ip: missing SOAP Body in response');
-      throw SonosSoapException(action, faultString: 'Missing SOAP Body in response');
+      throw SonosSoapException(
+        action,
+        faultString: 'Missing SOAP Body in response',
+      );
     }
     return bodies.first;
   }
@@ -88,7 +105,9 @@ class SonosSoapClient {
   }) {
     final buf = StringBuffer()
       ..write('<?xml version="1.0" encoding="utf-8"?>')
-      ..write('<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" ')
+      ..write(
+        '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" ',
+      )
       ..write('s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">')
       ..write('<s:Body>')
       ..write('<u:$action xmlns:u="$serviceType">');
@@ -137,7 +156,12 @@ class SonosSoapException implements Exception {
   final String? faultCode;
   final String? faultString;
 
-  SonosSoapException(this.action, {this.statusCode, this.faultCode, this.faultString});
+  SonosSoapException(
+    this.action, {
+    this.statusCode,
+    this.faultCode,
+    this.faultString,
+  });
 
   @override
   String toString() =>

@@ -14,23 +14,25 @@ class MainFlutterWindow: NSWindow {
     // clips behind the Dock — App Review rejects that (G4).
     let preferred = NSSize(width: 1100, height: 900)
     let minimum = NSSize(width: 380, height: 640)
-    // Cap the width: content fills the window (Flutter no longer centers/clamps
-    // it), so a wider window would only stretch the mobile-style cards. Height
-    // stays free — a taller window just shows more list.
-    self.contentMaxSize = NSSize(
-      width: preferred.width, height: .greatestFiniteMagnitude)
     let visible = self.screen?.visibleFrame
       ?? NSScreen.main?.visibleFrame
       ?? NSRect(x: 0, y: 0, width: preferred.width, height: preferred.height)
 
     self.setContentSize(preferred)
     let titleBarOverhead = self.frame.height - preferred.height
-    self.setContentSize(NSSize(
-      width: min(preferred.width, visible.width),
-      height: min(preferred.height, visible.height - titleBarOverhead)))
+    // Max content the visible frame (excludes menu bar + Dock) can hold.
+    let maxW = min(preferred.width, visible.width)
+    let maxH = visible.height - titleBarOverhead
+    self.setContentSize(NSSize(width: maxW, height: min(preferred.height, maxH)))
     self.contentMinSize = NSSize(
       width: min(minimum.width, visible.width),
-      height: min(minimum.height, visible.height - titleBarOverhead))
+      height: min(minimum.height, maxH))
+    // Cap resize to that frame. Width: content fills the window (Flutter no
+    // longer centers/clamps it), so a wider window would only stretch the
+    // mobile-style cards; cap at the preferred width or the screen, smaller wins.
+    // Height: bounded so a dragged-tall window can't extend behind the Dock —
+    // the exact G4 rejection the initial-size clamp above also guards.
+    self.contentMaxSize = NSSize(width: maxW, height: maxH)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
