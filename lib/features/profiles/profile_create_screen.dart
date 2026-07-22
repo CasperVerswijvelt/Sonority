@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
@@ -67,7 +68,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   /// A helpful default that isn't already taken ("My setup", then "My setup 2",
   /// …) so New profile doesn't open on a name-collision error.
   String _defaultName(List<Profile> profiles) {
-    const base = 'My setup';
+    final base = context.l10n.profileDefaultName;
     if (!isProfileNameTaken(profiles, base)) return base;
     for (var i = 2;; i++) {
       final candidate = '$base $i';
@@ -95,13 +96,15 @@ class _State extends ConsumerState<ProfileCreateScreen> {
 
     if (system == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(isResnapshot ? 'Re-capture' : 'New profile')),
-        body: const Center(
+        appBar: AppBar(
+            title: Text(isResnapshot
+                ? context.l10n.profileResnapshot
+                : context.l10n.profileNew)),
+        body: Center(
           child: Padding(
-            padding: EdgeInsets.all(32),
+            padding: const EdgeInsets.all(32),
             child: Text(
-              'Scan your system first (System tab), then create a '
-              'profile from it.',
+              context.l10n.profileScanFirstCreate,
               textAlign: TextAlign.center,
             ),
           ),
@@ -120,13 +123,15 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     final canSave = name.isNotEmpty && !taken && anyIncluded && !_saving;
 
     return AppScaffold(
-      title: isResnapshot ? 'Re-capture' : 'New profile',
+      title: isResnapshot
+          ? context.l10n.profileResnapshot
+          : context.l10n.profileNew,
       bottomOverlay: _BottomButtonBar(
         label: _saving
-            ? 'Reading settings…'
+            ? context.l10n.profileReadingSettings
             : isResnapshot
-                ? 'Use snapshot'
-                : 'Create profile',
+                ? context.l10n.profileUseSnapshot
+                : context.l10n.profileCreate,
         onPressed: canSave ? () => _save(name, existing) : null,
       ),
       body: ListView(
@@ -135,10 +140,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
           if (isResnapshot) ...[
             // Non-destructive: nothing is written until the user saves on the
             // profile screen, so this is a light note, not a warning.
-            const InfoNote(
-              'Recapture your current setup, then review and save it '
-              'on the profile screen.',
-            ),
+            InfoNote(context.l10n.profileResnapshotNote),
             Gap.l,
           ] else
             // Name + appearance are edited on the profile screen for an existing
@@ -161,18 +163,12 @@ class _State extends ConsumerState<ProfileCreateScreen> {
           // re-snapshot the profile already exists and the detail screen owns
           // the review.
           if (!isResnapshot) ...[
-            const InfoNote(
-              'Applying a profile later rebuilds these speakers into this '
-              'layout. Any speaker that’s part of a different setup at that '
-              'time is removed from it first — which can dissolve another '
-              'stereo pair or zone and free its other speakers.',
-            ),
+            InfoNote(context.l10n.profileApplyPrimer),
             Gap.l,
           ],
-          const SectionHeader(
-            'Include',
-            helper: 'Pick which of your current home theaters, pairs and '
-                'rooms to capture in this profile.',
+          SectionHeader(
+            context.l10n.profileIncludeHeader,
+            helper: context.l10n.profileIncludeHelper,
           ),
           for (final e in _entities)
             _SelectableEntityCard(
@@ -181,10 +177,9 @@ class _State extends ConsumerState<ProfileCreateScreen> {
               onChanged: (v) => setState(() => _included[e.primaryUuid] = v),
             ),
           Gap.l,
-          const SectionHeader(
-            'Speaker settings',
-            helper: 'Optionally snapshot each speaker’s current settings and '
-                'restore them when this profile is applied.',
+          SectionHeader(
+            context.l10n.profileSpeakerSettingsHeader,
+            helper: context.l10n.profileSpeakerSettingsHelper,
           ),
           // Flat settings rows (not a card) — these are toggles, matching the
           // Trueplay / diagnostics registers.
@@ -193,19 +188,16 @@ class _State extends ConsumerState<ProfileCreateScreen> {
               value: _saveAudio,
               onChanged: (v) => setState(() => _saveAudio = v),
               secondary: const Icon(Icons.tune),
-              title: const Text('Save audio settings'),
-              subtitle: const Text(
-                  'EQ, night sound, speech enhancement, sub & surround '
-                  'levels, lip sync & more'),
+              title: Text(context.l10n.profileSaveAudio),
+              subtitle: Text(context.l10n.profileSaveAudioSubtitle),
             ),
             const Divider(height: 1),
             SwitchListTile(
               value: _saveVolume,
               onChanged: (v) => setState(() => _saveVolume = v),
               secondary: const Icon(Icons.volume_up),
-              title: const Text('Save volume'),
-              subtitle: const Text(
-                  'Applying the profile will change how loud each speaker plays'),
+              title: Text(context.l10n.profileSaveVolume),
+              subtitle: Text(context.l10n.profileSaveVolumeSubtitle),
             ),
           ]),
         ],

@@ -5,6 +5,7 @@ import 'package:sonority/data/sonos/cancellation.dart';
 import 'package:sonority/data/sonos/friendly_error.dart';
 import 'package:sonority/data/sonos/identify_errors.dart';
 import 'package:sonority/data/sonos/soap_client.dart';
+import 'package:sonority/data/sonos/sonority_error.dart';
 
 void main() {
   group('friendlyError', () {
@@ -44,6 +45,19 @@ void main() {
     test('a bare exception drops the noisy "Exception: " prefix', () {
       expect(friendlyError(Exception('Sonos did not remove the Surrounds — try again.')),
           'Sonos did not remove the Surrounds — try again.');
+    });
+
+    test('a coded SonorityError renders its English message', () {
+      expect(friendlyError(const SonorityError(SonorityErrorCode.groupNeedsTwo)),
+          'A group needs at least 2 speakers.');
+      expect(
+          friendlyError(
+              const SonorityError(SonorityErrorCode.didNotRemove, 'Surrounds')),
+          'Sonos did not remove the Surrounds — try again.');
+      expect(
+          friendlyError(
+              const SonorityError(SonorityErrorCode.entityNotOnNetwork, 'Den')),
+          '“Den” isn’t on the network.');
     });
   });
 }

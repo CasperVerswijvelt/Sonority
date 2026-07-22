@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sonority/l10n/app_localizations.dart';
 import 'package:sonority/features/widgets/sheet_scaffold.dart';
 
 /// SheetScaffold has two layout modes (content-sized vs fill) and an optional
@@ -10,6 +11,8 @@ import 'package:sonority/features/widgets/sheet_scaffold.dart';
 void main() {
   Widget host({required bool fill, Widget? footer}) =>
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: SizedBox(
             height: 600,

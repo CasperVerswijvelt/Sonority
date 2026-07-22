@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_sficon/flutter_sficon.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/l10n.dart';
 import 'core/theme.dart';
 import 'demo/demo_mode.dart';
 import 'features/diagnostics/diagnostics_screen.dart';
@@ -136,14 +137,18 @@ class _Destination {
   const _Destination(this.icon, this.selectedIcon, this.label);
 }
 
-const _destinations = [
-  _Destination(Icons.speaker_group_outlined, Icons.speaker_group, 'System'),
+List<_Destination> _destinationsFor(AppLocalizations l10n) => [
+  _Destination(Icons.speaker_group_outlined, Icons.speaker_group, l10n.tabSystem),
   _Destination(
     Icons.dashboard_customize_outlined,
     Icons.dashboard_customize,
-    'Profiles',
+    l10n.tabProfiles,
   ),
-  _Destination(Icons.bug_report_outlined, Icons.bug_report, 'Diagnostics'),
+  _Destination(
+    Icons.bug_report_outlined,
+    Icons.bug_report,
+    l10n.tabDiagnostics,
+  ),
 ];
 
 /// Root scaffold. Adaptive: a bottom `NavigationBar` on a phone-width window, a
@@ -159,6 +164,7 @@ class _HomeShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final destinations = _destinationsFor(context.l10n);
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= kWideLayoutBreakpoint) {
@@ -194,7 +200,7 @@ class _HomeShell extends StatelessWidget {
                             extended: true,
                             backgroundColor: Colors.transparent,
                             destinations: [
-                              for (final d in _destinations)
+                              for (final d in destinations)
                                 NavigationRailDestination(
                                   icon: Icon(d.icon),
                                   selectedIcon: Icon(d.selectedIcon),
@@ -232,7 +238,7 @@ class _HomeShell extends StatelessWidget {
               selectedIndex: shell.currentIndex,
               onDestinationSelected: _go,
               destinations: [
-                for (final d in _destinations)
+                for (final d in destinations)
                   NavigationDestination(
                     icon: Icon(d.icon),
                     selectedIcon: Icon(d.selectedIcon),
@@ -426,6 +432,8 @@ class _SonorityAppState extends ConsumerState<SonorityApp> {
             useDynamic ? darkDynamic?.harmonized() : null,
           ).copyWith(platform: platform),
           themeMode: ThemeMode.system,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           routerConfig: _router,
           // The screenshot-only web demo build has no OS chrome, which looks
           // bare — so paint a faux iOS status bar and reserve its height as the

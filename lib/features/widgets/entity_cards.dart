@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import 'diagram_labels.dart';
 import 'entity_glyph.dart';
 import 'entity_icons.dart';
 import 'pill_chip.dart';
+
+/// Localized label for a group's [GroupKind] (card subtitles). The engine's
+/// [groupKindLabel] stays English for CLI tools / logs.
+String groupKindL10n(AppLocalizations l10n, GroupKind k) => switch (k) {
+      GroupKind.stereoPair => l10n.entityKindStereoPair,
+      GroupKind.zone => l10n.entityKindZone,
+      GroupKind.custom => l10n.entityKindCustom,
+      GroupKind.none => l10n.entityKindGroup,
+    };
 
 // -----------------------------------------------------------------------------
 // View model
@@ -73,17 +83,18 @@ class EntityCardModel {
     ZoneGroupMember m, {
     required bool reachable,
   }) {
+    final l10n = appL10n();
     if (m.isHomeTheater) {
-      final type = system?.device(m.uuid)?.typeLabel ?? 'Soundbar';
+      final type = system?.device(m.uuid)?.typeLabel ?? l10n.widgetsSoundbar;
       final chips = <EntityChip>[
         if (hasChannel(m, SonosChannel.leftFront) ||
             hasChannel(m, SonosChannel.rightFront))
-          const EntityChip(Icons.speaker, 'Fronts'),
+          EntityChip(Icons.speaker, l10n.widgetsFronts),
         if (hasChannel(m, SonosChannel.leftRear) ||
             hasChannel(m, SonosChannel.rightRear))
-          const EntityChip(Icons.surround_sound, 'Surrounds'),
+          EntityChip(Icons.surround_sound, l10n.widgetsSurrounds),
         if (hasChannel(m, SonosChannel.sub))
-          const EntityChip(Icons.graphic_eq, 'Sub'),
+          EntityChip(Icons.graphic_eq, l10n.widgetsSub),
       ];
       return EntityCardModel(
         icon: Icons.surround_sound,
@@ -91,10 +102,10 @@ class EntityCardModel {
         subtitle: type,
         chips: [
           if (chips.isEmpty)
-            const EntityChip(Icons.info_outline, 'No extra speakers')
+            EntityChip(Icons.info_outline, l10n.widgetsNoExtraSpeakers)
           else
             ...chips,
-          ..._metaChips(m),
+          ..._metaChips(m, l10n),
         ],
       );
     }
@@ -104,10 +115,10 @@ class EntityCardModel {
         title: m.zoneName,
         // No per-speaker type list — tap through for speaker details.
         chips: [
-          EntityChip(groupKindIcon(m.groupKind), groupKindLabel(m.groupKind)),
-          EntityChip(Icons.speaker, '${m.groupChannels.length} speakers'),
-          if (m.subUuid != null) const EntityChip(Icons.graphic_eq, 'Sub'),
-          ..._metaChips(m),
+          EntityChip(groupKindIcon(m.groupKind), groupKindL10n(l10n, m.groupKind)),
+          EntityChip(Icons.speaker, l10n.widgetsNSpeakers(m.groupChannels.length)),
+          if (m.subUuid != null) EntityChip(Icons.graphic_eq, l10n.widgetsSub),
+          ..._metaChips(m, l10n),
         ],
       );
     }
@@ -117,28 +128,22 @@ class EntityCardModel {
       // The device may not be on the LAN (a profile snapshots a config that
       // isn't necessarily live), so fall back to a generic label rather than an
       // empty subtitle.
-      subtitle: system?.device(m.uuid)?.typeLabel ?? 'Standalone speaker',
+      subtitle: system?.device(m.uuid)?.typeLabel ?? l10n.widgetsStandaloneSpeaker,
       reachable: reachable,
     );
   }
 
   /// Trailing status chips shared by HT + group cards: a drop-out caution for a
   /// large zone.
-  static List<EntityChip> _metaChips(ZoneGroupMember m) => [
+  static List<EntityChip> _metaChips(ZoneGroupMember m, AppLocalizations l10n) => [
     if (m.isZone && m.groupChannels.length >= kZoneWarnSize)
-      const EntityChip(
+      EntityChip(
         Icons.warning_amber_rounded,
-        'Can drop out',
+        l10n.widgetsZoneCanDropOut,
         tone: EntityChipTone.warning,
       ),
   ];
 }
-
-/// Shown wherever an unreachable speaker ([SonosDevice.reachable] == false)
-/// surfaces — we have it from the topology but couldn't read its description.
-const unreachableSpeakerHint =
-    'Couldn’t read this speaker’s details — check it’s powered on and on the '
-    'same network.';
 
 /// The one entity card — a dumb renderer over [EntityCardModel], shared by the
 /// system overview (live) and the profile detail list (snapshot). [onTap] adds a
@@ -181,7 +186,7 @@ class EntityCard extends StatelessWidget {
                       Text(model.title, style: theme.textTheme.bodyLarge),
                       if (unreachable)
                         Text(
-                          unreachableSpeakerHint,
+                          context.l10n.widgetsUnreachableSpeakerHint,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: scheme.error,
                           ),

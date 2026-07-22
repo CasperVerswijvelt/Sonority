@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_sficon/flutter_sficon.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../widgets/entity_glyph.dart';
 import '../widgets/pill_chip.dart';
@@ -239,9 +240,9 @@ class ProfileNameField extends StatelessWidget {
             onChanged: (_) => onChanged(),
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
-              labelText: 'Profile name',
+              labelText: context.l10n.profileNameLabel,
               border: const OutlineInputBorder(),
-              errorText: nameTaken ? 'A profile with this name exists' : null,
+              errorText: nameTaken ? context.l10n.profileNameTaken : null,
               visualDensity: VisualDensity.standard,
             ),
           ),
@@ -327,7 +328,7 @@ class ProfileCard extends StatelessWidget {
                         Text(profile.name, style: theme.textTheme.titleMedium),
                         const SizedBox(height: 2),
                         Text(
-                          summary.isEmpty ? 'No entities' : summary,
+                          summary.isEmpty ? context.l10n.profileNoEntities : summary,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: theme.mutedText,
@@ -347,7 +348,8 @@ class ProfileCard extends StatelessWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                'Updated ${timeAgo(t)}',
+                                context.l10n.profileUpdatedAgo(
+                                    timeAgo(context.l10n, t)),
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: scheme.onSurfaceVariant,
                                 ),
@@ -397,8 +399,14 @@ Widget? settingsBadges(
     spacing: 6,
     runSpacing: 6,
     children: [
-      if (audio) PillChip(icon: Icons.tune, text: 'Settings', color: color),
-      if (volume) PillChip(icon: Icons.volume_up, text: 'Volume', color: color),
+      if (audio)
+        PillChip(
+            icon: Icons.tune, text: context.l10n.profileBadgeAudio, color: color),
+      if (volume)
+        PillChip(
+            icon: Icons.volume_up,
+            text: context.l10n.profileBadgeVolume,
+            color: color),
     ],
   );
 }
@@ -422,31 +430,41 @@ Widget profileCaptureChips(
     children: [
       PillChip(
         icon: Icons.check,
-        text: 'Layout + names',
+        text: context.l10n.profileChipLayoutNames,
         color: scheme.primary,
       ),
       audio
-          ? PillChip(icon: Icons.tune, text: 'Settings', color: on)
-          : PillChip(icon: Icons.tune, text: 'No settings', color: off),
+          ? PillChip(
+              icon: Icons.tune, text: context.l10n.profileChipSettings, color: on)
+          : PillChip(
+              icon: Icons.tune,
+              text: context.l10n.profileChipNoSettings,
+              color: off),
       volume
-          ? PillChip(icon: Icons.volume_up, text: 'Volume', color: on)
-          : PillChip(icon: Icons.volume_off, text: 'No volume', color: off),
+          ? PillChip(
+              icon: Icons.volume_up,
+              text: context.l10n.profileBadgeVolume,
+              color: on)
+          : PillChip(
+              icon: Icons.volume_off,
+              text: context.l10n.profileChipNoVolume,
+              color: off),
     ],
   );
 }
 
 /// Compact relative time ("just now", "3 days ago", "2 weeks ago") for the
-/// profile tile's "updated X ago" line. No date dependency — a small ladder.
-String timeAgo(DateTime t) {
+/// profile tile's "updated X ago" line. No date dependency — a small ladder;
+/// each unit is a localized ICU plural.
+String timeAgo(AppLocalizations l10n, DateTime t) {
   final d = DateTime.now().difference(t);
-  String p(int n, String unit) => '$n $unit${n == 1 ? '' : 's'} ago';
-  if (d.inMinutes < 1) return 'just now';
-  if (d.inMinutes < 60) return p(d.inMinutes, 'minute');
-  if (d.inHours < 24) return p(d.inHours, 'hour');
-  if (d.inDays < 7) return p(d.inDays, 'day');
-  if (d.inDays < 30) return p(d.inDays ~/ 7, 'week');
-  if (d.inDays < 365) return p(d.inDays ~/ 30, 'month');
-  return p(d.inDays ~/ 365, 'year');
+  if (d.inMinutes < 1) return l10n.profileTimeJustNow;
+  if (d.inMinutes < 60) return l10n.profileTimeMinutesAgo(d.inMinutes);
+  if (d.inHours < 24) return l10n.profileTimeHoursAgo(d.inHours);
+  if (d.inDays < 7) return l10n.profileTimeDaysAgo(d.inDays);
+  if (d.inDays < 30) return l10n.profileTimeWeeksAgo(d.inDays ~/ 7);
+  if (d.inDays < 365) return l10n.profileTimeMonthsAgo(d.inDays ~/ 30);
+  return l10n.profileTimeYearsAgo(d.inDays ~/ 365);
 }
 
 /// Icon + colour picker dialog. Returns the chosen `(iconId, color)`, or null if
@@ -462,7 +480,7 @@ Future<(String, int)?> showAppearanceDialog(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setLocal) => AlertDialog(
-        title: const Text('Appearance'),
+        title: Text(context.l10n.profileAppearance),
         content: SingleChildScrollView(
           child: _AppearancePicker(
             iconId: icon,
@@ -474,11 +492,11 @@ Future<(String, int)?> showAppearanceDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.actionCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, (icon, col)),
-            child: const Text('Done'),
+            child: Text(context.l10n.actionDone),
           ),
         ],
       ),

@@ -9,8 +9,11 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/l10n.dart';
+import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/busy_spinner.dart';
 import 'diagnostics_bundle.dart';
 
 const _devEmail = 'casperverswijveltdev@gmail.com';
@@ -66,24 +69,25 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     _Action which,
     Future<void> Function(String path) action,
   ) async {
+    final l10n = context.l10n;
     setState(() => _busy = which);
     try {
       final String path;
       try {
         final built = await _collect();
         if (built == null) {
-          _snack('No system to collect — scan first.');
+          _snack(l10n.diagNoSystemToCollect);
           return;
         }
         path = built;
       } catch (e) {
-        _snack('Could not build the diagnostics bundle: $e');
+        _snack(l10n.diagBuildFailed(localizedError(l10n, e)));
         return;
       }
       try {
         await action(path);
       } catch (e) {
-        _snack('Could not complete the action: $e');
+        _snack(l10n.diagActionFailed(localizedError(l10n, e)));
       }
     } finally {
       if (mounted) setState(() => _busy = null);
@@ -91,6 +95,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   }
 
   Future<void> _save(String path) async {
+    final l10n = context.l10n;
     // file_saver opens a native save dialog on every platform; filePath lets it
     // copy the temp zip to the chosen location without loading it into Dart.
     final saved = await FileSaver.instance.saveAs(
@@ -99,26 +104,18 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       fileExtension: 'zip',
       mimeType: MimeType.zip,
     );
-    if (saved != null) _snack('Saved to $saved');
+    if (saved != null) _snack(l10n.diagSavedTo(saved));
   }
 
   /// Spinner on the button whose action is running, else its normal icon.
-  Widget _busyIcon(_Action which, IconData icon) => _busy == which
-      ? const SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        )
-      : Icon(icon);
+  Widget _busyIcon(_Action which, IconData icon) =>
+      _busy == which ? const BusySpinner() : Icon(icon);
 
   Future<void> _email(String path) => FlutterEmailSender.send(
     Email(
       subject: 'Sonority diagnostics',
       recipients: const [_devEmail],
-      body:
-          'Describe what went wrong (what you tried, what you expected, '
-          'what happened):\n\n\n'
-          '——— the diagnostics bundle is attached below ———',
+      body: context.l10n.diagEmailBody,
       attachmentPaths: [path],
     ),
   );
@@ -151,12 +148,12 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     final hasSystem = system != null;
 
     return AppScaffold(
-      title: 'Diagnostics',
+      title: context.l10n.diagTitle,
       body: Column(
         children: [
           Expanded(
             child: system == null
-                ? const Center(child: Text('No system discovered yet.'))
+                ? Center(child: Text(context.l10n.diagNoSystem))
                 : SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                     child: SizedBox(
@@ -179,10 +176,8 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
           SwitchListTile(
             value: _includeLogs,
             onChanged: _isBusy ? null : (v) => setState(() => _includeLogs = v),
-            title: const Text('Include app logs'),
-            subtitle: const Text(
-              'SOAP faults, bond retries, discovery, errors (logs.txt)',
-            ),
+            title: Text(context.l10n.diagIncludeLogs),
+            subtitle: Text(context.l10n.diagIncludeLogsSubtitle),
             dense: true,
             shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
           ),
@@ -190,18 +185,15 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
             value: _includeNetwork,
             onChanged:
                 _isBusy ? null : (v) => setState(() => _includeNetwork = v),
-            title: const Text('Include phone network info'),
-            subtitle: const Text(
-              "This device's network interface addresses (network.txt)",
-            ),
+            title: Text(context.l10n.diagIncludeNetwork),
+            subtitle: Text(context.l10n.diagIncludeNetworkSubtitle),
             dense: true,
             shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             child: Text(
-              'Always included: topology (room names, IPs, MACs, models), raw '
-              'device descriptions, and your saved profiles/room names.',
+              context.l10n.diagAlwaysIncluded,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
@@ -226,10 +218,10 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                     label: Text(
                       _busy ==
                               (_emailSupported ? _Action.email : _Action.share)
-                          ? 'Collecting…'
+                          ? context.l10n.diagCollecting
                           : _emailSupported
-                              ? 'Email to developer'
-                              : 'Share diagnostics',
+                              ? context.l10n.diagEmailToDeveloper
+                              : context.l10n.diagShareDiagnostics,
                     ),
                   ),
                 ),

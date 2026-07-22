@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
@@ -73,14 +74,14 @@ class _State extends ConsumerState<ProfileDetailScreen> {
         !taken;
 
     return AppScaffold(
-      title: 'Profile',
+      title: context.l10n.profileTitle,
       // Save appears once the name, appearance (icon/colour), or a re-snapshot
       // differs from what's stored.
       floatingActionButton: changed
           ? FloatingActionButton.extended(
               onPressed: () => _save(profile, name),
               icon: const Icon(Icons.check),
-              label: const Text('Save'),
+              label: Text(context.l10n.actionSave),
             )
           : null,
       body: ListView(
@@ -103,18 +104,18 @@ class _State extends ConsumerState<ProfileDetailScreen> {
           FilledButton.tonalIcon(
             onPressed: system == null ? null : () => _resnapshot(profile),
             icon: const Icon(Icons.cameraswitch),
-            label: const Text('Re-capture from current setup'),
+            label: Text(context.l10n.profileResnapshotAction),
             style: FilledButton.styleFrom(
               textStyle: theme.textTheme.labelLarge
                   ?.copyWith(fontWeight: FontWeight.w400),
             ),
           ),
           Gap.l,
-          const SectionHeader('Included'),
+          SectionHeader(context.l10n.profileIncludedHeader),
           Text(
             entitiesChanged
-                ? 'Re-captured from your current setup — press Save to keep it.'
-                : 'Captured when the profile was created.',
+                ? context.l10n.profileRecapturedNote
+                : context.l10n.profileCapturedNote,
             style: theme.textTheme.bodySmall?.copyWith(
               color: entitiesChanged
                   ? theme.colorScheme.primary
@@ -162,7 +163,8 @@ class _State extends ConsumerState<ProfileDetailScreen> {
     // Stay on the page: clearing pending + the provider update make `changed`
     // false, so the Save FAB hides itself.
     setState(() => _pendingEntities = null);
-    messenger.showSnackBar(const SnackBar(content: Text('Profile saved')));
+    messenger.showSnackBar(
+        SnackBar(content: Text(context.l10n.profileSaved)));
   }
 }
 

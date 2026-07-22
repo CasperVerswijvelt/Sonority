@@ -44,7 +44,12 @@ duplicate the app because we only **read the live values at snapshot and write
 them back on apply** — there are **no EQ/volume editing sliders** in Sonority
 (that WOULD duplicate the app). Keep it that way: capture+restore only, never
 standalone editing. (`speaker_settings.dart`, two per-profile toggles — EQ, and
-volume separately since restoring volume is surprising.) The EQ bundle =
+volume separately since restoring volume is surprising, so it's opt-in.) **Volume
+capture is a wanted feature, not scope creep** — the motivating use case is a
+"night mode" profile: snapshot the whole HT with the volume turned down (and
+whatever EQ tweaks suit late-night listening), then re-apply the normal profile
+in one tap next day. That's a genuine capture+restore capability with no Sonos-app
+equivalent; keep it opt-in and capture-only (never a volume slider). The EQ bundle =
 bass/treble/loudness + every `GetEQ`/`SetEQ` token (the shared `eqTypes` list;
 all Beam-confirmed): NightMode, DialogLevel, SubGain/SubEnable/SubPolarity/
 SubCrossover, SurroundLevel/SurroundEnable/SurroundMode/MusicSurroundLevel,
@@ -114,8 +119,11 @@ lib/
                        flat list, `parentId` nests phase sub-steps under entities)
                      identify_service (chime)
                      speaker_settings (RenderingControl EQ/volume read+apply for profiles)
+                     key_value_store (KeyValueStore port + in-memory default — durable
+                       zone/pair name snapshots; keeps the engine Flutter-free)
                      sonos_repository (orchestrates; bondAndVerify write+retry;
-                       removeHtSatellites; freeSpeaker; setRoomName; + shared_preferences ⇒ Flutter dep)
+                       removeHtSatellites; freeSpeaker; setRoomName; persists name
+                       snapshots via an injected KeyValueStore — no direct Flutter dep)
   state/           sonos_controller.dart — AsyncNotifier<SonosSystem?>; applyHomeTheaterLayout,
                      applyProfile, _applyHtTarget (diff-based), renameRoom; applyProgressProvider
   features/        discovery / home_theater / front_surrounds (full HT setup) /
@@ -123,9 +131,34 @@ lib/
   app.dart, main.dart — go_router StatefulShellRoute (System|Profiles tabs), ProviderScope
 tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, zone_probe, lr_audiotest, eq_probe, capture_shots, gen_assets.sh (icon/wordmark/splash pipeline), gen_site (docs/ landing page)
 ```
-Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
-`shared_preferences` → Flutter). The pure recipes live in `front_layout.dart` /
-`zone_layout.dart` for exactly this reason.
+Note: the engine is fully Flutter-free — `sonos_repository.dart` persists its
+zone/pair name snapshots through an injected `KeyValueStore` port
+(`key_value_store.dart`; the app supplies a `shared_preferences`-backed adapter in
+`state/shared_preferences_store.dart`, tests/CLI get an in-memory default), so no
+`lib/data/sonos/` file imports Flutter. CLI tools still build on the pure recipes
+(`front_layout.dart` / `zone_layout.dart`) rather than the orchestrator.
+
+### Localization (i18n)
+All user-facing strings go through Flutter `gen-l10n`. Source of truth:
+`lib/l10n/app_en.arb` (config `l10n.yaml`, generated `lib/l10n/app_localizations*.dart`,
+`generate: true`). **English is the only bundled locale**; add a language by
+dropping in `app_<lang>.arb` + one `supportedLocales` entry — no code changes.
+Adding a new string = add an ARB key (with `@key` placeholder/plural metadata if
+interpolated) then use it.
+- Widgets: `context.l10n.<key>` (extension in `core/l10n.dart`).
+- Context-less code (state/model helpers, e.g. progress step labels): `appL10n()`
+  (resolves the system locale synchronously).
+- **The engine (`lib/data/sonos/`) must stay Flutter-free**, so it never holds a
+  *translated* string. User-facing engine/state failures throw a coded
+  **`SonorityError(SonorityErrorCode, [arg])`** (identity, not prose). Two
+  renderers: `friendlyError()` (engine, English — for CLI tools + the diagnostics
+  bundle, and the fallback) and `localizedError(AppLocalizations, e)`
+  (`lib/state/localized_error.dart` — the UI wording chokepoint; also maps
+  Timeout/SOAP-fault/`OperationCancelled`/`SpeakerUnreachable`, falls back to
+  `friendlyError`). The raw op log + diagnostics bundle stay English by design.
+- Model-layer English getters (`kindLabel`, `groupKindLabel`, `groupChannelShort`)
+  stay English (CLI/pure); the UI maps the enum to `entityKind*` keys at the call
+  site (`_kindLabel` in the controller, `groupKindL10n` in `entity_cards.dart`).
 
 ## Sonos local API — the knowledge that matters
 
@@ -317,7 +350,11 @@ Note: CLI tools must NOT import `sonos_repository.dart` (it pulls in
 - **Amp as fronts**: a single Sonos Amp drives two passive front speakers, so it
   occupies BOTH front channels in one entry — `AMP:LF,RF` — instead of two
   separate Sonos speakers. Bar still becomes `CC`. (`buildAmpFrontsMap`;
-  detected via `SonosDevice.isAmp`. Confirmed working on hardware.)
+  detected via `SonosDevice.isAmp`.) **Audio is per-soundbar and NOT
+  API-discoverable** — confirmed working on a **Playbase + Connect:Amp**, but
+  **silent on an Arc Ultra + Amp (S16)** despite a clean, correct bond (the Atmos
+  bar appears not to route fronts to a satellite). Track confirmed/failing combos
+  in `docs/COMPATIBILITY.md`; a clean bond ≠ audio.
 - Adding fronts to a setup that already has rears yields 4 satellites — that's the
   natural max; Sonos has no true 7.1 (6 boxes).
 - **Stereo pair** map: `UUID_LEFT:LF,LF;UUID_RIGHT:RF,RF`. Left stays visible; right
@@ -401,10 +438,13 @@ Run on the same Wi-Fi as the Sonos system:
   `docs/MARKETING-ASSETS.md`); `--no-capture` re-frames existing shots, `--no-build`
   reuses `build/web`.
 - `tool/gen_site.dart` — no hardware: generates the GitHub Pages landing page
-  `docs/index.html` from `tool/site_template.html`, reusing the tagline from
-  `pubspec.yaml` + the four `SHOTS` captions from `design/store.html` (no
-  copy-pasted text; screenshots/badges/logo reused in place from `docs/`). Re-run
-  and commit after copy changes.
+  `docs/index.html` from `tool/site_template.html`, reusing the tagline + version
+  from `pubspec.yaml` + the four `SHOTS` captions from `design/store.html` (no
+  copy-pasted text; screenshots/badges/logo reused in place from `docs/`, relative
+  paths). The `.github/workflows/pages.yml` workflow runs it and deploys on every
+  `v*` tag (checkout with `lfs: true` so the LFS screenshots resolve), so
+  `docs/index.html` is **not committed** (gitignored) — run locally only to
+  preview. One-time: set repo Settings → Pages → Source = "GitHub Actions".
 - `tool/gen_assets.sh` — regenerates ALL app-icon / wordmark / splash / Icon-Composer
   layer assets from the **single source `design/export.html`** (one `?mode=` each,
   rendered headless), then runs `flutter_launcher_icons` + `flutter_native_splash`
@@ -427,20 +467,19 @@ Run on the same Wi-Fi as the Sonos system:
 ## Platform notes
 - iOS: `Info.plist` has `NSLocalNetworkUsageDescription` + `NSBonjourServices`
   (mandatory on iOS 14+ or all LAN traffic is silently blocked).
-- **iOS device multicast is blocked (cost a real TestFlight bug):** physical
-  iPhones silently drop multicast sends (SSDP M-SEARCH) unless the app carries
-  the *restricted* `com.apple.developer.networking.multicast` entitlement —
-  the iOS target has no entitlements file. Simulator doesn't enforce it (sim
-  worked, device didn't); the local-network permission prompt covers unicast
-  only. Fix: `SsdpDiscovery.discover()` falls back to a unicast TCP :1400
-  sweep of each interface's /24 (assumed /24 — `dart:io` exposes no netmask;
-  ~600ms, one hit suffices since topology recovers the rest). Also helps
-  multicast-filtering mesh/guest networks. **Future improvement:** request the
-  multicast entitlement from Apple (developer.apple.com → "Multicast Networking
-  Entitlement Request", days–weeks), enable the capability on the App ID, add
-  `ios/Runner/Runner.entitlements` + `CODE_SIGN_ENTITLEMENTS` in the pbxproj,
-  regenerate match profiles (`docs/SIGNING.md`) — restores native SSDP on
-  device; keep the sweep as fallback regardless.
+- **iOS device multicast (cost a real TestFlight bug):** physical iPhones
+  silently drop multicast sends (SSDP M-SEARCH) unless the app carries the
+  *restricted* `com.apple.developer.networking.multicast` entitlement.
+  Simulator doesn't enforce it (sim worked, device didn't); the local-network
+  permission prompt covers unicast only. **Now granted:** Apple approved the
+  Multicast Networking Entitlement, so `ios/Runner/Runner.entitlements` carries
+  `com.apple.developer.networking.multicast` (`CODE_SIGN_ENTITLEMENTS` already
+  wired for the app group). Enable the capability on the App ID + regenerate
+  match profiles when cutting the first release that ships it (`docs/SIGNING.md`).
+  Belt-and-suspenders fallback stays regardless: `SsdpDiscovery.discover()`
+  falls back to a unicast TCP :1400 sweep of each interface's /24 (assumed /24 —
+  `dart:io` exposes no netmask; ~600ms, one hit suffices since topology recovers
+  the rest), which also helps multicast-filtering mesh/guest networks.
 - macOS: entitlements include `network.client` + `network.server`; the window is
   **resizable** (`MainFlutterWindow.swift`: default ~1100×900, min ~380×640,
   clamped to the screen's visible frame — App Review G4). The UI is **responsive**

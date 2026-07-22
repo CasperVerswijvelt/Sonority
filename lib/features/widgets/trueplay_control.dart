@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/room_calibration.dart';
@@ -74,20 +75,23 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // tuned, instead of getting stuck looking "partially on / 3/5".
     final isOn = enabledCount > 0;
 
+    final l10n = context.l10n;
     final String subtitle;
     if (busy && known.isEmpty) {
-      subtitle = 'Checking…';
+      subtitle = l10n.widgetsTrueplayChecking;
     } else if (tunedCount == 0) {
-      subtitle = 'Not tuned — run Trueplay once in the Sonos app (iOS).';
+      subtitle = l10n.widgetsTrueplayNotTuned;
     } else if (withIp.length == 1) {
       // Single speaker — the x/y counter adds nothing.
-      subtitle = isOn ? 'Active' : 'Tuned · off';
+      subtitle = isOn ? l10n.widgetsTrueplayActive : l10n.widgetsTrueplayTunedOff;
     } else {
       // Multi-speaker (HT / pair): always show the active counter, plus tuned
       // coverage when some bonded speakers have no stored tuning at all.
-      final parts = <String>['$enabledCount/${withIp.length} active'];
+      final parts = <String>[
+        l10n.widgetsTrueplayActiveCount(enabledCount, withIp.length)
+      ];
       if (tunedCount < withIp.length) {
-        parts.add('$tunedCount/${withIp.length} tuned');
+        parts.add(l10n.widgetsTrueplayTunedCount(tunedCount, withIp.length));
       }
       subtitle = parts.join(' · ');
     }

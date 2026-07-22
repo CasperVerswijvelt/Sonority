@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import 'sheet_scaffold.dart';
 
@@ -80,7 +81,7 @@ Future<void> showVersionSheet(BuildContext context, PackageInfo info) {
     context,
     SheetScaffold(
       fill: true,
-      title: 'Changelog',
+      title: context.l10n.widgetsChangelog,
       trailing: _VersionPill(fullVersionLabel(info)),
       body: FutureBuilder<String>(
         future: rootBundle.loadString('CHANGELOG.md'),

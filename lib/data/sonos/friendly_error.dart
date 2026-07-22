@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'soap_client.dart';
+import 'sonority_error.dart';
 
 /// Turns a raw engine exception into a short, plain-English sentence for the
 /// failed-step text on the apply/bond progress screen. The full technical
@@ -15,6 +16,8 @@ import 'soap_client.dart';
 /// `OperationCancelled` ('Aborted', kept verbatim so an abort reads as neutral,
 /// not a failure) and `SpeakerUnreachable` — both pinned by tests.
 String friendlyError(Object e) {
+  // Our own coded engine/state errors carry their English in `message`.
+  if (e is SonorityError) return e.message;
   if (e is TimeoutException) {
     return 'The speaker didn’t respond in time. It may still be settling — '
         'try again in a moment.';

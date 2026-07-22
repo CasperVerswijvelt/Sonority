@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/sonos/apply_progress.dart';
+import 'busy_spinner.dart';
 
 /// The green used for succeeded steps (and the Done button once an op finishes).
 /// Shared so the button and the timeline nodes never drift apart.
@@ -53,9 +55,8 @@ class ApplyProgressView extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),
           child: Text(
             failed
-                ? 'Something went wrong — see the step below.'
-                : 'Bonding can take ~15–20s per step while Sonos applies and '
-                      're-reads the layout.',
+                ? context.l10n.widgetsSomethingWentWrong
+                : context.l10n.widgetsBondingTakesTime,
             style: theme.mutedText,
           ),
         ),
@@ -187,7 +188,7 @@ class _TimelineRow extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
-                        step.detail ?? 'Failed.',
+                        step.detail ?? context.l10n.widgetsStepFailed,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: scheme.error,
                         ),
@@ -198,15 +199,11 @@ class _TimelineRow extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 4),
                       child: Row(
                         children: [
-                          const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
+                          const BusySpinner(size: 14),
                           Gap.s,
                           Expanded(
                             child: Text(
-                              step.detail ?? 'Working…',
+                              step.detail ?? context.l10n.widgetsStepWorking,
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: scheme.onSurfaceVariant,
                               ),

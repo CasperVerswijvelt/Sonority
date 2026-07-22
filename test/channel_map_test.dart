@@ -41,18 +41,6 @@ void main() {
     });
   });
 
-  group('ChannelMap.hasFronts', () {
-    test('false when only the primary carries LF/RF', () {
-      final map = ChannelMap.parse('RINCON_BAR:LF,RF;RINCON_S1:LR;RINCON_S2:RR');
-      expect(map.hasFronts, isFalse);
-    });
-
-    test('true when a satellite carries a front channel', () {
-      final map = ChannelMap.parse('RINCON_BAR:LF,RF;RINCON_FL:LF;RINCON_FR:RF');
-      expect(map.hasFronts, isTrue);
-    });
-  });
-
   test('withoutUuid removes the matching entry', () {
     final map = ChannelMap.parse('RINCON_BAR:LF,RF;RINCON_FL:LF')
         .withoutUuid('RINCON_FL');

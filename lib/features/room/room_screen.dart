@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
+import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
@@ -25,15 +27,13 @@ class RoomScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final system = ref.watch(sonosControllerProvider).value;
-    final member = system?.allMembers
-        .where((m) => m.uuid == uuid)
-        .cast<ZoneGroupMember?>()
-        .firstOrNull;
+    final member = system?.memberByUuid(uuid);
 
     if (member == null) {
-      return const AppScaffold(
-        title: 'Room',
-        body: Padding(padding: EdgeInsets.all(24), child: MissingRoomView()),
+      return AppScaffold(
+        title: context.l10n.roomTitle,
+        body: const Padding(
+            padding: EdgeInsets.all(24), child: MissingRoomView()),
       );
     }
 
@@ -51,12 +51,12 @@ class RoomScreen extends ConsumerWidget {
 
     return AppScaffold(
       title: member.zoneName,
-      subtitle: 'Room',
+      subtitle: context.l10n.roomTitle,
       actions: [
         if (device != null)
           IconButton(
             icon: const Icon(Icons.drive_file_rename_outline),
-            tooltip: 'Rename room',
+            tooltip: context.l10n.roomRenameTooltip,
             onPressed: () => _rename(context, ref, device, member.zoneName),
           ),
       ],
@@ -75,15 +75,15 @@ class RoomScreen extends ConsumerWidget {
             // buttons.
             _ActionRow(
               icon: Icons.speaker_group_outlined,
-              title: 'Group with another speaker',
-              subtitle: 'Stereo pair, full-range zone, or custom L/R',
+              title: context.l10n.roomGroupWith,
+              subtitle: context.l10n.roomGroupWithSubtitle,
               onTap: () => _leaveTo(context, '/group'),
             ),
             if (soundbars.isNotEmpty)
               _ActionRow(
                 icon: Icons.surround_sound,
-                title: 'Add to a home theater',
-                subtitle: 'As a front, surround, or sub',
+                title: context.l10n.roomAddToHomeTheater,
+                subtitle: context.l10n.roomAddToHomeTheaterSubtitle,
                 onTap: () => _addToHomeTheater(context, soundbars),
               ),
             Gap.s,
@@ -95,9 +95,9 @@ class RoomScreen extends ConsumerWidget {
           // Content: the speaker itself — a standalone speaker has no channel,
           // so no chip (parallels the group's per-speaker cards).
           if (device != null) ...[
-            const Padding(
-              padding: EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 0),
-              child: SectionHeader('Speakers'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 0),
+              child: SectionHeader(context.l10n.sectionSpeakers),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
@@ -137,7 +137,7 @@ Future<void> _addToHomeTheater(
     target = await showDialog<String>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Add to which home theater?'),
+        title: Text(context.l10n.roomAddToWhichHomeTheater),
         children: [
           for (final s in soundbars)
             SimpleDialogOption(
@@ -189,12 +189,14 @@ Future<void> _rename(
   final name = await showRenameDialog(context, current);
   if (name == null || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
+  final l10n = context.l10n;
   try {
     await ref
         .read(sonosControllerProvider.notifier)
         .renameRoom(device: device, name: name);
-    messenger.showSnackBar(SnackBar(content: Text('Renamed to “$name”.')));
+    messenger.showSnackBar(SnackBar(content: Text(l10n.roomRenamedTo(name))));
   } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+    messenger.showSnackBar(
+        SnackBar(content: Text(l10n.roomRenameFailed(localizedError(l10n, e)))));
   }
 }

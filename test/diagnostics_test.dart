@@ -226,6 +226,89 @@ void main() {
     expect(isAppOwnedPrefKey('anything_else'), isFalse);
   });
 
+  group('settingsReadPlan role-gating', () {
+    // An HT: Arc Ultra coordinator with an Amp bonded as fronts, plus a
+    // standalone plain speaker in its own group.
+    final htSystem = SonosSystem(
+      groups: const [
+        ZoneGroup(coordinatorUuid: 'BAR', members: [
+          ZoneGroupMember(
+            uuid: 'BAR',
+            zoneName: 'Cinema',
+            location: 'http://192.168.1.20:1400/xml/device_description.xml',
+            htSatChanMapSet: 'BAR:CC;AMP:LF,RF',
+            satellites: [
+              SonosSatellite(
+                uuid: 'AMP',
+                zoneName: 'Cinema',
+                channels: [SonosChannel.leftFront, SonosChannel.rightFront],
+              ),
+            ],
+          ),
+        ]),
+        ZoneGroup(coordinatorUuid: 'ONE', members: [
+          ZoneGroupMember(uuid: 'ONE', zoneName: 'Kitchen'),
+        ]),
+      ],
+      devicesByUuid: {
+        'BAR': const SonosDevice(
+            uuid: 'BAR', roomName: 'Cinema', modelName: 'Sonos Arc Ultra'),
+        'AMP': const SonosDevice(
+            uuid: 'AMP', roomName: 'Cinema', modelName: 'Sonos Amp'),
+        'ONE': const SonosDevice(
+            uuid: 'ONE', roomName: 'Kitchen', modelName: 'Sonos One'),
+      },
+    );
+
+    final plan = settingsReadPlan(htSystem);
+
+    test('soundbar / HT coordinator gets the extended EQ bundle', () {
+      expect(plan['BAR']!.audio, isTrue);
+      expect(plan['BAR']!.extendedEq, isTrue);
+    });
+
+    test('HT satellite skips audio reads (they 803)', () {
+      expect(plan['AMP']!.audio, isFalse);
+      expect(plan['AMP']!.extendedEq, isFalse);
+    });
+
+    test('plain standalone speaker reads audio but not extended EQ', () {
+      expect(plan['ONE']!.audio, isTrue);
+      expect(plan['ONE']!.extendedEq, isFalse);
+    });
+
+    test('zone coordinator with a bonded Sub gets the extended EQ bundle', () {
+      // A zone (ChannelMapSet, no soundbar) with a Sub bonded as SW — the sub
+      // level/crossover ride the coordinator's GetEQ, so it must read extended.
+      final zoneWithSub = SonosSystem(
+        groups: const [
+          ZoneGroup(coordinatorUuid: 'Z1', members: [
+            ZoneGroupMember(
+              uuid: 'Z1',
+              zoneName: 'Loft',
+              location: 'http://192.168.1.30:1400/xml/device_description.xml',
+              channelMapSet: 'Z1:LF,RF;Z2:LF,RF;ZSUB:SW',
+            ),
+            ZoneGroupMember(uuid: 'Z2', zoneName: 'Loft', invisible: true),
+            ZoneGroupMember(uuid: 'ZSUB', zoneName: 'Loft', invisible: true),
+          ]),
+        ],
+        devicesByUuid: {
+          'Z1': const SonosDevice(
+              uuid: 'Z1', roomName: 'Loft', modelName: 'Sonos Era 100'),
+          'Z2': const SonosDevice(
+              uuid: 'Z2', roomName: 'Loft', modelName: 'Sonos Era 100'),
+          'ZSUB': const SonosDevice(
+              uuid: 'ZSUB', roomName: 'Loft', modelName: 'Sonos Sub'),
+        },
+      );
+      final p = settingsReadPlan(zoneWithSub);
+      expect(p['Z1']!.extendedEq, isTrue, reason: 'coordinator carries sub EQ');
+      // A plain zone member without the sub map stays bass/treble/loudness only.
+      expect(p['Z2']!.extendedEq, isFalse);
+    });
+  });
+
   test('DiagnosticsLog is a capped ring buffer, oldest dropped first', () {
     DiagnosticsLog.clear();
     for (var i = 0; i < 600; i++) {

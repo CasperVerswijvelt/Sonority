@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import 'pill_chip.dart';
 
@@ -57,7 +58,7 @@ class SpeakerDiagram extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              soundbarLabel ?? 'TV / Soundbar',
+              soundbarLabel ?? context.l10n.widgetsTvSoundbar,
               style: Theme.of(
                 context,
               ).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),

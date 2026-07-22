@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/channel_map.dart';
@@ -29,7 +30,9 @@ class _EntitySheet extends StatelessWidget {
     // Prefer the live device type, fall back to the captured room name, then a
     // generic label (same fallback the entity cards use).
     String typeOf(String uuid) =>
-        system?.device(uuid)?.typeLabel ?? e.names[uuid] ?? 'Speaker';
+        system?.device(uuid)?.typeLabel ??
+        e.names[uuid] ??
+        context.l10n.entityKindSpeaker;
 
     return SheetScaffold(
       title: e.label,
@@ -69,23 +72,7 @@ List<Widget> _layout(
     case EntityKind.stereoPair:
     case EntityKind.zone:
     case EntityKind.custom:
-      final m = e.toMember();
-      return [
-        for (final entry in m.groupChannels.entries) ...[
-          MemberChannelCard(
-            icon: Icons.speaker,
-            type: typeOf(entry.key),
-            channel: groupChannelShort(entry.value),
-          ),
-          Gap.s,
-        ],
-        if (m.subUuid != null)
-          MemberChannelCard(
-            icon: Icons.graphic_eq,
-            type: typeOf(m.subUuid!),
-            channel: 'Sub',
-          ),
-      ];
+      return groupMemberCards(e.toMember(), typeOf: typeOf);
   }
 }
 
@@ -112,7 +99,7 @@ Widget _savedSettings(
       Padding(
         padding: const EdgeInsets.fromLTRB(kPageGutter, 28, kPageGutter, 28),
         child: Text(
-          'No speaker settings saved in this profile.',
+          context.l10n.profileNoSettingsSaved,
           textAlign: TextAlign.center,
           style: muted,
         ),
@@ -124,7 +111,7 @@ Widget _savedSettings(
       if (i > 0) const Divider(height: 1),
       _SettingsBlock(
         title: typeOf(withSettings[i]),
-        role: _roleLabel(e, withSettings[i]),
+        role: _roleLabel(context.l10n, e, withSettings[i]),
         rows: e.settings[withSettings[i]]!.describe(),
       ),
     ],
@@ -132,7 +119,9 @@ Widget _savedSettings(
 }
 
 /// Short role of [uuid] within the entity, for the settings-card subtitle.
-String? _roleLabel(EntitySnapshot e, String uuid) {
+/// "Sub" is left untranslated — it's Sonos' product/channel token (like the
+/// L/R group-channel shorts).
+String? _roleLabel(AppLocalizations l10n, EntitySnapshot e, String uuid) {
   if (e.mapSet == null) return null;
   switch (e.kind) {
     case EntityKind.single:
@@ -145,7 +134,7 @@ String? _roleLabel(EntitySnapshot e, String uuid) {
       final ch = m.groupChannels[uuid];
       return ch == null ? null : groupChannelShort(ch);
     case EntityKind.homeTheater:
-      if (uuid == e.primaryUuid) return 'Soundbar';
+      if (uuid == e.primaryUuid) return l10n.profileRoleSoundbar;
       final m = e.toMember();
       final channels = m.channelAssignments.entries
           .where((a) => a.value == uuid)
@@ -154,9 +143,10 @@ String? _roleLabel(EntitySnapshot e, String uuid) {
       final parts = <String>[
         if (channels.contains(SonosChannel.leftFront) ||
             channels.contains(SonosChannel.rightFront))
-          'Front',
-        if (channels.contains(SonosChannel.leftRear)) 'Surround L',
-        if (channels.contains(SonosChannel.rightRear)) 'Surround R',
+          l10n.profileRoleFront,
+        if (channels.contains(SonosChannel.leftRear)) l10n.profileRoleSurroundL,
+        if (channels.contains(SonosChannel.rightRear))
+          l10n.profileRoleSurroundR,
         if (channels.contains(SonosChannel.sub)) 'Sub',
       ];
       return parts.isEmpty ? null : parts.join(' · ');

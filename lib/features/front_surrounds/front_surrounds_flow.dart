@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
@@ -153,10 +154,10 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     // A step's subtitle: the picked speaker types when it has a selection (so a
     // collapsed step summarizes itself), else "Optional".
     Widget stepSubtitle(List<String> uuids) => uuids.isEmpty
-        ? const Text('Optional')
+        ? Text(context.l10n.frontSurroundsOptional)
         : Text(
             uuids
-                .map((u) => system.device(u)?.typeLabel ?? 'Speaker')
+                .map((u) => system.device(u)?.typeLabel ?? context.l10n.widgetsSpeaker)
                 .join(' · '),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -170,7 +171,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Set up home theater'),
+            Text(context.l10n.frontSurroundsTitle),
             Text(
               '${member.zoneName} · ${soundbar.typeLabel}',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
@@ -194,7 +195,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                 _controls(context, system, member, soundbar),
             steps: [
               Step(
-                title: const Text('Front speakers'),
+                title: Text(context.l10n.frontSurroundsStepFronts),
                 subtitle: stepSubtitle(_fronts),
                 isActive: _step >= 0,
                 state: _fronts.isNotEmpty && _frontsValid
@@ -204,8 +205,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Pick two speakers (or a single Amp) for the front '
-                      'left & right, then set which plays which side.',
+                      context.l10n.frontSurroundsFrontsHint,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Gap.s,
@@ -229,7 +229,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                 ),
               ),
               Step(
-                title: const Text('Rear surrounds'),
+                title: Text(context.l10n.frontSurroundsStepSurrounds),
                 subtitle: stepSubtitle(_surrounds),
                 isActive: _step >= 1,
                 state: _surrounds.length == 2
@@ -239,8 +239,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Pick two speakers for the rear left & right surrounds, '
-                      'then set which plays which side.',
+                      context.l10n.frontSurroundsSurroundsHint,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Gap.s,
@@ -261,7 +260,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                 ),
               ),
               Step(
-                title: const Text('Subwoofer'),
+                title: Text(context.l10n.frontSurroundsStepSub),
                 subtitle: stepSubtitle(_subs),
                 isActive: _step >= 2,
                 state: _subs.isNotEmpty
@@ -275,7 +274,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                 ),
               ),
               Step(
-                title: const Text('Review & apply'),
+                title: Text(context.l10n.frontSurroundsStepReview),
                 isActive: _step >= 3,
                 content: _Review(
                   system: system,
@@ -404,7 +403,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           if (_step > 0)
             TextButton(
               onPressed: () => setState(() => _step--),
-              child: const Text('Back'),
+              child: Text(context.l10n.actionBack),
             ),
           Gap.s,
           Expanded(
@@ -412,7 +411,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
               onPressed: isLast
                   ? (canApply ? () => _apply(member, soundbar) : null)
                   : (canNext ? () => setState(() => _step++) : null),
-              child: Text(isLast ? 'Apply' : 'Continue'),
+              child: Text(
+                  isLast ? context.l10n.actionApply : context.l10n.actionContinue),
             ),
           ),
         ],
@@ -446,7 +446,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     final router = GoRouter.of(context);
     final outcome = await showBondingProgress(
       context,
-      title: 'Set up home theater',
+      title: context.l10n.stepSetUpHomeTheater,
       run: () => controller.applyHomeTheaterLayout(
         soundbar: member,
         soundbarDevice: soundbar,
@@ -462,17 +462,15 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   /// rooms again). Shows their type since a bonded speaker's name is absorbed.
   Future<bool> _confirmRemoval(SonosSystem system, Set<String> removed) async {
     final types = [
-      for (final u in removed) system.device(u)?.typeLabel ?? 'Speaker',
+      for (final u in removed)
+        system.device(u)?.typeLabel ?? context.l10n.widgetsSpeaker,
     ].join(', ');
     return confirmDialog(
       context,
       icon: Icons.link_off,
-      title:
-          'Unbond ${removed.length} speaker${removed.length == 1 ? '' : 's'}?',
-      message:
-          '$types will be removed from this home theater and become '
-          'standalone rooms again. The rest of your layout stays as it is.',
-      confirmLabel: 'Unbond',
+      title: context.l10n.frontSurroundsUnbondTitle(removed.length),
+      message: context.l10n.frontSurroundsUnbondMessage(types),
+      confirmLabel: context.l10n.frontSurroundsUnbond,
     );
   }
 }
@@ -501,10 +499,7 @@ class _ChooseSpeakers extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (candidates.isEmpty) {
-      return const Text(
-        'No free speakers available. They must be standalone (not already part '
-        'of a home theater or stereo pair).',
-      );
+      return Text(context.l10n.frontSurroundsNoFreeSpeakers);
     }
     final hasAmp = allowAmp && candidates.any((d) => d.isAmp);
     return Column(
@@ -512,9 +507,8 @@ class _ChooseSpeakers extends StatelessWidget {
       children: [
         Text(
           hasAmp
-              ? 'Pick two speakers (ideally identical), or a single Sonos Amp '
-                    'that drives both front speakers.'
-              : 'Pick exactly two — ideally an identical pair.',
+              ? context.l10n.frontSurroundsPickWithAmp
+              : context.l10n.frontSurroundsPickExactlyTwo,
           style: Theme.of(context).textTheme.bodySmall,
         ),
         Gap.s,
@@ -539,7 +533,7 @@ class _ChooseSpeakers extends StatelessWidget {
       enabled: !disabled,
       onToggle: () => onToggle(d),
       subtitle: isAmp
-          ? '${d.typeLabel} — drives both fronts (L + R)'
+          ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel)
           : d.typeLabel,
       identify: identifyControls(d),
       showControl: showLR,
@@ -564,16 +558,13 @@ class _ChooseSub extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (subs.isEmpty) {
-      return const Text(
-        'No free subwoofer found. A Sonos Sub must be standalone (not already '
-        'bonded to another home theater).',
-      );
+      return Text(context.l10n.frontSurroundsNoFreeSub);
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Pick one or two subwoofers to add as low-frequency channels.',
+          context.l10n.frontSurroundsSubHint,
           style: Theme.of(context).textTheme.bodySmall,
         ),
         Gap.s,
@@ -609,9 +600,8 @@ class _AmpWiringNote extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'The ${amp?.modelName ?? 'Amp'} drives both front channels. Wire your '
-          'left & right speakers to its L/R speaker outputs — there\'s nothing '
-          'to assign here.',
+          context.l10n.frontSurroundsAmpWiring(
+              amp?.modelName ?? context.l10n.widgetsAmp),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         if (amp != null) ...[Gap.s, identifyControls(amp)],
@@ -637,7 +627,7 @@ class _Review extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (additions.isEmpty && subCount == 0) {
-      return const Text('Nothing selected yet — choose speakers above.');
+      return Text(context.l10n.frontSurroundsNothingSelected);
     }
     // The diagram shows the DESIRED end state (the current selection), which is
     // pre-seeded from the live layout — so a deselected role correctly shows
@@ -656,12 +646,7 @@ class _Review extends StatelessWidget {
           subCount: subCount,
         ),
         Gap.m,
-        const InfoNote(
-          'The chosen speakers become hidden satellites of the soundbar (which '
-          'stays the center channel). Bonding runs in steps and can take a '
-          'little while; Trueplay may need re-tuning afterward. You can change '
-          'this anytime.',
-        ),
+        InfoNote(context.l10n.frontSurroundsReviewNote),
       ],
     );
   }

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
+import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
@@ -11,6 +13,7 @@ import '../widgets/busy_view.dart';
 import '../widgets/card_grid.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/destructive_button.dart';
+import '../widgets/entity_cards.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/info_note.dart';
 import '../widgets/member_channel_card.dart';
@@ -33,33 +36,31 @@ class GroupDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(sonosControllerProvider);
     final system = state.value;
-    final group = system?.allMembers
-        .where((m) => m.uuid == uuid)
-        .cast<ZoneGroupMember?>()
-        .firstOrNull;
+    final group = system?.memberByUuid(uuid);
 
     if (state.isLoading) {
-      return const AppScaffold(
-        title: 'Speaker group',
-        body: BusyView(title: 'Updating…'),
+      return AppScaffold(
+        title: context.l10n.groupSheetTitle,
+        body: BusyView(title: context.l10n.groupUpdating),
       );
     }
     if (system == null || group == null || !group.isGroup) {
-      return const AppScaffold(
-        title: 'Speaker group',
-        body: Padding(padding: EdgeInsets.all(24), child: MissingRoomView()),
+      return AppScaffold(
+        title: context.l10n.groupSheetTitle,
+        body: const Padding(
+            padding: EdgeInsets.all(24), child: MissingRoomView()),
       );
     }
 
     final device = system.device(group.uuid);
     return AppScaffold(
       title: group.zoneName,
-      subtitle: groupKindLabel(group.groupKind),
+      subtitle: groupKindL10n(context.l10n, group.groupKind),
       actions: [
         if (device != null)
           IconButton(
             icon: const Icon(Icons.drive_file_rename_outline),
-            tooltip: 'Rename group',
+            tooltip: context.l10n.groupRenameTooltip,
             onPressed: () => _rename(context, ref, device, group.zoneName),
           ),
       ],
@@ -69,16 +70,16 @@ class GroupDetailScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(kPageGutter, 20, kPageGutter, 20),
         footer: DestructiveButton(
           icon: Icons.link_off,
-          label: 'Separate',
+          label: context.l10n.groupSeparate,
           onPressed: () => _confirmSeparate(context, ref, group),
         ),
         children: [
-          const SectionHeader('Speakers'),
+          SectionHeader(context.l10n.sectionSpeakers),
           CardGrid([
             for (final e in group.groupChannels.entries)
               MemberChannelCard(
                 icon: Icons.speaker,
-                type: system.device(e.key)?.typeLabel ?? 'Speaker',
+                type: system.device(e.key)?.typeLabel ?? context.l10n.widgetsSpeaker,
                 channel: groupChannelShort(e.value),
                 // Bonded member → LED only (chiming one plays the whole group).
                 trailing: speakerIdentifyButton(system.device(e.key)),
@@ -86,18 +87,14 @@ class GroupDetailScreen extends ConsumerWidget {
             if (group.subUuid != null)
               MemberChannelCard(
                 icon: Icons.graphic_eq,
-                type: system.device(group.subUuid!)?.typeLabel ?? 'Sub',
-                channel: 'Sub',
+                type: system.device(group.subUuid!)?.typeLabel ?? context.l10n.widgetsSub,
+                channel: context.l10n.widgetsSub,
                 trailing: speakerIdentifyButton(system.device(group.subUuid!)),
               ),
           ]),
           if (group.isZone && group.groupChannels.length >= kZoneWarnSize) ...[
             Gap.m,
-            const InfoNote(
-              'Large zones can drop out for the first minute after audio '
-              'starts, and mixed or older speakers may keep dropping. Play '
-              'something to confirm it stays stable for you.',
-            ),
+            InfoNote(context.l10n.groupZoneCautionDetail),
           ],
         ],
       ),
@@ -114,13 +111,15 @@ Future<void> _rename(
   final name = await showRenameDialog(context, current);
   if (name == null || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
+  final l10n = context.l10n;
   try {
     await ref
         .read(sonosControllerProvider.notifier)
         .renameRoom(device: device, name: name);
-    messenger.showSnackBar(SnackBar(content: Text('Renamed to “$name”.')));
+    messenger.showSnackBar(SnackBar(content: Text(l10n.groupRenamedTo(name))));
   } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+    messenger.showSnackBar(SnackBar(
+        content: Text(l10n.groupRenameFailed(localizedError(l10n, e)))));
   }
 }
 
@@ -132,18 +131,16 @@ Future<void> _confirmSeparate(
   final ok = await confirmDialog(
     context,
     icon: Icons.link_off,
-    title: 'Separate group?',
-    message:
-        'The speakers become standalone rooms again. Their original room '
-        'names will be restored.',
-    confirmLabel: 'Separate',
+    title: context.l10n.groupSeparateConfirmTitle,
+    message: context.l10n.groupSeparateConfirmMessage,
+    confirmLabel: context.l10n.groupSeparate,
   );
   if (!ok || !context.mounted) return;
   final controller = ref.read(sonosControllerProvider.notifier);
   final router = GoRouter.of(context);
   final outcome = await showBondingProgress(
     context,
-    title: 'Separate group',
+    title: context.l10n.groupSeparateProgressTitle,
     run: () => controller.separateGroup(group),
   );
   // The group is gone now — return to the overview.

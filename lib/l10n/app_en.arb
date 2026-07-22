@@ -1,0 +1,791 @@
+{
+  "@@locale": "en",
+  "tabSystem": "System",
+  "tabProfiles": "Profiles",
+  "tabDiagnostics": "Diagnostics",
+  "actionCancel": "Cancel",
+  "actionDone": "Done",
+  "actionDelete": "Delete",
+  "actionRemove": "Remove",
+  "actionRename": "Rename",
+  "actionApply": "Apply",
+  "actionRetry": "Retry",
+  "actionAdd": "Add",
+  "actionSave": "Save",
+  "actionClose": "Close",
+  "actionBack": "Back",
+  "actionNext": "Next",
+  "actionContinue": "Continue",
+  "actionOk": "OK",
+  "actionAbort": "Abort",
+  "actionAborting": "Aborting…",
+  "actionMore": "More",
+  "bondingCopyLogs": "Copy logs",
+  "bondingShowSteps": "Show steps",
+  "bondingShowRawLog": "Show raw log",
+  "bondingLogsCopied": "Logs copied to clipboard.",
+  "bondingNoLogOutput": "No log output yet.",
+  "errSystemNotFound": "Couldn’t find your Sonos system on the network.",
+  "errNoDevicesFound": "No Sonos devices found. Check Wi-Fi and local network access.",
+  "errDescriptionsUnreadable": "Found Sonos players but could not read their descriptions.",
+  "errTopologyUnreadable": "Could not read the Sonos topology from any player.",
+  "errEntityNotOnNetwork": "“{name}” isn’t on the network.",
+  "@errEntityNotOnNetwork": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errCoordinatorNotOnNetwork": "“{name}” coordinator isn’t on the network.",
+  "@errCoordinatorNotOnNetwork": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errSpeakerInEntityNotOnNetwork": "A speaker in “{name}” isn’t on the network.",
+  "@errSpeakerInEntityNotOnNetwork": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errSubNotOnNetwork": "The Sub for “{name}” isn’t on the network.",
+  "@errSubNotOnNetwork": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errSoundbarNotOnNetwork": "Soundbar for “{name}” isn’t on the network.",
+  "@errSoundbarNotOnNetwork": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errEntityMissingSpeakers": "“{name}” is missing speakers.",
+  "@errEntityMissingSpeakers": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errMalformedGroup": "Stored group is malformed.",
+  "errMalformedHomeTheater": "Stored home theater is malformed.",
+  "errDidNotForm": "Sonos did not form “{name}”.",
+  "@errDidNotForm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "errDidNotCreateGroup": "Sonos did not create the group — a speaker may be incompatible.",
+  "errDidNotSeparate": "Sonos did not separate the group — try again.",
+  "errDidNotRemove": "Sonos did not remove the {label} — try again.",
+  "@errDidNotRemove": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "errGroupNeedsTwo": "A group needs at least 2 speakers.",
+  "errSpeakerIpUnknown": "Speaker IP unknown; rescan and retry.",
+  "errSoundbarIpUnknown": "Soundbar IP unknown; rescan and retry.",
+  "errCoordinatorIpUnknown": "Coordinator IP unknown; rescan and retry.",
+  "errBondingIncomplete": "Bonding did not complete — these channels never joined: {channels}. Try again, or finish in the Sonos app.",
+  "@errBondingIncomplete": {
+    "placeholders": {
+      "channels": {
+        "type": "String"
+      }
+    }
+  },
+  "errNoLanIpForChime": "No LAN IP found to serve the chime from.",
+  "errCannotBlinkLight": "Could not reach the speaker to blink its light.",
+  "errTimeout": "The speaker didn’t respond in time. It may still be settling — try again in a moment.",
+  "errSonosBusy": "Sonos is busy rearranging speakers right now. Wait a moment and try again.",
+  "errUnsupportedCombo": "Sonos wouldn’t bond these speakers this way (unsupported combination).",
+  "errInvalidRequest": "Sonos rejected the request as invalid.",
+  "errSonosCode": "Sonos reported an error (code {code}). See the raw log for details.",
+  "@errSonosCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "errSonosGeneric": "Sonos reported an error. See the raw log for details.",
+  "errAborted": "Aborted",
+  "errChimeUnreachable": "The speaker could not reach your phone to play the sound. Make sure your phone and speakers are on the same Wi‑Fi network. (Android emulators can’t reach speakers on your LAN — use a real device.)",
+  "entityKindHomeTheater": "Home theater",
+  "entityKindStereoPair": "Stereo pair",
+  "entityKindZone": "Zone",
+  "entityKindCustom": "Custom group",
+  "entityKindSpeaker": "Speaker",
+  "entityKindGroup": "Group",
+  "stepSetUpHomeTheater": "Set up home theater",
+  "stepScanNetwork": "Scan network for Sonos system",
+  "stepBondSpeakers": "Bond speakers",
+  "stepBondNSpeakers": "{count, plural, one{Bond {count} speaker} other{Bond {count} speakers}}",
+  "@stepBondNSpeakers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "stepBondNSpeakersWithSub": "{count, plural, one{Bond {count} speaker + sub} other{Bond {count} speakers + sub}}",
+  "@stepBondNSpeakersWithSub": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "stepRemoveUnused": "{count, plural, one{Remove {count} speaker no longer used} other{Remove {count} speakers no longer used}}",
+  "@stepRemoveUnused": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "stepUnbondN": "{count, plural, one{Unbond {count} speaker} other{Unbond {count} speakers}}",
+  "@stepUnbondN": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "stepCreateGroupN": "{count, plural, one{Create group ({count} speaker)} other{Create group ({count} speakers)}}",
+  "@stepCreateGroupN": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "stepRemoveLabel": "Remove {label}",
+  "@stepRemoveLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "stepSpeakers": "speakers",
+  "stepRestoreRoomName": "Restore room name",
+  "stepRestoreSettings": "Restore settings",
+  "stepNameGroup": "Name the group",
+  "stepSeparateGroup": "Separate group",
+  "stepSeparateRestore": "Separate + restore room names",
+  "stepDetach": "Detach from playback group",
+  "stepFreeFromBond": "Free from its current bond",
+  "stepFreeConflicting": "Free conflicting speakers",
+  "stepFreeing": "Freeing {name}",
+  "@stepFreeing": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "stepWaitForSettle": "Wait for Sonos to settle",
+  "stepWaitingSettle": "waiting for Sonos to settle",
+  "stepWaitForConfirm": "Wait for Sonos to confirm",
+  "stepWaitingConfirm": "waiting for Sonos to confirm",
+  "stepApplyingSettle": "Applying — Sonos can take up to a minute to settle.",
+  "stepNameUnchanged": "name unchanged — nothing to do",
+  "stepAlreadyFormed": "already formed — nothing to do",
+  "stepLayoutUnchanged": "layout unchanged — nothing to do",
+  "stepSkippedMissing": "skipped — {names} not on the network",
+  "@stepSkippedMissing": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "stepSkippingSettingsOffline": "Skipping settings — not on the network",
+  "stepRestoring": "Restoring {what} — {type}",
+  "@stepRestoring": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      },
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "stepAudioSettings": "audio settings",
+  "stepVolume": "volume",
+  "stepSettingsFailed": "{count, plural, one{{count} setting for {type} could not be applied} other{{count} settings for {type} could not be applied}}",
+  "@stepSettingsFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "widgetsSomethingWentWrong": "Something went wrong — see the step below.",
+  "widgetsBondingTakesTime": "Bonding can take ~15–20s per step while Sonos applies and re-reads the layout.",
+  "widgetsStepFailed": "Failed.",
+  "widgetsStepWorking": "Working…",
+  "widgetsUnreachableSpeakerHint": "Couldn’t read this speaker’s details — check it’s powered on and on the same network.",
+  "widgetsSoundbar": "Soundbar",
+  "widgetsFronts": "Fronts",
+  "widgetsSurrounds": "Surrounds",
+  "widgetsSubwoofer": "Subwoofer",
+  "widgetsSub": "Sub",
+  "widgetsStandaloneSpeaker": "Standalone speaker",
+  "widgetsAmp": "Amp",
+  "widgetsNoExtraSpeakers": "No extra speakers",
+  "widgetsZoneCanDropOut": "Can drop out",
+  "widgetsNSpeakers": "{count, plural, one{{count} speaker} other{{count} speakers}}",
+  "@widgetsNSpeakers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetsRoomNoLongerAvailable": "This room is no longer available. Rescan to refresh.",
+  "widgetsBackToScan": "Back to scan",
+  "widgetsSpeaker": "Speaker",
+  "widgetsBlinkLightTooltip": "Blink the light",
+  "widgetsChimeTooltip": "Play a test chime",
+  "widgetsBlinkingLight": "💡 Blinking the light on {room}…",
+  "@widgetsBlinkingLight": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "widgetsPlayingChime": "🔊 Playing a chime on {room}…",
+  "@widgetsPlayingChime": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "widgetsNoAddressFor": "No address for {room}.",
+  "@widgetsNoAddressFor": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "widgetsCouldntIdentify": "Couldn’t identify {room}: {error}",
+  "@widgetsCouldntIdentify": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "widgetsRefresh": "Refresh",
+  "widgetsRenameRoomTitle": "Rename room",
+  "widgetsRoomNameLabel": "Room name",
+  "widgetsTvSoundbar": "TV / Soundbar",
+  "widgetsTrueplayChecking": "Checking…",
+  "widgetsTrueplayNotTuned": "Not tuned — run Trueplay once in the Sonos app (iOS).",
+  "widgetsTrueplayActive": "Active",
+  "widgetsTrueplayTunedOff": "Tuned · off",
+  "widgetsTrueplayActiveCount": "{enabled}/{total} active",
+  "@widgetsTrueplayActiveCount": {
+    "placeholders": {
+      "enabled": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetsTrueplayTunedCount": "{tuned}/{total} tuned",
+  "@widgetsTrueplayTunedCount": {
+    "placeholders": {
+      "tuned": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetsChangelog": "Changelog",
+  "profileLoadError": "Couldn’t load profiles: {error}",
+  "@profileLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "profileEdit": "Edit",
+  "profileScanFirst": "Scan your system first (System tab).",
+  "profileNew": "New profile",
+  "profileDeleteConfirm": "Delete “{name}”?",
+  "@profileDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileDeleteMessage": "This removes the saved profile. Your speakers are not changed.",
+  "profileApplying": "Applying “{name}”",
+  "@profileApplying": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileEmptyTitle": "No profiles yet",
+  "profileEmptyBody": "A profile snapshots your current home theaters, stereo pairs and rooms so you can rebuild them in one tap — handy after moving speakers away. Tap “New profile” to capture your setup now.",
+  "profileApplyConfirmTitle": "Apply “{name}”?",
+  "@profileApplyConfirmTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileApplyConfirmBody": "This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle). Trueplay may need re-tuning afterward.",
+  "profileIssueMissing": "Missing: {speakers} — will be skipped",
+  "@profileIssueMissing": {
+    "placeholders": {
+      "speakers": {
+        "type": "String"
+      }
+    }
+  },
+  "profileIssueFree": "Will free: {speakers}",
+  "@profileIssueFree": {
+    "placeholders": {
+      "speakers": {
+        "type": "String"
+      }
+    }
+  },
+  "profileNothingApplicable": "Nothing can be applied — all entities are missing speakers.",
+  "profileApplySummary": "Will apply {applicable} of {total} entities; {skipped} skipped.",
+  "@profileApplySummary": {
+    "placeholders": {
+      "applicable": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "profileResnapshot": "Re-snapshot",
+  "profileScanFirstCreate": "Scan your system first (System tab), then create a profile from it.",
+  "profileReadingSettings": "Reading settings…",
+  "profileUseSnapshot": "Use snapshot",
+  "profileCreate": "Create profile",
+  "profileResnapshotNote": "Recapture your current setup, then review and save it on the profile screen.",
+  "profileApplyPrimer": "Applying a profile later rebuilds these speakers into this layout. Any speaker that’s part of a different setup at that time is removed from it first — which can dissolve another stereo pair or zone and free its other speakers.",
+  "profileIncludeHeader": "Include",
+  "profileIncludeHelper": "Pick which of your current home theaters, pairs and rooms to capture in this profile.",
+  "profileSpeakerSettingsHeader": "Speaker settings",
+  "profileSpeakerSettingsHelper": "Optionally snapshot each speaker’s current settings and restore them when this profile is applied.",
+  "profileSaveAudio": "Save audio settings",
+  "profileSaveAudioSubtitle": "EQ, night sound, speech enhancement, sub & surround levels, lip sync & more",
+  "profileSaveVolume": "Save volume",
+  "profileSaveVolumeSubtitle": "Applying the profile will change how loud each speaker plays",
+  "profileDefaultName": "My setup",
+  "profileTitle": "Profile",
+  "profileResnapshotTooltip": "Re-snapshot from current setup",
+  "profileIncludedHeader": "Included",
+  "profileRecapturedNote": "Recaptured from your current setup — press Save to keep it.",
+  "profileCapturedNote": "Captured when the profile was created.",
+  "profileResnapshotAction": "Re-capture from current setup",
+  "profileSaved": "Profile saved",
+  "profileNoSettingsSaved": "No speaker settings saved in this profile.",
+  "profileRoleSoundbar": "Soundbar",
+  "profileRoleFront": "Front",
+  "profileRoleSurroundL": "Surround L",
+  "profileRoleSurroundR": "Surround R",
+  "profileNameLabel": "Profile name",
+  "profileNameTaken": "A profile with this name exists",
+  "profileNoEntities": "No entities",
+  "profileBadgeAudio": "Audio settings",
+  "profileBadgeVolume": "Volume",
+  "profileUpdatedAgo": "Updated {time}",
+  "@profileUpdatedAgo": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "profileChipLayoutNames": "Layout + names",
+  "profileChipSettings": "Settings",
+  "profileChipNoSettings": "No settings",
+  "profileChipNoVolume": "No volume",
+  "profileTimeJustNow": "just now",
+  "profileTimeMinutesAgo": "{count, plural, one{1 minute ago} other{{count} minutes ago}}",
+  "@profileTimeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTimeHoursAgo": "{count, plural, one{1 hour ago} other{{count} hours ago}}",
+  "@profileTimeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTimeDaysAgo": "{count, plural, one{1 day ago} other{{count} days ago}}",
+  "@profileTimeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTimeWeeksAgo": "{count, plural, one{1 week ago} other{{count} weeks ago}}",
+  "@profileTimeWeeksAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTimeMonthsAgo": "{count, plural, one{1 month ago} other{{count} months ago}}",
+  "@profileTimeMonthsAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTimeYearsAgo": "{count, plural, one{1 year ago} other{{count} years ago}}",
+  "@profileTimeYearsAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileAppearance": "Appearance",
+  "profileWidgetPickTitle": "Pick profiles",
+  "profileWidgetEmpty": "No profiles yet — create one in Sonority first.",
+  "profileWidgetPickHelper": "Pick the profiles to show. Reorder them in the Profiles tab.",
+  "profileWidgetSelectAtLeastOne": "Select at least one",
+  "profileWidgetAddCount": "Add {count} to widget",
+  "@profileWidgetAddCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "discoveryDiagnostics": "Diagnostics",
+  "discoveryRescan": "Rescan",
+  "discoveryHomeTheaters": "Home theaters",
+  "discoveryNoSoundbar": "No soundbar found. Dedicated fronts need an Arc, Beam, Ray, Playbar or Playbase.",
+  "discoverySpeakerGroups": "Speaker groups",
+  "discoveryGroupSpeakers": "Group speakers",
+  "discoveryNoGroups": "No speaker groups yet",
+  "discoverySingleRooms": "Single speaker rooms",
+  "discoveryOtherDevices": "Other devices",
+  "discoverySubwoofer": "Subwoofer",
+  "discoverySubUnbondedNote": "This Sub isn’t bonded to anything yet. Add it to a home theater (Configure home theater) or a speaker group to use it.",
+  "discoveryScanning": "Scanning your network…",
+  "discoveryErrorTitle": "Couldn’t find your system",
+  "discoveryTryAgain": "Try again",
+  "roomTitle": "Room",
+  "roomRenameTooltip": "Rename room",
+  "roomRenamedTo": "Renamed to “{name}”.",
+  "@roomRenamedTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "roomRenameFailed": "Failed: {error}",
+  "@roomRenameFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "roomGroupWith": "Group with another speaker",
+  "roomGroupWithSubtitle": "Stereo pair, full-range zone, or custom L/R",
+  "roomAddToHomeTheater": "Add to a home theater",
+  "roomAddToHomeTheaterSubtitle": "As a front, surround, or sub",
+  "roomAddToWhichHomeTheater": "Add to which home theater?",
+  "sectionSpeakers": "Speakers",
+  "groupSheetTitle": "Speaker group",
+  "groupUpdating": "Updating…",
+  "groupZoneCautionDetail": "Large zones can drop out for the first minute after audio starts, and mixed or older speakers may keep dropping. Play something to confirm it stays stable for you.",
+  "groupRenameTooltip": "Rename group",
+  "groupSeparate": "Separate",
+  "groupRenamedTo": "Renamed to “{name}”.",
+  "@groupRenamedTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "groupRenameFailed": "Failed: {error}",
+  "@groupRenameFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "groupSeparateConfirmTitle": "Separate group?",
+  "groupSeparateConfirmMessage": "The speakers become standalone rooms again. Their original room names will be restored.",
+  "groupSeparateProgressTitle": "Separate group",
+  "groupFlowTitle": "Group speakers",
+  "groupNeedTwoSpeakers": "Need at least two standalone speakers (not soundbars, subs, amps, or already bonded).",
+  "groupModeStereo": "Stereo",
+  "groupModeZone": "Zone",
+  "groupModeCustom": "Custom",
+  "groupStepSelect": "Select speakers",
+  "groupStepAddSub": "Add a Sub",
+  "groupOptional": "Optional",
+  "groupStepName": "Name",
+  "groupNameLabel": "Group name (optional)",
+  "groupNameHint": "e.g. Downstairs",
+  "groupStepReview": "Review & create",
+  "groupCreateStereo": "Create stereo pair",
+  "groupCreateZone": "Create zone",
+  "groupCreateCustom": "Create custom group",
+  "groupCreateFailed": "Couldn’t create the group — Sonos may not allow one of these speakers. See the log for details.",
+  "groupHintStereo": "Pick two speakers — one plays left, the other right (swap below). Mismatched models are fine.",
+  "groupHintZone": "Pick 2–16 speakers. They all play full stereo (L+R) as one room.",
+  "groupHintCustom": "Pick 2–16 speakers and set each to Left, Right, or Both.",
+  "groupSideLeft": "LEFT",
+  "groupSideRight": "RIGHT",
+  "groupSwapSides": "Swap sides",
+  "groupChannelLeft": "Left",
+  "groupChannelBoth": "Both",
+  "groupChannelRight": "Right",
+  "groupNoSub": "No standalone Sub available. A Sub bonded to a home theater must be removed there first.",
+  "groupAddSubHint": "Optionally add a Sub to the group.",
+  "groupSubwoofer": "Subwoofer",
+  "groupKindStereo": "Stereo pair",
+  "groupKindZone": "{count, plural, one{Zone ({count} speaker)} other{Zone ({count} speakers)}}",
+  "@groupKindZone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "groupKindCustom": "{count, plural, one{Custom group ({count} speaker)} other{Custom group ({count} speakers)}}",
+  "@groupKindCustom": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "groupReviewMemberLine": "{room} — {channel}",
+  "@groupReviewMemberLine": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      },
+      "channel": {
+        "type": "String"
+      }
+    }
+  },
+  "groupReviewName": "Name: {name}",
+  "@groupReviewName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "groupReviewSub": "Sub: {type}",
+  "@groupReviewSub": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "groupReviewNote": "Bonded speakers play as one room. Larger or mixed-model groups can drop out briefly — play something to confirm it works for you. Original room names are restored when you separate the group.",
+  "htHomeTheater": "Home theater",
+  "htRenameRoomTooltip": "Rename room",
+  "htUpdatingTitle": "Updating your home theater…",
+  "htUpdatingSubtitle": "This can take up to ~20 seconds while Sonos reconfigures and re-reads the layout.",
+  "htRenamedTo": "Renamed to “{name}”.",
+  "@htRenamedTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "htRenameFailed": "Failed: {error}",
+  "@htRenameFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "htSeparateConfirmTitle": "Separate home theater?",
+  "htRemoveConfirmTitle": "Remove {label}?",
+  "@htRemoveConfirmTitle": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "htSeparateMessage": "All extra speakers will be un-bonded and become standalone rooms again, leaving just the soundbar.",
+  "htRemoveMessage": "These speakers will be un-bonded and become standalone rooms again. The rest of your home theater stays as it is.",
+  "htSeparate": "Separate",
+  "htSeparateProgressTitle": "Separate home theater",
+  "htRemoveProgressTitle": "Remove {label}",
+  "@htRemoveProgressTitle": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "htGroupFronts": "Fronts",
+  "htGroupSurrounds": "Surrounds",
+  "htGroupSubwoofer": "Subwoofer",
+  "htConfigure": "Configure",
+  "htBondedSpeakers": "Bonded speakers",
+  "htNoBonded": "Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure” to add some.",
+  "htSpeakerFallback": "Speaker",
+  "htTrueplayNote": "Trueplay can only be measured from the Sonos app on iOS — tune the home theater, and the fronts separately as a stereo pair. Heads-up: Sonos often clears a tuning when speakers are bonded/unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.",
+  "htAllExtraSpeakers": "all extra speakers",
+  "htBonded": "Bonded",
+  "frontSurroundsTitle": "Set up home theater",
+  "frontSurroundsStepFronts": "Front speakers",
+  "frontSurroundsOptional": "Optional",
+  "frontSurroundsFrontsHint": "Pick two speakers (or a single Amp) for the front left & right, then set which is which.",
+  "frontSurroundsLeft": "LEFT",
+  "frontSurroundsRight": "RIGHT",
+  "frontSurroundsStepSurrounds": "Rear surrounds",
+  "frontSurroundsSurroundsHint": "Pick two speakers for the rear left & right surrounds.",
+  "frontSurroundsRearLeft": "REAR LEFT",
+  "frontSurroundsRearRight": "REAR RIGHT",
+  "frontSurroundsStepSub": "Subwoofer",
+  "frontSurroundsStepReview": "Review & apply",
+  "frontSurroundsUnbondTitle": "{count, plural, one{Unbond {count} speaker?} other{Unbond {count} speakers?}}",
+  "@frontSurroundsUnbondTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "frontSurroundsUnbondMessage": "{types} will be removed from this home theater and become standalone rooms again. The rest of your layout stays as it is.",
+  "@frontSurroundsUnbondMessage": {
+    "placeholders": {
+      "types": {
+        "type": "String"
+      }
+    }
+  },
+  "frontSurroundsUnbond": "Unbond",
+  "frontSurroundsNoFreeSpeakers": "No free speakers available. They must be standalone (not already part of a home theater or stereo pair).",
+  "frontSurroundsPickWithAmp": "Pick two speakers (ideally identical), or a single Sonos Amp that drives both front speakers.",
+  "frontSurroundsPickExactlyTwo": "Pick exactly two — ideally an identical pair.",
+  "frontSurroundsAmpSubtitle": "{type} — drives both fronts (L + R)",
+  "@frontSurroundsAmpSubtitle": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "frontSurroundsNoFreeSub": "No free subwoofer found. A Sonos Sub must be standalone (not already bonded to another home theater).",
+  "frontSurroundsSubHint": "Pick one or two subwoofers to add as low-frequency channels.",
+  "frontSurroundsAmpWiring": "The {amp} drives both front channels. Wire your left & right speakers to its L/R speaker outputs — there’s nothing to assign here.",
+  "@frontSurroundsAmpWiring": {
+    "placeholders": {
+      "amp": {
+        "type": "String"
+      }
+    }
+  },
+  "frontSurroundsChooseTwoFirst": "Choose two speakers first.",
+  "frontSurroundsSwapSides": "Swap sides",
+  "frontSurroundsTapSwap": "Tap swap if the sides are reversed.",
+  "frontSurroundsNothingSelected": "Nothing selected yet — choose speakers above.",
+  "frontSurroundsReviewNote": "The chosen speakers become hidden satellites of the soundbar (which stays the center channel). Bonding runs in steps and can take a little while; Trueplay may need re-tuning afterward. You can change this anytime.",
+  "diagNoSystemToCollect": "No system to collect — scan first.",
+  "diagBuildFailed": "Could not build the diagnostics bundle: {error}",
+  "@diagBuildFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "diagActionFailed": "Could not complete the action: {error}",
+  "@diagActionFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "diagSavedTo": "Saved to {path}",
+  "@diagSavedTo": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "diagTitle": "Diagnostics",
+  "diagNoSystem": "No system discovered yet.",
+  "diagIncludeLogs": "Include app logs",
+  "diagIncludeLogsSubtitle": "SOAP faults, bond retries, discovery, errors (logs.txt)",
+  "diagIncludeNetwork": "Include phone network info",
+  "diagIncludeNetworkSubtitle": "This device’s network interface addresses (network.txt)",
+  "diagAlwaysIncluded": "Always included: topology (room names, IPs, MACs, models), raw device descriptions, and your saved profiles/room names.",
+  "diagCollecting": "Collecting…",
+  "diagEmailToDeveloper": "Email to developer",
+  "diagShareDiagnostics": "Share diagnostics",
+  "diagEmailBody": "Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———"
+}

@@ -19,9 +19,6 @@ class ChannelMapEntry {
   List<SonosChannel> get channels =>
       tokens.map(SonosChannel.fromToken).whereType<SonosChannel>().toList();
 
-  bool hasChannel(SonosChannel c) =>
-      tokens.any((t) => t.trim().toUpperCase() == c.token);
-
   String encode() => '$uuid:${tokens.join(',')}';
 
   @override
@@ -65,14 +62,6 @@ class ChannelMap {
   String encode() => entries.map((e) => e.encode()).join(';');
 
   ChannelMapEntry? get primary => entries.isEmpty ? null : entries.first;
-
-  /// True if any non-primary entry carries a front channel (a dedicated front).
-  bool get hasFronts => entries.any(
-        (e) =>
-            e != primary &&
-            (e.hasChannel(SonosChannel.leftFront) ||
-                e.hasChannel(SonosChannel.rightFront)),
-      );
 
   ChannelMap withoutUuid(String uuid) =>
       ChannelMap(entries.where((e) => e.uuid != uuid).toList());

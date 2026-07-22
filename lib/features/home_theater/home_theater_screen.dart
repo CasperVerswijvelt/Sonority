@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
+import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
@@ -31,10 +33,7 @@ class HomeTheaterScreen extends ConsumerWidget {
     final controller = ref.read(sonosControllerProvider.notifier);
     final system = state.value;
 
-    final member = system?.allMembers
-        .where((m) => m.uuid == soundbarUuid)
-        .cast<ZoneGroupMember?>()
-        .firstOrNull;
+    final member = system?.memberByUuid(soundbarUuid);
     final device = system?.device(soundbarUuid);
 
     // Bonded native members (bar + fronts + rears + sub); Amp fronts excluded.
@@ -54,24 +53,22 @@ class HomeTheaterScreen extends ConsumerWidget {
     }
 
     return AppScaffold(
-      title: member?.zoneName ?? 'Home theater',
-      subtitle: member == null ? null : 'Home theater',
+      title: member?.zoneName ?? context.l10n.htHomeTheater,
+      subtitle: member == null ? null : context.l10n.htHomeTheater,
       onRefresh: refreshAll,
       actions: [
         if (member != null && device != null)
           IconButton(
             icon: const Icon(Icons.drive_file_rename_outline),
-            tooltip: 'Rename room',
+            tooltip: context.l10n.htRenameRoomTooltip,
             onPressed: () => _rename(context, ref, device, member.zoneName),
           ),
         RefreshIconButton(onRefresh: refreshAll),
       ],
       body: state.isLoading
-          ? const BusyView(
-              title: 'Updating your home theater…',
-              subtitle:
-                  'This can take up to ~20 seconds while Sonos reconfigures '
-                  'and re-reads the layout.',
+          ? BusyView(
+              title: context.l10n.htUpdatingTitle,
+              subtitle: context.l10n.htUpdatingSubtitle,
             )
           : (member == null || device == null)
           ? const MissingRoomView()
@@ -103,13 +100,15 @@ class HomeTheaterScreen extends ConsumerWidget {
     final name = await showRenameDialog(context, current);
     if (name == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     try {
       await ref
           .read(sonosControllerProvider.notifier)
           .renameRoom(device: device, name: name);
-      messenger.showSnackBar(SnackBar(content: Text('Renamed to “$name”.')));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.htRenamedTo(name))));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+      messenger.showSnackBar(SnackBar(
+          content: Text(l10n.htRenameFailed(localizedError(l10n, e)))));
     }
   }
 
@@ -122,16 +121,16 @@ class HomeTheaterScreen extends ConsumerWidget {
     String label, {
     bool separateAll = false,
   }) async {
+    final l10n = context.l10n;
     final ok = await confirmDialog(
       context,
       icon: Icons.link_off,
-      title: separateAll ? 'Separate home theater?' : 'Remove $label?',
-      message: separateAll
-          ? 'All extra speakers will be un-bonded and become standalone rooms '
-                'again, leaving just the soundbar.'
-          : 'These speakers will be un-bonded and become standalone rooms '
-                'again. The rest of your home theater stays as it is.',
-      confirmLabel: separateAll ? 'Separate' : 'Remove',
+      title: separateAll
+          ? l10n.htSeparateConfirmTitle
+          : l10n.htRemoveConfirmTitle(label),
+      message:
+          separateAll ? l10n.htSeparateMessage : l10n.htRemoveMessage,
+      confirmLabel: separateAll ? l10n.htSeparate : l10n.actionRemove,
     );
     if (!ok || !context.mounted) return;
 
@@ -139,7 +138,9 @@ class HomeTheaterScreen extends ConsumerWidget {
     // No success toast — the progress screen already showed the outcome.
     await showBondingProgress(
       context,
-      title: separateAll ? 'Separate home theater' : 'Remove $label',
+      title: separateAll
+          ? l10n.htSeparateProgressTitle
+          : l10n.htRemoveProgressTitle(label),
       run: () => controller.removeHtRoles(
         soundbar: member,
         soundbarDevice: device,
@@ -158,17 +159,17 @@ class _Group {
   const _Group(this.label, this.icon, this.channels);
 }
 
-const _htGroups = [
-  _Group('Fronts', Icons.speaker, {
-    SonosChannel.leftFront,
-    SonosChannel.rightFront,
-  }),
-  _Group('Surrounds', Icons.surround_sound, {
-    SonosChannel.leftRear,
-    SonosChannel.rightRear,
-  }),
-  _Group('Sub', Icons.graphic_eq, {SonosChannel.sub}),
-];
+List<_Group> _htGroupsFor(AppLocalizations l10n) => [
+      _Group(l10n.htGroupFronts, Icons.speaker, {
+        SonosChannel.leftFront,
+        SonosChannel.rightFront,
+      }),
+      _Group(l10n.htGroupSurrounds, Icons.surround_sound, {
+        SonosChannel.leftRear,
+        SonosChannel.rightRear,
+      }),
+      _Group(l10n.htGroupSubwoofer, Icons.graphic_eq, {SonosChannel.sub}),
+    ];
 
 class _Content extends StatelessWidget {
   final SonosSystem system;
@@ -193,13 +194,13 @@ class _Content extends StatelessWidget {
   /// Speaker model per bonded speaker in a group (e.g. "Play:1, Play:1") — the
   /// room name just echoes the HT name, so the model is the useful detail. One
   /// entry per distinct device (an Amp driving both fronts shows once).
-  List<String> _models(Set<SonosChannel> channels) {
+  List<String> _models(Set<SonosChannel> channels, String fallback) {
     final seen = <String>{};
     final out = <String>[];
     for (final c in channels) {
       for (final uuid in member.uuidsForChannel(c)) {
         if (!seen.add(uuid)) continue;
-        out.add(system.device(uuid)?.typeLabel ?? 'Speaker');
+        out.add(system.device(uuid)?.typeLabel ?? fallback);
       }
     }
     return out;
@@ -208,8 +209,9 @@ class _Content extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final present = [
-      for (final g in _htGroups)
+      for (final g in _htGroupsFor(l10n))
         if (g.channels.any((c) => hasChannel(member, c))) g,
     ];
     // Edge-to-edge list so the Trueplay settings section can be full-bleed
@@ -229,10 +231,10 @@ class _Content extends StatelessWidget {
               ),
               child: DestructiveButton(
                 icon: Icons.link_off,
-                label: 'Separate',
+                label: l10n.htSeparate,
                 onPressed: () => onRemoveGroup(
                   {for (final g in present) ...g.channels},
-                  'all extra speakers',
+                  l10n.htAllExtraSpeakers,
                   separateAll: true,
                 ),
               ),
@@ -251,14 +253,13 @@ class _Content extends StatelessWidget {
                 // glyph (Icons.tune) is reserved for the audio/Trueplay surfaces
                 // so a layout action never looks like EQ (which we don't do).
                 icon: const Icon(Icons.settings),
-                label: const Text('Configure'),
+                label: Text(l10n.htConfigure),
               ),
               Gap.l,
-              const SectionHeader('Bonded speakers'),
+              SectionHeader(l10n.htBondedSpeakers),
               if (present.isEmpty)
                 Text(
-                  'Just the soundbar — no fronts, surrounds or sub bonded yet. '
-                  'Tap “Configure” to add some.',
+                  l10n.htNoBonded,
                   style: theme.mutedText,
                 )
               else
@@ -266,7 +267,7 @@ class _Content extends StatelessWidget {
                   for (final g in present)
                     _GroupCard(
                       group: g,
-                      models: _models(g.channels),
+                      models: _models(g.channels, l10n.htSpeakerFallback),
                       onRemove: () => onRemoveGroup(g.channels, g.label),
                     ),
                 ]),
@@ -279,12 +280,7 @@ class _Content extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),
             child: Text(
-              'Trueplay can only be measured from the Sonos app on iOS — '
-              'tune the home theater, and the fronts separately as a stereo '
-              'pair. Heads-up: Sonos often clears a tuning when speakers are '
-              'bonded/unbonded, so you may see “Not tuned” after changing the '
-              'layout and have to redo it. Sonority only toggles a stored '
-              'tuning.',
+              l10n.htTrueplayNote,
               style: theme.mutedText,
             ),
           ),
@@ -311,11 +307,11 @@ class _GroupCard extends StatelessWidget {
       child: ListTile(
         leading: Icon(group.icon, color: theme.colorScheme.primary),
         title: Text(group.label),
-        subtitle: Text(models.isEmpty ? 'Bonded' : models.join(', ')),
+        subtitle: Text(models.isEmpty ? context.l10n.htBonded : models.join(', ')),
         trailing: TextButton(
           onPressed: onRemove,
           style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
-          child: const Text('Remove'),
+          child: Text(context.l10n.actionRemove),
         ),
       ),
     );

@@ -17,6 +17,8 @@ section into the GitHub Release notes regardless of the build suffix
 - Diagnostics is now its own bottom-bar tab (a full page) instead of a button tucked in the overview's app bar.
 - Standalone rooms can now jump straight into a setup: the room page has "Group with another speaker" and "Add to a home theater" shortcuts.
 - A large zone shows a "can drop out" caution on the overview, with a fuller heads-up on its detail page.
+- Diagnostics bundle now includes `speaker_settings.json` — a read-only per-speaker snapshot of EQ / volume / mute (RenderingControl), to help debug "configured but silent" reports (e.g. a muted or zero-volume bonded speaker).
+- Localization groundwork: every user-facing string now runs through Flutter's localization system (`lib/l10n/app_en.arb`), and the app follows the device language. English is the only bundled language for now — a new one is added by dropping in a translation file, no code changes. No visible change yet.
 
 ### Changed
 - When applying a profile or layout fails partway, the progress screen now reassures you the system is in a safe state (nothing left half-applied) before offering Retry.
@@ -26,6 +28,9 @@ section into the GitHub Release notes regardless of the build suffix
 - Polish on the detail pages: the home-theater diagram now stretches to the full width of a wide window while keeping a fixed height (instead of blowing up), destructive/primary actions (the group's "Separate", a single room's group / home-theater shortcuts and Trueplay toggle) always sit at the bottom of the page, the home-theater "Configure" button is shorter, a profile's "Re-capture from current setup" action moved above the captured list, and group / room detail pages now label their speaker list with a "Speakers" heading.
 - In the wide navigation-rail layout, switching tabs now slides the page vertically (matching the rail's vertical entries) instead of horizontally.
 - A standalone (unbonded) Sub on the overview is now tappable — it opens a small sheet to identify it and explains how to add it to a home theater or group (previously it was shown but did nothing).
+- iOS now carries the Apple-approved multicast entitlement, so discovery uses native SSDP multicast on physical iPhones instead of relying on the unicast /24 sweep fallback (which stays as a backstop for multicast-filtering networks).
+- GitHub Pages landing page now deploys automatically on each release tag (via an LFS-aware Actions workflow) and shows the current app version; the page is generated in CI rather than committed.
+- Internal cleanup: deduplicated shared widgets/helpers and removed dead code; the Sonos engine is now fully decoupled from Flutter (persistence via an injected storage port). No user-facing behaviour change.
 - Reconfiguring a home theater (e.g. swapping which speakers are fronts vs surrounds) no longer unbonds speakers that are only moving to a different channel — they're reassigned in place, so the setup no longer briefly drops to one speaker per side. The progress screen shows a single calm "Applying…" step (Sonos can still take up to a minute to settle) instead of a scary per-attempt retry log.
 - Identify chime is now a repeated percussive ping (sharp attack, bright harmonics) instead of a soft two-tone sine — it's far easier to tell which speaker it's coming from by ear.
 

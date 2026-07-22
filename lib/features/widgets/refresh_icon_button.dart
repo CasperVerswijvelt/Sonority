@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/l10n.dart';
+import 'busy_spinner.dart';
+
 /// An app-bar refresh button that shows a spinner while its async [onRefresh]
 /// runs, so detail pages give clear feedback (the topology refresh otherwise
 /// completes silently).
@@ -29,12 +32,11 @@ class _RefreshIconButtonState extends State<RefreshIconButton> {
     if (_busy) {
       return const Padding(
         padding: EdgeInsets.all(14),
-        child: SizedBox(
-            width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+        child: BusySpinner(size: 20),
       );
     }
     return IconButton(
-      tooltip: 'Refresh',
+      tooltip: context.l10n.widgetsRefresh,
       onPressed: _run,
       icon: const Icon(Icons.refresh),
     );

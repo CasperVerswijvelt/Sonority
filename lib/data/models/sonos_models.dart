@@ -7,7 +7,8 @@ library;
 
 import '../sonos/zone_layout.dart' show GroupChannel;
 
-export '../sonos/zone_layout.dart' show GroupChannel, groupChannelShort;
+export '../sonos/zone_layout.dart'
+    show GroupChannel, groupChannelShort, groupChannelLabel;
 
 /// How a speaker group bond classifies for display. A "group" is any member
 /// carrying a `ChannelMapSet` (stereo pair / zone / custom L-R layout).
@@ -436,6 +437,10 @@ class SonosSystem {
   }
 
   SonosDevice? device(String uuid) => devicesByUuid[uuid];
+
+  /// The visible member with [uuid], or null. Parallels [device].
+  ZoneGroupMember? memberByUuid(String uuid) =>
+      allMembers.where((m) => m.uuid == uuid).firstOrNull;
 
   /// Whether [uuid] plays audio on its own — i.e. it isn't bonded into a home
   /// theater or speaker group. Only a standalone speaker can be identified with

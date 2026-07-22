@@ -16,6 +16,10 @@ fastlane/test_output/
 # Dev scratch — ad-hoc UI screenshots (real marketing shots live in design/shots/)
 .shots/
 
+# Generated GitHub Pages landing page — built fresh in CI on each tag
+# (tool/gen_site.dart). Edit tool/site_template.html, not this file.
+/docs/index.html
+
 # Miscellaneous
 *.class
 *.log
