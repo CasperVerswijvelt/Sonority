@@ -254,7 +254,6 @@
   "widgetsStandaloneSpeaker": "Standalone speaker",
   "widgetsAmp": "Amp",
   "widgetsNoExtraSpeakers": "No extra speakers",
-  "widgetsZoneCanDropOut": "Can drop out",
   "widgetsNSpeakers": "{count, plural, one{{count} speaker} other{{count} speakers}}",
   "@widgetsNSpeakers": {
     "placeholders": {
@@ -551,7 +550,6 @@
   "sectionSpeakers": "Speakers",
   "groupSheetTitle": "Speaker group",
   "groupUpdating": "Updating…",
-  "groupZoneCautionDetail": "Large zones can drop out for the first minute after audio starts, and mixed or older speakers may keep dropping. Play something to confirm it stays stable for you.",
   "groupRenameTooltip": "Rename group",
   "groupSeparate": "Separate",
   "groupRenamedTo": "Renamed to “{name}”.",

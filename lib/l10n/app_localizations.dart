@@ -742,12 +742,6 @@ abstract class AppLocalizations {
   /// **'No extra speakers'**
   String get widgetsNoExtraSpeakers;
 
-  /// No description provided for @widgetsZoneCanDropOut.
-  ///
-  /// In en, this message translates to:
-  /// **'Can drop out'**
-  String get widgetsZoneCanDropOut;
-
   /// No description provided for @widgetsNSpeakers.
   ///
   /// In en, this message translates to:
@@ -1425,12 +1419,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Updating…'**
   String get groupUpdating;
-
-  /// No description provided for @groupZoneCautionDetail.
-  ///
-  /// In en, this message translates to:
-  /// **'Large zones can drop out for the first minute after audio starts, and mixed or older speakers may keep dropping. Play something to confirm it stays stable for you.'**
-  String get groupZoneCautionDetail;
 
   /// No description provided for @groupRenameTooltip.
   ///

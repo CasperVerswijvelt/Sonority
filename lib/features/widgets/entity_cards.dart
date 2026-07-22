@@ -33,17 +33,11 @@ String groupKindL10n(AppLocalizations l10n, GroupKind k) => switch (k) {
 // an entity's kind/parts read at a glance and different kinds look distinct.
 // -----------------------------------------------------------------------------
 
-/// Colour role for an entity-card chip. Resolved to a real colour at render
-/// (the model is built without a [BuildContext]): [normal] = the composition
-/// accent, [warning] = a caution (e.g. a zone that can drop out).
-enum EntityChipTone { normal, warning }
-
-/// One composition pill on an entity card (an icon + short label + tone).
+/// One composition pill on an entity card (an icon + short label).
 class EntityChip {
   final IconData icon;
   final String label;
-  final EntityChipTone tone;
-  const EntityChip(this.icon, this.label, {this.tone = EntityChipTone.normal});
+  const EntityChip(this.icon, this.label);
 }
 
 /// The compact tile for any entity kind — the overview (home theaters, groups &
@@ -105,7 +99,6 @@ class EntityCardModel {
             EntityChip(Icons.info_outline, l10n.widgetsNoExtraSpeakers)
           else
             ...chips,
-          ..._metaChips(m, l10n),
         ],
       );
     }
@@ -118,7 +111,6 @@ class EntityCardModel {
           EntityChip(groupKindIcon(m.groupKind), groupKindL10n(l10n, m.groupKind)),
           EntityChip(Icons.speaker, l10n.widgetsNSpeakers(m.groupChannels.length)),
           if (m.subUuid != null) EntityChip(Icons.graphic_eq, l10n.widgetsSub),
-          ..._metaChips(m, l10n),
         ],
       );
     }
@@ -133,16 +125,6 @@ class EntityCardModel {
     );
   }
 
-  /// Trailing status chips shared by HT + group cards: a drop-out caution for a
-  /// large zone.
-  static List<EntityChip> _metaChips(ZoneGroupMember m, AppLocalizations l10n) => [
-    if (m.isZone && m.groupChannels.length >= kZoneWarnSize)
-      EntityChip(
-        Icons.warning_amber_rounded,
-        l10n.widgetsZoneCanDropOut,
-        tone: EntityChipTone.warning,
-      ),
-  ];
 }
 
 /// The one entity card — a dumb renderer over [EntityCardModel], shared by the
@@ -208,10 +190,7 @@ class EntityCard extends StatelessWidget {
                               PillChip(
                                 icon: c.icon,
                                 text: c.label,
-                                color: switch (c.tone) {
-                                  EntityChipTone.normal => scheme.primary,
-                                  EntityChipTone.warning => scheme.error,
-                                },
+                                color: scheme.primary,
                               ),
                           ],
                         ),

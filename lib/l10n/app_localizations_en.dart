@@ -428,9 +428,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get widgetsNoExtraSpeakers => 'No extra speakers';
 
   @override
-  String get widgetsZoneCanDropOut => 'Can drop out';
-
-  @override
   String widgetsNSpeakers(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -878,10 +875,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get groupUpdating => 'Updating…';
-
-  @override
-  String get groupZoneCautionDetail =>
-      'Large zones can drop out for the first minute after audio starts, and mixed or older speakers may keep dropping. Play something to confirm it stays stable for you.';
 
   @override
   String get groupRenameTooltip => 'Rename group';

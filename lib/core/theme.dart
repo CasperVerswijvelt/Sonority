@@ -214,11 +214,6 @@ const double kWideLayoutBreakpoint = 720;
 /// (the desktop window is capped instead — see MainFlutterWindow.swift).
 const double kContentMaxWidth = 720;
 
-/// A zone with at least this many bonded speakers gets a "can drop out" warning.
-/// Heuristic from hardware: an 8-speaker Play:1-era zone kept dropping even after
-/// settling, so the practical ceiling is well below Sonos' claimed 16.
-const int kZoneWarnSize = 5;
-
 /// Shared spacing scale (each a square [SizedBox], so it works as height OR
 /// width).
 class Gap {

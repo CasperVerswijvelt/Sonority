@@ -17,7 +17,6 @@ section into the GitHub Release notes regardless of the build suffix
 - iPad support: the app now runs natively on iPad in any orientation (including Split View / Slide Over), using the wide navigation-rail layout — landscape and portrait both adapt to the available width. iPhone stays portrait.
 - Diagnostics is now its own bottom-bar tab (a full page) instead of a button tucked in the overview's app bar.
 - Standalone rooms can now jump straight into a setup: the room page has "Group with another speaker" and "Add to a home theater" shortcuts.
-- A large zone shows a "can drop out" caution on the overview, with a fuller heads-up on its detail page.
 - Diagnostics bundle now includes `speaker_settings.json` — a read-only per-speaker snapshot of EQ / volume / mute (RenderingControl), to help debug "configured but silent" reports (e.g. a muted or zero-volume bonded speaker).
 - Localization groundwork: every user-facing string now runs through Flutter's localization system (`lib/l10n/app_en.arb`), and the app follows the device language. English is the only bundled language for now — a new one is added by dropping in a translation file, no code changes. No visible change yet.
 

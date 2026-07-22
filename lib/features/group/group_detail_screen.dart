@@ -15,7 +15,6 @@ import '../widgets/confirm_dialog.dart';
 import '../widgets/destructive_button.dart';
 import '../widgets/entity_cards.dart';
 import '../widgets/identify_controls.dart';
-import '../widgets/info_note.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
 import '../widgets/scroll_footer.dart';
@@ -92,10 +91,6 @@ class GroupDetailScreen extends ConsumerWidget {
                 trailing: speakerIdentifyButton(system.device(group.subUuid!)),
               ),
           ]),
-          if (group.isZone && group.groupChannels.length >= kZoneWarnSize) ...[
-            Gap.m,
-            InfoNote(context.l10n.groupZoneCautionDetail),
-          ],
         ],
       ),
     );

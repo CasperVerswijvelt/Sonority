@@ -62,18 +62,7 @@ void main() {
               uuid: 'A',
               zoneName: 'Upstairs',
               channelMapSet: 'A:LF,RF;B:LF,RF;C:LF,RF'));
-      expect(chipLabels(zone), ['Zone', '3 speakers']); // < warn size
-    });
-
-    test('a large zone warns it can drop out', () {
-      final big = EntityCardModel.fromSnapshot(
-          null,
-          ZoneGroupMember(
-              uuid: 'A',
-              zoneName: 'Whole floor',
-              channelMapSet:
-                  'A:LF,RF;B:LF,RF;C:LF,RF;D:LF,RF;E:LF,RF')); // 5 ≥ kZoneWarnSize
-      expect(chipLabels(big), contains('Can drop out'));
+      expect(chipLabels(zone), ['Zone', '3 speakers']);
     });
 
     group('single', () {
