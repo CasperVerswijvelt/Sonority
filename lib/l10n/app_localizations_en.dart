@@ -84,6 +84,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bondingNoLogOutput => 'No log output yet.';
 
   @override
+  String get bondingSafeStateNote =>
+      'It’s safe to retry — re-applying picks up where it left off and finishes the layout.';
+
+  @override
   String get errSystemNotFound =>
       'Couldn’t find your Sonos system on the network.';
 

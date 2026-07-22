@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sonority/features/widgets/card_grid.dart';
 import 'package:sonority/features/widgets/scroll_footer.dart';
 import 'package:sonority/features/widgets/speaker_diagram.dart';
 
-/// ScrollFooter wraps its children in an IntrinsicHeight (so the footer pins to
-/// the bottom when content is short). The HT detail feeds it a SpeakerDiagram —
-/// an AspectRatio with Expanded rows inside — which is exactly the kind of child
-/// that can throw during intrinsic sizing. Guard the short (footer pinned), tall
-/// (scrolls), and tiny-viewport (minHeight clamp) cases.
+/// ScrollFooter pins its footer to the bottom when content is short and scrolls
+/// when it's tall. The HT detail feeds it a SpeakerDiagram (AspectRatio +
+/// Expanded rows) and the group detail feeds it a CardGrid (a LayoutBuilder on
+/// wide layouts) — both must lay out without throwing. Guard the short (footer
+/// pinned), tall (scrolls), tiny-viewport, and LayoutBuilder-child cases.
 void main() {
   Widget host({required double height}) => MaterialApp(
         home: Scaffold(
@@ -43,13 +44,46 @@ void main() {
   testWidgets('lays out when content overflows the viewport', (tester) async {
     await tester.pumpWidget(host(height: 200));
     expect(tester.takeException(), isNull);
+    // Footer sits at the end of the scroll (not pinned), so it's reachable by
+    // scrolling down when the content is taller than the viewport.
+    await tester.scrollUntilVisible(find.text('Separate'), 200);
     expect(find.text('Separate'), findsOneWidget);
   });
 
   testWidgets('survives a viewport shorter than the padding', (tester) async {
-    // maxHeight (30) < padding.vertical (40) — minHeight must clamp to 0, not
-    // assert on a negative BoxConstraints.
+    // maxHeight (30) < padding.vertical (40) — must not assert on a negative
+    // constraint.
     await tester.pumpWidget(host(height: 30));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('lays out a CardGrid (LayoutBuilder) child on a wide viewport', (
+    tester,
+  ) async {
+    // The default 800×600 surface is ≥ kWideLayoutBreakpoint, so CardGrid
+    // returns a LayoutBuilder. It must not be intrinsic-queried by ScrollFooter
+    // (that throws "LayoutBuilder does not support returning intrinsic
+    // dimensions") — the exact crash on the group/HT detail pages on desktop.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ScrollFooter(
+            padding: const EdgeInsets.all(20),
+            footer: FilledButton(
+              onPressed: () {},
+              child: const Text('Separate'),
+            ),
+            children: [
+              CardGrid([
+                for (var i = 0; i < 3; i++)
+                  Card(child: SizedBox(height: 80, child: Text('card $i'))),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.text('Separate'), findsOneWidget);
   });
 }

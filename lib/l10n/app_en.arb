@@ -25,6 +25,7 @@
   "bondingShowRawLog": "Show raw log",
   "bondingLogsCopied": "Logs copied to clipboard.",
   "bondingNoLogOutput": "No log output yet.",
+  "bondingSafeStateNote": "It’s safe to retry — re-applying picks up where it left off and finishes the layout.",
   "errSystemNotFound": "Couldn’t find your Sonos system on the network.",
   "errNoDevicesFound": "No Sonos devices found. Check Wi-Fi and local network access.",
   "errDescriptionsUnreadable": "Found Sonos players but could not read their descriptions.",

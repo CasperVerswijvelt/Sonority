@@ -19,29 +19,40 @@ class ScrollFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Clamp: a viewport shorter than the padding (or an unbounded parent)
-        // must not yield a negative/infinite minHeight (BoxConstraints asserts).
-        final minHeight =
-            (constraints.maxHeight - padding.vertical).clamp(0.0, double.infinity);
-        return SingleChildScrollView(
-          padding: padding,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: minHeight),
-            // IntrinsicHeight lets the Spacer push the footer to the viewport
-            // bottom when content is short, while the column still grows past
-            // the viewport (and scrolls) when it's tall. Fine here — the
-            // children are fixed-size cards/text, not nested scrollables.
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [...children, const Spacer(), footer],
-              ),
+    // Two slivers: the content scrolls normally, and the footer fills whatever
+    // viewport is left (pinned to the bottom when content is short, scrolling
+    // after it when content is tall).
+    //
+    // Why the split instead of one IntrinsicHeight/Spacer column: a child can be
+    // a LayoutBuilder (CardGrid on wide layouts), and anything that queries
+    // intrinsic dimensions on a LayoutBuilder throws. Content goes under a
+    // SliverToBoxAdapter (plain box layout, no intrinsic query); only the footer
+    // — always a simple button/text — sits under SliverFillRemaining, which
+    // does query intrinsics but only ever sees the footer.
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: padding.copyWith(bottom: 0),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: children,
             ),
           ),
-        );
-      },
+        ),
+        SliverPadding(
+          padding: padding.copyWith(top: 0),
+          sliver: SliverFillRemaining(
+            hasScrollBody: false,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [footer],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

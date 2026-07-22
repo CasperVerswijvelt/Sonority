@@ -298,12 +298,13 @@ class _BottomBar extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Reassure on failure/abort: our writes are diff-based and
-          // idempotent, so a partial run leaves a safe state that re-applying
-          // (Retry) converges — nothing is stuck half-bonded.
+          // idempotent, so a partial run is recoverable — re-applying (Retry)
+          // converges to the target. (Deliberately doesn't claim "nothing was
+          // half-applied": a failure mid-reshuffle can briefly leave one
+          // speaker per side; Retry is what makes it whole.)
           if (finished && failed) ...[
             Text(
-              'Your speakers are in a safe state — nothing was left '
-              'half-applied. Fix the issue and retry.',
+              context.l10n.bondingSafeStateNote,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,

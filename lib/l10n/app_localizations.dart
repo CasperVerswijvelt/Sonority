@@ -244,6 +244,12 @@ abstract class AppLocalizations {
   /// **'No log output yet.'**
   String get bondingNoLogOutput;
 
+  /// No description provided for @bondingSafeStateNote.
+  ///
+  /// In en, this message translates to:
+  /// **'It’s safe to retry — re-applying picks up where it left off and finishes the layout.'**
+  String get bondingSafeStateNote;
+
   /// No description provided for @errSystemNotFound.
   ///
   /// In en, this message translates to:

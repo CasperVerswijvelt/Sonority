@@ -18,14 +18,19 @@ class MainFlutterWindow: NSWindow {
       ?? NSScreen.main?.visibleFrame
       ?? NSRect(x: 0, y: 0, width: preferred.width, height: preferred.height)
 
-    self.setContentSize(preferred)
-    // max(0, …): on a display too short to fit `preferred`, AppKit constrains the
-    // frame so the raw difference can go negative — which would make maxH LARGER
-    // than the visible frame (the behind-Dock G4 case). Clamp it out.
-    let titleBarOverhead = max(0, self.frame.height - preferred.height)
-    // Max content the visible frame (excludes menu bar + Dock) can hold.
+    // Titlebar/chrome height, measured DIRECTLY from the style mask via
+    // frameRect(forContentRect:). Deriving it as (frame - preferred) after a
+    // setContentSize is unsafe: on a display too short to fit `preferred`,
+    // AppKit constrains that call, so the difference collapses toward 0 and maxH
+    // would leave no room for the titlebar — letting a dragged-tall window clip
+    // behind the Dock (the G4 rejection). This measure is constraint-independent.
+    let chrome = self.frameRect(
+      forContentRect: NSRect(origin: .zero, size: preferred)).height
+      - preferred.height
+    // Max content the visible frame (excludes menu bar + Dock) can hold — never
+    // below the minimum height, so a very short display still yields sane sizes.
     let maxW = min(preferred.width, visible.width)
-    let maxH = visible.height - titleBarOverhead
+    let maxH = max(minimum.height, visible.height - chrome)
     self.setContentSize(NSSize(width: maxW, height: min(preferred.height, maxH)))
     self.contentMinSize = NSSize(
       width: min(minimum.width, visible.width),
@@ -33,8 +38,8 @@ class MainFlutterWindow: NSWindow {
     // Cap resize to that frame. Width: content fills the window (Flutter no
     // longer centers/clamps it), so a wider window would only stretch the
     // mobile-style cards; cap at the preferred width or the screen, smaller wins.
-    // Height: bounded so a dragged-tall window can't extend behind the Dock —
-    // the exact G4 rejection the initial-size clamp above also guards.
+    // Height: bounded to (visible − chrome) so a dragged-tall window can't
+    // extend behind the Dock — the exact G4 rejection.
     self.contentMaxSize = NSSize(width: maxW, height: maxH)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
