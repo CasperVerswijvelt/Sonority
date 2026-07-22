@@ -36,6 +36,7 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Fixed
 - Pull-to-refresh on the System overview and home-theater pages now works even when the content is short enough to fit the screen without scrolling (previously the pull gesture did nothing there).
+- The New/Re-snapshot profile form is now locked and dimmed while it reads a speaker's EQ/volume, so you can no longer flip the capture toggles or change the selection mid-save.
 
 ## [0.6.0] - 2026-07-17
 
