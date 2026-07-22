@@ -134,73 +134,81 @@ class _State extends ConsumerState<ProfileCreateScreen> {
                 : context.l10n.profileCreate,
         onPressed: canSave ? () => _save(name, existing) : null,
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-        children: [
-          if (isResnapshot) ...[
-            // Non-destructive: nothing is written until the user saves on the
-            // profile screen, so this is a light note, not a warning.
-            InfoNote(context.l10n.profileResnapshotNote),
-            Gap.l,
-          ] else
-            // Name + appearance are edited on the profile screen for an existing
-            // profile; only create-new needs them here.
-            Padding(
-              padding: const EdgeInsets.only(bottom: 24),
-              child: ProfileNameField(
-                controller: _name,
-                iconId: _iconId,
-                color: _color,
-                nameTaken: taken,
-                onChanged: () => setState(() {}),
-                onAppearanceChanged: (icon, color) => setState(() {
-                  _iconId = icon;
-                  _color = color;
-                }),
+      // While saving (reading EQ/volume over SOAP), lock the whole form and dim
+      // it so no toggle/checkbox/name edit can race the in-flight capture.
+      body: AbsorbPointer(
+        absorbing: _saving,
+        child: Opacity(
+          opacity: _saving ? 0.5 : 1,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+            children: [
+              if (isResnapshot) ...[
+                // Non-destructive: nothing is written until the user saves on the
+                // profile screen, so this is a light note, not a warning.
+                InfoNote(context.l10n.profileResnapshotNote),
+                Gap.l,
+              ] else
+                // Name + appearance are edited on the profile screen for an existing
+                // profile; only create-new needs them here.
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: ProfileNameField(
+                    controller: _name,
+                    iconId: _iconId,
+                    color: _color,
+                    nameTaken: taken,
+                    onChanged: () => setState(() {}),
+                    onAppearanceChanged: (icon, color) => setState(() {
+                      _iconId = icon;
+                      _color = color;
+                    }),
+                  ),
+                ),
+              // Only the create flow needs the "what applying does" primer; on
+              // re-snapshot the profile already exists and the detail screen owns
+              // the review.
+              if (!isResnapshot) ...[
+                InfoNote(context.l10n.profileApplyPrimer),
+                Gap.l,
+              ],
+              SectionHeader(
+                context.l10n.profileIncludeHeader,
+                helper: context.l10n.profileIncludeHelper,
               ),
-            ),
-          // Only the create flow needs the "what applying does" primer; on
-          // re-snapshot the profile already exists and the detail screen owns
-          // the review.
-          if (!isResnapshot) ...[
-            InfoNote(context.l10n.profileApplyPrimer),
-            Gap.l,
-          ],
-          SectionHeader(
-            context.l10n.profileIncludeHeader,
-            helper: context.l10n.profileIncludeHelper,
+              for (final e in _entities)
+                _SelectableEntityCard(
+                  entity: e,
+                  included: _included[e.primaryUuid] ?? true,
+                  onChanged: (v) => setState(() => _included[e.primaryUuid] = v),
+                ),
+              Gap.l,
+              SectionHeader(
+                context.l10n.profileSpeakerSettingsHeader,
+                helper: context.l10n.profileSpeakerSettingsHelper,
+              ),
+              // Flat settings rows (not a card) — these are toggles, matching the
+              // Trueplay / diagnostics registers.
+              SettingsSection(children: [
+                SwitchListTile(
+                  value: _saveAudio,
+                  onChanged: (v) => setState(() => _saveAudio = v),
+                  secondary: const Icon(Icons.tune),
+                  title: Text(context.l10n.profileSaveAudio),
+                  subtitle: Text(context.l10n.profileSaveAudioSubtitle),
+                ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  value: _saveVolume,
+                  onChanged: (v) => setState(() => _saveVolume = v),
+                  secondary: const Icon(Icons.volume_up),
+                  title: Text(context.l10n.profileSaveVolume),
+                  subtitle: Text(context.l10n.profileSaveVolumeSubtitle),
+                ),
+              ]),
+            ],
           ),
-          for (final e in _entities)
-            _SelectableEntityCard(
-              entity: e,
-              included: _included[e.primaryUuid] ?? true,
-              onChanged: (v) => setState(() => _included[e.primaryUuid] = v),
-            ),
-          Gap.l,
-          SectionHeader(
-            context.l10n.profileSpeakerSettingsHeader,
-            helper: context.l10n.profileSpeakerSettingsHelper,
-          ),
-          // Flat settings rows (not a card) — these are toggles, matching the
-          // Trueplay / diagnostics registers.
-          SettingsSection(children: [
-            SwitchListTile(
-              value: _saveAudio,
-              onChanged: (v) => setState(() => _saveAudio = v),
-              secondary: const Icon(Icons.tune),
-              title: Text(context.l10n.profileSaveAudio),
-              subtitle: Text(context.l10n.profileSaveAudioSubtitle),
-            ),
-            const Divider(height: 1),
-            SwitchListTile(
-              value: _saveVolume,
-              onChanged: (v) => setState(() => _saveVolume = v),
-              secondary: const Icon(Icons.volume_up),
-              title: Text(context.l10n.profileSaveVolume),
-              subtitle: Text(context.l10n.profileSaveVolumeSubtitle),
-            ),
-          ]),
-        ],
+        ),
       ),
     );
   }
