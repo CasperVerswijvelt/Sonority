@@ -46,7 +46,6 @@ void main() {
     wide(tester);
     await tester.pumpWidget(host(['a', 'b', 'c', 'd'], (_, __) {}));
     await tester.pumpAndSettle();
-    // 'a' also appears in the invisible measurer probe → 2; b/c/d once each.
     expect(find.text('b'), findsOneWidget);
     expect(find.text('c'), findsOneWidget);
     expect(find.text('d'), findsOneWidget);
@@ -77,6 +76,34 @@ void main() {
     // Applied the way ProfilesController.reorder does:
     order.insert(gotTo!, order.removeAt(gotFrom!));
     expect(order, ['a', 'b', 'd', 'c']);
+  });
+
+  testWidgets('adopts an in-place edit (same id, new content) while idle',
+      (tester) async {
+    // Regression: an edit produces a new item with the SAME id in the SAME slot.
+    // Comparing order by id alone would keep the stale item and show old content.
+    wide(tester);
+    // id ($1) is stable; label ($2) is what changes on an "edit".
+    Widget grid(List<(String, String)> items) => MaterialApp(
+          home: Scaffold(
+            body: ReorderableCardGrid<(String, String)>(
+              items: items,
+              idOf: (it) => it.$1,
+              onReorder: (_, __) {},
+              itemBuilder: (context, it) =>
+                  SizedBox(height: 80, child: Text(it.$2)),
+            ),
+          ),
+        );
+
+    await tester.pumpWidget(grid([('p1', 'Old name'), ('p2', 'Other')]));
+    await tester.pumpAndSettle();
+    expect(find.text('Old name'), findsOneWidget);
+
+    await tester.pumpWidget(grid([('p1', 'New name'), ('p2', 'Other')]));
+    await tester.pumpAndSettle();
+    expect(find.text('New name'), findsOneWidget);
+    expect(find.text('Old name'), findsNothing);
   });
 
   testWidgets('not reordering: no drag, card stays interactive', (tester) async {

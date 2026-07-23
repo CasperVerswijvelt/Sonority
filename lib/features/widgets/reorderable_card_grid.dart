@@ -9,11 +9,12 @@ import 'card_grid.dart';
 
 /// A drag-reorderable responsive grid/list, built in-house (no package).
 ///
-/// Long-press an item and it follows the finger; the others animate cleanly to
-/// their new slots (one persistent element per item, so an item moving between
-/// rows glides between positions rather than fading out/in); on release the
-/// dragged item animates into its final slot. Reorder triggers as the pointer
-/// crosses INTO a cell, not past its centre.
+/// In reorder mode ([reordering]) an item drags immediately (no long-press) and
+/// follows the finger; the others animate cleanly to their new slots (one
+/// persistent element per item, so an item moving between rows glides between
+/// positions rather than fading out/in); on release the dragged item animates
+/// into its final slot. Reorder triggers as the pointer crosses INTO a cell, not
+/// past its centre.
 ///
 /// Columns come from the available width ([minColumnWidth] up to [maxColumns]),
 /// so this is ONE widget for every width: a single column on a phone (a
@@ -140,10 +141,15 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
         child: widget.itemBuilder(context, item),
       );
 
+  // Compares by element (identity/`==`), NOT just id: an in-place EDIT produces a
+  // new item instance with the same id in the same slot, which must be re-adopted
+  // so the tile shows the fresh content. Our own reorder keeps the same instances
+  // (just reordered), so it still matches once the parent persists → no re-adopt
+  // that would disturb the drop animation.
   bool _sameOrder(List<T> a, List<T> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
-      if (widget.idOf(a[i]) != widget.idOf(b[i])) return false;
+      if (a[i] != b[i]) return false;
     }
     return true;
   }
@@ -382,8 +388,9 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
       // frame behind a width change / chip re-wrap) can never overflow it. The
       // measured height is used only for row spacing (`slot`).
       // Keep this subtree structurally CONSTANT across the reorder toggle (only
-      // the callbacks / absorbing / elevation change) so the item's element —
-      // and any AnimatedSize inside it — persists and can animate the switch.
+      // the callbacks / absorbing / elevation change) so the item's element
+      // persists and any animations inside it (the card's action/handle
+      // cross-fades) run rather than snapping on the swap.
       // In reorder mode: drag immediately (no long-press) and make the content
       // inert; otherwise the GestureDetector has no recognizers and taps pass
       // straight through to an interactive card.
@@ -402,6 +409,9 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
                           ImmediateMultiDragGestureRecognizer>(
                     () => ImmediateMultiDragGestureRecognizer(),
                     (r) => r.onStart = (global) {
+                      // Ignore a second finger mid-drag (it would clobber the
+                      // drag state); like ReorderableListView, one drag at a time.
+                      if (_dragId != null) return null;
                       _startDrag(item, slot, global);
                       return _GridDrag(_moveDrag, _endDrag);
                     },
