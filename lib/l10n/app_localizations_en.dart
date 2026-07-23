@@ -232,7 +232,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get entityKindGroup => 'Group';
 
   @override
-  String get stepSetUpHomeTheater => 'Set up home theater';
+  String get stepSetUpHomeTheater => 'Configure home theater';
 
   @override
   String get stepScanNetwork => 'Scan network for Sonos system';
@@ -1116,7 +1116,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get htBonded => 'Bonded';
 
   @override
-  String get frontSurroundsTitle => 'Set up home theater';
+  String get frontSurroundsTitle => 'Configure home theater';
 
   @override
   String get frontSurroundsStepFronts => 'Front speakers';

@@ -22,6 +22,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Localization groundwork: every user-facing string now runs through Flutter's localization system (`lib/l10n/app_en.arb`), and the app follows the device language. English is the only bundled language for now — a new one is added by dropping in a translation file, no code changes. No visible change yet.
 
 ### Changed
+- The home-theater setup flow (appbar title and its apply-progress screen) now reads "Configure home theater" instead of "Set up home theater", matching the "Configure" button that opens it.
 - When applying a profile or layout fails partway, the progress screen reassures you it's safe to retry (re-applying picks up where it left off and converges to the target) before offering Retry.
 - UI refresh so different concepts look different: entity tiles (home theaters, groups, rooms, profiles) now share one rounded-square glyph and communicate their makeup with pills (kind, parts, sub) instead of a run-on "· · ·" subtitle; every "pick speakers/entities" list uses one flat checkbox style; and the group-creation review now shows the bonded layout as per-speaker cards instead of a text list.
 - Navigation is now predictable: everything you can act on — a home theater, a speaker group, or a single room — opens as a full page, and sheets are reserved for read-only peeks (the profile's captured-entity view). The home-theater setup flow is a step within a home theater's page (navigation stays available); only the from-scratch group-creation flow covers the tabs.

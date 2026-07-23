@@ -475,7 +475,7 @@ abstract class AppLocalizations {
   /// No description provided for @stepSetUpHomeTheater.
   ///
   /// In en, this message translates to:
-  /// **'Set up home theater'**
+  /// **'Configure home theater'**
   String get stepSetUpHomeTheater;
 
   /// No description provided for @stepScanNetwork.
@@ -1807,7 +1807,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Set up home theater'**
+  /// **'Configure home theater'**
   String get frontSurroundsTitle;
 
   /// No description provided for @frontSurroundsStepFronts.
