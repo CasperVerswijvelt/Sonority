@@ -345,6 +345,7 @@
   "profileEdit": "Edit",
   "profileScanFirst": "Scan your system first (System tab).",
   "profileNew": "New profile",
+  "profileReorder": "Reorder",
   "profileDeleteConfirm": "Delete “{name}”?",
   "@profileDeleteConfirm": {
     "placeholders": {

@@ -530,6 +530,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileNew => 'New profile';
 
   @override
+  String get profileReorder => 'Reorder';
+
+  @override
   String profileDeleteConfirm(String name) {
     return 'Delete “$name”?';
   }

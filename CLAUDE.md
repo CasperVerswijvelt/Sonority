@@ -740,9 +740,14 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   bodies **fill the full width**; the desktop window is instead width-capped
   (`MainFlutterWindow.swift` `contentMaxSize`) so cards fill without stretching.
   Card lists use the shared **`CardGrid`** (`features/widgets/card_grid.dart`) —
-  one column on a phone, 2–3 columns when wide — on the overview, Profiles (grid
-  when wide, drag-reorder list when narrow), the group/HT detail pages, and the
-  setup-flow pickers. The three tabs (System / Profiles / **Diagnostics**) share
+  one column on a phone, 2–3 columns when wide — on the overview, the group/HT
+  detail pages, and the setup-flow pickers. **Profiles** instead use
+  **`ReorderableCardGrid`** (`features/widgets/reorderable_card_grid.dart`): the
+  same responsive column math (shared `gridColumns` helper) but drag-to-reorder at
+  **every** width, gated behind an app-bar reorder-mode toggle (`Icons.low_priority`
+  → `Icons.check`); edge auto-scroll + screen-reader move actions; reorder persists
+  order via `ProfilesController.reorder` (SharedPreferences only, no Sonos write).
+  The three tabs (System / Profiles / **Diagnostics**) share
   one `_destinations` list so the rail and bar can't drift. The **modal wizards**
   (group flow + bonding screen) still clamp to `kContentMaxWidth` via `MaxWidthBody`
   (a full-window form stays readable); tab/detail pages don't.

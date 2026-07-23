@@ -898,6 +898,12 @@ abstract class AppLocalizations {
   /// **'New profile'**
   String get profileNew;
 
+  /// No description provided for @profileReorder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder'**
+  String get profileReorder;
+
   /// No description provided for @profileDeleteConfirm.
   ///
   /// In en, this message translates to:
