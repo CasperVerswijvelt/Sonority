@@ -37,6 +37,7 @@ section into the GitHub Release notes regardless of the build suffix
 - An unreachable speaker's card is now shown dimmed with a short "Unreachable" subtitle instead of an alarming red warning tile with a long hint.
 
 ### Fixed
+- The System overview no longer jitters / jumps while overscrolling with a trackpad on macOS (and iPad) — it now scrolls as a list view instead of a single scrolling column, which the platform bounce handles smoothly.
 - Pull-to-refresh on the System overview and home-theater pages now works even when the content is short enough to fit the screen without scrolling (previously the pull gesture did nothing there).
 - The New/Re-snapshot profile form is now locked and dimmed while it reads a speaker's EQ/volume, so you can no longer flip the capture toggles or change the selection mid-save.
 
