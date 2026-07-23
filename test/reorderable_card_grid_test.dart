@@ -125,6 +125,33 @@ void main() {
     expect(card('c').top, greaterThanOrEqualTo(card('b').bottom));
   });
 
+  testWidgets('dragging to the bottom edge auto-scrolls the list',
+      (tester) async {
+    // Short viewport, single column, many tall cards → the list overflows.
+    tester.view.physicalSize = const Size(320, 400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final items = [for (var i = 0; i < 20; i++) 'i$i'];
+    await tester.pumpWidget(
+      host(items, (_, __) {}, reordering: true, cardHeight: (_) => 80),
+    );
+    await tester.pumpAndSettle();
+
+    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(scrollable.position.pixels, 0);
+
+    // Pick up the first card and hold near the bottom edge; auto-scroll ticks.
+    final g = await tester.startGesture(tester.getCenter(find.text('i0')));
+    await g.moveTo(const Offset(160, 392));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(scrollable.position.pixels, greaterThan(0));
+
+    await g.up();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('exposes screen-reader reorder actions (accessibility)',
       (tester) async {
     final handle = tester.ensureSemantics();

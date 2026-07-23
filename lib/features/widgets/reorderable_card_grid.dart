@@ -18,13 +18,9 @@ import 'card_grid.dart';
 /// so this is ONE widget for every width: a single column on a phone (a
 /// reorderable list) and 2–3 columns when wide.
 ///
-/// **All items are assumed to be the same height.** It's measured from the first
-/// item at the current column width (never hardcoded) and used for row spacing;
-/// cards self-size (no forced height), so an item taller/shorter than the first
-/// would overlap the next row / leave a gap — keep items uniform.
-///
-/// ponytail: no edge auto-scroll while dragging — add it only if a real list
-/// grows past the viewport.
+/// Rows are spaced by the TALLEST measured item (dynamic, never hardcoded), so
+/// cards of differing height never overlap — a shorter card just leaves a little
+/// slack in its slot. Dragging near the top/bottom edge auto-scrolls the list.
 class ReorderableCardGrid<T> extends StatefulWidget {
   final List<T> items;
 
@@ -92,6 +88,21 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
   double? _prevCellW;
   double? _prevCellH;
 
+  // Current grid geometry, cached so the drag/auto-scroll callbacks (which run
+  // outside build) can reuse it.
+  int _cols = 1;
+  double _cellW = 0;
+  Offset _lastGlobal = Offset.zero; // last pointer position (global)
+  // Auto-scrolls the list when the dragged card nears the top/bottom edge, so a
+  // card can be dropped off-screen. Flutter's own drag auto-scroller.
+  EdgeDraggingAutoScroller? _autoScroller;
+
+  @override
+  void dispose() {
+    _autoScroller?.stopAutoScroll();
+    super.dispose();
+  }
+
   @override
   void didUpdateWidget(ReorderableCardGrid<T> old) {
     super.didUpdateWidget(old);
@@ -141,26 +152,47 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
 
   void _startDrag(T item, Offset slot, Offset global) {
     final local = _toStack(global);
+    // Wire the auto-scroller to this grid's scrollable; re-run the drag update
+    // as it scrolls so the card keeps following and reordering with a held
+    // finger at the edge.
+    final ctx = _stackKey.currentContext;
+    if (ctx != null) {
+      _autoScroller = EdgeDraggingAutoScroller(
+        Scrollable.of(ctx),
+        velocityScalar: 20, // scroll speed near the edge; tune to taste
+        onScrollViewScrolled: () => _moveDrag(_lastGlobal),
+      );
+    }
     setState(() {
       _dragId = widget.idOf(item);
       _pointer = local;
       _grab = local - slot;
+      _lastGlobal = global;
     });
   }
 
-  void _moveDrag(Offset global, int cols, double cellW) {
+  void _moveDrag(Offset global) {
+    _lastGlobal = global;
     final local = _toStack(global);
     final cur = _order.indexWhere((it) => widget.idOf(it) == _dragId);
     if (cur < 0) return;
     final tgt =
-        _slotFromPointer(local, cols, cellW, _cellH ?? 0, _order.length);
+        _slotFromPointer(local, _cols, _cellW, _cellH ?? 0, _order.length);
     setState(() {
       _pointer = local;
       if (tgt != cur) _order.insert(tgt, _order.removeAt(cur));
     });
+    // Auto-scroll when the dragged card's rect nears a viewport edge.
+    final box = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box != null) {
+      final rect = (box.localToGlobal(_pointer - _grab)) &
+          Size(_cellW, _cellH ?? 0);
+      _autoScroller?.startAutoScrollIfNecessary(rect);
+    }
   }
 
   void _endDrag() {
+    _autoScroller?.stopAutoScroll();
     final id = _dragId;
     if (id == null) return;
     final from = widget.items.indexWhere((it) => widget.idOf(it) == id);
@@ -235,6 +267,8 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
         final resized = _prevCellW != cellW || _prevCellH != cellH;
         _prevCellW = cellW;
         _prevCellH = cellH;
+        _cols = cols;
+        _cellW = cellW;
         // Whichever card is being dragged OR still dropping stays painted last.
         final topId = _dragId ?? _droppingId;
         final topIdx =
@@ -242,6 +276,12 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
 
         return SingleChildScrollView(
           padding: widget.padding,
+          // In reorder mode the card's pan owns vertical drags — disable manual
+          // scrolling so the scrollable doesn't steal them; the auto-scroller
+          // still drives edge scrolling programmatically.
+          physics: widget.reordering
+              ? const NeverScrollableScrollPhysics()
+              : null,
           child: SizedBox(
             key: _stackKey,
             height: totalH,
@@ -319,9 +359,8 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
           onPanStart: widget.reordering
               ? (e) => _startDrag(item, slot, e.globalPosition)
               : null,
-          onPanUpdate: widget.reordering
-              ? (e) => _moveDrag(e.globalPosition, cols, cellW)
-              : null,
+          onPanUpdate:
+              widget.reordering ? (e) => _moveDrag(e.globalPosition) : null,
           onPanEnd: widget.reordering ? (_) => _endDrag() : null,
           onPanCancel: widget.reordering ? _endDrag : null,
           child: Material(
