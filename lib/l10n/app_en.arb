@@ -346,7 +346,6 @@
   "profileScanFirst": "Scan your system first (System tab).",
   "profileNew": "New profile",
   "profileReorder": "Reorder",
-  "profileReorderHint": "Drag profiles to reorder",
   "profileDeleteConfirm": "Delete “{name}”?",
   "@profileDeleteConfirm": {
     "placeholders": {

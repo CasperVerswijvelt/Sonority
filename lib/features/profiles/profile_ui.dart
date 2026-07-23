@@ -330,7 +330,12 @@ class ProfileCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(profile.name, style: theme.textTheme.titleMedium),
+                        Text(
+                          profile.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium,
+                        ),
                         const SizedBox(height: 2),
                         Text(
                           summary.isEmpty ? context.l10n.profileNoEntities : summary,

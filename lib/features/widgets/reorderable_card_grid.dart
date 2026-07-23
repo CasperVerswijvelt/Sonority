@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -79,7 +81,12 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
   Offset _pointer = Offset.zero; // finger position in stack-local coords
   Offset _grab = Offset.zero; // finger offset within the grabbed item
 
-  double? _cellH; // measured item height
+  // Measured natural height per item id. The uniform row height is the MAX of
+  // these, so cards of differing height (a long name, chips that wrap to a
+  // second line at narrow columns) never overlap — a shorter card just leaves a
+  // little space in its slot. Never hardcoded; re-measured live.
+  final Map<Object, double> _heights = {};
+  double? _cellH; // cached max height (for _moveDrag hit-testing)
   // Last laid-out cell size — lets us tell a resize / column switch (snap, no
   // size tween → no transient overflow) from a reorder move (animate).
   double? _prevCellW;
@@ -92,7 +99,25 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
     if (_dragId == null && !_sameOrder(_order, widget.items)) {
       _order = [...widget.items];
     }
+    // Drop measurements for items that are gone.
+    final ids = {for (final it in widget.items) widget.idOf(it)};
+    _heights.removeWhere((id, _) => !ids.contains(id));
   }
+
+  void _reportHeight(Object id, double h) {
+    if (_heights[id] == h) return;
+    _heights[id] = h;
+    // onChange fires during layout; defer the rebuild that repositions rows.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  /// Wraps an item so its laid-out height feeds the max-height measurement.
+  Widget _measured(BuildContext context, T item) => _MeasureSize(
+        onChange: (s) => _reportHeight(widget.idOf(item), s.height),
+        child: widget.itemBuilder(context, item),
+      );
 
   bool _sameOrder(List<T> a, List<T> b) {
     if (a.length != b.length) return false;
@@ -167,56 +192,35 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
           spacing: widget.spacing,
         );
 
-        // Invisible probe that measures a real item at the current width. Lives
-        // in the Stack so it's always laid out; opacity 0 + IgnorePointer keep
-        // it unseen and inert. Re-measures when the width (→ its height) changes.
-        final measurer = Positioned(
-          left: 0,
-          top: 0,
-          width: cellW,
-          child: IgnorePointer(
-            child: Opacity(
-              opacity: 0,
-              child: _MeasureSize(
-                onChange: (s) {
-                  if (_cellH != s.height) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) setState(() => _cellH = s.height);
-                    });
-                  }
-                },
-                child: widget.itemBuilder(context, widget.items.first),
-              ),
-            ),
-          ),
-        );
+        // Uniform row height = the TALLEST measured item (null until the first
+        // measurement lands). Each rendered card reports its own height via
+        // `_measured`, so no separate probe is needed.
+        double? maxH;
+        for (final it in _order) {
+          final h = _heights[widget.idOf(it)];
+          if (h != null) maxH = maxH == null ? h : math.max(maxH, h);
+        }
+        _cellH = maxH; // cache for _moveDrag
 
-        // Only the FIRST frame (height not yet measured) falls back to a plain
-        // Wrap — laid out identically, so the swap to the grid is seamless. On
-        // resize we keep the grid up with the last height and just re-measure,
-        // so there's no Wrap↔grid flicker.
-        if (_cellH == null) {
+        // Only the FIRST frame(s) — before any height is measured — fall back to
+        // a plain self-sizing Wrap, which lays cards out identically (and feeds
+        // the measurement) so the swap to the positioned grid is seamless. On
+        // resize the grid stays up with the last height and just re-measures.
+        if (maxH == null) {
           return SingleChildScrollView(
             padding: widget.padding,
-            child: Stack(
+            child: Wrap(
+              spacing: widget.spacing,
+              runSpacing: widget.spacing,
               children: [
-                measurer,
-                Wrap(
-                  spacing: widget.spacing,
-                  runSpacing: widget.spacing,
-                  children: [
-                    for (final it in _order)
-                      SizedBox(
-                          width: cellW,
-                          child: widget.itemBuilder(context, it)),
-                  ],
-                ),
+                for (final it in _order)
+                  SizedBox(width: cellW, child: _measured(context, it)),
               ],
             ),
           );
         }
 
-        final cellH = _cellH!;
+        final cellH = maxH;
         final n = _order.length;
         final rows = (n / cols).ceil();
         final totalH = rows * (cellH + widget.spacing) - widget.spacing;
@@ -245,7 +249,6 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
               // Don't clip a card dragged past the last row / into empty space.
               clipBehavior: Clip.none,
               children: [
-                measurer,
                 for (var d = 0; d < n; d++)
                   if (d != topIdx) _cell(d, cols, cellW, slot(d), resized),
                 // Dragged / dropping card painted LAST → always on top.
@@ -326,7 +329,7 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
             elevation: dragging ? 8 : 0,
             child: AbsorbPointer(
               absorbing: widget.reordering,
-              child: widget.itemBuilder(context, item),
+              child: _measured(context, item),
             ),
           ),
         ),

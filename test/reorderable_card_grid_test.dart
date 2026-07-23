@@ -12,6 +12,7 @@ void main() {
     void Function(int, int) onReorder, {
     bool reordering = false,
     void Function(String)? onTap,
+    double Function(String)? cardHeight,
   }) {
     // Wide enough for 2 columns (default minColumnWidth 360).
     return MaterialApp(
@@ -22,9 +23,12 @@ void main() {
           reordering: reordering,
           onReorder: onReorder,
           itemBuilder: (context, s) => Card(
+            key: ValueKey('card-$s'),
             child: InkWell(
               onTap: onTap == null ? null : () => onTap(s),
-              child: SizedBox(height: 80, child: Center(child: Text(s))),
+              child: SizedBox(
+                  height: cardHeight?.call(s) ?? 80,
+                  child: Center(child: Text(s))),
             ),
           ),
         ),
@@ -98,6 +102,27 @@ void main() {
     await tester.tap(find.text('b'));
     await tester.pumpAndSettle();
     expect(tapped, 'b');
+  });
+
+  testWidgets('rows use the tallest card height — cards never overlap',
+      (tester) async {
+    // Narrow → single column; 'b' is much taller (a long name / wrapped chips
+    // would do this in the real card). Naively measuring only the first item
+    // would under-space the rows and overlap 'b' onto 'c'.
+    tester.view.physicalSize = const Size(320, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(host(
+      ['a', 'b', 'c'],
+      (_, __) {},
+      cardHeight: (s) => s == 'b' ? 180 : 70,
+    ));
+    await tester.pumpAndSettle();
+
+    Rect card(String s) => tester.getRect(find.byKey(ValueKey('card-$s')));
+    expect(card('b').top, greaterThanOrEqualTo(card('a').bottom));
+    expect(card('c').top, greaterThanOrEqualTo(card('b').bottom));
   });
 
   testWidgets('exposes screen-reader reorder actions (accessibility)',

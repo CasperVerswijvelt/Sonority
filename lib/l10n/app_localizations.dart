@@ -904,12 +904,6 @@ abstract class AppLocalizations {
   /// **'Reorder'**
   String get profileReorder;
 
-  /// No description provided for @profileReorderHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Drag profiles to reorder'**
-  String get profileReorderHint;
-
   /// No description provided for @profileDeleteConfirm.
   ///
   /// In en, this message translates to:
