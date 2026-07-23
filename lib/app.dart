@@ -195,6 +195,7 @@ class _HomeShell extends StatelessWidget {
                         ),
                         Expanded(
                           child: NavigationRail(
+                            minExtendedWidth: 200,
                             selectedIndex: shell.currentIndex,
                             onDestinationSelected: _go,
                             extended: true,

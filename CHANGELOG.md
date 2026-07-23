@@ -36,6 +36,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Reconfiguring a home theater (e.g. swapping which speakers are fronts vs surrounds) no longer unbonds speakers that are only moving to a different channel — they're reassigned in place, so the setup no longer briefly drops to one speaker per side. The progress screen shows a single calm "Applying…" step (Sonos can still take up to a minute to settle) instead of a scary per-attempt retry log.
 - Identify chime is now a repeated percussive ping (sharp attack, bright harmonics) instead of a soft two-tone sine — it's far easier to tell which speaker it's coming from by ear.
 - An unreachable speaker's card is now shown dimmed with a short "Unreachable" subtitle instead of an alarming red warning tile with a long hint.
+- The wide-layout navigation rail is a bit narrower, giving the content pane more room.
 
 ### Fixed
 - The System overview no longer jitters / jumps while overscrolling with a trackpad on macOS (and iPad) — it now scrolls as a list view instead of a single scrolling column, which the platform bounce handles smoothly.
