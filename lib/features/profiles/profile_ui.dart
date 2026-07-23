@@ -329,7 +329,7 @@ class ProfileCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           summary.isEmpty ? context.l10n.profileNoEntities : summary,
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.mutedText,
                         ),

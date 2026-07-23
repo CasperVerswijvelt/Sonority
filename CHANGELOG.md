@@ -12,6 +12,7 @@ section into the GitHub Release notes regardless of the build suffix
 ## [Unreleased]
 
 ### Added
+- Profiles are drag-reorderable at every width — long-press a tile and drag it; the others animate to their new spots and it drops into place. One responsive grid (single column on a phone, 2–3 when wide) instead of a separate phone list.
 - Profile tiles are roomier: the capture summary now sits on its own line and spells out what a profile does NOT store ("No settings" / "No volume") as well as what it does, shows "Updated X ago", and has a full-width Apply button.
 - Responsive desktop layout: on a wide window the bottom tabs become an expanded left navigation rail (with the Sonority wordmark at the top and the version at the bottom), content fills the window width, and card lists lay out in multiple columns — the System overview, Profiles, the group and home-theater detail pages, and the setup flows. The macOS window is now resizable (it was locked to a fixed phone size) with a sensible max width so content fills without stretching. Phones are unchanged.
 - iPad support: the app now runs natively on iPad in any orientation (including Split View / Slide Over), using the wide navigation-rail layout — landscape and portrait both adapt to the available width. iPhone stays portrait.
