@@ -262,8 +262,8 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   }
 }
 
-/// A card-less selection row (the shared selection register) for one capturable
-/// entity — checkbox + name + kind, matching the speaker pickers in the flows.
+/// An outlined selection card for one capturable entity — checkbox + name +
+/// kind, matching the speaker pickers in the flows (BondableSpeakerTile).
 class _SelectableEntityCard extends StatelessWidget {
   final EntitySnapshot entity;
   final bool included;
