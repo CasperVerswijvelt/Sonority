@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../../core/theme.dart';
+import 'card_grid.dart';
 
 /// A drag-reorderable responsive grid/list, built in-house (no package).
 ///
@@ -152,13 +153,12 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
     return LayoutBuilder(
       builder: (context, c) {
         final avail = c.maxWidth - widget.padding.horizontal;
-        final cols = (avail / widget.minColumnWidth).floor().clamp(
-              1,
-              widget.maxColumns,
-            );
-        final cellW = cols <= 1
-            ? avail
-            : ((avail - (cols - 1) * widget.spacing) / cols).floorToDouble();
+        final (columns: cols, cellWidth: cellW) = gridColumns(
+          avail,
+          minColumnWidth: widget.minColumnWidth,
+          maxColumns: widget.maxColumns,
+          spacing: widget.spacing,
+        );
 
         // Invisible probe that measures a real item at the current width. Lives
         // in the Stack so it's always laid out; opacity 0 + IgnorePointer keep
@@ -251,6 +251,31 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
     );
   }
 
+  /// Screen-reader reorder actions (drag is pointer-only). Same labels
+  /// `ReorderableListView` uses (`MaterialLocalizations`, no new strings). Only
+  /// while idle — `d` is then the data index, which is what onReorder wants.
+  Map<CustomSemanticsAction, VoidCallback> _reorderActions(
+      BuildContext context, int d) {
+    if (_dragId != null) return const {};
+    final ml = Localizations.of<WidgetsLocalizations>(
+        context, WidgetsLocalizations)!;
+    final n = _order.length;
+    return {
+      if (d > 0)
+        CustomSemanticsAction(label: ml.reorderItemToStart): () =>
+            widget.onReorder(d, 0),
+      if (d > 0)
+        CustomSemanticsAction(label: ml.reorderItemUp): () =>
+            widget.onReorder(d, d - 1),
+      if (d < n - 1)
+        CustomSemanticsAction(label: ml.reorderItemDown): () =>
+            widget.onReorder(d, d + 1),
+      if (d < n - 1)
+        CustomSemanticsAction(label: ml.reorderItemToEnd): () =>
+            widget.onReorder(d, n - 1),
+    };
+  }
+
   Widget _cell(int d, int cols, double cellW, Offset slot, bool resized) {
     final item = _order[d];
     final dragging = widget.idOf(item) == _dragId;
@@ -271,15 +296,19 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
       // No forced height: the card self-sizes, so a stale measured height (one
       // frame behind a width change / chip re-wrap) can never overflow it. The
       // measured height is used only for row spacing (`slot`).
-      child: GestureDetector(
-        onLongPressStart: (e) => _startDrag(item, slot, e.globalPosition),
-        onLongPressMoveUpdate: (e) => _moveDrag(e.globalPosition, cols, cellW),
-        onLongPressEnd: (_) => _endDrag(),
-        onLongPressCancel: _endDrag,
-        child: Material(
-          type: MaterialType.transparency,
-          elevation: dragging ? 8 : 0,
-          child: widget.itemBuilder(context, item),
+      child: Semantics(
+        container: true,
+        customSemanticsActions: _reorderActions(context, d),
+        child: GestureDetector(
+          onLongPressStart: (e) => _startDrag(item, slot, e.globalPosition),
+          onLongPressMoveUpdate: (e) => _moveDrag(e.globalPosition, cols, cellW),
+          onLongPressEnd: (_) => _endDrag(),
+          onLongPressCancel: _endDrag,
+          child: Material(
+            type: MaterialType.transparency,
+            elevation: dragging ? 8 : 0,
+            child: widget.itemBuilder(context, item),
+          ),
         ),
       ),
     );

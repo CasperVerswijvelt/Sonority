@@ -2,6 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 
+/// Column count + cell width for a responsive card grid, given the content
+/// [width] already available to the grid (the caller subtracts its own
+/// padding). Shared by [CardGrid] and `ReorderableCardGrid` so the two can't
+/// drift. cellWidth is floored to avoid fractional-pixel wrap overflow.
+({int columns, double cellWidth}) gridColumns(
+  double width, {
+  double minColumnWidth = 360,
+  int maxColumns = 3,
+  double spacing = kCardGap,
+}) {
+  final columns = (width / minColumnWidth).floor().clamp(1, maxColumns);
+  final cellWidth = columns <= 1
+      ? width
+      : ((width - (columns - 1) * spacing) / columns).floorToDouble();
+  return (columns: columns, cellWidth: cellWidth);
+}
+
 /// Lays [cards] out responsively: a single stretched column when the available
 /// width only fits one, a multi-column grid (2–3) once it genuinely fits more.
 /// Shared by the System overview, Profiles, and the group / home-theater detail
@@ -51,9 +68,9 @@ class CardGrid extends StatelessWidget {
     // width genuinely fits them.
     return LayoutBuilder(
       builder: (context, c) {
-        final cols = (c.maxWidth / minColumnWidth).floor().clamp(1, 3);
+        final (columns: cols, cellWidth: w) =
+            gridColumns(c.maxWidth, minColumnWidth: minColumnWidth);
         if (cols == 1) return _column();
-        final w = (c.maxWidth - (cols - 1) * kCardGap) / cols;
         return Wrap(
           spacing: kCardGap,
           runSpacing: runSpacing,

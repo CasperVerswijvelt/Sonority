@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/features/widgets/reorderable_card_grid.dart';
 
@@ -61,5 +62,45 @@ void main() {
     // Applied the way ProfilesController.reorder does:
     order.insert(gotTo!, order.removeAt(gotFrom!));
     expect(order, ['a', 'c', 'b', 'd']);
+  });
+
+  testWidgets('exposes screen-reader reorder actions (accessibility)',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(host(['a', 'b', 'c', 'd'], (_, __) {}));
+    await tester.pumpAndSettle();
+
+    // Collect every custom-action label present anywhere in the semantics tree.
+    final labels = <String>{};
+    void visit(SemanticsNode node) {
+      for (final id in node.getSemanticsData().customSemanticsActionIds ??
+          const <int>[]) {
+        final label = CustomSemanticsAction.getAction(id)?.label;
+        if (label != null) labels.add(label);
+      }
+      node.visitChildren((c) {
+        visit(c);
+        return true;
+      });
+    }
+
+    visit(tester.getSemantics(find.byType(ReorderableCardGrid<String>)));
+
+    // Same default WidgetsLocalizations labels ReorderableListView uses.
+    const ml = DefaultWidgetsLocalizations();
+    expect(
+      labels,
+      containsAll([
+        ml.reorderItemToStart,
+        ml.reorderItemUp,
+        ml.reorderItemDown,
+        ml.reorderItemToEnd,
+      ]),
+    );
+    handle.dispose();
   });
 }
