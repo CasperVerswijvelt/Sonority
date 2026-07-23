@@ -16,8 +16,9 @@ import '../../core/theme.dart';
 /// reorderable list) and 2–3 columns when wide.
 ///
 /// **All items are assumed to be the same height.** It's measured from the first
-/// item at the current column width (never hardcoded), so it always fits; items
-/// with genuinely different heights would be clipped to that measurement.
+/// item at the current column width (never hardcoded) and used for row spacing;
+/// cards self-size (no forced height), so an item taller/shorter than the first
+/// would overlap the next row / leave a gap — keep items uniform.
 ///
 /// ponytail: no edge auto-scroll while dragging — add it only if a real list
 /// grows past the viewport.
@@ -66,6 +67,7 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
 
   Object? _dragId; // id of the item under the finger, or null
   Object? _droppingId; // id still animating into its slot after release
+  int _dropToken = 0; // bumped per drop, so a stale cleanup timer no-ops
   Offset _pointer = Offset.zero; // finger position in stack-local coords
   Offset _grab = Offset.zero; // finger offset within the grabbed item
 
@@ -98,9 +100,9 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
   }
 
   int _slotFromPointer(Offset p, int cols, double cellW, double cellH, int n) {
+    final rows = (n / cols).ceil();
     final col = (p.dx / (cellW + widget.spacing)).floor().clamp(0, cols - 1);
-    final row =
-        (p.dy / (cellH + widget.spacing)).floor().clamp(0, (n / cols).ceil());
+    final row = (p.dy / (cellH + widget.spacing)).floor().clamp(0, rows - 1);
     return (row * cols + col).clamp(0, n - 1);
   }
 
@@ -130,15 +132,17 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
     if (id == null) return;
     final from = widget.items.indexWhere((it) => widget.idOf(it) == id);
     final to = _order.indexWhere((it) => widget.idOf(it) == id);
+    final token = ++_dropToken;
     setState(() {
       _dragId = null; // triggers the drop-into-slot animation
       _droppingId = id; // ...but keep it painted on top until it lands
     });
     if (from >= 0 && to >= 0 && from != to) widget.onReorder(from, to);
-    // Only drop the "on top" flag once the drop animation has finished, so the
-    // z-order never flickers mid-flight.
+    // Only drop the "on top" flag once THIS drop's animation has finished, so
+    // the z-order never flickers mid-flight — the token guards against a fast
+    // re-drag whose timer would otherwise clear the new drop early.
     Future.delayed(_anim, () {
-      if (mounted && _droppingId == id) setState(() => _droppingId = null);
+      if (mounted && _dropToken == token) setState(() => _droppingId = null);
     });
   }
 

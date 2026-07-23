@@ -336,9 +336,13 @@ class ProfileCard extends StatelessWidget {
                         // Capture time as header metadata (grouped with the
                         // name/summary), with a clock glyph so it reads as a
                         // timestamp rather than floating loose in the card.
-                        if (profile.updatedAt case final t?) ...[
-                          const SizedBox(height: 4),
-                          Row(
+                        // ALWAYS rendered (invisible for legacy profiles with no
+                        // timestamp) so every card is the SAME height — the
+                        // reorder grid lays cards out on one measured height.
+                        const SizedBox(height: 4),
+                        Opacity(
+                          opacity: profile.updatedAt == null ? 0 : 1,
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
@@ -348,15 +352,19 @@ class ProfileCard extends StatelessWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                context.l10n.profileUpdatedAgo(
-                                    timeAgo(context.l10n, t)),
+                                // A space (not '') when absent so the line keeps
+                                // its full height → identical card height.
+                                profile.updatedAt == null
+                                    ? ' '
+                                    : context.l10n.profileUpdatedAgo(
+                                        timeAgo(context.l10n, profile.updatedAt!)),
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: scheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ),
