@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -93,6 +94,11 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
   int _cols = 1;
   double _cellW = 0;
   Offset _lastGlobal = Offset.zero; // last pointer position (global)
+  // Scroll offset captured when `_pointer` was last set from a finger move. The
+  // dragged card's position adds (live offset − this), so it stays pinned under
+  // the finger as the list auto-scrolls — computed in build, no per-frame lag.
+  double _pointerScrollOffset = 0;
+  final ScrollController _scroll = ScrollController();
   // Auto-scrolls the list when the dragged card nears the top/bottom edge, so a
   // card can be dropped off-screen. Flutter's own drag auto-scroller.
   EdgeDraggingAutoScroller? _autoScroller;
@@ -100,8 +106,12 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
   @override
   void dispose() {
     _autoScroller?.stopAutoScroll();
+    _scroll.dispose();
     super.dispose();
   }
+
+  double get _scrollDelta =>
+      _scroll.hasClients ? _scroll.offset - _pointerScrollOffset : 0;
 
   @override
   void didUpdateWidget(ReorderableCardGrid<T> old) {
@@ -151,48 +161,74 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
   }
 
   void _startDrag(T item, Offset slot, Offset global) {
-    final local = _toStack(global);
-    // Wire the auto-scroller to this grid's scrollable; re-run the drag update
-    // as it scrolls so the card keeps following and reordering with a held
-    // finger at the edge.
     final ctx = _stackKey.currentContext;
     if (ctx != null) {
       _autoScroller = EdgeDraggingAutoScroller(
         Scrollable.of(ctx),
         velocityScalar: 20, // scroll speed near the edge; tune to taste
-        onScrollViewScrolled: () => _moveDrag(_lastGlobal),
       );
     }
+    // Reposition + re-target EVERY frame the list scrolls. The auto-scroller's
+    // own onScrollViewScrolled only fires per animation chunk (too coarse — the
+    // card visibly lags the content); the position notifies per frame, in the
+    // transient phase, so this setState lands in the SAME frame the viewport
+    // repaints → the card stays pinned under the finger with no lag.
+    _scroll.addListener(_onScrollTick);
     setState(() {
       _dragId = widget.idOf(item);
-      _pointer = local;
-      _grab = local - slot;
+      _pointer = _toStack(global);
+      _grab = _pointer - slot;
       _lastGlobal = global;
+      _pointerScrollOffset = _scroll.hasClients ? _scroll.offset : 0;
     });
   }
 
+  /// Finger moved: re-anchor the pointer (and the scroll baseline, so the
+  /// offset delta resets to 0) and reorder.
   void _moveDrag(Offset global) {
     _lastGlobal = global;
-    final local = _toStack(global);
+    setState(() {
+      _pointer = _toStack(global);
+      _pointerScrollOffset = _scroll.hasClients ? _scroll.offset : 0;
+    });
+    _updateTarget(_pointer);
+    _updateAutoScroll();
+  }
+
+  /// List auto-scrolled under a held finger: the content under the finger is its
+  /// anchor plus how far we've scrolled since. Re-target the reorder and rebuild
+  /// so the dragged card's `_scrollDelta`-offset position tracks the scroll.
+  void _onScrollTick() {
+    if (_dragId == null) return;
+    _updateTarget(_pointer + Offset(0, _scrollDelta));
+    // Re-pin the edge rect to the finger's (fixed) SCREEN position. The auto
+    // scroller stores it in content space, which drifts out of the edge zone as
+    // the list scrolls under a still finger and stops it — re-asserting each
+    // frame keeps it scrolling until the finger leaves the edge or the list ends.
+    _updateAutoScroll();
+    setState(() {}); // reposition the dragged card live with the scroll
+  }
+
+  void _updateTarget(Offset contentPointer) {
     final cur = _order.indexWhere((it) => widget.idOf(it) == _dragId);
     if (cur < 0) return;
-    final tgt =
-        _slotFromPointer(local, _cols, _cellW, _cellH ?? 0, _order.length);
-    setState(() {
-      _pointer = local;
-      if (tgt != cur) _order.insert(tgt, _order.removeAt(cur));
-    });
-    // Auto-scroll when the dragged card's rect nears a viewport edge.
-    final box = _stackKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box != null) {
-      final rect = (box.localToGlobal(_pointer - _grab)) &
-          Size(_cellW, _cellH ?? 0);
-      _autoScroller?.startAutoScrollIfNecessary(rect);
-    }
+    final tgt = _slotFromPointer(
+        contentPointer, _cols, _cellW, _cellH ?? 0, _order.length);
+    if (tgt != cur) setState(() => _order.insert(tgt, _order.removeAt(cur)));
+  }
+
+  void _updateAutoScroll() {
+    // The finger's global position drives edge detection (it's fixed while the
+    // list auto-scrolls under a held finger).
+    _autoScroller?.startAutoScrollIfNecessary(
+      Rect.fromCenter(
+          center: _lastGlobal, width: _cellW, height: _cellH ?? 0),
+    );
   }
 
   void _endDrag() {
     _autoScroller?.stopAutoScroll();
+    _scroll.removeListener(_onScrollTick);
     final id = _dragId;
     if (id == null) return;
     final from = widget.items.indexWhere((it) => widget.idOf(it) == id);
@@ -275,13 +311,8 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
             topId == null ? -1 : _order.indexWhere((it) => widget.idOf(it) == topId);
 
         return SingleChildScrollView(
+          controller: _scroll,
           padding: widget.padding,
-          // In reorder mode the card's pan owns vertical drags — disable manual
-          // scrolling so the scrollable doesn't steal them; the auto-scroller
-          // still drives edge scrolling programmatically.
-          physics: widget.reordering
-              ? const NeverScrollableScrollPhysics()
-              : null,
           child: SizedBox(
             key: _stackKey,
             height: totalH,
@@ -329,7 +360,11 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
   Widget _cell(int d, int cols, double cellW, Offset slot, bool resized) {
     final item = _order[d];
     final dragging = widget.idOf(item) == _dragId;
-    var pos = dragging ? _pointer - _grab : slot;
+    // The dragged card follows the finger; `_scrollDelta` keeps it pinned there
+    // (in content space) as the list auto-scrolls — computed live so no lag.
+    var pos = dragging
+        ? Offset(_pointer.dx - _grab.dx, _pointer.dy - _grab.dy + _scrollDelta)
+        : slot;
     // Single column: lock X to the column so the card can't drift sideways.
     if (dragging && cols <= 1) pos = Offset(slot.dx, pos.dy);
     return AnimatedPositioned(
@@ -352,17 +387,27 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
       // In reorder mode: drag immediately (no long-press) and make the content
       // inert; otherwise the GestureDetector has no recognizers and taps pass
       // straight through to an interactive card.
+      // A multi-drag recognizer (like ReorderableListView) so a card-drag WINS
+      // the gesture arena over the enclosing scroll view — the list stays
+      // normally scrollable (trackpad / wheel / dragging empty space) while
+      // dragging a card reorders. Only wired in reorder mode.
       child: Semantics(
         container: true,
         customSemanticsActions: _reorderActions(context, d),
-        child: GestureDetector(
-          onPanStart: widget.reordering
-              ? (e) => _startDrag(item, slot, e.globalPosition)
-              : null,
-          onPanUpdate:
-              widget.reordering ? (e) => _moveDrag(e.globalPosition) : null,
-          onPanEnd: widget.reordering ? (_) => _endDrag() : null,
-          onPanCancel: widget.reordering ? _endDrag : null,
+        child: RawGestureDetector(
+          gestures: widget.reordering
+              ? <Type, GestureRecognizerFactory>{
+                  ImmediateMultiDragGestureRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                          ImmediateMultiDragGestureRecognizer>(
+                    () => ImmediateMultiDragGestureRecognizer(),
+                    (r) => r.onStart = (global) {
+                      _startDrag(item, slot, global);
+                      return _GridDrag(_moveDrag, _endDrag);
+                    },
+                  ),
+                }
+              : const {},
           child: Material(
             type: MaterialType.transparency,
             elevation: dragging ? 8 : 0,
@@ -375,6 +420,20 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
       ),
     );
   }
+}
+
+/// Forwards a multi-drag's movement/end to the grid's drag handlers.
+class _GridDrag extends Drag {
+  final void Function(Offset global) _onUpdate;
+  final VoidCallback _onEnd;
+  _GridDrag(this._onUpdate, this._onEnd);
+
+  @override
+  void update(DragUpdateDetails details) => _onUpdate(details.globalPosition);
+  @override
+  void end(DragEndDetails details) => _onEnd();
+  @override
+  void cancel() => _onEnd();
 }
 
 /// Reports its child's laid-out size via [onChange] (fires during layout, so
