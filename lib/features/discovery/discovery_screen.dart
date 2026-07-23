@@ -66,11 +66,11 @@ class DiscoveryScreen extends ConsumerWidget {
             icon: const Icon(Icons.refresh),
           ),
       ],
-      // The scanning/error placeholders center themselves (their Center
-      // expands to the body height); _SystemView shrink-wraps when short. The
-      // switcher's default layout is a center-aligned Stack, which floats that
-      // shrink-wrapped content to the vertical middle mid-transition (when the
-      // expanding placeholder inflates the Stack) — top-align it instead.
+      // The scanning/error placeholders (Center) and _SystemView (a ListView)
+      // all fill the body height. The switcher's default layout is a
+      // center-aligned Stack, which would float a smaller child to the vertical
+      // middle mid-transition (when an expanding sibling inflates the Stack) —
+      // top-align it instead so content stays pinned to the top throughout.
       body: PageTransitionSwitcher(
         duration: const Duration(milliseconds: 250),
         reverse: state.isLoading,
@@ -108,80 +108,80 @@ class _SystemView extends ConsumerWidget {
         .toList();
     // Owns its own scroll, filling the screen-sized body. The app bar is fixed,
     // so there's no collapse to lose; Rescan / pull-to-refresh cover refresh.
-    return SingleChildScrollView(
-      // Always overscrollable so pull-to-refresh fires even when the content
-      // is shorter than the viewport (a sparse system of a few cards).
+    // A sliver ListView, NOT SingleChildScrollView + Column: the interactive
+    // EntityCards in a CardGrid Wrap inside a SingleChildScrollView jitter on
+    // macOS/iPad trackpad overscroll (hover hit-test churn against the Wrap); a
+    // sliver viewport doesn't, and keeps the platform bounce. AlwaysScrollable so
+    // pull-to-refresh still fires when the content is shorter than the viewport.
+    return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionHeader(context.l10n.discoveryHomeTheaters,
-              icon: Icons.theaters_outlined),
-          if (theaters.isEmpty) _EmptyHint(context.l10n.discoveryNoSoundbar),
+      children: [
+        SectionHeader(context.l10n.discoveryHomeTheaters,
+            icon: Icons.theaters_outlined),
+        if (theaters.isEmpty) _EmptyHint(context.l10n.discoveryNoSoundbar),
+        _cardGrid([
+          for (final m in theaters)
+            EntityCard(
+              model: EntityCardModel.fromMember(system, m),
+              onTap: () => context.push('/theater/${m.uuid}'),
+            ),
+        ]),
+        Gap.l,
+        // The "+" lives in the header; the flow itself explains if there
+        // aren't two free speakers to bond.
+        SectionHeader(
+          context.l10n.discoverySpeakerGroups,
+          icon: Icons.speaker_group_outlined,
+          onAdd: () => context.push('/group'),
+          addTooltip: context.l10n.discoveryGroupSpeakers,
+        ),
+        if (groups.isEmpty)
+          _EmptyHint(context.l10n.discoveryNoGroups)
+        else
           _cardGrid([
-            for (final m in theaters)
+            for (final m in groups)
               EntityCard(
                 model: EntityCardModel.fromMember(system, m),
-                onTap: () => context.push('/theater/${m.uuid}'),
+                onTap: () => context.push('/group/${m.uuid}'),
               ),
           ]),
+        // Single speaker rooms — hidden entirely when there are none.
+        if (singleRooms.isNotEmpty) ...[
           Gap.l,
-          // The "+" lives in the header; the flow itself explains if there
-          // aren't two free speakers to bond.
           SectionHeader(
-            context.l10n.discoverySpeakerGroups,
-            icon: Icons.speaker_group_outlined,
-            onAdd: () => context.push('/group'),
-            addTooltip: context.l10n.discoveryGroupSpeakers,
+            context.l10n.discoverySingleRooms,
+            icon: Icons.meeting_room_outlined,
           ),
-          if (groups.isEmpty)
-            _EmptyHint(context.l10n.discoveryNoGroups)
-          else
-            _cardGrid([
-              for (final m in groups)
-                EntityCard(
-                  model: EntityCardModel.fromMember(system, m),
-                  onTap: () => context.push('/group/${m.uuid}'),
-                ),
-            ]),
-          // Single speaker rooms — hidden entirely when there are none.
-          if (singleRooms.isNotEmpty) ...[
-            Gap.l,
-            SectionHeader(
-              context.l10n.discoverySingleRooms,
-              icon: Icons.meeting_room_outlined,
-            ),
-            _cardGrid([
-              for (final m in singleRooms)
-                EntityCard(
-                  model: EntityCardModel.fromMember(system, m),
-                  onTap: () => context.push('/room/${m.uuid}'),
-                ),
-            ]),
-          ],
-          // Other devices: unbonded Subs are shown so they're visible (they're
-          // Invisible members with no room). Tapping opens a small sheet to
-          // identify it and explains how to bond it — a standalone sub has no
-          // config of its own, so this is the only affordance.
-          if (system.bondableSubs.isNotEmpty) ...[
-            Gap.l,
-            SectionHeader(context.l10n.discoveryOtherDevices,
-                icon: Icons.devices_other_outlined),
-            _cardGrid([
-              for (final sub in system.bondableSubs)
-                EntityCard(
-                  model: EntityCardModel(
-                    icon: Icons.graphic_eq,
-                    title: context.l10n.discoverySubwoofer,
-                    subtitle: sub.typeLabel,
-                  ),
-                  onTap: () => _showSubSheet(context, sub),
-                ),
-            ]),
-          ],
+          _cardGrid([
+            for (final m in singleRooms)
+              EntityCard(
+                model: EntityCardModel.fromMember(system, m),
+                onTap: () => context.push('/room/${m.uuid}'),
+              ),
+          ]),
         ],
-      ),
+        // Other devices: unbonded Subs are shown so they're visible (they're
+        // Invisible members with no room). Tapping opens a small sheet to
+        // identify it and explains how to bond it — a standalone sub has no
+        // config of its own, so this is the only affordance.
+        if (system.bondableSubs.isNotEmpty) ...[
+          Gap.l,
+          SectionHeader(context.l10n.discoveryOtherDevices,
+              icon: Icons.devices_other_outlined),
+          _cardGrid([
+            for (final sub in system.bondableSubs)
+              EntityCard(
+                model: EntityCardModel(
+                  icon: Icons.graphic_eq,
+                  title: context.l10n.discoverySubwoofer,
+                  subtitle: sub.typeLabel,
+                ),
+                onTap: () => _showSubSheet(context, sub),
+              ),
+          ]),
+        ],
+      ],
     );
   }
 }
