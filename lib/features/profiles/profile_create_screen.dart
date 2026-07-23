@@ -141,54 +141,68 @@ class _State extends ConsumerState<ProfileCreateScreen> {
         child: Opacity(
           opacity: _saving ? 0.5 : 1,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+            // No horizontal padding: the SettingsSection at the end is full-bleed
+            // (edge-to-edge dividers), matching the Trueplay / diagnostics
+            // registers. The content above it carries its own kPageGutter inset.
+            padding: const EdgeInsets.only(top: 8, bottom: 96),
             children: [
-              if (isResnapshot) ...[
-                // Non-destructive: nothing is written until the user saves on the
-                // profile screen, so this is a light note, not a warning.
-                InfoNote(context.l10n.profileResnapshotNote),
-                Gap.l,
-              ] else
-                // Name + appearance are edited on the profile screen for an existing
-                // profile; only create-new needs them here.
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: ProfileNameField(
-                    controller: _name,
-                    iconId: _iconId,
-                    color: _color,
-                    nameTaken: taken,
-                    onChanged: () => setState(() {}),
-                    onAppearanceChanged: (icon, color) => setState(() {
-                      _iconId = icon;
-                      _color = color;
-                    }),
-                  ),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: kPageGutter),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (isResnapshot) ...[
+                      // Non-destructive: nothing is written until the user saves on
+                      // the profile screen, so this is a light note, not a warning.
+                      InfoNote(context.l10n.profileResnapshotNote),
+                      Gap.l,
+                    ] else
+                      // Name + appearance are edited on the profile screen for an
+                      // existing profile; only create-new needs them here.
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: ProfileNameField(
+                          controller: _name,
+                          iconId: _iconId,
+                          color: _color,
+                          nameTaken: taken,
+                          onChanged: () => setState(() {}),
+                          onAppearanceChanged: (icon, color) => setState(() {
+                            _iconId = icon;
+                            _color = color;
+                          }),
+                        ),
+                      ),
+                    // Only the create flow needs the "what applying does" primer; on
+                    // re-snapshot the profile already exists and the detail screen
+                    // owns the review.
+                    if (!isResnapshot) ...[
+                      InfoNote(context.l10n.profileApplyPrimer),
+                      Gap.l,
+                    ],
+                    SectionHeader(
+                      context.l10n.profileIncludeHeader,
+                      helper: context.l10n.profileIncludeHelper,
+                    ),
+                    for (final e in _entities)
+                      _SelectableEntityCard(
+                        entity: e,
+                        included: _included[e.primaryUuid] ?? true,
+                        onChanged: (v) =>
+                            setState(() => _included[e.primaryUuid] = v),
+                      ),
+                    Gap.l,
+                    SectionHeader(
+                      context.l10n.profileSpeakerSettingsHeader,
+                      helper: context.l10n.profileSpeakerSettingsHelper,
+                    ),
+                  ],
                 ),
-              // Only the create flow needs the "what applying does" primer; on
-              // re-snapshot the profile already exists and the detail screen owns
-              // the review.
-              if (!isResnapshot) ...[
-                InfoNote(context.l10n.profileApplyPrimer),
-                Gap.l,
-              ],
-              SectionHeader(
-                context.l10n.profileIncludeHeader,
-                helper: context.l10n.profileIncludeHelper,
-              ),
-              for (final e in _entities)
-                _SelectableEntityCard(
-                  entity: e,
-                  included: _included[e.primaryUuid] ?? true,
-                  onChanged: (v) => setState(() => _included[e.primaryUuid] = v),
-                ),
-              Gap.l,
-              SectionHeader(
-                context.l10n.profileSpeakerSettingsHeader,
-                helper: context.l10n.profileSpeakerSettingsHelper,
               ),
               // Flat settings rows (not a card) — these are toggles, matching the
-              // Trueplay / diagnostics registers.
+              // Trueplay / diagnostics registers. Full-bleed sibling of the padded
+              // content above so its dividers reach the screen edges.
               SettingsSection(children: [
                 SwitchListTile(
                   value: _saveAudio,

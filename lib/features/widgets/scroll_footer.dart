@@ -45,10 +45,16 @@ class ScrollFooter extends StatelessWidget {
             ),
           ),
         ),
-        SliverPadding(
-          padding: padding.copyWith(top: 0),
-          sliver: SliverFillRemaining(
-            hasScrollBody: false,
+        // The footer's padding lives INSIDE the SliverFillRemaining child, not in
+        // a wrapping SliverPadding: SliverFillRemaining(hasScrollBody: false) fills
+        // the entire remaining viewport extent, so a wrapping SliverPadding would
+        // add its bottom inset on top of that and overflow the viewport by ~that
+        // padding (a few px of spurious scroll). Padding inside the fill keeps the
+        // total exactly one viewport when content fits.
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Padding(
+            padding: padding.copyWith(top: 0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.stretch,

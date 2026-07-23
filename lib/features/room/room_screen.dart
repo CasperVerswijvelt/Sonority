@@ -170,6 +170,9 @@ class _ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      // Full-bleed action row (not card-nested): square ink, not the rounded
+      // listTileTheme default.
+      shape: kFlatTileShape,
       contentPadding: const EdgeInsets.symmetric(horizontal: kPageGutter),
       leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
       title: Text(title),

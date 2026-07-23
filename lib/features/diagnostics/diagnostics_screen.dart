@@ -10,6 +10,7 @@ import 'package:file_saver/file_saver.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/l10n.dart';
+import '../../core/theme.dart';
 import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
@@ -179,7 +180,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
             title: Text(context.l10n.diagIncludeLogs),
             subtitle: Text(context.l10n.diagIncludeLogsSubtitle),
             dense: true,
-            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+            shape: kFlatTileShape,
           ),
           SwitchListTile(
             value: _includeNetwork,
@@ -188,7 +189,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
             title: Text(context.l10n.diagIncludeNetwork),
             subtitle: Text(context.l10n.diagIncludeNetworkSubtitle),
             dense: true,
-            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+            shape: kFlatTileShape,
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
