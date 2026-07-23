@@ -40,7 +40,7 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Fixed
 - The System overview no longer jitters / jumps while overscrolling with a trackpad on macOS (and iPad) — it now scrolls as a list view instead of a single scrolling column, which the platform bounce handles smoothly.
-- Flat settings/action rows (the New-profile "Speaker settings" toggles, the room's Group / Add-to-home-theater shortcuts, the Trueplay toggle) now show a square, edge-to-edge hover/press highlight and full-width dividers instead of a rounded, inset one; the Trueplay row toggles when you tap anywhere on it, not just the switch.
+- Settings/toggle rows are now consistent across pages: a flat register pinned to the bottom under a single full-width divider (like the Diagnostics tab), with a square, edge-to-edge hover/press highlight instead of a rounded, inset one — the New-profile capture toggles and the home-theater Trueplay control now sit there too (the room page already did). The Trueplay row toggles when you tap anywhere on it, not just the switch.
 - Detail pages (single room, speaker group, home theater) no longer scroll a few pixels when their content already fits the window.
 - Pull-to-refresh on the System overview and home-theater pages now works even when the content is short enough to fit the screen without scrolling (previously the pull gesture did nothing there).
 - The New/Re-snapshot profile form is now locked and dimmed while it reads a speaker's EQ/volume, so you can no longer flip the capture toggles or change the selection mid-save.

@@ -214,21 +214,26 @@ class _Content extends StatelessWidget {
       for (final g in _htGroupsFor(l10n))
         if (g.channels.any((c) => hasChannel(member, c))) g,
     ];
-    // Edge-to-edge list so the Trueplay settings section can be full-bleed
-    // (flat, sectioned — a setting, not another content card); content blocks
-    // carry their own horizontal padding. Separate sits pinned at the bottom
-    // (via ScrollFooter) so the destructive action is always at the end.
+    // The settings register (Trueplay) and the destructive Separate both pin to
+    // the bottom via ScrollFooter: a full-bleed, flat, sectioned Trueplay row
+    // (a setting, not another content card) with its single leading divider,
+    // then Separate last so the destructive action is at the very end. Content
+    // blocks above carry their own horizontal padding.
     return ScrollFooter(
       padding: const EdgeInsets.symmetric(vertical: 20),
-      footer: present.isEmpty
-          ? const SizedBox.shrink()
-          : Padding(
-              padding: const EdgeInsets.fromLTRB(
-                kPageGutter,
-                20,
-                kPageGutter,
-                0,
-              ),
+      footer: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SettingsSection(children: [TrueplayControl(devices: bonded)]),
+          if (member.hasDedicatedFronts)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),
+              child: Text(l10n.htTrueplayNote, style: theme.mutedText),
+            ),
+          if (present.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(kPageGutter, 20, kPageGutter, 0),
               child: DestructiveButton(
                 icon: Icons.link_off,
                 label: l10n.htSeparate,
@@ -239,6 +244,8 @@ class _Content extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
@@ -274,16 +281,6 @@ class _Content extends StatelessWidget {
             ],
           ),
         ),
-        Gap.m,
-        SettingsSection(children: [TrueplayControl(devices: bonded)]),
-        if (member.hasDedicatedFronts)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),
-            child: Text(
-              l10n.htTrueplayNote,
-              style: theme.mutedText,
-            ),
-          ),
       ],
     );
   }

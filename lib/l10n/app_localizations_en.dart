@@ -613,13 +613,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Pick which of your current home theaters, pairs and rooms to capture in this profile.';
 
   @override
-  String get profileSpeakerSettingsHeader => 'Speaker settings';
-
-  @override
-  String get profileSpeakerSettingsHelper =>
-      'Optionally snapshot each speaker’s current settings and restore them when this profile is applied.';
-
-  @override
   String get profileSaveAudio => 'Save audio settings';
 
   @override

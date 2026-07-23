@@ -8,6 +8,7 @@ import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/info_note.dart';
+import '../widgets/scroll_footer.dart';
 import '../widgets/section_header.dart';
 import '../widgets/settings_section.dart';
 import 'profile.dart';
@@ -140,15 +141,35 @@ class _State extends ConsumerState<ProfileCreateScreen> {
         absorbing: _saving,
         child: Opacity(
           opacity: _saving ? 0.5 : 1,
-          child: ListView(
-            // No horizontal padding: the SettingsSection at the end is full-bleed
-            // (edge-to-edge dividers), matching the Trueplay / diagnostics
-            // registers. The content above it carries its own kPageGutter inset.
+          child: ScrollFooter(
+            // Bottom inset clears the persistent "Create profile" button so the
+            // pinned settings register floats just above it. The footer carries no
+            // horizontal padding so its dividers are full-bleed (matching the
+            // Trueplay / diagnostics registers); content above carries its own.
             padding: const EdgeInsets.only(top: 8, bottom: 96),
+            // Speaker-settings toggles: a flat, sectioned register pinned to the
+            // bottom (single leading divider, no title — the toggle subtitles say
+            // what they do), like the diagnostics bundle toggles.
+            footer: SettingsSection(children: [
+              SwitchListTile(
+                value: _saveAudio,
+                onChanged: (v) => setState(() => _saveAudio = v),
+                secondary: const Icon(Icons.tune),
+                title: Text(context.l10n.profileSaveAudio),
+                subtitle: Text(context.l10n.profileSaveAudioSubtitle),
+              ),
+              const Divider(height: 1),
+              SwitchListTile(
+                value: _saveVolume,
+                onChanged: (v) => setState(() => _saveVolume = v),
+                secondary: const Icon(Icons.volume_up),
+                title: Text(context.l10n.profileSaveVolume),
+                subtitle: Text(context.l10n.profileSaveVolumeSubtitle),
+              ),
+            ]),
             children: [
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: kPageGutter),
+                padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -192,34 +213,9 @@ class _State extends ConsumerState<ProfileCreateScreen> {
                         onChanged: (v) =>
                             setState(() => _included[e.primaryUuid] = v),
                       ),
-                    Gap.l,
-                    SectionHeader(
-                      context.l10n.profileSpeakerSettingsHeader,
-                      helper: context.l10n.profileSpeakerSettingsHelper,
-                    ),
                   ],
                 ),
               ),
-              // Flat settings rows (not a card) — these are toggles, matching the
-              // Trueplay / diagnostics registers. Full-bleed sibling of the padded
-              // content above so its dividers reach the screen edges.
-              SettingsSection(children: [
-                SwitchListTile(
-                  value: _saveAudio,
-                  onChanged: (v) => setState(() => _saveAudio = v),
-                  secondary: const Icon(Icons.tune),
-                  title: Text(context.l10n.profileSaveAudio),
-                  subtitle: Text(context.l10n.profileSaveAudioSubtitle),
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  value: _saveVolume,
-                  onChanged: (v) => setState(() => _saveVolume = v),
-                  secondary: const Icon(Icons.volume_up),
-                  title: Text(context.l10n.profileSaveVolume),
-                  subtitle: Text(context.l10n.profileSaveVolumeSubtitle),
-                ),
-              ]),
             ],
           ),
         ),
