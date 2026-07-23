@@ -278,6 +278,9 @@ class _Content extends StatelessWidget {
                       onRemove: () => onRemoveGroup(g.channels, g.label),
                     ),
                 ]),
+              // Breathing room between the content and the pinned settings
+              // divider (which otherwise hugs the last bonded-speaker card).
+              Gap.m,
             ],
           ),
         ),

@@ -146,7 +146,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
             // pinned settings register floats just above it. The footer carries no
             // horizontal padding so its dividers are full-bleed (matching the
             // Trueplay / diagnostics registers); content above carries its own.
-            padding: const EdgeInsets.only(top: 8, bottom: 96),
+            padding: const EdgeInsets.only(top: 8, bottom: 80),
             // Speaker-settings toggles: a flat, sectioned register pinned to the
             // bottom (single leading divider, no title — the toggle subtitles say
             // what they do), like the diagnostics bundle toggles.
@@ -158,7 +158,6 @@ class _State extends ConsumerState<ProfileCreateScreen> {
                 title: Text(context.l10n.profileSaveAudio),
                 subtitle: Text(context.l10n.profileSaveAudioSubtitle),
               ),
-              const Divider(height: 1),
               SwitchListTile(
                 value: _saveVolume,
                 onChanged: (v) => setState(() => _saveVolume = v),
@@ -278,12 +277,19 @@ class _SelectableEntityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CheckboxListTile(
-      value: included,
-      onChanged: (v) => onChanged(v ?? false),
-      controlAffinity: ListTileControlAffinity.leading,
-      title: Text(entity.label),
-      subtitle: Text(entity.kindLabel),
+    // Outlined card per entity, matching the pick-speakers lists in the HT setup
+    // flow (BondableSpeakerTile(outlined: true)) so each candidate reads as its
+    // own tappable panel.
+    return Card(
+      margin: const EdgeInsets.only(bottom: kCardGap),
+      clipBehavior: Clip.antiAlias,
+      child: CheckboxListTile(
+        value: included,
+        onChanged: (v) => onChanged(v ?? false),
+        controlAffinity: ListTileControlAffinity.leading,
+        title: Text(entity.label),
+        subtitle: Text(entity.kindLabel),
+      ),
     );
   }
 }
