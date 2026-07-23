@@ -3,30 +3,43 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/features/widgets/reorderable_card_grid.dart';
 
-/// The reorder index mapping is the one piece of real logic here: a long-press
-/// drag must call onReorder(from, to) with insert-style indices (from = index
-/// in items, to = final index) — exactly what ProfilesController.reorder wants.
+/// The reorder index mapping is the one piece of real logic here: an in-mode
+/// drag must call onReorder(from, to) with insert-style indices (from = index in
+/// items, to = final index) — exactly what ProfilesController.reorder wants.
 void main() {
-  Widget host(List<String> items, void Function(int, int) onReorder) {
+  Widget host(
+    List<String> items,
+    void Function(int, int) onReorder, {
+    bool reordering = false,
+    void Function(String)? onTap,
+  }) {
     // Wide enough for 2 columns (default minColumnWidth 360).
     return MaterialApp(
       home: Scaffold(
         body: ReorderableCardGrid<String>(
           items: items,
           idOf: (s) => s,
+          reordering: reordering,
           onReorder: onReorder,
-          itemBuilder: (context, s) =>
-              Card(child: SizedBox(height: 80, child: Center(child: Text(s)))),
+          itemBuilder: (context, s) => Card(
+            child: InkWell(
+              onTap: onTap == null ? null : () => onTap(s),
+              child: SizedBox(height: 80, child: Center(child: Text(s))),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  testWidgets('renders every item', (tester) async {
+  void wide(WidgetTester tester) {
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
+  }
 
+  testWidgets('renders every item', (tester) async {
+    wide(tester);
     await tester.pumpWidget(host(['a', 'b', 'c', 'd'], (_, __) {}));
     await tester.pumpAndSettle();
     // 'a' also appears in the invisible measurer probe → 2; b/c/d once each.
@@ -35,42 +48,62 @@ void main() {
     expect(find.text('d'), findsOneWidget);
   });
 
-  testWidgets('long-press-drag reports insert-style (from, to)', (tester) async {
-    tester.view.physicalSize = const Size(900, 700);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
+  testWidgets('reorder mode: immediate drag reports insert-style (from, to)',
+      (tester) async {
+    wide(tester);
     final order = ['a', 'b', 'c', 'd']; // 2 cols: a b / c d
     int? gotFrom, gotTo;
     await tester.pumpWidget(host(order, (f, t) {
       gotFrom = f;
       gotTo = t;
-    }));
-    await tester.pumpAndSettle(); // let the height measure → grid (drag) mode
+    }, reordering: true));
+    await tester.pumpAndSettle(); // let the height measure → grid mode
 
-    // Drag 'c' (index 2) onto 'b' (index 1). Use non-first items so the
-    // measurer's duplicate of 'a' doesn't make the finder ambiguous.
-    final g = await tester.startGesture(tester.getCenter(find.text('c')));
-    await tester.pump(const Duration(milliseconds: 600)); // > long-press
-    await g.moveTo(tester.getCenter(find.text('b')));
+    // Drag 'd' (index 3) onto 'c' (index 2): same row → a horizontal drag the
+    // pan wins outright (no scroll conflict). Non-first items, so the measurer's
+    // duplicate of 'a' doesn't make the finder ambiguous. No long-press wait.
+    final g = await tester.startGesture(tester.getCenter(find.text('d')));
+    await g.moveTo(tester.getCenter(find.text('c')));
     await tester.pump();
     await g.up();
     await tester.pumpAndSettle();
 
-    expect(gotFrom, 2);
-    expect(gotTo, 1);
+    expect(gotFrom, 3);
+    expect(gotTo, 2);
     // Applied the way ProfilesController.reorder does:
     order.insert(gotTo!, order.removeAt(gotFrom!));
-    expect(order, ['a', 'c', 'b', 'd']);
+    expect(order, ['a', 'b', 'd', 'c']);
+  });
+
+  testWidgets('not reordering: no drag, card stays interactive', (tester) async {
+    wide(tester);
+    var reorders = 0;
+    String? tapped;
+    await tester.pumpWidget(host(
+      ['a', 'b', 'c', 'd'],
+      (_, __) => reorders++,
+      reordering: false,
+      onTap: (s) => tapped = s,
+    ));
+    await tester.pumpAndSettle();
+
+    // A drag does not reorder (no gesture when not in reorder mode).
+    final g = await tester.startGesture(tester.getCenter(find.text('d')));
+    await g.moveTo(tester.getCenter(find.text('c')));
+    await g.up();
+    await tester.pumpAndSettle();
+    expect(reorders, 0);
+
+    // ...and the card is still tappable.
+    await tester.tap(find.text('b'));
+    await tester.pumpAndSettle();
+    expect(tapped, 'b');
   });
 
   testWidgets('exposes screen-reader reorder actions (accessibility)',
       (tester) async {
     final handle = tester.ensureSemantics();
-    tester.view.physicalSize = const Size(900, 700);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
+    wide(tester);
     await tester.pumpWidget(host(['a', 'b', 'c', 'd'], (_, __) {}));
     await tester.pumpAndSettle();
 

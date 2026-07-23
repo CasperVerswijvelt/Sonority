@@ -265,6 +265,10 @@ class ProfileCard extends StatelessWidget {
   final Widget? actions;
   final bool selected;
 
+  /// When true, [actions] cross-fade + collapse away (animated) — used by the
+  /// Profiles reorder mode. Pass [actions] anyway so they can animate out.
+  final bool actionsCollapsed;
+
   /// Vertical placement of the header row's children — the picker top-aligns so
   /// its selection dot sits in the top-right.
   final CrossAxisAlignment crossAxisAlignment;
@@ -276,6 +280,7 @@ class ProfileCard extends StatelessWidget {
     this.trailing,
     this.actions,
     this.selected = false,
+    this.actionsCollapsed = false,
     this.crossAxisAlignment = CrossAxisAlignment.center,
   });
 
@@ -370,7 +375,12 @@ class ProfileCard extends StatelessWidget {
                   ),
                   if (trailing != null) ...[
                     const SizedBox(width: 8),
-                    trailing!,
+                    // Cross-fade when the trailing swaps (⋮ menu ↔ drag handle
+                    // when toggling reorder mode).
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 240),
+                      child: trailing!,
+                    ),
                   ],
                 ],
               ),
@@ -382,7 +392,25 @@ class ProfileCard extends StatelessWidget {
                 audio: profile.hasAudioSettings,
                 volume: profile.hasVolume,
               ),
-              if (actions != null) ...[const SizedBox(height: 14), actions!],
+              // Cross-fade + collapse the actions row so toggling reorder mode
+              // animates the buttons out (not just the empty space). The reorder
+              // grid measures the changing height each frame and its rows follow.
+              if (actions != null)
+                AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 240),
+                  sizeCurve: Curves.easeInOut,
+                  firstCurve: Curves.easeInOut,
+                  secondCurve: Curves.easeInOut,
+                  alignment: Alignment.topCenter,
+                  crossFadeState: actionsCollapsed
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
+                  firstChild: Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: actions!,
+                  ),
+                  secondChild: const SizedBox(width: double.infinity),
+                ),
             ],
           ),
         ),

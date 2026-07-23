@@ -37,6 +37,12 @@ class ReorderableCardGrid<T> extends StatefulWidget {
   /// position after removal).
   final void Function(int oldIndex, int newIndex) onReorder;
 
+  /// When true, items drag immediately (no long-press) and their content is
+  /// inert (the caller shows a drag affordance instead). When false, there is no
+  /// drag gesture and items are fully interactive. Screen-reader reorder actions
+  /// are available in both cases.
+  final bool reordering;
+
   final double minColumnWidth;
   final int maxColumns;
   final double spacing;
@@ -48,6 +54,7 @@ class ReorderableCardGrid<T> extends StatefulWidget {
     required this.idOf,
     required this.itemBuilder,
     required this.onReorder,
+    this.reordering = false,
     this.minColumnWidth = 360,
     this.maxColumns = 3,
     this.spacing = kCardGap,
@@ -296,18 +303,31 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
       // No forced height: the card self-sizes, so a stale measured height (one
       // frame behind a width change / chip re-wrap) can never overflow it. The
       // measured height is used only for row spacing (`slot`).
+      // Keep this subtree structurally CONSTANT across the reorder toggle (only
+      // the callbacks / absorbing / elevation change) so the item's element —
+      // and any AnimatedSize inside it — persists and can animate the switch.
+      // In reorder mode: drag immediately (no long-press) and make the content
+      // inert; otherwise the GestureDetector has no recognizers and taps pass
+      // straight through to an interactive card.
       child: Semantics(
         container: true,
         customSemanticsActions: _reorderActions(context, d),
         child: GestureDetector(
-          onLongPressStart: (e) => _startDrag(item, slot, e.globalPosition),
-          onLongPressMoveUpdate: (e) => _moveDrag(e.globalPosition, cols, cellW),
-          onLongPressEnd: (_) => _endDrag(),
-          onLongPressCancel: _endDrag,
+          onPanStart: widget.reordering
+              ? (e) => _startDrag(item, slot, e.globalPosition)
+              : null,
+          onPanUpdate: widget.reordering
+              ? (e) => _moveDrag(e.globalPosition, cols, cellW)
+              : null,
+          onPanEnd: widget.reordering ? (_) => _endDrag() : null,
+          onPanCancel: widget.reordering ? _endDrag : null,
           child: Material(
             type: MaterialType.transparency,
             elevation: dragging ? 8 : 0,
-            child: widget.itemBuilder(context, item),
+            child: AbsorbPointer(
+              absorbing: widget.reordering,
+              child: widget.itemBuilder(context, item),
+            ),
           ),
         ),
       ),

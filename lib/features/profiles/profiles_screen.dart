@@ -15,13 +15,25 @@ import 'profile_controller.dart';
 import 'profile_ui.dart';
 
 /// The Profiles tab: saved layouts you can re-apply in one tap.
-class ProfilesScreen extends ConsumerWidget {
+class ProfilesScreen extends ConsumerStatefulWidget {
   const ProfilesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfilesScreen> createState() => _ProfilesScreenState();
+}
+
+class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
+  /// Reorder mode: cards become drag-only (no apply / delete / open).
+  bool _editing = false;
+
+  @override
+  Widget build(BuildContext context) {
     final profiles = ref.watch(profilesProvider);
     final hasSystem = ref.watch(sonosControllerProvider).value != null;
+    // Reordering needs ≥2 profiles; keep the toggle visible while editing so
+    // "Done" is always reachable.
+    final count = profiles.value?.length ?? 0;
+    final showToggle = count > 1 || _editing;
 
     final body = profiles.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -30,14 +42,15 @@ class ProfilesScreen extends ConsumerWidget {
               context.l10n.profileLoadError(localizedError(context.l10n, e)))),
       data: (list) {
         if (list.isEmpty) return const _EmptyState();
-        // One reorderable grid for every width: a single column on a phone (a
-        // reorderable list), 2–3 columns when wide. Long-press a card and drag
-        // it; the others glide to their new slots and it drops into place.
+        // One reorderable grid for every width: a single column on a phone, 2–3
+        // when wide. Drag/reorder is gated behind the reorder-mode toggle.
         return ReorderableCardGrid<Profile>(
           items: list,
           idOf: (p) => p.id,
+          reordering: _editing,
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
-          itemBuilder: (context, p) => _profileCard(context, ref, p),
+          itemBuilder: (context, p) =>
+              _profileCard(context, ref, p, editing: _editing),
           onReorder: (from, to) =>
               ref.read(profilesProvider.notifier).reorder(from, to),
         );
@@ -46,39 +59,69 @@ class ProfilesScreen extends ConsumerWidget {
 
     return AppScaffold(
       title: context.l10n.tabProfiles,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: hasSystem
-            ? () => context.go('/profiles/new')
-            : () => ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(context.l10n.profileScanFirst),
-                ),
-              ),
-        icon: const Icon(Icons.add),
-        label: Text(context.l10n.profileNew),
-      ),
+      actions: [
+        if (showToggle)
+          IconButton(
+            tooltip:
+                _editing ? context.l10n.actionDone : context.l10n.profileReorder,
+            onPressed: () => setState(() => _editing = !_editing),
+            icon: Icon(_editing ? Icons.check : Icons.low_priority),
+          ),
+      ],
+      // Nothing else is actionable in reorder mode, so the "new profile" FAB
+      // steps aside.
+      floatingActionButton: _editing
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: hasSystem
+                  ? () => context.go('/profiles/new')
+                  : () => ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(context.l10n.profileScanFirst)),
+                      ),
+              icon: const Icon(Icons.add),
+              label: Text(context.l10n.profileNew),
+            ),
       body: body,
     );
   }
-
 }
 
-/// One profile tile — shared by the reorderable list (narrow) and the grid
-/// (wide). No outer padding; the caller adds row/grid spacing.
-Widget _profileCard(BuildContext context, WidgetRef ref, Profile p) {
+/// One profile tile. In reorder mode (`editing`) the card is inert — no tap,
+/// no action buttons — and the ⋮ menu becomes a drag handle.
+Widget _profileCard(
+  BuildContext context,
+  WidgetRef ref,
+  Profile p, {
+  bool editing = false,
+}) {
   return ProfileCard(
     profile: p,
-    onTap: () => context.go('/profiles/edit/${p.id}'),
+    onTap: editing ? null : () => context.go('/profiles/edit/${p.id}'),
     crossAxisAlignment: CrossAxisAlignment.start,
-    // Overflow menu (destructive Delete) tucked top-right.
-    trailing: PopupMenuButton<String>(
-      tooltip: context.l10n.actionMore,
-      onSelected: (_) => _confirmDelete(context, ref, p),
-      itemBuilder: (_) => [
-        PopupMenuItem(value: 'delete', child: Text(context.l10n.actionDelete)),
-      ],
-    ),
-    // Split actions: Edit (muted) + Apply (prominent).
+    actionsCollapsed: editing,
+    // Drag handle in reorder mode, else the overflow menu (destructive Delete).
+    // Both are IconButton-sized so they occupy the exact same spot; ProfileCard
+    // cross-fades between them (keyed).
+    trailing: editing
+        ? IconButton(
+            key: const ValueKey('handle'),
+            onPressed: null, // inert affordance; the whole card is the drag surface
+            style: IconButton.styleFrom(
+              disabledForegroundColor:
+                  Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            icon: const Icon(Icons.drag_handle),
+          )
+        : PopupMenuButton<String>(
+            key: const ValueKey('menu'),
+            tooltip: context.l10n.actionMore,
+            onSelected: (_) => _confirmDelete(context, ref, p),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                  value: 'delete', child: Text(context.l10n.actionDelete)),
+            ],
+          ),
+    // Always built so ProfileCard can animate it out; collapsed in reorder mode.
     actions: Row(
       children: [
         Expanded(
