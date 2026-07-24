@@ -15,6 +15,18 @@ List<ZoneGroupMember> homeTheaterTargets(SonosSystem system) => system.allMember
     .where((m) => m.isHomeTheater || (system.device(m.uuid)?.isSoundbar ?? false))
     .toList();
 
+/// Whether the standalone speaker [uuid] can start a group — it must itself be
+/// groupable AND have at least one other groupable speaker to pair with, so the
+/// group flow can't dead-end on a single speaker.
+bool canGroupSpeaker(SonosSystem system, String uuid) {
+  final z = system.zoneableSpeakers;
+  return z.length >= 2 && z.any((d) => d.uuid == uuid);
+}
+
+/// Whether a standalone Sub can join a new group — a group needs ≥2 speakers
+/// (the Sub rides along as the SW channel), so there must be two to bond.
+bool canGroupSub(SonosSystem system) => system.zoneableSpeakers.length >= 2;
+
 /// Pops the current page, then pushes [location] — pop-then-push so that after
 /// the guided flow completes we land back on the overview (the device is no
 /// longer standalone), not on a now-stale detail page.
@@ -25,31 +37,65 @@ void leaveTo(BuildContext context, String location) {
 }
 
 /// "Add to a home theater": route into the HT setup flow keyed to a soundbar —
-/// straight through with one soundbar, or a small chooser when there are several.
+/// straight through with one soundbar, or a chooser when there are several. The
+/// originating [speaker] or [sub] is passed on so the flow pre-selects it.
 Future<void> addToHomeTheater(
   BuildContext context,
-  List<ZoneGroupMember> soundbars,
-) async {
+  List<ZoneGroupMember> soundbars, {
+  String? speaker,
+  String? sub,
+}) async {
   String? target;
   if (soundbars.length == 1) {
     target = soundbars.first.uuid;
   } else {
     target = await showDialog<String>(
       context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(context.l10n.roomAddToWhichHomeTheater),
-        children: [
-          for (final s in soundbars)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, s.uuid),
-              child: Text(s.zoneName),
-            ),
-        ],
-      ),
+      builder: (ctx) => _HomeTheaterChooser(soundbars: soundbars),
     );
   }
   if (target == null || !context.mounted) return;
-  leaveTo(context, '/theater/$target/fronts');
+  final q = speaker != null
+      ? '?speaker=$speaker'
+      : sub != null
+          ? '?sub=$sub'
+          : '';
+  leaveTo(context, '/theater/$target/fronts$q');
+}
+
+/// Pick-a-home-theater dialog: one clearly-tappable row per HT (glyph + name +
+/// chevron), not bare text options.
+class _HomeTheaterChooser extends StatelessWidget {
+  final List<ZoneGroupMember> soundbars;
+  const _HomeTheaterChooser({required this.soundbars});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AlertDialog(
+      title: Text(context.l10n.roomAddToWhichHomeTheater),
+      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final s in soundbars)
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: scheme.primaryContainer,
+                  foregroundColor: scheme.onPrimaryContainer,
+                  child: const Icon(Icons.surround_sound),
+                ),
+                title: Text(s.zoneName),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.pop(context, s.uuid),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// A flat, tappable "do something with this device" row: icon + title + a line

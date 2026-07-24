@@ -31,7 +31,8 @@ class SubScreen extends ConsumerWidget {
             padding: EdgeInsets.all(24), child: MissingRoomView()),
       );
     }
-    final soundbars = homeTheaterTargets(system!);
+    final sys = system!;
+    final soundbars = homeTheaterTargets(sys);
     return AppScaffold(
       title: context.l10n.discoverySubwoofer,
       subtitle: sub.typeLabel,
@@ -43,18 +44,19 @@ class SubScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            ActionRow(
-              icon: Icons.speaker_group_outlined,
-              title: context.l10n.subAddToGroup,
-              subtitle: context.l10n.subAddToGroupSubtitle,
-              onTap: () => leaveTo(context, '/group'),
-            ),
+            if (canGroupSub(sys))
+              ActionRow(
+                icon: Icons.speaker_group_outlined,
+                title: context.l10n.subAddToGroup,
+                subtitle: context.l10n.subAddToGroupSubtitle,
+                onTap: () => leaveTo(context, '/group?sub=$uuid'),
+              ),
             if (soundbars.isNotEmpty)
               ActionRow(
                 icon: Icons.surround_sound,
                 title: context.l10n.roomAddToHomeTheater,
                 subtitle: context.l10n.roomAddToHomeTheaterSubtitle,
-                onTap: () => addToHomeTheater(context, soundbars),
+                onTap: () => addToHomeTheater(context, soundbars, sub: uuid),
               ),
           ],
         ),

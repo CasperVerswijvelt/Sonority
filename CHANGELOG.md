@@ -17,6 +17,7 @@ section into the GitHub Release notes regardless of the build suffix
 ### Changed
 - UI consistency pass: the Profiles list now aligns to the same page gutter as the other screens, share/save and empty-state layouts use consistent sizing, and short animations share one duration — plus removed a few redundant theme overrides that just restated Flutter defaults. No behaviour change.
 - A standalone (unbonded) Sub now opens its own detail page instead of a bottom sheet, with shortcuts to add it to a home theater or a speaker group (so it's not a dead end), and an identify failure now surfaces properly.
+- The "add to a home theater / speaker group" shortcuts on the room and Sub pages now pre-select the speaker/Sub in the flow they open, only appear when there's actually somewhere to add it (hidden when no soundbar exists, or when there aren't enough speakers to form a group), and the "which home theater?" picker is a clearer tappable list.
 
 ## [0.6.0] - 2026-07-17
 

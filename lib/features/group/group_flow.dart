@@ -22,7 +22,11 @@ enum _Mode { stereo, zone, custom }
 /// an optional Sub. Stepped (speakers → sub → name → review) like the
 /// home-theater setup.
 class GroupFlow extends ConsumerStatefulWidget {
-  const GroupFlow({super.key});
+  /// Optionally pre-selected when opened from a room / Sub detail shortcut, so
+  /// the originating speaker (or Sub) is already picked in the flow.
+  final String? preselectSpeaker;
+  final String? preselectSub;
+  const GroupFlow({super.key, this.preselectSpeaker, this.preselectSub});
 
   @override
   ConsumerState<GroupFlow> createState() => _GroupFlowState();
@@ -35,6 +39,17 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
   final Map<String, GroupChannel> _channels = {}; // custom: uuid → channel
   String? _subUuid;
   final _nameController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final sp = widget.preselectSpeaker;
+    if (sp != null) {
+      _selected.add(sp);
+      _channels[sp] = GroupChannel.both;
+    }
+    _subUuid = widget.preselectSub;
+  }
 
   static const _maxSpeakers = 16;
   static const _stepSpeakers = 0;

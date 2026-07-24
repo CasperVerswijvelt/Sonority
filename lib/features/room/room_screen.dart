@@ -67,18 +67,19 @@ class RoomScreen extends ConsumerWidget {
             // standalone room isn't a dead end (the flows do their own
             // validation). Descriptive rows (title + what it does), not bare
             // buttons.
-            ActionRow(
-              icon: Icons.speaker_group_outlined,
-              title: context.l10n.roomGroupWith,
-              subtitle: context.l10n.roomGroupWithSubtitle,
-              onTap: () => leaveTo(context, '/group'),
-            ),
+            if (canGroupSpeaker(system, uuid))
+              ActionRow(
+                icon: Icons.speaker_group_outlined,
+                title: context.l10n.roomGroupWith,
+                subtitle: context.l10n.roomGroupWithSubtitle,
+                onTap: () => leaveTo(context, '/group?speaker=$uuid'),
+              ),
             if (soundbars.isNotEmpty)
               ActionRow(
                 icon: Icons.surround_sound,
                 title: context.l10n.roomAddToHomeTheater,
                 subtitle: context.l10n.roomAddToHomeTheaterSubtitle,
-                onTap: () => addToHomeTheater(context, soundbars),
+                onTap: () => addToHomeTheater(context, soundbars, speaker: uuid),
               ),
             Gap.s,
             // Settings: a flat, sectioned Trueplay row, not another card.

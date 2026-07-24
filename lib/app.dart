@@ -62,6 +62,8 @@ final _router = GoRouter(
                   path: 'fronts',
                   builder: (_, s) => FrontSurroundsFlow(
                     soundbarUuid: s.pathParameters['uuid']!,
+                    preselectSpeaker: s.uri.queryParameters['speaker'],
+                    preselectSub: s.uri.queryParameters['sub'],
                   ),
                 ),
               ],
@@ -129,7 +131,13 @@ final _router = GoRouter(
     // covers the tab bar — a from-scratch wizard is a task you commit or cancel.
     // (The HT setup flow, by contrast, is a nested in-shell route — it's a step
     // within an existing home theater's detail page, so nav stays available.)
-    GoRoute(path: '/group', builder: (_, __) => const GroupFlow()),
+    GoRoute(
+      path: '/group',
+      builder: (_, s) => GroupFlow(
+        preselectSpeaker: s.uri.queryParameters['speaker'],
+        preselectSub: s.uri.queryParameters['sub'],
+      ),
+    ),
   ],
 );
 
