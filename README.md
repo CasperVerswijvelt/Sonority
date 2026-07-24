@@ -16,7 +16,7 @@
 
 # Sonority
 
-A clean, cross-platform (iOS + Android + macOS) Flutter app that unlocks Sonos speaker
+A clean, cross-platform (iPhone + iPad + Android + macOS) Flutter app that unlocks Sonos speaker
 configurations the official app refuses to create — **dedicated front left/right surround
 speakers** on a home theater, a **full in-app home-theater setup** (fronts + rear surrounds +
 sub), **speaker groups** — one page to bond 2–16 speakers as a stereo pair, a zone, or a
@@ -147,14 +147,20 @@ there if a different model/firmware ever needs it.
 - ✅ Full in-app home-theater setup — fronts + rear surrounds + one or two subs (each
   optional), staged bonding with a live per-step progress timeline
 - ✅ Config profiles — snapshot a layout (maps + room names, optionally per-speaker audio
-  settings/EQ and volume) and re-apply in one tap; each profile has its own icon & colour
+  settings/EQ and volume) and re-apply in one tap; each profile has its own icon & colour,
+  drag-to-reorder, and a per-entity detail view of what it captured
 - ✅ Apply a profile from a home-screen widget (small/medium/large) or a long-press app-icon shortcut
 - ✅ Room renaming from the room / home-theater detail pages
 - ✅ Speaker groups — one page (Stereo / Zone / Custom) to bond 2–16 speakers as a stereo
   pair, a full-range zone, or a custom per-speaker L/R/Both layout, each with an optional Sub;
-  separate with name restore, captured in profiles; not restricted to Sonos' official model list
-- ✅ Identify a speaker by blinking its status LED (default; macOS-safe) or a chime (mobile)
+  reconfigure an existing group in place (add/remove/re-channel); separate with name restore,
+  captured in profiles; not restricted to Sonos' official model list
+- ✅ Identify a speaker by blinking its status LED (default; macOS-safe) or a chime (mobile),
+  from the pick-a-speaker flows and per-speaker in the room / group / home-theater detail views
 - ✅ Trueplay read + toggle on speakers / pairs / home theaters
+- ✅ Diagnostics — a hide-nothing technical system view, packaged into a shareable zip for support
+- ✅ Responsive layout for iPad and desktop — a left navigation rail and multi-column content on
+  wide screens (resizable macOS window), the single-column phone layout unchanged
 - ✅ Recipe confirmed on real hardware (Beam stays `CC`; fronts = `LF`/`RF`)
 - ✅ CI release pipeline on `v*` tags: release-signed APK, unsigned iOS `.ipa`, notarized macOS `.dmg`, plus iOS/macOS → TestFlight
 

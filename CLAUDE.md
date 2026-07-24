@@ -238,7 +238,12 @@ interpolated) then use it.
     no-ops), so a removal still needs a full dissolve. So `SonosController.
     editGroup` is diff-based (mirrors `_applyHtTarget`): in-place re-assert
     (`SonosRepository.reassertGroup`) when the target keeps every current member
-    and the coordinator is unchanged, else dissolve-then-recreate. The
+    and the coordinator is unchanged, else dissolve-then-recreate. Like a live HT
+    re-assert, an in-place group re-assert is **eventually-consistent** — it
+    intermittently 800s mid-reshuffle / 200-OK-partial-applies (the spike needed
+    ≤6 tries) — so `reassertGroup` **re-asserts the same map until the topology
+    verifies**, exactly like `bondAndVerify` (treat 800/timeout as "go verify",
+    rethrow a permanent 401/402); a single write is unreliable. The
     `reassertGroup` snapshot is migrated to the new member set so an added
     speaker still restores its name on a future separate.
   - **Zone REMOVAL is a two-step gotcha (hardware-confirmed, cost real debugging):**

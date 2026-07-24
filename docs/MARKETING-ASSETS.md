@@ -12,7 +12,7 @@ produce the current set; redo the same steps to regenerate.
 | Listing copy (App Store **and** Play) | `docs/app-store/listing.md` |
 | One-line app description | `pubspec.yaml` `description:` |
 | README screenshot gallery | `README.md` → `docs/screenshots/*` |
-| Source app screenshots (raw captures) | `design/shots/0N-*.png` (1290×2796) |
+| Source app screenshots (raw captures) | `design/shots/0N-*.png` (phone, 1290×2796) + `design/shots/0N-*-wide.png` (tablet/desktop, 2560×1600) |
 | Parametric graphics generator | `design/store.html` |
 | Google Play graphics | `design/play/*` |
 | Apple screenshots (iPhone + macOS) | `design/appstore/*` |
@@ -78,6 +78,15 @@ and a render-settle before each shot.
 The four land as `design/shots/01-overview.png`, `02-home-theater.png`,
 `03-group.png`, `04-profiles.png` — the exact files §3's framer reads.
 
+Each screen is captured **twice**: once at iPhone scale, and once at a **wide
+tablet/desktop profile** (1280×800 logical @ DPR 2 → 2560×1600 px) that lands as
+`design/shots/0N-*-wide.png`. The same routes render responsively, so the wide
+pass shows the **NavigationRail + multi-column** layout. The app has ONE
+responsive breakpoint (`kWideLayoutBreakpoint` in `lib/core/theme.dart`) with no
+tablet-vs-desktop distinction, so **one wide shot set serves iPad, Mac and Play
+tablet** — only the store frame/canvas size differs (§3). No extra flag: the wide
+pass runs on every `capture_shots.dart` capture.
+
 ### Changing what the screenshots show
 
 Edit the fake system/profiles in `lib/demo/demo_mode.dart` — no live-Sonos
@@ -94,14 +103,19 @@ re-capturing (e.g. after editing `store.html`), run `--frame --no-capture`.
 What it produces (the tool's job list mirrors this — `?mode=` picks the layout,
 `?i=` 0–3 picks the source shot):
 
-| Output | mode | size |
-|---|---|---|
-| `design/play/feature-graphic.png` | `feature` | 1024×500 |
-| `design/play/tablet-7in.png` | `tablet7` | 1920×1080 |
-| `design/play/tablet-10in.png` | `tablet10` | 2560×1440 |
-| `design/play/phone-{1..4}-*.png` | `phone` | 1080×1920 |
-| `design/appstore/iphone69-{1..4}-*.png` | `ios69` | 1290×2796 (iPhone 6.9") |
-| `design/appstore/mac-{1..4}-*.png` | `mac` | 2560×1600 |
+The landscape modes (`tablet7`/`tablet10`/`mac`/`ipad13`) all frame the **wide**
+shots (`0N-*-wide.png`); the portrait modes (`phone`/`ios69`) frame the phone
+shots.
+
+| Output | mode | size | source |
+|---|---|---|---|
+| `design/play/feature-graphic.png` | `feature` | 1024×500 | — |
+| `design/play/tablet-7in.png` | `tablet7` | 1920×1080 | wide |
+| `design/play/tablet-10in.png` | `tablet10` | 2560×1440 | wide |
+| `design/play/phone-{1..4}-*.png` | `phone` | 1080×1920 | phone |
+| `design/appstore/iphone69-{1..4}-*.png` | `ios69` | 1290×2796 (iPhone 6.9") | phone |
+| `design/appstore/mac-{1..4}-*.png` | `mac` | 2560×1600 | wide |
+| `design/appstore/ipad13-{1..4}-*.png` | `ipad13` | 2752×2064 (iPad 13" landscape) | wide |
 
 `design/play/play-icon-512.png` is the app icon (regenerate from
 `design/export.html`, below, only if the icon changes — not part of `--frame`).
@@ -193,12 +207,14 @@ sips -g pixelWidth -g pixelHeight design/appstore/*.png design/play/*.png
 |---|---|---|---|
 | App Store | iPhone 6.9" | 1290 × 2796 | `ios69` |
 | App Store | macOS | 2560 × 1600 | `mac` |
-| App Store | iPad | — (iPhone-only app) | — |
+| App Store | iPad 13" (landscape) | 2752 × 2064 | `ipad13` |
 | Google Play | Feature graphic | 1024 × 500 | `feature` |
 | Google Play | Phone | 1080 × 1920 | `phone` |
 | Google Play | 7" tablet | 1920 × 1080 | `tablet7` |
 | Google Play | 10" tablet | 2560 × 1440 | `tablet10` |
 | Google Play | Icon | 512 × 512 | (from `design/export.html`) |
 
-Apple needs only the 6.9" iPhone set (auto-scaled to smaller iPhones); 6.5" is no
-longer required.
+Apple needs the 6.9" iPhone set (auto-scaled to smaller iPhones; 6.5" is no
+longer required). **As of 0.6.0 the app supports iPad natively**, so the App Store
+also requires an iPad 13" set — the `ipad13` graphics cover it (the same wide
+layout as the Mac shots, at iPad resolution).

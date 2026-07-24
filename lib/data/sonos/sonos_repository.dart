@@ -164,6 +164,16 @@ class SonosRepository {
   static const _bondRetries = 10;
   static const _bondSettle = Duration(seconds: 16);
 
+  // In-place group re-assert cadence, mirroring the hardware spike
+  // (tool/group_reassert_spike.dart `_reassert`): write, then poll for
+  // convergence every 3s up to 6 reads (≤18s) — catching a clean apply in ~3s —
+  // re-asserting up to 6 times if it doesn't settle. Unlike a bare HT rebuild
+  // (one 16s settle per attempt), an in-place group apply is detectable fast, so
+  // a nested poll keeps the common case snappy while still retrying the flaky one.
+  static const _groupBondRetries = 6;
+  static const _groupVerifyReads = 6;
+  static const _groupVerifyInterval = Duration(seconds: 3);
+
   /// Writes [target] to the coordinator and VERIFIES every requested channel
   /// actually landed, RE-ASSERTING up to [_bondRetries] times if Sonos silently
   /// drops satellites that don't finish joining (the Phase 0 finding — see
@@ -297,15 +307,33 @@ class SonosRepository {
   /// member set, capturing each newly-added (currently standalone) member's name
   /// so it still restores on a future separate; already-bonded members keep their
   /// original snapshotted names (their live names are absorbed by the coordinator).
-  Future<void> reassertGroup({
+  ///
+  /// VERIFIES + RE-ASSERTS exactly like [bondAndVerify]: an in-place group
+  /// re-assert is eventually-consistent and intermittently faults mid-reshuffle
+  /// (`UPnPError 800`) or 200-OK-partial-applies — the validation spike
+  /// (`tool/group_reassert_spike.dart`) observed up to ~6 re-asserts to converge.
+  /// So a single write is unreliable: this writes the SAME map, settles, re-reads
+  /// the authoritative topology, and re-writes until every member's channel (+ the
+  /// Sub) matches. The name snapshot is taken ONCE up front (a re-assert must not
+  /// re-snapshot names Sonos has since absorbed into the coordinator). Returns the
+  /// verified [SonosSystem]; throws [SonorityErrorCode.didNotCreateGroup] if it
+  /// never converges. Treats a timeout / 800 as "go verify" and rethrows a
+  /// permanent fault (e.g. 401/402) immediately.
+  Future<SonosSystem> reassertGroup({
     required List<({SonosDevice device, GroupChannel channel})> members,
     SonosDevice? sub,
     required List<String> currentUuids,
+    required SonosSystem? previous,
+    void Function(String note)? onNote,
+    CancellationToken? cancel,
   }) async {
     final coordIp = members.first.device.ip;
     if (coordIp == null) {
       throw const SonorityError(SonorityErrorCode.speakerIpUnknown);
     }
+    final coordUuid = members.first.device.uuid;
+    // Snapshot ONCE, before any write: migrate the existing snapshot to the new
+    // member set and capture each newly-added (still-standalone) member's name.
     final merged = <String, ZoneAttributes>{
       ...?await _loadZoneSnapshot(currentUuids),
     };
@@ -318,13 +346,61 @@ class SonosRepository {
       if (d.ip != null) merged[d.uuid] = await _deviceProps.getZoneAttributes(d.ip!);
     }
     if (merged.isNotEmpty) await _saveZoneSnapshot(merged);
-    await _deviceProps.addBondedZones(
-      ip: coordIp,
-      channelMapSet: buildGroupMap(
-        [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
-        subUuid: sub?.uuid,
-      ),
+
+    final map = buildGroupMap(
+      [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
+      subUuid: sub?.uuid,
     );
+    SonosSystem? system = previous;
+    for (var attempt = 1; attempt <= _groupBondRetries; attempt++) {
+      cancel?.throwIfCancelled();
+      try {
+        await _deviceProps.addBondedZones(ip: coordIp, channelMapSet: map);
+      } on TimeoutException {
+        onNote?.call('attempt $attempt: write timed out, verifying');
+      } on SonosSoapException catch (e) {
+        // 800 = "still mid-reshuffle" (transient, re-assert). Anything else
+        // (e.g. 401 invalid action, 402 malformed map) will never converge.
+        if (e.faultCode != '800') rethrow;
+        onNote?.call('attempt $attempt: error 800 (mid-reshuffle), re-asserting');
+      } catch (e) {
+        onNote?.call('attempt $attempt: write error ($e), re-asserting');
+      }
+      // Poll for convergence — a clean apply lands within a read or two; only
+      // re-assert (outer loop) if it never settles within the window.
+      for (var read = 0; read < _groupVerifyReads; read++) {
+        await interruptibleDelay(_groupVerifyInterval, cancel);
+        try {
+          system = system == null ? await discover() : await refresh(system, coordIp);
+        } catch (e) {
+          onNote?.call('attempt $attempt: topology read failed ($e), retrying');
+          continue;
+        }
+        if (_groupApplied(system, coordUuid, members, sub)) {
+          onNote?.call(attempt == 1 ? 'bonded' : 're-asserted after $attempt tries');
+          return system;
+        }
+      }
+      onNote?.call('attempt $attempt: group not applied yet');
+    }
+    throw const SonorityError(SonorityErrorCode.didNotCreateGroup);
+  }
+
+  /// True when the live group on [coordUuid] exactly matches the target
+  /// [members] + [sub] (per-member channel, not just the membership set — an
+  /// in-place channel reassignment leaves membership unchanged). Mirrors the
+  /// controller's `applied` check so the engine converges on the full end-state.
+  bool _groupApplied(
+    SonosSystem s,
+    String coordUuid,
+    List<({SonosDevice device, GroupChannel channel})> members,
+    SonosDevice? sub,
+  ) {
+    final m = s.memberByUuid(coordUuid);
+    if (m == null || !m.isGroup || m.subUuid != sub?.uuid) return false;
+    final live = m.groupChannels;
+    return live.length == members.length &&
+        members.every((mem) => live[mem.device.uuid] == mem.channel);
   }
 
   /// Detaches [ip] from any larger playback group into its own standalone group.

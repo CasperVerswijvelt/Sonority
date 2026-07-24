@@ -55,10 +55,11 @@ WHAT YOU CAN DO
 • Build a complete home theater in one guided flow — fronts, rear surrounds and one or two subs, each optional.
 • Use a single amplifier to drive both passive front speakers.
 • Speaker groups the standard app won’t make — full-range zones of 2–16 speakers, stereo pairs (including mismatched models), or a custom per-speaker left/right/both layout, each with an optional sub.
-• Config profiles — snapshot your whole layout and rebuild it in one tap after moving speakers around. Each profile gets its own icon and colour, and can also capture and restore per-speaker audio settings (bass, treble, loudness, night sound, speech enhancement, sub and surround levels, lip-sync) and, optionally, volume.
+• Config profiles — snapshot your whole layout and rebuild it in one tap after moving speakers around. Each profile gets its own icon and colour, reorders with a drag, and opens a per-entity detail view showing exactly what it saved. A profile can also capture and restore per-speaker audio settings (bass, treble, loudness, night sound, speech enhancement, sub and surround levels, lip-sync) and, optionally, volume.
 • Apply a profile without opening the app — from a home-screen widget (small, medium or large) or a long-press on the app icon.
-• Rename rooms, identify which physical speaker is which by blinking its status light (or a short chime on iPhone/iPad), and toggle a speaker’s room-calibration tuning.
+• Rename rooms, identify which physical speaker is which by blinking its status light (or a short chime on iPhone/iPad) — right from a room or a bonded speaker — and toggle a speaker’s room-calibration tuning.
 • Diagnostics — a technical, hide-nothing view of your system when something isn’t working, which you can share with support or email to the developer to get help.
+• Works on iPhone, iPad, Mac and Android, with a layout that adapts to the screen — a roomy side navigation and multi-column view on iPad and Mac, the familiar single column on phones.
 
 Every change is made over your local network, is shown to you before it’s applied, and is fully reversible from within the app.
 
@@ -78,14 +79,12 @@ Sonority is an independent app and is not affiliated with, authorized, maintaine
 ## What's New
 
 ```
-• Speaker groups: full-range zones (2–16), stereo pairs and custom per-speaker layouts
-• Complete in-app home-theater setup — fronts, rear surrounds and one or two subs
-• Config profiles: save a layout and reapply it in one tap, each with its own icon and colour
-• Apply a profile from a home-screen widget or a long-press on the app icon
-• Profiles can now capture and restore per-speaker audio settings and volume
-• Rename rooms; toggle room-calibration tuning
-• Dedicated front speakers on a soundbar (a single Amp works too)
-• Diagnostics: a technical system view you can share for help when something’s wrong
+• Now a proper iPad and desktop app: a roomy side navigation and multi-column layout on big screens, resizable on Mac, with the phone layout unchanged
+• Reconfigure an existing speaker group in place — add, remove or re-channel speakers without starting over
+• Profiles: drag to reorder them, and tap any saved entity to see exactly what the profile captured
+• Diagnostics: a new tab with a technical, hide-nothing system view you can package and share for help
+• Identify a speaker (blink its light, or chime on iPhone/iPad) right from a room or a bonded speaker
+• Clearer, more consistent design throughout, plus faster and calmer setup progress
 ```
 
 ## Support / marketing URLs

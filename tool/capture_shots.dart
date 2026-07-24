@@ -30,6 +30,16 @@ const _dbgPort = 9222;
 const _vw = 430, _vh = 932;
 const _dsf = 3.0;
 
+// Wide (tablet / desktop) capture. The app has ONE responsive "wide" layout
+// (single breakpoint kWideLayoutBreakpoint=720 — nothing distinguishes tablet
+// from desktop), so a single wide shot set serves iPad, Mac and Play tablet;
+// only the store frame/canvas size differs. 1280x800 logical @ DPR 2 →
+// 2560x1600 px, which is exactly Apple's macOS screenshot size and cover-fits
+// the other landscape canvases. ≥720 logical width renders the NavigationRail
+// + multi-column layout (lib/app.dart).
+const _wideVw = 1280, _wideVh = 800;
+const _wideDsf = 2.0;
+
 // go_router uses the hash URL strategy on web; deep-link straight to each
 // screen (demo UUIDs are fixed in lib/demo/demo_mode.dart) instead of tapping.
 const _screens = <(String, String)>[
@@ -47,6 +57,10 @@ const _shotNames = ['overview', 'home-theater', 'group', 'profiles'];
 /// source shot (`i`) + where it lands. Mirrors §3 of docs/MARKETING-ASSETS.md.
 typedef _FrameJob = ({String mode, int w, int h, int i, String out});
 
+// Landscape store graphics (tablet7/tablet10/mac/ipad13) all render the WIDE
+// shots via design/store.html's framedLandscape — one wide capture set serves
+// Play tablet, Mac and iPad; only the canvas size differs. Portrait phone
+// graphics (phone/ios69) use the phone shots.
 List<_FrameJob> _frameJobs() => [
       (mode: 'feature', w: 1024, h: 500, i: 0, out: 'design/play/feature-graphic.png'),
       (mode: 'tablet7', w: 1920, h: 1080, i: 0, out: 'design/play/tablet-7in.png'),
@@ -57,6 +71,10 @@ List<_FrameJob> _frameJobs() => [
         (mode: 'ios69', w: 1290, h: 2796, i: i, out: 'design/appstore/iphone69-${i + 1}-${_shotNames[i]}.png'),
       for (var i = 0; i < 4; i++)
         (mode: 'mac', w: 2560, h: 1600, i: i, out: 'design/appstore/mac-${i + 1}-${_shotNames[i]}.png'),
+      // iPad 13" landscape (2752×2064) — 0.6.0 ships native iPad support, so the
+      // App Store needs a distinct iPad set; the wide layout is what renders.
+      for (var i = 0; i < 4; i++)
+        (mode: 'ipad13', w: 2752, h: 2064, i: i, out: 'design/appstore/ipad13-${i + 1}-${_shotNames[i]}.png'),
     ];
 
 // The extensions a `flutter build web` output actually contains; anything else
@@ -139,19 +157,31 @@ Future<void> main(List<String> args) async {
   exit(0);
 }
 
-/// Screenshots the four canonical screens into design/shots/ at iPhone scale.
+/// Screenshots the four canonical screens twice: once at iPhone scale
+/// (design/shots/0N-*.png) and once at the wide tablet/desktop profile
+/// (design/shots/0N-*-wide.png). The same routes render responsively, so the
+/// wide pass yields the NavigationRail + multi-column layout.
 Future<void> _capture(_Cdp cdp) async {
+  await _captureAt(cdp, vw: _vw, vh: _vh, dsf: _dsf, suffix: '');
+  await _captureAt(cdp, vw: _wideVw, vh: _wideVh, dsf: _wideDsf, suffix: '-wide');
+}
+
+Future<void> _captureAt(_Cdp cdp,
+    {required int vw,
+    required int vh,
+    required double dsf,
+    required String suffix}) async {
   await cdp.send('Emulation.setDeviceMetricsOverride',
-      {'width': _vw, 'height': _vh, 'deviceScaleFactor': _dsf, 'mobile': false});
+      {'width': vw, 'height': vh, 'deviceScaleFactor': dsf, 'mobile': false});
   final shotsDir = Directory('$_root/design/shots')..createSync(recursive: true);
   for (final (name, path) in _screens) {
-    stdout.writeln('==> Capturing $name  ($path)');
+    stdout.writeln('==> Capturing $name$suffix  ($path)');
     // Fresh boot per screen: about:blank → target URL fires a real load event
     // (a hash-only change wouldn't), so Flutter re-parses the route each time.
     await cdp.navigate('about:blank');
     await cdp.navigate('http://localhost:$_httpPort$path');
     await cdp.waitForFlutterRender();
-    await _writeShot(cdp, '${shotsDir.path}/$name.png');
+    await _writeShot(cdp, '${shotsDir.path}/$name$suffix.png');
   }
 }
 

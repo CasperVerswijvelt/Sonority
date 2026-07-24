@@ -1009,11 +1009,17 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         var system = previous;
         if (needsBond && inPlace) {
           // Adds + channel reassignments apply on the live coordinator.
+          // reassertGroup re-asserts until verified (like HT bondAndVerify) — an
+          // in-place group re-assert intermittently 800s mid-reshuffle / partial-
+          // applies, so a single write is unreliable.
           ph.phase('bond', l10n.stepUpdateGroup);
-          await _repo.reassertGroup(
+          system = await _repo.reassertGroup(
             members: members,
             sub: sub,
             currentUuids: current,
+            previous: system,
+            onNote: ph.log,
+            cancel: _activeOp,
           );
         } else if (needsBond) {
           // A drop / coordinator change can't be re-asserted — dissolve first.
@@ -1059,13 +1065,18 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         if (needsBond) {
           ph.phase('confirm', l10n.stepWaitForConfirm);
-          system = await _pollUntil(
-            previous: system,
-            ip: coord.ip ?? _lastIp,
-            attempts: 8,
-            until: applied,
-          );
-          if (!applied(system)) {
+          // The dissolve→recreate path ends in a single createGroup write that
+          // isn't self-verifying — poll until the full end-state settles. The
+          // in-place path already re-asserted until verified in reassertGroup.
+          if (!inPlace) {
+            system = await _pollUntil(
+              previous: system,
+              ip: coord.ip ?? _lastIp,
+              attempts: 8,
+              until: applied,
+            );
+          }
+          if (system == null || !applied(system)) {
             throw const SonorityError(SonorityErrorCode.didNotCreateGroup);
           }
         }

@@ -12,6 +12,10 @@
   .phone{position:relative;border:14px solid #232329;border-radius:54px;background:#000;
     box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden}
   .phone img{display:block;width:100%;height:100%;object-fit:cover}
+  /* landscape frame for the responsive wide (tablet / desktop) layout */
+  .wide{position:relative;border:solid #232329;background:#000;
+    box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden}
+  .wide img{display:block;width:100%;height:100%;object-fit:cover}
 </style>
 <div id="stage"></div>
 <script>
@@ -90,51 +94,37 @@ function framedPortrait(w,h,i){
     </div>`;
 }
 
-// macOS marketing shot: caption on the left, the portrait app window on the
-// right (the mac app is a fixed portrait window), on the branded background.
-function macCard(i){
-  const w=2560,h=1600; size(w,h);
-  const sh = SHOTS[i];
-  const phoneH = h*0.82;
-  const phoneW = phoneH*(1080/2400);
-  stage.innerHTML = `
-    <div class="bg"></div>
-    <div style="position:absolute;left:${w*0.08}px;top:50%;transform:translateY(-50%);width:${w*0.44}px">
-      <div class="word" style="font-size:${w*0.058}px;line-height:1.05">${sh.head}</div>
-      <div class="grey" style="font-size:${w*0.024}px;margin-top:${h*0.03}px;line-height:1.4">${sh.sub}</div>
-    </div>
-    <div class="phone" style="position:absolute;right:${w*0.08}px;top:50%;transform:translateY(-50%);
-        width:${phoneW}px;height:${phoneH}px;border-width:${w*0.006}px;border-radius:${w*0.02}px">
-      <img src="${sh.src}">
-    </div>`;
-}
-
-function tablet(w,h){
+// Landscape framed shot for the responsive WIDE layout (caption on top, the
+// landscape app window below). One wide capture serves Play tablet, Mac and
+// iPad — only the canvas differs. Source is the *-wide.png shot (2560×1600,
+// tool/capture_shots.dart); the frame matches that aspect so cover doesn't crop.
+function framedLandscape(w,h,i){
   size(w,h);
-  const k = w/1920;  // scale factor relative to the 7" baseline
-  const px = v => (v*k)+'px';
+  const sh = SHOTS[i];
+  const src = sh.src.replace('.png','-wide.png');
+  const ar = 2560/1600;
+  let frameW = w*0.84, frameH = frameW/ar;
+  const maxH = h*0.6;
+  if (frameH > maxH){ frameH = maxH; frameW = frameH*ar; }
+  const head = sh.head.replace(/<br>/g,' ');
   stage.innerHTML = `
     <div class="bg"></div>
-    <div style="position:absolute;left:${px(110)};top:50%;transform:translateY(-50%);width:${px(720)}px">
-      <div class="word" style="font-size:${px(96)};line-height:1.05">Sonority</div>
-      <div class="grey" style="font-size:${px(36)};margin-top:${px(26)};line-height:1.4;max-width:${px(640)}">
-        Home-theater layouts, speaker groups and one-tap profiles for Sonos —
-        configurations the official app blocks.</div>
+    <div style="position:absolute;left:0;right:0;top:${h*0.06}px;text-align:center;padding:0 ${w*0.08}px">
+      <div class="word" style="font-size:${Math.round(h*0.052)}px;line-height:1.1">${head}</div>
+      <div class="grey" style="font-size:${Math.round(h*0.025)}px;line-height:1.4;margin-top:${h*0.02}px">${sh.sub}</div>
     </div>
-    <div style="position:absolute;right:${px(140)};top:50%;transform:translateY(-50%);
-        display:flex;gap:${px(60)};align-items:center">
-      <div class="phone" style="width:${px(360)};height:${px(800)};border-width:${px(12)};border-radius:${px(44)}">
-        <img src="${SHOTS[0].src}"></div>
-      <div class="phone" style="width:${px(360)};height:${px(800)};border-width:${px(12)};border-radius:${px(44)};margin-top:${px(120)}">
-        <img src="${SHOTS[1].src}"></div>
+    <div class="wide" style="position:absolute;left:50%;transform:translateX(-50%);bottom:${h*0.06}px;
+        width:${frameW}px;height:${frameH}px;border-width:${Math.max(6,Math.round(w*0.006))}px;border-radius:${Math.round(w*0.016)}px">
+      <img src="${src}">
     </div>`;
 }
 
 if (mode==='feature') featureGraphic();
-else if (mode==='tablet7') tablet(1920,1080);
-else if (mode==='tablet10') tablet(2560,1440);
+else if (mode==='tablet7') framedLandscape(1920,1080, idx());
+else if (mode==='tablet10') framedLandscape(2560,1440, idx());
 else if (mode==='ios69') framedPortrait(1290,2796, idx());
-else if (mode==='mac') macCard(idx());
+else if (mode==='mac') framedLandscape(2560,1600, idx());
+else if (mode==='ipad13') framedLandscape(2752,2064, idx());
 else phoneCard(idx());
 function phoneCard(i){ framedPortrait(1080,1920,i); }
 </script>
