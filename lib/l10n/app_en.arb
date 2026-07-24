@@ -414,8 +414,6 @@
   "profileApplyPrimer": "Applying a profile later rebuilds these speakers into this layout. Any speaker that’s part of a different setup at that time is removed from it first — which can dissolve another stereo pair or zone and free its other speakers.",
   "profileIncludeHeader": "Include",
   "profileIncludeHelper": "Pick which of your current home theaters, pairs and rooms to capture in this profile.",
-  "profileSpeakerSettingsHeader": "Speaker settings",
-  "profileSpeakerSettingsHelper": "Optionally snapshot each speaker’s current settings and restore them when this profile is applied.",
   "profileSaveAudio": "Save audio settings",
   "profileSaveAudioSubtitle": "EQ, night sound, speech enhancement, sub & surround levels, lip sync & more",
   "profileSaveVolume": "Save volume",

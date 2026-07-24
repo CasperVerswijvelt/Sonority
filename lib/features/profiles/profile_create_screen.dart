@@ -8,6 +8,7 @@ import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/info_note.dart';
+import '../widgets/scroll_footer.dart';
 import '../widgets/section_header.dart';
 import '../widgets/settings_section.dart';
 import 'profile.dart';
@@ -140,72 +141,80 @@ class _State extends ConsumerState<ProfileCreateScreen> {
         absorbing: _saving,
         child: Opacity(
           opacity: _saving ? 0.5 : 1,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+          child: ScrollFooter(
+            // Bottom inset clears the persistent "Create profile" button so the
+            // pinned settings register floats just above it. The footer carries no
+            // horizontal padding so its dividers are full-bleed (matching the
+            // Trueplay / diagnostics registers); content above carries its own.
+            padding: const EdgeInsets.only(top: 8, bottom: 80),
+            // Speaker-settings toggles: a flat, sectioned register pinned to the
+            // bottom (single leading divider, no title — the toggle subtitles say
+            // what they do), like the diagnostics bundle toggles.
+            footer: SettingsSection(children: [
+              SwitchListTile(
+                value: _saveAudio,
+                onChanged: (v) => setState(() => _saveAudio = v),
+                secondary: const Icon(Icons.tune),
+                title: Text(context.l10n.profileSaveAudio),
+                subtitle: Text(context.l10n.profileSaveAudioSubtitle),
+              ),
+              SwitchListTile(
+                value: _saveVolume,
+                onChanged: (v) => setState(() => _saveVolume = v),
+                secondary: const Icon(Icons.volume_up),
+                title: Text(context.l10n.profileSaveVolume),
+                subtitle: Text(context.l10n.profileSaveVolumeSubtitle),
+              ),
+            ]),
             children: [
-              if (isResnapshot) ...[
-                // Non-destructive: nothing is written until the user saves on the
-                // profile screen, so this is a light note, not a warning.
-                InfoNote(context.l10n.profileResnapshotNote),
-                Gap.l,
-              ] else
-                // Name + appearance are edited on the profile screen for an existing
-                // profile; only create-new needs them here.
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: ProfileNameField(
-                    controller: _name,
-                    iconId: _iconId,
-                    color: _color,
-                    nameTaken: taken,
-                    onChanged: () => setState(() {}),
-                    onAppearanceChanged: (icon, color) => setState(() {
-                      _iconId = icon;
-                      _color = color;
-                    }),
-                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (isResnapshot) ...[
+                      // Non-destructive: nothing is written until the user saves on
+                      // the profile screen, so this is a light note, not a warning.
+                      InfoNote(context.l10n.profileResnapshotNote),
+                      Gap.l,
+                    ] else
+                      // Name + appearance are edited on the profile screen for an
+                      // existing profile; only create-new needs them here.
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: ProfileNameField(
+                          controller: _name,
+                          iconId: _iconId,
+                          color: _color,
+                          nameTaken: taken,
+                          onChanged: () => setState(() {}),
+                          onAppearanceChanged: (icon, color) => setState(() {
+                            _iconId = icon;
+                            _color = color;
+                          }),
+                        ),
+                      ),
+                    // Only the create flow needs the "what applying does" primer; on
+                    // re-snapshot the profile already exists and the detail screen
+                    // owns the review.
+                    if (!isResnapshot) ...[
+                      InfoNote(context.l10n.profileApplyPrimer),
+                      Gap.l,
+                    ],
+                    SectionHeader(
+                      context.l10n.profileIncludeHeader,
+                      helper: context.l10n.profileIncludeHelper,
+                    ),
+                    for (final e in _entities)
+                      _SelectableEntityCard(
+                        entity: e,
+                        included: _included[e.primaryUuid] ?? true,
+                        onChanged: (v) =>
+                            setState(() => _included[e.primaryUuid] = v),
+                      ),
+                  ],
                 ),
-              // Only the create flow needs the "what applying does" primer; on
-              // re-snapshot the profile already exists and the detail screen owns
-              // the review.
-              if (!isResnapshot) ...[
-                InfoNote(context.l10n.profileApplyPrimer),
-                Gap.l,
-              ],
-              SectionHeader(
-                context.l10n.profileIncludeHeader,
-                helper: context.l10n.profileIncludeHelper,
               ),
-              for (final e in _entities)
-                _SelectableEntityCard(
-                  entity: e,
-                  included: _included[e.primaryUuid] ?? true,
-                  onChanged: (v) => setState(() => _included[e.primaryUuid] = v),
-                ),
-              Gap.l,
-              SectionHeader(
-                context.l10n.profileSpeakerSettingsHeader,
-                helper: context.l10n.profileSpeakerSettingsHelper,
-              ),
-              // Flat settings rows (not a card) — these are toggles, matching the
-              // Trueplay / diagnostics registers.
-              SettingsSection(children: [
-                SwitchListTile(
-                  value: _saveAudio,
-                  onChanged: (v) => setState(() => _saveAudio = v),
-                  secondary: const Icon(Icons.tune),
-                  title: Text(context.l10n.profileSaveAudio),
-                  subtitle: Text(context.l10n.profileSaveAudioSubtitle),
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  value: _saveVolume,
-                  onChanged: (v) => setState(() => _saveVolume = v),
-                  secondary: const Icon(Icons.volume_up),
-                  title: Text(context.l10n.profileSaveVolume),
-                  subtitle: Text(context.l10n.profileSaveVolumeSubtitle),
-                ),
-              ]),
             ],
           ),
         ),
@@ -253,8 +262,8 @@ class _State extends ConsumerState<ProfileCreateScreen> {
   }
 }
 
-/// A card-less selection row (the shared selection register) for one capturable
-/// entity — checkbox + name + kind, matching the speaker pickers in the flows.
+/// An outlined selection card for one capturable entity — checkbox + name +
+/// kind, matching the speaker pickers in the flows (BondableSpeakerTile).
 class _SelectableEntityCard extends StatelessWidget {
   final EntitySnapshot entity;
   final bool included;
@@ -268,12 +277,19 @@ class _SelectableEntityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CheckboxListTile(
-      value: included,
-      onChanged: (v) => onChanged(v ?? false),
-      controlAffinity: ListTileControlAffinity.leading,
-      title: Text(entity.label),
-      subtitle: Text(entity.kindLabel),
+    // Outlined card per entity, matching the pick-speakers lists in the HT setup
+    // flow (BondableSpeakerTile(outlined: true)) so each candidate reads as its
+    // own tappable panel.
+    return Card(
+      margin: const EdgeInsets.only(bottom: kCardGap),
+      clipBehavior: Clip.antiAlias,
+      child: CheckboxListTile(
+        value: included,
+        onChanged: (v) => onChanged(v ?? false),
+        controlAffinity: ListTileControlAffinity.leading,
+        title: Text(entity.label),
+        subtitle: Text(entity.kindLabel),
+      ),
     );
   }
 }

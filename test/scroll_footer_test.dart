@@ -39,6 +39,11 @@ void main() {
     await tester.pumpWidget(host(height: 900));
     expect(tester.takeException(), isNull);
     expect(find.text('Separate'), findsOneWidget);
+    // Content fits, so nothing scrolls: total height must equal the viewport
+    // exactly (regression guard — the footer's min-height fills the leftover
+    // space precisely, so its padding never tips it into a few px of scroll).
+    final position = tester.state<ScrollableState>(find.byType(Scrollable)).position;
+    expect(position.maxScrollExtent, 0);
   });
 
   testWidgets('lays out when content overflows the viewport', (tester) async {
@@ -55,6 +60,64 @@ void main() {
     // constraint.
     await tester.pumpWidget(host(height: 30));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a footer taller than the leftover space scrolls, not overflows', (
+    tester,
+  ) async {
+    // Regression: a SwitchListTile subtitle that wraps makes the footer taller
+    // than the leftover viewport. ScrollFooter must let it scroll — not clamp it
+    // to a too-short box and overflow (ListTile mis-reports its intrinsic height
+    // when the subtitle wraps, which SliverFillRemaining trusted → 16px overflow).
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 360,
+              height: 420,
+              child: ScrollFooter(
+                padding: const EdgeInsets.only(top: 8, bottom: 80),
+                footer: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: const [
+                    Divider(height: 1),
+                    SwitchListTile(
+                      value: false,
+                      onChanged: null,
+                      secondary: Icon(Icons.tune),
+                      title: Text('Save audio settings'),
+                      subtitle: Text(
+                        'EQ, night sound, speech enhancement, sub & surround '
+                        'levels, lip sync & more',
+                      ),
+                    ),
+                    SwitchListTile(
+                      value: false,
+                      onChanged: null,
+                      secondary: Icon(Icons.volume_up),
+                      title: Text('Save volume'),
+                      subtitle: Text(
+                        'Applying the profile will change how loud each speaker '
+                        'plays',
+                      ),
+                    ),
+                  ],
+                ),
+                children: [
+                  for (var i = 0; i < 3; i++)
+                    Card(child: SizedBox(height: 90, child: Text('entity $i'))),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    await tester.scrollUntilVisible(find.text('Save volume'), 100);
+    expect(find.text('Save volume'), findsOneWidget);
   });
 
   testWidgets('lays out a CardGrid (LayoutBuilder) child on a wide viewport', (

@@ -1024,18 +1024,6 @@ abstract class AppLocalizations {
   /// **'Pick which of your current home theaters, pairs and rooms to capture in this profile.'**
   String get profileIncludeHelper;
 
-  /// No description provided for @profileSpeakerSettingsHeader.
-  ///
-  /// In en, this message translates to:
-  /// **'Speaker settings'**
-  String get profileSpeakerSettingsHeader;
-
-  /// No description provided for @profileSpeakerSettingsHelper.
-  ///
-  /// In en, this message translates to:
-  /// **'Optionally snapshot each speaker’s current settings and restore them when this profile is applied.'**
-  String get profileSpeakerSettingsHelper;
-
   /// No description provided for @profileSaveAudio.
   ///
   /// In en, this message translates to:

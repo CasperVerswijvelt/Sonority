@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 /// A scroll view whose [footer] sits at the bottom of the viewport when the
@@ -19,20 +21,18 @@ class ScrollFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Two slivers: the content scrolls normally, and the footer fills whatever
-    // viewport is left (pinned to the bottom when content is short, scrolling
+    // Two slivers: the content scrolls normally, and the footer takes whatever
+    // viewport is left (floated to the bottom when content is short, scrolling
     // after it when content is tall).
     //
     // Why the split instead of one IntrinsicHeight/Spacer column: a child can be
     // a LayoutBuilder (CardGrid on wide layouts), and querying intrinsic
-    // dimensions on a LayoutBuilder throws. Content goes under a
-    // SliverToBoxAdapter (plain box layout, no intrinsic query); only the footer
-    // — always a simple button/text — sits under SliverFillRemaining, whose
-    // trial layout only ever measures the footer.
+    // dimensions on a LayoutBuilder throws. Content goes under a plain
+    // SliverToBoxAdapter (box layout, no intrinsic query).
     return CustomScrollView(
       // Always overscrollable so a wrapping RefreshIndicator's pull-to-refresh
       // fires even when the content is shorter than the viewport (the footer's
-      // SliverFillRemaining makes short content fill it exactly).
+      // min-height makes short content fill the viewport exactly).
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverPadding(
@@ -45,16 +45,37 @@ class ScrollFooter extends StatelessWidget {
             ),
           ),
         ),
-        SliverPadding(
-          padding: padding.copyWith(top: 0),
-          sliver: SliverFillRemaining(
-            hasScrollBody: false,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [footer],
-            ),
-          ),
+        // NOT SliverFillRemaining: it sizes its child via getMaxIntrinsicHeight,
+        // and a ListTile/SwitchListTile mis-reports its intrinsic height when its
+        // subtitle wraps (it ignores the wrap), so the footer gets a too-short
+        // tight box and overflows by the wrapped lines instead of scrolling.
+        // Instead measure the leftover viewport ourselves and lay the footer out
+        // as a real box: a min-height of the leftover floats it to the bottom when
+        // content is short; when the footer is taller than the leftover it takes
+        // its true (wrapped) height and the view scrolls. Padding lives inside so
+        // short content totals exactly one viewport (no spurious overscroll).
+        SliverLayoutBuilder(
+          builder: (context, sc) {
+            final leftover = math.max(
+              0.0,
+              sc.viewportMainAxisExtent - sc.precedingScrollExtent,
+            );
+            return SliverToBoxAdapter(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: leftover),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: SizedBox(
+                    width: sc.crossAxisExtent,
+                    child: Padding(
+                      padding: padding.copyWith(top: 0),
+                      child: footer,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ],
     );

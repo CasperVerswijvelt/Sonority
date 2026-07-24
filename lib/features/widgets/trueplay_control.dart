@@ -55,9 +55,9 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
         context,
         icon: Icons.tune,
         iconColor: scheme.onSurfaceVariant,
-        title: 'Trueplay',
         subtitle: reason,
         trailing: null,
+        onTap: null,
       );
     }
 
@@ -125,9 +125,14 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       context,
       icon: Icons.tune,
       iconColor: isOn ? scheme.primary : scheme.onSurfaceVariant,
-      title: 'Trueplay',
       subtitle: subtitle,
       trailing: trailing,
+      // Tapping anywhere on the row toggles it, same as the switch.
+      onTap: canToggle
+          ? () => ref
+              .read(trueplayControllerProvider.notifier)
+              .setEnabled(widget.devices, !isOn)
+          : null,
     );
   }
 
@@ -137,9 +142,9 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     BuildContext context, {
     required IconData icon,
     required Color iconColor,
-    required String title,
     required String subtitle,
     required Widget? trailing,
+    required VoidCallback? onTap,
   }) {
     return ListTile(
       contentPadding:
@@ -148,6 +153,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       title: const Text('Trueplay'),
       subtitle: Text(subtitle),
       trailing: trailing,
+      onTap: onTap,
     );
   }
 }

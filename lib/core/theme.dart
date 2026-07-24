@@ -198,6 +198,12 @@ const double kCardRadius = 20;
 /// their content by, matching a card's internal padding for a shared rhythm.
 const double kPageGutter = 16;
 
+/// Flat, full-bleed register/action rows (SettingsSection, room shortcuts) use
+/// square ink, vs the rounded [kCardRadius] tile shape (the `listTileTheme`
+/// default) meant for tiles nested inside cards.
+const RoundedRectangleBorder kFlatTileShape =
+    RoundedRectangleBorder(borderRadius: BorderRadius.zero);
+
 /// Vertical gap between stacked cards in a list (applied as a card `margin` /
 /// bottom padding, so it's a `double` rather than a [Gap] SizedBox).
 const double kCardGap = 12;
