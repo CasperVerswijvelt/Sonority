@@ -550,6 +550,18 @@ abstract class AppLocalizations {
   /// **'Name the group'**
   String get stepNameGroup;
 
+  /// No description provided for @stepEditGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Update group'**
+  String get stepEditGroup;
+
+  /// No description provided for @stepUpdateGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply changes'**
+  String get stepUpdateGroup;
+
   /// No description provided for @stepSeparateGroup.
   ///
   /// In en, this message translates to:
@@ -1623,6 +1635,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Group speakers'**
   String get groupFlowTitle;
+
+  /// No description provided for @groupEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure group'**
+  String get groupEditTitle;
+
+  /// No description provided for @groupConfigure.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure'**
+  String get groupConfigure;
+
+  /// No description provided for @groupSaveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get groupSaveChanges;
 
   /// No description provided for @groupNeedTwoSpeakers.
   ///

@@ -942,6 +942,155 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     _commit(result, previous);
   }
 
+  /// Reconfigures an [existing] bonded group to the target [members] (+ optional
+  /// [sub] / [name]). Diff-based (hardware-confirmed, `tool/group_reassert_spike`):
+  /// if the target keeps every current member and the coordinator is unchanged,
+  /// re-asserts the new map IN PLACE (adds + channel changes — no teardown, no
+  /// audio interruption); otherwise (a member/sub is dropped, or the coordinator
+  /// changes) dissolves the group and recreates it, since `AddBondedZones` faults
+  /// on any map that drops a bonded member. Mirrors the HT `_applyHtTarget` split.
+  Future<void> editGroup({
+    required ZoneGroupMember existing,
+    required List<({SonosDevice device, GroupChannel channel})> members,
+    SonosDevice? sub,
+    String? name,
+  }) async {
+    final cms = existing.channelMapSet;
+    if (members.length < 2 || cms == null || cms.isEmpty) {
+      throw const SonorityError(SonorityErrorCode.groupNeedsTwo);
+    }
+    final coord = members.first.device;
+    final target = [
+      for (final m in members) m.device.uuid,
+      if (sub != null) sub.uuid,
+    ];
+    final current = existing.channelMapUuids; // coordinator first, incl. any Sub
+    final inPlace = groupEditIsInPlace(
+      currentUuids: current,
+      targetUuids: target,
+      targetCoordUuid: coord.uuid,
+    );
+    // Verify the FULL target applied — per-member channel + Sub, not just the
+    // membership set. Critical for an in-place channel reassignment (membership
+    // is unchanged, so a set-only check would pass before the write even lands).
+    bool applied(SonosSystem s) {
+      final m = s.memberByUuid(coord.uuid);
+      if (m == null || !m.isGroup || m.subUuid != sub?.uuid) return false;
+      final live = m.groupChannels;
+      return live.length == members.length &&
+          members.every((mem) => live[mem.device.uuid] == mem.channel);
+    }
+
+    final wanted = name?.trim();
+    final needsName = wanted != null && wanted.isNotEmpty && coord.ip != null;
+
+    final l10n = appL10n();
+    final tracker =
+        _newTracker([ApplyStep(id: 'edit', label: l10n.stepEditGroup)]);
+    _activeOp = CancellationToken();
+
+    final previous = state.value;
+    // Skip the bond phase entirely when the live layout already matches the
+    // target (e.g. a name-only edit) — no needless live write, mirroring the HT
+    // `_applyHtTarget` no-op case.
+    final needsBond = !(previous != null && applied(previous));
+    state = const AsyncValue.loading();
+    final result = await AsyncValue.guard(() async {
+      tracker.start('edit');
+      final ph = _phases(tracker, 'edit');
+      ph.seed([
+        if (needsBond && !inPlace) ('separate', l10n.stepSeparateRestore),
+        if (needsBond)
+          ('bond', inPlace ? l10n.stepUpdateGroup : l10n.stepBondSpeakers),
+        if (needsBond) ('confirm', l10n.stepWaitForConfirm),
+        if (needsName) ('name', l10n.stepNameGroup),
+      ]);
+      try {
+        var system = previous;
+        if (needsBond && inPlace) {
+          // Adds + channel reassignments apply on the live coordinator.
+          ph.phase('bond', l10n.stepUpdateGroup);
+          await _repo.reassertGroup(
+            members: members,
+            sub: sub,
+            currentUuids: current,
+          );
+        } else if (needsBond) {
+          // A drop / coordinator change can't be re-asserted — dissolve first.
+          final ordered = [
+            existing.uuid,
+            ...current.where((u) => u != existing.uuid),
+          ];
+          final old = ordered
+              .map((u) => previous?.device(u))
+              .whereType<SonosDevice>()
+              .toList();
+          if (existing.ip != null &&
+              previous != null &&
+              !_isOwnGroupCoordinator(previous, existing.uuid)) {
+            ph.phase('detach', l10n.stepDetach);
+            await _repo.detachFromGroup(existing.ip!);
+            system = await _pollUntil(
+              previous: previous,
+              ip: existing.ip,
+              attempts: 6,
+              until: (s) => _isOwnGroupCoordinator(s, existing.uuid),
+            );
+          }
+          ph.phase('separate', l10n.stepSeparateRestore);
+          await _repo.separateGroup(members: old, channelMapSet: cms);
+          // Wait for the old group to dissolve AND its members to reappear as
+          // standalone rooms before re-bonding: `_repo.createGroup` is a single
+          // AddBondedZones (no retry), so recreating mid-reshuffle could fault
+          // and leave the group dissolved. Mirrors separateGroup's settle wait.
+          final oldSub = existing.subUuid;
+          final reappear =
+              current.where((u) => u != existing.uuid && u != oldSub).toList();
+          system = await _pollUntil(
+            previous: system,
+            ip: existing.ip ?? _lastIp,
+            attempts: 8,
+            until: (s) =>
+                !_isGroupFormed(s, existing.uuid, current) &&
+                reappear.every((u) => s.allMembers.any((m) => m.uuid == u)),
+          );
+          ph.phase('bond', l10n.stepBondSpeakers);
+          await _repo.createGroup(members: members, sub: sub);
+        }
+        if (needsBond) {
+          ph.phase('confirm', l10n.stepWaitForConfirm);
+          system = await _pollUntil(
+            previous: system,
+            ip: coord.ip ?? _lastIp,
+            attempts: 8,
+            until: applied,
+          );
+          if (!applied(system)) {
+            throw const SonorityError(SonorityErrorCode.didNotCreateGroup);
+          }
+        }
+        if (needsName) {
+          ph.phase('name', l10n.stepNameGroup);
+          if (await _repo.setRoomName(ip: coord.ip!, name: wanted)) {
+            system = await _pollUntil(
+              previous: system,
+              ip: coord.ip,
+              attempts: 6,
+              until: (s) => s.allMembers
+                  .any((m) => m.uuid == coord.uuid && m.zoneName == wanted),
+            );
+          }
+        }
+        tracker.done('edit');
+        return system;
+      } catch (e) {
+        tracker.fail('edit', localizedError(l10n, e));
+        rethrow;
+      }
+    });
+    _commit(result, previous);
+  }
+
   /// True when [uuid] is its own playback-group coordinator (a standalone
   /// playback group). NB: this is about playback grouping, NOT bonding — it is
   /// unrelated to `SonosSystem.isStandalone` (which means "not bonded into an

@@ -76,6 +76,35 @@ void main() {
     });
   });
 
+  group('groupEditIsInPlace (in-place re-assert vs dissolve)', () {
+    // In place iff coordinator unchanged AND no current member dropped.
+    bool go(List<String> current, List<String> target, String coord) =>
+        groupEditIsInPlace(
+            currentUuids: current, targetUuids: target, targetCoordUuid: coord);
+
+    test('unchanged / channel-only change → in place', () {
+      expect(go(['A', 'B'], ['A', 'B'], 'A'), isTrue);
+    });
+    test('add a member → in place', () {
+      expect(go(['A', 'B'], ['A', 'B', 'C'], 'A'), isTrue);
+    });
+    test('add a sub → in place', () {
+      expect(go(['A', 'B'], ['A', 'B', 'SUB'], 'A'), isTrue);
+    });
+    test('drop a member → dissolve', () {
+      expect(go(['A', 'B', 'C'], ['A', 'B'], 'A'), isFalse);
+    });
+    test('drop the sub → dissolve', () {
+      expect(go(['A', 'B', 'SUB'], ['A', 'B'], 'A'), isFalse);
+    });
+    test('coordinator changes (e.g. stereo L/R swap) → dissolve', () {
+      expect(go(['A', 'B'], ['B', 'A'], 'B'), isFalse);
+    });
+    test('empty current → not in place', () {
+      expect(go([], ['A', 'B'], 'A'), isFalse);
+    });
+  });
+
   group('display labels', () {
     test('groupChannelShort', () {
       expect(groupChannelShort(GroupChannel.left), 'L');

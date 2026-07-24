@@ -313,6 +313,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stepNameGroup => 'Name the group';
 
   @override
+  String get stepEditGroup => 'Update group';
+
+  @override
+  String get stepUpdateGroup => 'Apply changes';
+
+  @override
   String get stepSeparateGroup => 'Separate group';
 
   @override
@@ -981,6 +987,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get groupFlowTitle => 'Group speakers';
+
+  @override
+  String get groupEditTitle => 'Configure group';
+
+  @override
+  String get groupConfigure => 'Configure';
+
+  @override
+  String get groupSaveChanges => 'Save changes';
 
   @override
   String get groupNeedTwoSpeakers =>

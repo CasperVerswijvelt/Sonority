@@ -288,6 +288,45 @@ class SonosRepository {
     );
   }
 
+  /// Reconfigures a LIVE group in place by re-asserting the [members] (+ [sub])
+  /// map on its coordinator (`members.first`, which must stay the same visible
+  /// coordinator) — adding members and/or reassigning channels without
+  /// dissolving. Hardware-confirmed: `AddBondedZones` reassigns/adds in place
+  /// exactly like `AddHTSatellite`; only a member *removal* faults and needs a
+  /// full separate. Migrates the name snapshot from [currentUuids] to the new
+  /// member set, capturing each newly-added (currently standalone) member's name
+  /// so it still restores on a future separate; already-bonded members keep their
+  /// original snapshotted names (their live names are absorbed by the coordinator).
+  Future<void> reassertGroup({
+    required List<({SonosDevice device, GroupChannel channel})> members,
+    SonosDevice? sub,
+    required List<String> currentUuids,
+  }) async {
+    final coordIp = members.first.device.ip;
+    if (coordIp == null) {
+      throw const SonorityError(SonorityErrorCode.speakerIpUnknown);
+    }
+    final merged = <String, ZoneAttributes>{
+      ...?await _loadZoneSnapshot(currentUuids),
+    };
+    final added = [
+      for (final m in members)
+        if (!currentUuids.contains(m.device.uuid)) m.device,
+      if (sub != null && !currentUuids.contains(sub.uuid)) sub,
+    ];
+    for (final d in added) {
+      if (d.ip != null) merged[d.uuid] = await _deviceProps.getZoneAttributes(d.ip!);
+    }
+    if (merged.isNotEmpty) await _saveZoneSnapshot(merged);
+    await _deviceProps.addBondedZones(
+      ip: coordIp,
+      channelMapSet: buildGroupMap(
+        [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
+        subUuid: sub?.uuid,
+      ),
+    );
+  }
+
   /// Detaches [ip] from any larger playback group into its own standalone group.
   /// Required before [separateGroup] — Sonos won't dissolve a bond while the
   /// coordinator is a non-coordinator member of another playback group (the call

@@ -14,6 +14,7 @@ section into the GitHub Release notes regardless of the build suffix
 ## [0.6.0] - 2026-07-17
 
 ### Added
+- Speaker groups can now be reconfigured: a "Configure" button on a group's detail page reopens the group flow pre-filled with the current members, channels, sub, and name (mirrors the home-theater Configure action). Adding a speaker or changing L/R/Both applies in place with no teardown; removing a speaker rebuilds the group (hardware-confirmed).
 - Profiles can be reordered: tap the reorder button in the Profiles app bar, then drag a tile. Works at every width, with screen-reader move actions.
 - Responsive layout for wide windows and iPad: the bottom tabs become an expanded left navigation rail (with a vertical tab transition), content fills the width, and card lists flow into 2–3 columns across the overview, Profiles, detail pages and setup flows. The macOS window is now resizable (it was locked to a fixed phone size). The app also runs natively on iPad in any orientation, including Split View. Phones are unchanged.
 - Profiles: tap an entity in a profile to open a detail view — the system-overview layout (home-theater diagram / per-speaker channel cards) plus a per-speaker breakdown of every saved audio setting and volume. Profile tiles are roomier too: the capture summary sits on its own line spelling out what a profile does and doesn't store, shows "Updated X ago", and has a full-width Apply button.
