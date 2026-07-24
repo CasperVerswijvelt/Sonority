@@ -8,7 +8,7 @@ library;
 import '../sonos/zone_layout.dart' show GroupChannel;
 
 export '../sonos/zone_layout.dart'
-    show GroupChannel, groupChannelShort, groupChannelLabel;
+    show GroupChannel, groupChannelShort, groupChannelLabel, groupEditIsInPlace;
 
 /// How a speaker group bond classifies for display. A "group" is any member
 /// carrying a `ChannelMapSet` (stereo pair / zone / custom L-R layout).

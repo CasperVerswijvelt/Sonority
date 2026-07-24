@@ -227,6 +227,20 @@ interpolated) then use it.
     pair (coordinator stays visible carrying the map, the rest go Invisible).
     Sonos does NOT restore member names on separate, so we snapshot + restore
     them like pairs.
+  - **In-place group RECONFIGURE works like HT (hardware-confirmed,
+    `tool/group_reassert_spike.dart` — self-restoring, 12/12 reassign + 6/6 add
+    trials, all 1 attempt):** re-asserting `AddBondedZones` on a LIVE group's
+    coordinator with a modified `ChannelMapSet` **adds a member and/or reassigns
+    channels (L/R/Both, incl. zone↔pair-shape) in place** — no dissolve, no audio
+    interruption — exactly like `AddHTSatellite` for a home theater. The ONE
+    exception: **removing** a member faults every attempt (`AddBondedZones` 800s
+    on any map that drops a currently-bonded speaker, and `RemoveBondedZones`
+    no-ops), so a removal still needs a full dissolve. So `SonosController.
+    editGroup` is diff-based (mirrors `_applyHtTarget`): in-place re-assert
+    (`SonosRepository.reassertGroup`) when the target keeps every current member
+    and the coordinator is unchanged, else dissolve-then-recreate. The
+    `reassertGroup` snapshot is migrated to the new member set so an added
+    speaker still restores its name on a future separate.
   - **Zone REMOVAL is a two-step gotcha (hardware-confirmed, cost real debugging):**
     1. `RemoveBondedZones` **does not work** on the 2025 zones feature — it
        returns `200 OK` but silently no-ops (it's the legacy bonded-zone action).
@@ -425,6 +439,13 @@ Run on the same Wi-Fi as the Sonos system:
   zone/bond SCPD actions + any existing `ChannelMapSet` members; `--members
   a,b,c [--confirm]` round-trips a group; `--separate`, `--explore` (config
   battery). Self-reverting; confirmed the `UUID:LF,RF;…` format on hardware.
+- `tool/group_reassert_spike.dart` — proves whether `AddBondedZones`
+  reconfigures a LIVE group in place: dissolves the existing zones to free 3
+  speakers, then stress-tests reassign (zone↔pair) + add-member + remove-member,
+  reporting attempts/faults per op (`--rounds N`, default 6). Self-restoring
+  (rebuilds the original zones + names in a `finally`); dry-run by default,
+  `--confirm` runs the writes. Confirmed: add/reassign apply in place (1 attempt);
+  remove faults (needs dissolve) — the basis for `editGroup`.
 - `tool/lr_audiotest.dart` — plays an L/R voice track on a group to verify Sonos
   honours per-speaker channel assignment (play/stop/snapshot/freesat/addht).
 - `tool/chirp.dart <room|uuid|ip>` — play the identify chime on one speaker.
@@ -556,6 +577,13 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   them in one "Speaker groups" section (`groupKind`-labelled); captured in
   profiles (`EntityKind.stereoPair/zone/custom`). Not gated to Sonos' official
   model list (Play:1 + Sub-in-group confirmed on hardware; audio routing verified).
+  **Reconfigurable:** a "Configure" button on the group detail page reopens the
+  same flow seeded from the live group (`GroupFlow(editUuid:)`, nested in-shell
+  route `/group/:uuid/edit`) and applies via the diff-based
+  `SonosController.editGroup` — in-place `AddBondedZones` re-assert for adds +
+  channel changes (no teardown), dissolve-then-recreate only when a member is
+  dropped (hardware-confirmed; see the AddBondedZones notes above). Mirrors the HT
+  "Configure" action.
 - ✅ **Full in-app HT setup** — the guided flow now bonds fronts **+ rear surrounds
   (LR/RR) + a sub (SW)**, each optional, applied via the **diff-based**
   `_applyHtTarget` (no-op when unchanged, else add what's missing) + a live

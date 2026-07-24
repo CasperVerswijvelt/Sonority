@@ -43,3 +43,20 @@ String buildGroupMap(
   if (subUuid != null) parts.add('$subUuid:SW');
   return parts.join(';');
 }
+
+/// Whether an edit of a live group (from [currentUuids] — its bonded members
+/// incl. any Sub, coordinator first — to [targetUuids] with coordinator
+/// [targetCoordUuid]) can apply IN PLACE via a single `AddBondedZones` re-assert,
+/// vs. needing a dissolve-then-recreate. In place iff the coordinator is
+/// unchanged AND no current member is dropped (adds + channel reassignments only).
+/// Hardware-confirmed (`tool/group_reassert_spike.dart`): `AddBondedZones`
+/// adds/reassigns a live group in place, but faults on any map that drops a
+/// currently-bonded member — so a removal (or a coordinator change) must dissolve.
+bool groupEditIsInPlace({
+  required List<String> currentUuids,
+  required List<String> targetUuids,
+  required String targetCoordUuid,
+}) =>
+    currentUuids.isNotEmpty &&
+    targetCoordUuid == currentUuids.first &&
+    currentUuids.every(targetUuids.contains);

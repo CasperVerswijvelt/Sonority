@@ -69,6 +69,16 @@ final _router = GoRouter(
               path: '/group/:uuid',
               builder: (_, s) =>
                   GroupDetailScreen(uuid: s.pathParameters['uuid']!),
+              routes: [
+                // Reconfigure flow — a nested in-shell route (like the HT
+                // `fronts` flow): it's a step within the group's detail page,
+                // so nav stays visible and Back returns here.
+                GoRoute(
+                  path: 'edit',
+                  builder: (_, s) =>
+                      GroupFlow(editUuid: s.pathParameters['uuid']),
+                ),
+              ],
             ),
             GoRoute(
               path: '/room/:uuid',

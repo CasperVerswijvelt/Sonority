@@ -21,8 +21,15 @@ enum _Mode { stereo, zone, custom }
 /// full-range **Zone**, or a **Custom** per-speaker L/R/Both layout — each with
 /// an optional Sub. Stepped (speakers → sub → name → review) like the
 /// home-theater setup.
+///
+/// When [editUuid] is set the flow reconfigures that existing group instead of
+/// creating one: it seeds its selection from the live group and applies via
+/// `SonosController.editGroup` (in-place re-assert for adds/channel changes,
+/// dissolve-then-recreate only when a member is dropped). Mirrors the HT
+/// "Configure" flow (`FrontSurroundsFlow`).
 class GroupFlow extends ConsumerStatefulWidget {
-  const GroupFlow({super.key});
+  final String? editUuid;
+  const GroupFlow({super.key, this.editUuid});
 
   @override
   ConsumerState<GroupFlow> createState() => _GroupFlowState();
@@ -42,7 +49,28 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
   static const _stepName = 2;
   static const _stepReview = 3;
 
+  bool get _editing => widget.editUuid != null;
   int get _cap => _mode == _Mode.stereo ? 2 : _maxSpeakers;
+
+  @override
+  void initState() {
+    super.initState();
+    // Seed from the live group when editing (mirrors FrontSurroundsFlow).
+    final uuid = widget.editUuid;
+    if (uuid == null) return;
+    final g = ref.read(sonosControllerProvider).value?.memberByUuid(uuid);
+    if (g == null || !g.isGroup) return;
+    _mode = switch (g.groupKind) {
+      GroupKind.stereoPair => _Mode.stereo,
+      GroupKind.zone => _Mode.zone,
+      _ => _Mode.custom,
+    };
+    final gc = g.groupChannels; // coordinator-first, Sub excluded
+    _selected.addAll(gc.keys);
+    _channels.addAll(gc);
+    _subUuid = g.subUuid;
+    _nameController.text = g.zoneName;
+  }
 
   @override
   void dispose() {
@@ -75,10 +103,24 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     if (system == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    // When editing, the group's own members (incl. the coordinator) and its Sub
+    // are already bonded, so they're absent from zoneable/bondable lists — merge
+    // them back in so they show selected and deselecting is reversible (mirrors
+    // the HT flow's `avail`/`freeSubs`).
+    final existing = _editing ? system.memberByUuid(widget.editUuid!) : null;
     final candidates = system.zoneableSpeakers
         .where((d) => d.reachable)
         .toList();
     final subs = system.bondableSubs.where((d) => d.reachable).toList();
+    if (existing != null) {
+      for (final u in existing.groupChannels.keys) {
+        final d = system.device(u);
+        if (d != null && !candidates.any((x) => x.uuid == u)) candidates.add(d);
+      }
+      final subU = existing.subUuid;
+      final subD = subU == null ? null : system.device(subU);
+      if (subD != null && !subs.any((x) => x.uuid == subU)) subs.add(subD);
+    }
     final scheme = Theme.of(context).colorScheme;
     // Candidates here are all standalone, so chime applies; gate per-device
     // anyway so the rule stays consistent with the HT flow.
@@ -102,7 +144,8 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
       // header (with its own divider), so a second line under the app bar would
       // double up.
       appBar: AppBar(
-        title: Text(context.l10n.groupFlowTitle),
+        title: Text(
+            _editing ? context.l10n.groupEditTitle : context.l10n.groupFlowTitle),
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
@@ -245,15 +288,54 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     );
   }
 
+  /// The target members (uuid + channel), ordered — coordinator first, and for
+  /// stereo [left, right]. Shared by the Apply gate and the apply call.
+  List<({SonosDevice device, GroupChannel channel})> _members(
+      SonosSystem system) {
+    final members = <({SonosDevice device, GroupChannel channel})>[];
+    for (var i = 0; i < _selected.length; i++) {
+      final d = system.device(_selected[i]);
+      if (d == null) continue;
+      final channel = switch (_mode) {
+        _Mode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
+        _Mode.zone => GroupChannel.both,
+        _Mode.custom => _channels[_selected[i]] ?? GroupChannel.both,
+      };
+      members.add((device: d, channel: channel));
+    }
+    return members;
+  }
+
+  /// True when the current selection would actually change [existing] — so an
+  /// unchanged edit disables Apply (no needless re-assert / dissolve).
+  bool _differs(SonosSystem system, ZoneGroupMember existing) {
+    // Ordered uuid:channel signature captures membership, channels, and (for
+    // stereo) the L/R order in one compare.
+    final want = [
+      for (final m in _members(system)) '${m.device.uuid}:${m.channel.name}',
+    ].join(';');
+    final have = [
+      for (final e in existing.groupChannels.entries) '${e.key}:${e.value.name}',
+    ].join(';');
+    return want != have ||
+        _subUuid != existing.subUuid ||
+        _nameController.text.trim() != existing.zoneName;
+  }
+
   Widget _controls(SonosSystem system) {
     final isLast = _step == _stepReview;
     final canAdvance = _step != _stepSpeakers || _selected.length >= 2;
+    final existing = _editing ? system.memberByUuid(widget.editUuid!) : null;
+    // When editing, the final Apply is gated on an actual change.
+    final canApply = !_editing || (existing != null && _differs(system, existing));
     final label = isLast
-        ? switch (_mode) {
-            _Mode.stereo => context.l10n.groupCreateStereo,
-            _Mode.zone => context.l10n.groupCreateZone,
-            _Mode.custom => context.l10n.groupCreateCustom,
-          }
+        ? (_editing
+            ? context.l10n.groupSaveChanges
+            : switch (_mode) {
+                _Mode.stereo => context.l10n.groupCreateStereo,
+                _Mode.zone => context.l10n.groupCreateZone,
+                _Mode.custom => context.l10n.groupCreateCustom,
+              })
         : context.l10n.actionContinue;
     return Padding(
       padding: const EdgeInsets.only(top: 16),
@@ -270,7 +352,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
               onPressed: !canAdvance
                   ? null
                   : isLast
-                  ? () => _create(system)
+                  ? (canApply ? () => _apply(system) : null)
                   : () => setState(() => _step++),
               child: Text(label),
             ),
@@ -280,19 +362,12 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     );
   }
 
-  Future<void> _create(SonosSystem system) async {
-    final members = <({SonosDevice device, GroupChannel channel})>[];
-    for (var i = 0; i < _selected.length; i++) {
-      final d = system.device(_selected[i]);
-      if (d == null) continue;
-      final channel = switch (_mode) {
-        _Mode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
-        _Mode.zone => GroupChannel.both,
-        _Mode.custom => _channels[_selected[i]] ?? GroupChannel.both,
-      };
-      members.add((device: d, channel: channel));
-    }
+  Future<void> _apply(SonosSystem system) async {
+    final members = _members(system);
     if (members.length < 2) return;
+    final existing =
+        _editing ? system.memberByUuid(widget.editUuid!) : null;
+    if (_editing && existing == null) return;
     final sub = _subUuid == null ? null : system.device(_subUuid!);
     final name = _nameController.text.trim();
     final controller = ref.read(sonosControllerProvider.notifier);
@@ -301,12 +376,19 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     final l10n = context.l10n;
     final outcome = await showBondingProgress(
       context,
-      title: l10n.groupFlowTitle,
-      run: () => controller.createGroup(
-        members: members,
-        sub: sub,
-        name: name.isEmpty ? null : name,
-      ),
+      title: _editing ? l10n.groupEditTitle : l10n.groupFlowTitle,
+      run: () => _editing
+          ? controller.editGroup(
+              existing: existing!,
+              members: members,
+              sub: sub,
+              name: name.isEmpty ? null : name,
+            )
+          : controller.createGroup(
+              members: members,
+              sub: sub,
+              name: name.isEmpty ? null : name,
+            ),
     );
     if (outcome == BondingOutcome.success) {
       router.pop();

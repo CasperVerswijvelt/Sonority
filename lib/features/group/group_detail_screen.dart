@@ -91,6 +91,18 @@ class GroupDetailScreen extends ConsumerWidget {
                 trailing: speakerIdentifyButton(system.device(group.subUuid!)),
               ),
           ]),
+          Gap.l,
+          // Reconfigure the group (add/remove speakers, change L/R/Both, sub,
+          // name) — mirrors the home-theater "Configure" action. Icons.settings
+          // (not tune, which is reserved for audio/Trueplay surfaces).
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => context.push('/group/${group.uuid}/edit'),
+              icon: const Icon(Icons.settings),
+              label: Text(context.l10n.groupConfigure),
+            ),
+          ),
         ],
       ),
     );
