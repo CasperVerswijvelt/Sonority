@@ -4,6 +4,7 @@ import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/channel_map.dart';
+import '../../data/sonos/speaker_settings.dart';
 import '../widgets/diagram_labels.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/settings_section.dart';
@@ -112,10 +113,60 @@ Widget _savedSettings(
       _SettingsBlock(
         title: typeOf(withSettings[i]),
         role: _roleLabel(context.l10n, e, withSettings[i]),
-        rows: e.settings[withSettings[i]]!.describe(),
+        rows: [
+          for (final r in e.settings[withSettings[i]]!.describe())
+            _localizeRow(context.l10n, r),
+        ],
       ),
     ],
   ]);
+}
+
+/// Localizes one captured-setting [row] into a display (label, value) pair. The
+/// engine emits semantic tokens (it holds no translated prose); the wording lives
+/// here. Signed/percent/polarity are number formats, not translations.
+({String label, String value}) _localizeRow(
+    AppLocalizations l10n, SettingRow row) {
+  final label = switch (row.label) {
+    SettingLabel.bass => l10n.settingBass,
+    SettingLabel.treble => l10n.settingTreble,
+    SettingLabel.loudness => l10n.settingLoudness,
+    SettingLabel.volume => l10n.settingVolume,
+    SettingLabel.muted => l10n.settingMuted,
+    SettingLabel.nightMode => l10n.settingNightMode,
+    SettingLabel.dialogLevel => l10n.settingDialogLevel,
+    SettingLabel.subGain => l10n.settingSubGain,
+    SettingLabel.subEnable => l10n.settingSubEnable,
+    SettingLabel.subPolarity => l10n.settingSubPolarity,
+    SettingLabel.subCrossover => l10n.settingSubCrossover,
+    SettingLabel.surroundLevel => l10n.settingSurroundLevel,
+    SettingLabel.surroundEnable => l10n.settingSurroundEnable,
+    SettingLabel.surroundMode => l10n.settingSurroundMode,
+    SettingLabel.musicSurroundLevel => l10n.settingMusicSurroundLevel,
+    SettingLabel.audioDelay => l10n.settingAudioDelay,
+    SettingLabel.audioDelayLeftRear => l10n.settingAudioDelayLeftRear,
+    SettingLabel.audioDelayRightRear => l10n.settingAudioDelayRightRear,
+    SettingLabel.heightChannelLevel => l10n.settingHeightChannelLevel,
+  };
+  final v = row.raw;
+  final value = switch (row.kind) {
+    SettingValueKind.signed => v > 0 ? '+$v' : '$v',
+    SettingValueKind.onOff => v != 0 ? l10n.settingOn : l10n.settingOff,
+    SettingValueKind.percent => '$v%',
+    SettingValueKind.polarity => v == 0 ? '0°' : '180°',
+    SettingValueKind.surroundMode => switch (v) {
+        0 => l10n.settingSurroundAmbient,
+        1 => l10n.settingSurroundFull,
+        _ => '$v',
+      },
+    SettingValueKind.dialogLevel => switch (v) {
+        0 => l10n.settingOff,
+        1 => l10n.settingOn,
+        _ => '$v',
+      },
+    SettingValueKind.raw => '$v',
+  };
+  return (label: label, value: value);
 }
 
 /// Short role of [uuid] within the entity, for the settings-card subtitle.

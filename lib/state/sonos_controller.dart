@@ -140,6 +140,11 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   }) async {
     final sys = state.value;
     if (sys == null || (!audio && !volume)) return entities;
+    // The extended EQ bundle (sub/surround/night/speech/height) is read only from
+    // the coordinators that actually carry it (soundbars + HT/sub coordinators) —
+    // the Sub device 803s every EQ read, and a plain speaker answers with junk
+    // defaults. Shared with the diagnostics dump so the gate can't drift.
+    final extended = sys.extendedEqUuids;
     final out = <EntitySnapshot>[];
     for (final e in entities) {
       final map = <String, SpeakerSettings>{};
@@ -152,15 +157,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // reads entirely rather than fire ~17 calls that all fault.
         final isHtSatellite =
             e.kind == EntityKind.homeTheater && uuid != e.primaryUuid;
-        // The extended EQ bundle (sub/surround/night/speech/height) is only
-        // meaningful on a soundbar, a sub, or an HT coordinator — a plain speaker
-        // answers those GetEQ calls with junk defaults. Gate it per DEVICE, not
-        // per entity, so a plain member of a group that merely CONTAINS a sub
-        // isn't swept in (it still captures bass/treble/loudness).
-        final extendedEq =
-            (dev?.isSoundbar ?? false) ||
-            (dev?.isSub ?? false) ||
-            (e.kind == EntityKind.homeTheater && uuid == e.primaryUuid);
+        final extendedEq = extended.contains(uuid);
         final s = await _settings.read(
           ip,
           audio: audio && !isHtSatellite,

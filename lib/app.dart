@@ -22,6 +22,7 @@ import 'features/profiles/profile_detail_screen.dart';
 import 'features/group/group_detail_screen.dart';
 import 'features/group/group_flow.dart';
 import 'features/room/room_screen.dart';
+import 'features/room/sub_screen.dart';
 import 'features/widgets/brand_wordmark.dart';
 import 'features/widgets/version_badge.dart';
 
@@ -73,6 +74,10 @@ final _router = GoRouter(
             GoRoute(
               path: '/room/:uuid',
               builder: (_, s) => RoomScreen(uuid: s.pathParameters['uuid']!),
+            ),
+            GoRoute(
+              path: '/sub/:uuid',
+              builder: (_, s) => SubScreen(uuid: s.pathParameters['uuid']!),
             ),
           ],
         ),

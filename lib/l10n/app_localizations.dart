@@ -1126,6 +1126,144 @@ abstract class AppLocalizations {
   /// **'Surround R'**
   String get profileRoleSurroundR;
 
+  /// No description provided for @settingBass.
+  ///
+  /// In en, this message translates to:
+  /// **'Bass'**
+  String get settingBass;
+
+  /// No description provided for @settingTreble.
+  ///
+  /// In en, this message translates to:
+  /// **'Treble'**
+  String get settingTreble;
+
+  /// No description provided for @settingLoudness.
+  ///
+  /// In en, this message translates to:
+  /// **'Loudness'**
+  String get settingLoudness;
+
+  /// No description provided for @settingVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume'**
+  String get settingVolume;
+
+  /// No description provided for @settingMuted.
+  ///
+  /// In en, this message translates to:
+  /// **'Muted'**
+  String get settingMuted;
+
+  /// No description provided for @settingNightMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Night sound'**
+  String get settingNightMode;
+
+  /// No description provided for @settingDialogLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech enhancement'**
+  String get settingDialogLevel;
+
+  /// No description provided for @settingSubGain.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub level'**
+  String get settingSubGain;
+
+  /// No description provided for @settingSubEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub'**
+  String get settingSubEnable;
+
+  /// No description provided for @settingSubPolarity.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub phase'**
+  String get settingSubPolarity;
+
+  /// No description provided for @settingSubCrossover.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub crossover'**
+  String get settingSubCrossover;
+
+  /// No description provided for @settingSurroundLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Surround level (TV)'**
+  String get settingSurroundLevel;
+
+  /// No description provided for @settingSurroundEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Surround'**
+  String get settingSurroundEnable;
+
+  /// No description provided for @settingSurroundMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Surround mode'**
+  String get settingSurroundMode;
+
+  /// No description provided for @settingMusicSurroundLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Surround level (music)'**
+  String get settingMusicSurroundLevel;
+
+  /// No description provided for @settingAudioDelay.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio delay (lip sync)'**
+  String get settingAudioDelay;
+
+  /// No description provided for @settingAudioDelayLeftRear.
+  ///
+  /// In en, this message translates to:
+  /// **'Surround distance L'**
+  String get settingAudioDelayLeftRear;
+
+  /// No description provided for @settingAudioDelayRightRear.
+  ///
+  /// In en, this message translates to:
+  /// **'Surround distance R'**
+  String get settingAudioDelayRightRear;
+
+  /// No description provided for @settingHeightChannelLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Height level'**
+  String get settingHeightChannelLevel;
+
+  /// No description provided for @settingOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get settingOn;
+
+  /// No description provided for @settingOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get settingOff;
+
+  /// No description provided for @settingSurroundAmbient.
+  ///
+  /// In en, this message translates to:
+  /// **'Ambient'**
+  String get settingSurroundAmbient;
+
+  /// No description provided for @settingSurroundFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Full'**
+  String get settingSurroundFull;
+
   /// No description provided for @profileNameLabel.
   ///
   /// In en, this message translates to:

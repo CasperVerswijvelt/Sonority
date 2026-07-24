@@ -159,13 +159,13 @@ Map<String, dynamic> topologyJson(SonosSystem system) => {
 };
 
 /// Per-speaker RenderingControl read plan for the settings dump, keyed by UUID.
-/// Pure so the role-gating is unit-testable without touching the network. Mirrors
-/// [SonosController.captureSettings]:
+/// Pure so the role-gating is unit-testable without touching the network. Shares
+/// its extended-EQ gate with [SonosController.captureSettings] via
+/// [SonosSystem.extendedEqUuids] so the two can't drift:
 /// - HT satellites reject every EQ read (UPnPError 803), so `audio` is skipped
 ///   and only volume/mute is attempted for them.
-/// - The extended EQ bundle (sub/surround/night/speech/height) is only meaningful
-///   on a soundbar, an HT coordinator, or a group/zone coordinator with a bonded
-///   Sub (the sub level/crossover ride the coordinator's `GetEQ`); a plain
+/// - The extended EQ bundle (sub/surround/night/speech/height) is read only from
+///   [SonosSystem.extendedEqUuids] (soundbars + HT/sub coordinators); a plain
 ///   speaker answers those GetEQ calls with harmless defaults, so it captures
 ///   bass/treble/loudness only.
 Map<String, ({bool audio, bool extendedEq})> settingsReadPlan(
@@ -175,19 +175,12 @@ Map<String, ({bool audio, bool extendedEq})> settingsReadPlan(
       for (final m in g.members)
         for (final s in m.satellites) s.uuid,
   };
-  // Coordinators that carry the extended EQ: an HT primary, or a group/zone
-  // coordinator with a bonded Sub (`subUuid` reads the group ChannelMapSet) —
-  // matches captureSettings' `entityHtOrSub` gate so a sub-in-zone isn't missed.
-  final extendedCoordinators = {
-    for (final g in system.groups)
-      for (final m in g.members)
-        if (m.isHomeTheater || m.subUuid != null) m.uuid,
-  };
+  final extended = system.extendedEqUuids;
   return {
     for (final d in system.devicesByUuid.values)
       d.uuid: (
         audio: !htSatellites.contains(d.uuid),
-        extendedEq: d.isSoundbar || extendedCoordinators.contains(d.uuid),
+        extendedEq: extended.contains(d.uuid),
       ),
   };
 }

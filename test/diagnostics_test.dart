@@ -306,6 +306,19 @@ void main() {
       expect(p['Z1']!.extendedEq, isTrue, reason: 'coordinator carries sub EQ');
       // A plain zone member without the sub map stays bass/treble/loudness only.
       expect(p['Z2']!.extendedEq, isFalse);
+      // The Sub device itself 803s every EQ read, so it never carries the bundle
+      // — the exact case the old capture gate got wrong by reading from `isSub`.
+      expect(p['ZSUB']!.extendedEq, isFalse,
+          reason: 'the Sub device rejects every EQ read (803)');
+
+      // The shared gate (used by both settingsReadPlan and captureSettings) must
+      // pick the coordinator, never the Sub device.
+      expect(zoneWithSub.extendedEqUuids, {'Z1'});
+    });
+
+    test('extendedEqUuids picks soundbars + HT/sub coordinators only', () {
+      // Soundbar/HT coordinator in, Amp satellite and plain speaker out.
+      expect(htSystem.extendedEqUuids, {'BAR'});
     });
   });
 

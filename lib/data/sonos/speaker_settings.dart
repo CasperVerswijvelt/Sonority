@@ -33,23 +33,65 @@ const eqTypes = [
   'HeightChannelLevel',
 ];
 
-/// EQType → human label (Sonos-app terms) for read-only display of a captured
-/// [SpeakerSettings]. Tokens absent here fall back to the raw token.
-const _eqLabels = {
-  'NightMode': 'Night sound',
-  'DialogLevel': 'Speech enhancement',
-  'SubGain': 'Sub level',
-  'SubEnable': 'Sub',
-  'SubPolarity': 'Sub phase',
-  'SubCrossover': 'Sub crossover',
-  'SurroundLevel': 'Surround level (TV)',
-  'SurroundEnable': 'Surround',
-  'SurroundMode': 'Surround mode',
-  'MusicSurroundLevel': 'Surround level (music)',
-  'AudioDelay': 'Audio delay (lip sync)',
-  'AudioDelayLeftRear': 'Surround distance L',
-  'AudioDelayRightRear': 'Surround distance R',
-  'HeightChannelLevel': 'Height level',
+/// A displayable captured-setting row: a semantic [label] and a typed [value]
+/// (a raw int + how to render it). The engine stays Flutter-free — it never holds
+/// translated prose — so the UI turns these into localized copy (see
+/// `profile_entity_detail_screen`).
+typedef SettingRow = ({SettingLabel label, SettingValueKind kind, int raw});
+
+/// The label of a captured-setting row (the UI maps each to a localized string).
+enum SettingLabel {
+  bass,
+  treble,
+  loudness,
+  volume,
+  muted,
+  nightMode,
+  dialogLevel,
+  subGain,
+  subEnable,
+  subPolarity,
+  subCrossover,
+  surroundLevel,
+  surroundEnable,
+  surroundMode,
+  musicSurroundLevel,
+  audioDelay,
+  audioDelayLeftRear,
+  audioDelayRightRear,
+  heightChannelLevel,
+}
+
+/// How to render a row's raw int: a signed level (`+3`/`-2`), an On/Off toggle,
+/// a percentage (volume), a sub phase (`0°`/`180°`), the surround-music mode
+/// (ambient/full), the speech-enhancement level (off/on/raw), or a plain int.
+enum SettingValueKind {
+  signed,
+  onOff,
+  percent,
+  polarity,
+  surroundMode,
+  dialogLevel,
+  raw,
+}
+
+/// EQType → its [SettingLabel]. Every [eqTypes] token maps here (so no raw token
+/// ever leaks to the UI).
+const _eqLabelTokens = {
+  'NightMode': SettingLabel.nightMode,
+  'DialogLevel': SettingLabel.dialogLevel,
+  'SubGain': SettingLabel.subGain,
+  'SubEnable': SettingLabel.subEnable,
+  'SubPolarity': SettingLabel.subPolarity,
+  'SubCrossover': SettingLabel.subCrossover,
+  'SurroundLevel': SettingLabel.surroundLevel,
+  'SurroundEnable': SettingLabel.surroundEnable,
+  'SurroundMode': SettingLabel.surroundMode,
+  'MusicSurroundLevel': SettingLabel.musicSurroundLevel,
+  'AudioDelay': SettingLabel.audioDelay,
+  'AudioDelayLeftRear': SettingLabel.audioDelayLeftRear,
+  'AudioDelayRightRear': SettingLabel.audioDelayRightRear,
+  'HeightChannelLevel': SettingLabel.heightChannelLevel,
 };
 
 /// EQType tokens whose value is a boolean toggle (0/1) — shown as On/Off. Every
@@ -111,56 +153,50 @@ class SpeakerSettings {
 
   bool get isEmpty => !hasAudioSettings && !hasVolume;
 
-  /// Human-readable (label, value) rows for read-only display of what this
-  /// snapshot captured, in a stable order. Bass/treble/loudness first, then the
-  /// EQ tokens in [eqTypes] order, then volume/mute.
-  ///
-  /// ponytail: per-token value semantics are approximate — bass/treble plus the
-  /// sub/surround/height levels ([_eqSignedTokens]) show a signed level, a few
-  /// tokens are 0/1 toggles ([_eqBoolTokens]), SubPolarity is a phase,
-  /// SurroundMode/DialogLevel map their known values (raw fallback for anything
-  /// unexpected), and every other token shows a raw int. This is display-only;
-  /// captured values are written back verbatim, never derived from these labels.
-  List<({String label, String value})> describe() {
-    String signed(int v) => v > 0 ? '+$v' : '$v';
-    String onOff(bool b) => b ? 'On' : 'Off';
-    final rows = <({String label, String value})>[
-      if (bass != null) (label: 'Bass', value: signed(bass!)),
-      if (treble != null) (label: 'Treble', value: signed(treble!)),
-      if (loudness != null) (label: 'Loudness', value: onOff(loudness!)),
+  /// Semantic rows for read-only display of what this snapshot captured, in a
+  /// stable order: bass/treble/loudness first, then the EQ tokens in [eqTypes]
+  /// order, then volume/mute. The UI localizes each [SettingRow] (the engine
+  /// holds no translated prose). Booleans ride [SettingValueKind.onOff] with
+  /// `raw` = 1/0. This is display-only; captured values are written back verbatim,
+  /// never derived from these rows.
+  List<SettingRow> describe() {
+    SettingValueKind kindOf(String token) {
+      if (token == 'SubPolarity') return SettingValueKind.polarity;
+      if (token == 'SurroundMode') return SettingValueKind.surroundMode;
+      if (token == 'DialogLevel') return SettingValueKind.dialogLevel;
+      if (_eqBoolTokens.contains(token)) return SettingValueKind.onOff;
+      if (_eqSignedTokens.contains(token)) return SettingValueKind.signed;
+      return SettingValueKind.raw;
+    }
+
+    final rows = <SettingRow>[
+      if (bass != null)
+        (label: SettingLabel.bass, kind: SettingValueKind.signed, raw: bass!),
+      if (treble != null)
+        (label: SettingLabel.treble, kind: SettingValueKind.signed, raw: treble!),
+      if (loudness != null)
+        (
+          label: SettingLabel.loudness,
+          kind: SettingValueKind.onOff,
+          raw: loudness! ? 1 : 0
+        ),
     ];
     for (final token in eqTypes) {
       final v = eq[token];
       if (v == null) continue;
-      final String value;
-      if (token == 'SubPolarity') {
-        value = v == 0 ? '0°' : '180°'; // sub phase, not an on/off toggle
-      } else if (token == 'SurroundMode') {
-        // Sonos surround-music mode: 0 = ambient, 1 = full. Raw for anything else.
-        value = switch (v) {
-          0 => 'Ambient',
-          1 => 'Full',
-          _ => '$v',
-        };
-      } else if (token == 'DialogLevel') {
-        // Speech enhancement — a 0/1 toggle on the models that expose it. Raw for
-        // anything else (some models may report a level rather than a toggle).
-        value = switch (v) {
-          0 => 'Off',
-          1 => 'On',
-          _ => '$v',
-        };
-      } else if (_eqBoolTokens.contains(token)) {
-        value = onOff(v != 0);
-      } else if (_eqSignedTokens.contains(token)) {
-        value = signed(v);
-      } else {
-        value = '$v';
-      }
-      rows.add((label: _eqLabels[token] ?? token, value: value));
+      rows.add((label: _eqLabelTokens[token]!, kind: kindOf(token), raw: v));
     }
-    if (volume != null) rows.add((label: 'Volume', value: '$volume%'));
-    if (mute != null) rows.add((label: 'Muted', value: onOff(mute!)));
+    if (volume != null) {
+      rows.add(
+          (label: SettingLabel.volume, kind: SettingValueKind.percent, raw: volume!));
+    }
+    if (mute != null) {
+      rows.add((
+        label: SettingLabel.muted,
+        kind: SettingValueKind.onOff,
+        raw: mute! ? 1 : 0
+      ));
+    }
     return rows;
   }
 
