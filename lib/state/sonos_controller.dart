@@ -990,19 +990,24 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     _activeOp = CancellationToken();
 
     final previous = state.value;
+    // Skip the bond phase entirely when the live layout already matches the
+    // target (e.g. a name-only edit) — no needless live write, mirroring the HT
+    // `_applyHtTarget` no-op case.
+    final needsBond = !(previous != null && applied(previous));
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
       tracker.start('edit');
       final ph = _phases(tracker, 'edit');
       ph.seed([
-        if (!inPlace) ('separate', l10n.stepSeparateRestore),
-        ('bond', inPlace ? l10n.stepUpdateGroup : l10n.stepBondSpeakers),
-        ('confirm', l10n.stepWaitForConfirm),
+        if (needsBond && !inPlace) ('separate', l10n.stepSeparateRestore),
+        if (needsBond)
+          ('bond', inPlace ? l10n.stepUpdateGroup : l10n.stepBondSpeakers),
+        if (needsBond) ('confirm', l10n.stepWaitForConfirm),
         if (needsName) ('name', l10n.stepNameGroup),
       ]);
       try {
         var system = previous;
-        if (inPlace) {
+        if (needsBond && inPlace) {
           // Adds + channel reassignments apply on the live coordinator.
           ph.phase('bond', l10n.stepUpdateGroup);
           await _repo.reassertGroup(
@@ -1010,7 +1015,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             sub: sub,
             currentUuids: current,
           );
-        } else {
+        } else if (needsBond) {
           // A drop / coordinator change can't be re-asserted — dissolve first.
           final ordered = [
             existing.uuid,
@@ -1034,24 +1039,35 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           }
           ph.phase('separate', l10n.stepSeparateRestore);
           await _repo.separateGroup(members: old, channelMapSet: cms);
+          // Wait for the old group to dissolve AND its members to reappear as
+          // standalone rooms before re-bonding: `_repo.createGroup` is a single
+          // AddBondedZones (no retry), so recreating mid-reshuffle could fault
+          // and leave the group dissolved. Mirrors separateGroup's settle wait.
+          final oldSub = existing.subUuid;
+          final reappear =
+              current.where((u) => u != existing.uuid && u != oldSub).toList();
           system = await _pollUntil(
             previous: system,
             ip: existing.ip ?? _lastIp,
             attempts: 8,
-            until: (s) => !_isGroupFormed(s, existing.uuid, current),
+            until: (s) =>
+                !_isGroupFormed(s, existing.uuid, current) &&
+                reappear.every((u) => s.allMembers.any((m) => m.uuid == u)),
           );
           ph.phase('bond', l10n.stepBondSpeakers);
           await _repo.createGroup(members: members, sub: sub);
         }
-        ph.phase('confirm', l10n.stepWaitForConfirm);
-        system = await _pollUntil(
-          previous: system,
-          ip: coord.ip ?? _lastIp,
-          attempts: 8,
-          until: applied,
-        );
-        if (!applied(system)) {
-          throw const SonorityError(SonorityErrorCode.didNotCreateGroup);
+        if (needsBond) {
+          ph.phase('confirm', l10n.stepWaitForConfirm);
+          system = await _pollUntil(
+            previous: system,
+            ip: coord.ip ?? _lastIp,
+            attempts: 8,
+            until: applied,
+          );
+          if (!applied(system)) {
+            throw const SonorityError(SonorityErrorCode.didNotCreateGroup);
+          }
         }
         if (needsName) {
           ph.phase('name', l10n.stepNameGroup);
