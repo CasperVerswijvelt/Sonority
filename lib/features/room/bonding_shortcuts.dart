@@ -81,6 +81,8 @@ class _HomeTheaterChooser extends StatelessWidget {
           itemCount: soundbars.length,
           separatorBuilder: (_, __) => const Divider(height: 1),
           itemBuilder: (_, i) => ListTile(
+            // Match the dialog title's 24px inset so option text lines up.
+            contentPadding: const EdgeInsets.symmetric(horizontal: 24),
             title: Text(soundbars[i].zoneName),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.pop(context, soundbars[i].uuid),
