@@ -436,6 +436,21 @@ class SonosSystem {
         .toList();
   }
 
+  /// UUIDs whose RenderingControl `GetEQ` carries the extended EQ bundle
+  /// (sub/surround/night/speech/height): soundbars, plus the coordinator of any
+  /// bond that is a home theater or has a bonded Sub. The Sub device itself
+  /// rejects every EQ read (UPnPError 803, hardware-confirmed via `tool/eq_probe`
+  /// — the sub level/crossover live on the coordinator's `GetEQ`, never the Sub).
+  /// The single gate both the profile capture and the diagnostics dump read from,
+  /// so the two can't drift.
+  Set<String> get extendedEqUuids => {
+        for (final d in devicesByUuid.values)
+          if (d.isSoundbar) d.uuid,
+        for (final g in groups)
+          for (final m in g.members)
+            if (m.isHomeTheater || m.subUuid != null) m.uuid,
+      };
+
   SonosDevice? device(String uuid) => devicesByUuid[uuid];
 
   /// The visible member with [uuid], or null. Parallels [device].

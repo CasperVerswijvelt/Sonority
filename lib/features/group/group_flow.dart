@@ -28,8 +28,16 @@ enum _Mode { stereo, zone, custom }
 /// dissolve-then-recreate only when a member is dropped). Mirrors the HT
 /// "Configure" flow (`FrontSurroundsFlow`).
 class GroupFlow extends ConsumerStatefulWidget {
+  /// When set, reconfigure this existing group instead of creating one.
   final String? editUuid;
-  const GroupFlow({super.key, this.editUuid});
+
+  /// Optionally pre-selected when opened from a room / Sub detail shortcut, so
+  /// the originating speaker (or Sub) is already picked in the flow. (Create
+  /// mode only — ignored when [editUuid] is set.)
+  final String? preselectSpeaker;
+  final String? preselectSub;
+  const GroupFlow(
+      {super.key, this.editUuid, this.preselectSpeaker, this.preselectSub});
 
   @override
   ConsumerState<GroupFlow> createState() => _GroupFlowState();
@@ -55,21 +63,36 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
   @override
   void initState() {
     super.initState();
-    // Seed from the live group when editing (mirrors FrontSurroundsFlow).
+    final sys = ref.read(sonosControllerProvider).value;
+    // Edit mode: seed the whole selection from the live group (mirrors
+    // FrontSurroundsFlow). Preselects are create-only and ignored here.
     final uuid = widget.editUuid;
-    if (uuid == null) return;
-    final g = ref.read(sonosControllerProvider).value?.memberByUuid(uuid);
-    if (g == null || !g.isGroup) return;
-    _mode = switch (g.groupKind) {
-      GroupKind.stereoPair => _Mode.stereo,
-      GroupKind.zone => _Mode.zone,
-      _ => _Mode.custom,
-    };
-    final gc = g.groupChannels; // coordinator-first, Sub excluded
-    _selected.addAll(gc.keys);
-    _channels.addAll(gc);
-    _subUuid = g.subUuid;
-    _nameController.text = g.zoneName;
+    if (uuid != null) {
+      final g = sys?.memberByUuid(uuid);
+      if (g == null || !g.isGroup) return;
+      _mode = switch (g.groupKind) {
+        GroupKind.stereoPair => _Mode.stereo,
+        GroupKind.zone => _Mode.zone,
+        _ => _Mode.custom,
+      };
+      final gc = g.groupChannels; // coordinator-first, Sub excluded
+      _selected.addAll(gc.keys);
+      _channels.addAll(gc);
+      _subUuid = g.subUuid;
+      _nameController.text = g.zoneName;
+      return;
+    }
+    // Create mode: adopt a preselect that's still a real candidate — guards a
+    // stale uuid or a hand-crafted deep link (the shortcuts always pass valid).
+    final sp = widget.preselectSpeaker;
+    if (sp != null && (sys?.zoneableSpeakers.any((d) => d.uuid == sp) ?? false)) {
+      _selected.add(sp);
+      _channels[sp] = GroupChannel.both;
+    }
+    final sub = widget.preselectSub;
+    if (sub != null && (sys?.bondableSubs.any((d) => d.uuid == sub) ?? false)) {
+      _subUuid = sub;
+    }
   }
 
   @override

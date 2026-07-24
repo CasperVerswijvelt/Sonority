@@ -11,9 +11,6 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
-### Changed
-- UI consistency pass: the Profiles list now aligns to the same page gutter as the other screens, share/save and empty-state layouts use consistent sizing, and short animations share one duration — plus removed a few redundant theme overrides that just restated Flutter defaults. No behaviour change.
-
 ## [0.6.0] - 2026-07-17
 
 ### Added
@@ -23,7 +20,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Profiles: tap an entity in a profile to open a detail view — the system-overview layout (home-theater diagram / per-speaker channel cards) plus a per-speaker breakdown of every saved audio setting and volume. Profile tiles are roomier too: the capture summary sits on its own line spelling out what a profile does and doesn't store, shows "Updated X ago", and has a full-width Apply button.
 - Diagnostics: a new bottom-bar tab with a hide-nothing technical view of your system (hidden speakers, IPs, MAC addresses, firmware). Package it, the raw topology, raw device info, your saved profiles, a per-speaker EQ/volume/mute snapshot and app logs into a zip to share, email to the developer, or save to disk. App logs and network info are optional toggles.
 - Identify a speaker (blink its LED, plus a test chime on iOS/Android for standalone speakers) directly from the room and speaker-group detail views — a bonded speaker shows LED-only, since a chime would play the whole bond.
-- Standalone rooms can jump straight into a setup: the room page has "Group with another speaker" and "Add to a home theater" shortcuts.
+- Standalone rooms can jump straight into a setup: the room page has "Group with another speaker" and "Add to a home theater" shortcuts that pre-select the room's speaker in the flow, and only appear when there's somewhere to add it (a soundbar for the home-theater shortcut, another groupable speaker for the group one).
 - Localization groundwork: every user-facing string now runs through Flutter's localization system and the app follows the device language. English is the only bundled language for now — a new one is added by dropping in a translation file, no code changes. No visible change yet.
 
 ### Changed
@@ -34,10 +31,11 @@ section into the GitHub Release notes regardless of the build suffix
 - Profile editing is a single save surface: the profile screen keeps you on the page after saving (with a toast) instead of jumping to the list, and re-snapshot recaptures the current setup as an unsaved change you review and commit with Save, instead of instantly overwriting.
 - Renamed the home-theater "Remove all extra speakers" button to "Separate" (with a "Separate home theater?" confirmation), consistent with the speaker-groups wording.
 - The bonding progress screen's Done button is now colored by result (green on success, red on failure/abort). On a partial failure it shows a plain-English reason for errors we recognize (full detail still in the raw log) and reassures you it's safe to retry — re-applying picks up where it left off and converges to the target.
-- A standalone (unbonded) Sub on the overview is now tappable — a small sheet identifies it and explains how to add it to a home theater or group (previously it was shown but did nothing).
+- A standalone (unbonded) Sub on the overview is now tappable — its own detail page identifies it and offers "Add to a home theater" and "Add to a speaker group" shortcuts that pre-select the Sub (previously it was shown but did nothing).
 - An unreachable speaker's card is now shown dimmed with a short "Unreachable" subtitle instead of an alarming red warning tile with a long hint.
 - Identify chime is now a repeated percussive ping (sharp attack, bright harmonics) instead of a soft two-tone sine — far easier to tell which speaker it's coming from by ear.
 - iOS now carries the Apple-approved multicast entitlement, so discovery uses native SSDP multicast on physical iPhones instead of relying on the unicast /24 sweep (which stays as a backstop for multicast-filtering networks).
+- Consistency polish: the Profiles list aligns to the same page gutter as the other screens, share/save and empty-state layouts use consistent sizing, and short animations share one duration. No behaviour change.
 - Internal cleanup: deduplicated shared widgets/helpers and removed dead code; the GitHub Pages landing page now deploys automatically on each release tag and shows the current version. No user-facing behaviour change.
 
 ### Fixed

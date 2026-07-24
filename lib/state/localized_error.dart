@@ -17,54 +17,35 @@ import '../data/sonos/sonority_error.dart';
 String localizedError(AppLocalizations l10n, Object e) {
   if (e is SonorityError) {
     final a = e.arg ?? '';
-    switch (e.code) {
-      case SonorityErrorCode.systemNotFound:
-        return l10n.errSystemNotFound;
-      case SonorityErrorCode.noDevicesFound:
-        return l10n.errNoDevicesFound;
-      case SonorityErrorCode.descriptionsUnreadable:
-        return l10n.errDescriptionsUnreadable;
-      case SonorityErrorCode.topologyUnreadable:
-        return l10n.errTopologyUnreadable;
-      case SonorityErrorCode.entityNotOnNetwork:
-        return l10n.errEntityNotOnNetwork(a);
-      case SonorityErrorCode.coordinatorNotOnNetwork:
-        return l10n.errCoordinatorNotOnNetwork(a);
-      case SonorityErrorCode.speakerInEntityNotOnNetwork:
-        return l10n.errSpeakerInEntityNotOnNetwork(a);
-      case SonorityErrorCode.subNotOnNetwork:
-        return l10n.errSubNotOnNetwork(a);
-      case SonorityErrorCode.soundbarNotOnNetwork:
-        return l10n.errSoundbarNotOnNetwork(a);
-      case SonorityErrorCode.entityMissingSpeakers:
-        return l10n.errEntityMissingSpeakers(a);
-      case SonorityErrorCode.malformedGroup:
-        return l10n.errMalformedGroup;
-      case SonorityErrorCode.malformedHomeTheater:
-        return l10n.errMalformedHomeTheater;
-      case SonorityErrorCode.didNotForm:
-        return l10n.errDidNotForm(a);
-      case SonorityErrorCode.didNotCreateGroup:
-        return l10n.errDidNotCreateGroup;
-      case SonorityErrorCode.didNotSeparate:
-        return l10n.errDidNotSeparate;
-      case SonorityErrorCode.didNotRemove:
-        return l10n.errDidNotRemove(a);
-      case SonorityErrorCode.groupNeedsTwo:
-        return l10n.errGroupNeedsTwo;
-      case SonorityErrorCode.speakerIpUnknown:
-        return l10n.errSpeakerIpUnknown;
-      case SonorityErrorCode.soundbarIpUnknown:
-        return l10n.errSoundbarIpUnknown;
-      case SonorityErrorCode.coordinatorIpUnknown:
-        return l10n.errCoordinatorIpUnknown;
-      case SonorityErrorCode.bondingIncomplete:
-        return l10n.errBondingIncomplete(a);
-      case SonorityErrorCode.noLanIpForChime:
-        return l10n.errNoLanIpForChime;
-      case SonorityErrorCode.cannotBlinkLight:
-        return l10n.errCannotBlinkLight;
-    }
+    // A switch *expression* so a future SonorityErrorCode added without a case
+    // here is a compile error, not a silent English fallthrough.
+    return switch (e.code) {
+      SonorityErrorCode.systemNotFound => l10n.errSystemNotFound,
+      SonorityErrorCode.noDevicesFound => l10n.errNoDevicesFound,
+      SonorityErrorCode.descriptionsUnreadable => l10n.errDescriptionsUnreadable,
+      SonorityErrorCode.topologyUnreadable => l10n.errTopologyUnreadable,
+      SonorityErrorCode.entityNotOnNetwork => l10n.errEntityNotOnNetwork(a),
+      SonorityErrorCode.coordinatorNotOnNetwork =>
+        l10n.errCoordinatorNotOnNetwork(a),
+      SonorityErrorCode.speakerInEntityNotOnNetwork =>
+        l10n.errSpeakerInEntityNotOnNetwork(a),
+      SonorityErrorCode.subNotOnNetwork => l10n.errSubNotOnNetwork(a),
+      SonorityErrorCode.soundbarNotOnNetwork => l10n.errSoundbarNotOnNetwork(a),
+      SonorityErrorCode.entityMissingSpeakers => l10n.errEntityMissingSpeakers(a),
+      SonorityErrorCode.malformedGroup => l10n.errMalformedGroup,
+      SonorityErrorCode.malformedHomeTheater => l10n.errMalformedHomeTheater,
+      SonorityErrorCode.didNotForm => l10n.errDidNotForm(a),
+      SonorityErrorCode.didNotCreateGroup => l10n.errDidNotCreateGroup,
+      SonorityErrorCode.didNotSeparate => l10n.errDidNotSeparate,
+      SonorityErrorCode.didNotRemove => l10n.errDidNotRemove(a),
+      SonorityErrorCode.groupNeedsTwo => l10n.errGroupNeedsTwo,
+      SonorityErrorCode.speakerIpUnknown => l10n.errSpeakerIpUnknown,
+      SonorityErrorCode.soundbarIpUnknown => l10n.errSoundbarIpUnknown,
+      SonorityErrorCode.coordinatorIpUnknown => l10n.errCoordinatorIpUnknown,
+      SonorityErrorCode.bondingIncomplete => l10n.errBondingIncomplete(a),
+      SonorityErrorCode.noLanIpForChime => l10n.errNoLanIpForChime,
+      SonorityErrorCode.cannotBlinkLight => l10n.errCannotBlinkLight,
+    };
   }
   if (e is OperationCancelled) return l10n.errAborted;
   if (e is SpeakerUnreachable) return l10n.errChimeUnreachable;
