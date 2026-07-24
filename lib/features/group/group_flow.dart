@@ -43,12 +43,18 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
   @override
   void initState() {
     super.initState();
+    // Only adopt a preselect that's still a real candidate — guards a stale uuid
+    // or a hand-crafted deep link (the shortcuts always pass a valid one).
+    final sys = ref.read(sonosControllerProvider).value;
     final sp = widget.preselectSpeaker;
-    if (sp != null) {
+    if (sp != null && (sys?.zoneableSpeakers.any((d) => d.uuid == sp) ?? false)) {
       _selected.add(sp);
       _channels[sp] = GroupChannel.both;
     }
-    _subUuid = widget.preselectSub;
+    final sub = widget.preselectSub;
+    if (sub != null && (sys?.bondableSubs.any((d) => d.uuid == sub) ?? false)) {
+      _subUuid = sub;
+    }
   }
 
   static const _maxSpeakers = 16;

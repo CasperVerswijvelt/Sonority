@@ -102,7 +102,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     // Pre-select the item the shortcut came from, and jump to its step.
     final already = {..._fronts, ..._surrounds, ..._subs};
     final psub = widget.preselectSub;
-    if (psub != null && !already.contains(psub)) {
+    if (psub != null && !already.contains(psub) && _subs.length < 2) {
       _subs.add(psub);
       _step = 2; // Subwoofer step
     }
