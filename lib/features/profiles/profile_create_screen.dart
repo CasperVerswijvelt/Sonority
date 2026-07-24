@@ -103,7 +103,7 @@ class _State extends ConsumerState<ProfileCreateScreen> {
                 : context.l10n.profileNew)),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.all(24),
             child: Text(
               context.l10n.profileScanFirstCreate,
               textAlign: TextAlign.center,

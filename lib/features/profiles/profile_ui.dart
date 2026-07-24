@@ -291,7 +291,6 @@ class ProfileCard extends StatelessWidget {
     final tonal = profileTonal(profile.color, theme.brightness);
     final summary = profile.entities.map((e) => e.label).join(' · ');
     return Card(
-      margin: EdgeInsets.zero,
       color: selected
           ? Color.alphaBlend(
               scheme.primary.withValues(alpha: 0.12),
@@ -383,7 +382,7 @@ class ProfileCard extends StatelessWidget {
                     // Cross-fade when the trailing swaps (⋮ menu ↔ drag handle
                     // when toggling reorder mode).
                     AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 240),
+                      duration: kShortAnim,
                       child: trailing!,
                     ),
                   ],
@@ -402,7 +401,7 @@ class ProfileCard extends StatelessWidget {
               // grid measures the changing height each frame and its rows follow.
               if (actions != null)
                 AnimatedCrossFade(
-                  duration: const Duration(milliseconds: 240),
+                  duration: kShortAnim,
                   sizeCurve: Curves.easeInOut,
                   firstCurve: Curves.easeInOut,
                   secondCurve: Curves.easeInOut,

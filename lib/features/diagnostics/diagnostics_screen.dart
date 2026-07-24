@@ -15,6 +15,7 @@ import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_spinner.dart';
+import '../widgets/settings_section.dart';
 import 'diagnostics_bundle.dart';
 
 const _devEmail = 'casperverswijveltdev@gmail.com';
@@ -172,31 +173,32 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                   ),
           ),
           // Bundle-content toggles + note + escalation actions, pinned below the
-          // scrolling topology.
-          const Divider(height: 1),
-          SwitchListTile(
-            value: _includeLogs,
-            onChanged: _isBusy ? null : (v) => setState(() => _includeLogs = v),
-            title: Text(context.l10n.diagIncludeLogs),
-            subtitle: Text(context.l10n.diagIncludeLogsSubtitle),
-            dense: true,
-            shape: kFlatTileShape,
-          ),
-          SwitchListTile(
-            value: _includeNetwork,
-            onChanged:
-                _isBusy ? null : (v) => setState(() => _includeNetwork = v),
-            title: Text(context.l10n.diagIncludeNetwork),
-            subtitle: Text(context.l10n.diagIncludeNetworkSubtitle),
-            dense: true,
-            shape: kFlatTileShape,
-          ),
+          // scrolling topology. The toggles are a flat register (leading divider +
+          // square ink) via the shared SettingsSection, like the room / new-profile
+          // registers.
+          SettingsSection(children: [
+            SwitchListTile(
+              value: _includeLogs,
+              onChanged:
+                  _isBusy ? null : (v) => setState(() => _includeLogs = v),
+              title: Text(context.l10n.diagIncludeLogs),
+              subtitle: Text(context.l10n.diagIncludeLogsSubtitle),
+              dense: true,
+            ),
+            SwitchListTile(
+              value: _includeNetwork,
+              onChanged:
+                  _isBusy ? null : (v) => setState(() => _includeNetwork = v),
+              title: Text(context.l10n.diagIncludeNetwork),
+              subtitle: Text(context.l10n.diagIncludeNetworkSubtitle),
+              dense: true,
+            ),
+          ]),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             child: Text(
               context.l10n.diagAlwaysIncluded,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.mutedText,
             ),
           ),
           Padding(
@@ -211,7 +213,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                             _emailSupported ? _Action.email : _Action.share,
                             _emailSupported ? _email : _share,
                           ),
-                    style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
+                    style: FilledButton.styleFrom(minimumSize: const Size(0, 54)),
                     icon: _busyIcon(
                       _emailSupported ? _Action.email : _Action.share,
                       _emailSupported ? Icons.mail_outline : Icons.share,
@@ -236,7 +238,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                         : () => _run(_Action.share, _share),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
-                      minimumSize: const Size(0, 52),
+                      minimumSize: const Size(0, 54),
                     ),
                     child: _busyIcon(_Action.share, Icons.share),
                   ),
@@ -251,7 +253,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                         : () => _run(_Action.save, _save),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
-                      minimumSize: const Size(0, 52),
+                      minimumSize: const Size(0, 54),
                     ),
                     child: _busyIcon(_Action.save, Icons.save_alt),
                   ),

@@ -100,14 +100,13 @@ class AppTheme {
         ? Color.alphaBlend(Colors.black.withValues(alpha: 0.35), scheme.surface)
         : scheme.surface;
     return ThemeData(
-      useMaterial3: true,
       colorScheme: scheme,
       // Center glyphs within their line box on every platform. The macOS system
       // font (SF) puts most of its line leading ABOVE the glyph, so text sits a
       // few px low in tiles/cards there; "even" splits the leading top/bottom so
       // it looks vertically centered cross-platform (Android already does this).
       textTheme: _evenLeading(
-        ThemeData(useMaterial3: true, colorScheme: scheme).textTheme,
+        ThemeData(colorScheme: scheme).textTheme,
       ),
       scaffoldBackgroundColor: pageBg,
       appBarTheme: AppBarTheme(
@@ -119,7 +118,6 @@ class AppTheme {
         // no shadow, no tint.
         elevation: 0,
         scrolledUnderElevation: 0,
-        shadowColor: scheme.shadow,
         titleTextStyle: TextStyle(
           color: scheme.onSurface,
           fontSize: 22,
@@ -141,7 +139,6 @@ class AppTheme {
       // A distinct bottom nav surface (the top divider is added in the shell).
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: scheme.surfaceContainerHigh,
-        indicatorColor: scheme.secondaryContainer,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
@@ -207,6 +204,10 @@ const RoundedRectangleBorder kFlatTileShape =
 /// Vertical gap between stacked cards in a list (applied as a card `margin` /
 /// bottom padding, so it's a `double` rather than a [Gap] SizedBox).
 const double kCardGap = 12;
+
+/// The app's standard short UI-animation duration (crossfades, switchers,
+/// reorder). One source so a "quick" transition can't drift between 200/240ms.
+const Duration kShortAnim = Duration(milliseconds: 240);
 
 /// Width at/above which the UI switches to its wide (desktop/large-window)
 /// layout: a left `NavigationRail` instead of the bottom nav bar, and content

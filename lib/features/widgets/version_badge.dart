@@ -103,7 +103,7 @@ Future<void> showVersionSheet(BuildContext context, PackageInfo info) {
               Uri.parse(_repoUrl),
               mode: LaunchMode.externalApplication,
             ),
-            style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 54)),
             icon: const Icon(Icons.open_in_new),
             label: const Text('GitHub'),
           ),

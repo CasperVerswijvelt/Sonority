@@ -30,7 +30,6 @@ class MemberChannelCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     final channel = this.channel;
     return Card(
-      margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(

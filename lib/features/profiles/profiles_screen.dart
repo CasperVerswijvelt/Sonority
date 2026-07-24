@@ -48,7 +48,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
           items: list,
           idOf: (p) => p.id,
           reordering: _editing,
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
+          padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 96),
           itemBuilder: (context, p) =>
               _profileCard(context, ref, p, editing: _editing),
           onReorder: (from, to) =>
@@ -230,7 +230,7 @@ class _EmptyState extends StatelessWidget {
     final theme = Theme.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

@@ -303,7 +303,6 @@ class _GroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      margin: EdgeInsets.zero,
       child: ListTile(
         leading: Icon(group.icon, color: theme.colorScheme.primary),
         title: Text(group.label),

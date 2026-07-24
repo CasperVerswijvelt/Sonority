@@ -172,10 +172,7 @@ class _SettingsBlock extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: theme.textTheme.titleMedium),
-          if (role != null)
-            Text(role!,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant)),
+          if (role != null) Text(role!, style: theme.mutedText),
           Gap.s,
           for (final r in rows)
             Padding(

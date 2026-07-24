@@ -66,8 +66,6 @@ class ReorderableCardGrid<T> extends StatefulWidget {
 }
 
 class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
-  static const _anim = Duration(milliseconds: 240);
-
   final _stackKey = GlobalKey();
 
   /// Visual order — mirrors [widget.items], but reorders live during a drag.
@@ -248,7 +246,7 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
     // Only drop the "on top" flag once THIS drop's animation has finished, so
     // the z-order never flickers mid-flight — the token guards against a fast
     // re-drag whose timer would otherwise clear the new drop early.
-    Future.delayed(_anim, () {
+    Future.delayed(kShortAnim, () {
       if (mounted && _dropToken == token) setState(() => _droppingId = null);
     });
   }
@@ -379,7 +377,7 @@ class _ReorderableCardGridState<T> extends State<ReorderableCardGrid<T>> {
       // to their slot. On release `dragging` flips false, so the ex-dragged item
       // animates from the finger to its slot — the drop. A resize snaps (see
       // above) so sizes never tween.
-      duration: (dragging || resized) ? Duration.zero : _anim,
+      duration: (dragging || resized) ? Duration.zero : kShortAnim,
       curve: Curves.easeInOut,
       left: pos.dx,
       top: pos.dy,
