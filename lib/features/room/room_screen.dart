@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/l10n.dart';
 import '../../core/theme.dart';
@@ -16,6 +15,7 @@ import '../widgets/scroll_footer.dart';
 import '../widgets/section_header.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/trueplay_control.dart';
+import 'bonding_shortcuts.dart';
 
 /// A single standalone room shown as a pushed page: the speaker, shortcuts into
 /// the bonding flows, and the Trueplay control. A page (not a sheet) so the rule
@@ -40,14 +40,8 @@ class RoomScreen extends ConsumerWidget {
     // Single standalone speaker (stereo pairs are groups → the group sheet).
     final device = system!.device(uuid);
     final devices = [if (device != null) device];
-    // Soundbars this speaker could join as a front/surround (same rule the
-    // overview uses to list home theaters).
-    final soundbars = system.allMembers
-        .where(
-          (m) =>
-              m.isHomeTheater || (system.device(m.uuid)?.isSoundbar ?? false),
-        )
-        .toList();
+    // Soundbars this speaker could join as a front/surround.
+    final soundbars = homeTheaterTargets(system);
 
     return AppScaffold(
       title: member.zoneName,
@@ -73,18 +67,18 @@ class RoomScreen extends ConsumerWidget {
             // standalone room isn't a dead end (the flows do their own
             // validation). Descriptive rows (title + what it does), not bare
             // buttons.
-            _ActionRow(
+            ActionRow(
               icon: Icons.speaker_group_outlined,
               title: context.l10n.roomGroupWith,
               subtitle: context.l10n.roomGroupWithSubtitle,
-              onTap: () => _leaveTo(context, '/group'),
+              onTap: () => leaveTo(context, '/group'),
             ),
             if (soundbars.isNotEmpty)
-              _ActionRow(
+              ActionRow(
                 icon: Icons.surround_sound,
                 title: context.l10n.roomAddToHomeTheater,
                 subtitle: context.l10n.roomAddToHomeTheaterSubtitle,
-                onTap: () => _addToHomeTheater(context, soundbars),
+                onTap: () => addToHomeTheater(context, soundbars),
               ),
             Gap.s,
             // Settings: a flat, sectioned Trueplay row, not another card.
@@ -111,74 +105,6 @@ class RoomScreen extends ConsumerWidget {
           ],
         ],
       ),
-    );
-  }
-}
-
-/// Pops the room page, then pushes [location] — pop-then-push so that after the
-/// guided flow completes we land back on the overview (the room is no longer
-/// standalone), not on a now-stale room page.
-void _leaveTo(BuildContext context, String location) {
-  final router = GoRouter.of(context);
-  context.pop();
-  router.push(location);
-}
-
-/// "Add to a home theater": route into the HT setup flow keyed to a soundbar —
-/// straight through with one soundbar, or a small chooser when there are several.
-Future<void> _addToHomeTheater(
-  BuildContext context,
-  List<ZoneGroupMember> soundbars,
-) async {
-  String? target;
-  if (soundbars.length == 1) {
-    target = soundbars.first.uuid;
-  } else {
-    target = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(context.l10n.roomAddToWhichHomeTheater),
-        children: [
-          for (final s in soundbars)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, s.uuid),
-              child: Text(s.zoneName),
-            ),
-        ],
-      ),
-    );
-  }
-  if (target == null || !context.mounted) return;
-  _leaveTo(context, '/theater/$target/fronts');
-}
-
-/// A flat, tappable "do something with this speaker" row: icon + title + a line
-/// describing where it leads, with a chevron. Reads as an action, distinct from
-/// the content card above and the settings section below.
-class _ActionRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  const _ActionRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      // Full-bleed action row (not card-nested): square ink, not the rounded
-      // listTileTheme default.
-      shape: kFlatTileShape,
-      contentPadding: const EdgeInsets.symmetric(horizontal: kPageGutter),
-      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-      title: Text(title),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
     );
   }
 }

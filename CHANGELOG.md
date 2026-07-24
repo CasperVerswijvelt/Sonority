@@ -16,7 +16,7 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Changed
 - UI consistency pass: the Profiles list now aligns to the same page gutter as the other screens, share/save and empty-state layouts use consistent sizing, and short animations share one duration — plus removed a few redundant theme overrides that just restated Flutter defaults. No behaviour change.
-- A standalone (unbonded) Sub now opens its own detail page instead of a bottom sheet, so an identify failure surfaces properly.
+- A standalone (unbonded) Sub now opens its own detail page instead of a bottom sheet, with shortcuts to add it to a home theater or a speaker group (so it's not a dead end), and an identify failure now surfaces properly.
 
 ## [0.6.0] - 2026-07-17
 

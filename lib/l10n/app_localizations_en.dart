@@ -936,6 +936,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomAddToWhichHomeTheater => 'Add to which home theater?';
 
   @override
+  String get subAddToGroup => 'Add to a speaker group';
+
+  @override
+  String get subAddToGroupSubtitle => 'Add this sub to a new group';
+
+  @override
   String get sectionSpeakers => 'Speakers';
 
   @override

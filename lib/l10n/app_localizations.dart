@@ -1540,6 +1540,18 @@ abstract class AppLocalizations {
   /// **'Add to which home theater?'**
   String get roomAddToWhichHomeTheater;
 
+  /// No description provided for @subAddToGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to a speaker group'**
+  String get subAddToGroup;
+
+  /// No description provided for @subAddToGroupSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add this sub to a new group'**
+  String get subAddToGroupSubtitle;
+
   /// No description provided for @sectionSpeakers.
   ///
   /// In en, this message translates to:

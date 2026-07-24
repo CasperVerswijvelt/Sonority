@@ -570,6 +570,8 @@
   "roomAddToHomeTheater": "Add to a home theater",
   "roomAddToHomeTheaterSubtitle": "As a front, surround, or sub",
   "roomAddToWhichHomeTheater": "Add to which home theater?",
+  "subAddToGroup": "Add to a speaker group",
+  "subAddToGroupSubtitle": "Add this sub to a new group",
   "sectionSpeakers": "Speakers",
   "groupSheetTitle": "Speaker group",
   "groupUpdating": "Updating…",
