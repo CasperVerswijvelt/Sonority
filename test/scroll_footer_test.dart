@@ -40,8 +40,8 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Separate'), findsOneWidget);
     // Content fits, so nothing scrolls: total height must equal the viewport
-    // exactly (regression guard — a trailing SliverPadding around the
-    // SliverFillRemaining footer used to overflow by the bottom padding).
+    // exactly (regression guard — the footer's min-height fills the leftover
+    // space precisely, so its padding never tips it into a few px of scroll).
     final position = tester.state<ScrollableState>(find.byType(Scrollable)).position;
     expect(position.maxScrollExtent, 0);
   });
