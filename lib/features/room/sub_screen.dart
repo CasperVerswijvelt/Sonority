@@ -55,7 +55,7 @@ class SubScreen extends ConsumerWidget {
               ActionRow(
                 icon: Icons.surround_sound,
                 title: context.l10n.roomAddToHomeTheater,
-                subtitle: context.l10n.roomAddToHomeTheaterSubtitle,
+                subtitle: context.l10n.subAddToHomeTheaterSubtitle,
                 onTap: () => addToHomeTheater(context, soundbars, sub: uuid),
               ),
           ],

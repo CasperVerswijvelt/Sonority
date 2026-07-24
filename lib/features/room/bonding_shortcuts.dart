@@ -71,27 +71,20 @@ class _HomeTheaterChooser extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return AlertDialog(
       title: Text(context.l10n.roomAddToWhichHomeTheater),
       contentPadding: const EdgeInsets.symmetric(vertical: 8),
       content: SizedBox(
         width: double.maxFinite,
-        child: ListView(
+        child: ListView.separated(
           shrinkWrap: true,
-          children: [
-            for (final s in soundbars)
-              ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: scheme.primaryContainer,
-                  foregroundColor: scheme.onPrimaryContainer,
-                  child: const Icon(Icons.surround_sound),
-                ),
-                title: Text(s.zoneName),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.pop(context, s.uuid),
-              ),
-          ],
+          itemCount: soundbars.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (_, i) => ListTile(
+            title: Text(soundbars[i].zoneName),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.pop(context, soundbars[i].uuid),
+          ),
         ),
       ),
     );

@@ -1531,7 +1531,7 @@ abstract class AppLocalizations {
   /// No description provided for @roomAddToHomeTheaterSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'As a front, surround, or sub'**
+  /// **'As a front or surround'**
   String get roomAddToHomeTheaterSubtitle;
 
   /// No description provided for @roomAddToWhichHomeTheater.
@@ -1551,6 +1551,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add this sub to a new group'**
   String get subAddToGroupSubtitle;
+
+  /// No description provided for @subAddToHomeTheaterSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'As the subwoofer'**
+  String get subAddToHomeTheaterSubtitle;
 
   /// No description provided for @sectionSpeakers.
   ///

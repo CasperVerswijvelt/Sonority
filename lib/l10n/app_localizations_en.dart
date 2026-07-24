@@ -930,7 +930,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomAddToHomeTheater => 'Add to a home theater';
 
   @override
-  String get roomAddToHomeTheaterSubtitle => 'As a front, surround, or sub';
+  String get roomAddToHomeTheaterSubtitle => 'As a front or surround';
 
   @override
   String get roomAddToWhichHomeTheater => 'Add to which home theater?';
@@ -940,6 +940,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subAddToGroupSubtitle => 'Add this sub to a new group';
+
+  @override
+  String get subAddToHomeTheaterSubtitle => 'As the subwoofer';
 
   @override
   String get sectionSpeakers => 'Speakers';
