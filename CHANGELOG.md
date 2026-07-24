@@ -11,61 +11,41 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
-### Added
-- Profiles can be reordered: tap the reorder button in the Profiles app bar to enter reorder mode, then drag a tile — the others animate to their new spots and it drops into place. Works at every width (single column on a phone, 2–3 when wide). Screen-reader users get per-tile move actions.
-- Profile tiles are roomier: the capture summary now sits on its own line and spells out what a profile does NOT store ("No settings" / "No volume") as well as what it does, shows "Updated X ago", and has a full-width Apply button.
-- Responsive desktop layout: on a wide window the bottom tabs become an expanded left navigation rail (with the Sonority wordmark at the top and the version at the bottom), content fills the window width, and card lists lay out in multiple columns — the System overview, Profiles, the group and home-theater detail pages, and the setup flows. The macOS window is now resizable (it was locked to a fixed phone size) with a sensible max width so content fills without stretching. Phones are unchanged.
-- iPad support: the app now runs natively on iPad in any orientation (including Split View / Slide Over), using the wide navigation-rail layout — landscape and portrait both adapt to the available width. iPhone stays portrait.
-- Diagnostics is now its own bottom-bar tab (a full page) instead of a button tucked in the overview's app bar.
-- Standalone rooms can now jump straight into a setup: the room page has "Group with another speaker" and "Add to a home theater" shortcuts.
-- Diagnostics bundle now includes `speaker_settings.json` — a read-only per-speaker snapshot of EQ / volume / mute (RenderingControl), to help debug "configured but silent" reports (e.g. a muted or zero-volume bonded speaker).
-- Localization groundwork: every user-facing string now runs through Flutter's localization system (`lib/l10n/app_en.arb`), and the app follows the device language. English is the only bundled language for now — a new one is added by dropping in a translation file, no code changes. No visible change yet.
-
-### Changed
-- The home-theater setup flow (appbar title and its apply-progress screen) now reads "Configure home theater" instead of "Set up home theater", matching the "Configure" button that opens it.
-- When applying a profile or layout fails partway, the progress screen reassures you it's safe to retry (re-applying picks up where it left off and converges to the target) before offering Retry.
-- UI refresh so different concepts look different: entity tiles (home theaters, groups, rooms, profiles) now share one rounded-square glyph and communicate their makeup with pills (kind, parts, sub) instead of a run-on "· · ·" subtitle; every "pick speakers/entities" list uses one flat checkbox style; and the group-creation review now shows the bonded layout as per-speaker cards instead of a text list.
-- Navigation is now predictable: everything you can act on — a home theater, a speaker group, or a single room — opens as a full page, and sheets are reserved for read-only peeks (the profile's captured-entity view). The home-theater setup flow is a step within a home theater's page (navigation stays available); only the from-scratch group-creation flow covers the tabs.
-- The home-theater setup flow now sets which front / surround speaker plays left vs right with an in-card Left/Right toggle (revealed on the selected speaker, mirroring the group flow's Left/Both/Right control) — picking a side swaps the pair, replacing the separate rows that didn't take.
-- Polish on the detail pages: the home-theater diagram now stretches to the full width of a wide window while keeping a fixed height (instead of blowing up), destructive/primary actions (the group's "Separate", a single room's group / home-theater shortcuts and Trueplay toggle) always sit at the bottom of the page, the home-theater "Configure" button is shorter, a profile's "Re-capture from current setup" action moved above the captured list, and group / room detail pages now label their speaker list with a "Speakers" heading.
-- In the wide navigation-rail layout, switching tabs now slides the page vertically (matching the rail's vertical entries) instead of horizontally.
-- A standalone (unbonded) Sub on the overview is now tappable — it opens a small sheet to identify it and explains how to add it to a home theater or group (previously it was shown but did nothing).
-- iOS now carries the Apple-approved multicast entitlement, so discovery uses native SSDP multicast on physical iPhones instead of relying on the unicast /24 sweep fallback (which stays as a backstop for multicast-filtering networks).
-- GitHub Pages landing page now deploys automatically on each release tag (via an LFS-aware Actions workflow) and shows the current app version; the page is generated in CI rather than committed.
-- Internal cleanup: deduplicated shared widgets/helpers and removed dead code; the Sonos engine is now fully decoupled from Flutter (persistence via an injected storage port). No user-facing behaviour change.
-- Reconfiguring a home theater (e.g. swapping which speakers are fronts vs surrounds) no longer unbonds speakers that are only moving to a different channel — they're reassigned in place, so the setup no longer briefly drops to one speaker per side. The progress screen shows a single calm "Applying…" step (Sonos can still take up to a minute to settle) instead of a scary per-attempt retry log.
-- Identify chime is now a repeated percussive ping (sharp attack, bright harmonics) instead of a soft two-tone sine — it's far easier to tell which speaker it's coming from by ear.
-- An unreachable speaker's card is now shown dimmed with a short "Unreachable" subtitle instead of an alarming red warning tile with a long hint.
-- The wide-layout navigation rail is a bit narrower, giving the content pane more room.
-
-### Fixed
-- The System overview no longer jitters / jumps while overscrolling with a trackpad on macOS (and iPad) — it now scrolls as a list view instead of a single scrolling column, which the platform bounce handles smoothly.
-- Pull-to-refresh on the System overview and home-theater pages now works even when the content is short enough to fit the screen without scrolling (previously the pull gesture did nothing there).
-- The New/Re-snapshot profile form is now locked and dimmed while it reads a speaker's EQ/volume, so you can no longer flip the capture toggles or change the selection mid-save.
-
 ## [0.6.0] - 2026-07-17
 
 ### Added
-- Profiles: tap an entity in a profile to open a detail view — the same layout visualization as the system overview (home-theater diagram / per-speaker channel cards) plus a per-speaker breakdown of every saved audio setting and volume.
-- Identify a speaker (blink its LED, plus a test chime on iOS/Android for standalone speakers) directly from the room and speaker-group detail sheets — a bonded speaker shows LED-only, since a chime would play the whole bond.
-- Diagnostics: a new screen (bug icon, top-right) shows a hide-nothing technical view of your system — including hidden speakers, IPs, MAC addresses and firmware — and can package it, the raw topology, raw device info, your saved profiles and app logs into a zip to share via the system share sheet, email straight to the developer, or save to disk. App logs and phone network info are optional toggles.
+- Profiles can be reordered: tap the reorder button in the Profiles app bar, then drag a tile. Works at every width, with screen-reader move actions.
+- Responsive layout for wide windows and iPad: the bottom tabs become an expanded left navigation rail (with a vertical tab transition), content fills the width, and card lists flow into 2–3 columns across the overview, Profiles, detail pages and setup flows. The macOS window is now resizable (it was locked to a fixed phone size). The app also runs natively on iPad in any orientation, including Split View. Phones are unchanged.
+- Profiles: tap an entity in a profile to open a detail view — the system-overview layout (home-theater diagram / per-speaker channel cards) plus a per-speaker breakdown of every saved audio setting and volume. Profile tiles are roomier too: the capture summary sits on its own line spelling out what a profile does and doesn't store, shows "Updated X ago", and has a full-width Apply button.
+- Diagnostics: a new bottom-bar tab with a hide-nothing technical view of your system (hidden speakers, IPs, MAC addresses, firmware). Package it, the raw topology, raw device info, your saved profiles, a per-speaker EQ/volume/mute snapshot and app logs into a zip to share, email to the developer, or save to disk. App logs and network info are optional toggles.
+- Identify a speaker (blink its LED, plus a test chime on iOS/Android for standalone speakers) directly from the room and speaker-group detail views — a bonded speaker shows LED-only, since a chime would play the whole bond.
+- Standalone rooms can jump straight into a setup: the room page has "Group with another speaker" and "Add to a home theater" shortcuts.
+- Localization groundwork: every user-facing string now runs through Flutter's localization system and the app follows the device language. English is the only bundled language for now — a new one is added by dropping in a translation file, no code changes. No visible change yet.
 
 ### Changed
-- The bonding progress screen's Done button is now colored by result — green when the operation succeeded, red when it failed or was aborted.
-- The speaker-group, single-room, and profile-entity detail views are now modal bottom sheets (sized to their content, capped just below the app bar, with an explicit close button, and a pinned "Separate" for groups) instead of full pushed pages — cutting a level off the navigation on both tabs. The home-theater detail stays a full page (it's content-heavy and launches the configure flow).
-- Settings (Trueplay, a profile's saved per-speaker settings) now render as a flat, divider-led section of full-width rows rather than cards, so they read distinctly from the speaker/content cards above them. A single-room sheet is now titled like the others ("Room") with the speaker shown as a card.
-- Diagnostics: home-theater blocks in the topology view no longer print each satellite twice — the satellite's IP is now folded into its `HTSatChanMapSet` line instead of repeating the UUID and channel on a separate line.
-- Profile editing is now a single save surface: the profile screen keeps you on the page after saving (with a toast) instead of jumping back to the list, and re-snapshot no longer instantly overwrites — it recaptures the current setup as an unsaved change you review and commit with Save (dropping the confirmation dialog, the duplicate name/appearance editor, and the apply primer from the re-snapshot screen). Captured-settings now show as "Audio settings"/"Volume" chips on each speaker card instead of a text line.
-- The version/changelog viewer (tap the version chip) now opens as a bottom sheet matching the new Diagnostics screen.
+- Navigation is predictable: everything you can act on — a home theater, a speaker group, or a single room — opens as a full page, and bottom sheets are reserved for read-only peeks (a profile's captured-entity view, and the version/changelog viewer). The home-theater setup flow is a step within a home theater's page; only the from-scratch group-creation flow covers the tabs.
+- UI refresh so different concepts look different: entity tiles share one rounded-square glyph and show their makeup with pills instead of a run-on "· · ·" subtitle; every "pick speakers" list uses one flat checkbox style; the group-creation review shows per-speaker cards instead of a text list; settings (Trueplay, a profile's saved per-speaker settings) render as flat, divider-led rows rather than cards; plus unified card radius, page gutters, spacing, section headers and a single muted-text style.
+- The home-theater setup is now titled "Configure home theater" (matching the shorter, settings-cog "Configure" button that opens it, in place of the sliders/EQ glyph reserved for audio controls). The flow sets each front/surround speaker's left vs right side with an in-card toggle (mirroring the group flow), replacing the separate rows that didn't take.
+- Detail-page polish: the home-theater diagram stretches to a wide window's full width at a fixed height (instead of blowing up); destructive/primary actions (a group's "Separate", a room's group / home-theater shortcuts and Trueplay toggle) sit at the bottom of the page; a profile's "Re-capture from current setup" moved above the captured list; and group / room speaker lists get a "Speakers" heading.
+- Profile editing is a single save surface: the profile screen keeps you on the page after saving (with a toast) instead of jumping to the list, and re-snapshot recaptures the current setup as an unsaved change you review and commit with Save, instead of instantly overwriting.
 - Renamed the home-theater "Remove all extra speakers" button to "Separate" (with a "Separate home theater?" confirmation), consistent with the speaker-groups wording.
-- Detail sheets no longer show a drag handle — the explicit close button is the way out (drag-to-dismiss still works).
-- The home-theater "Configure home theater" button now uses a settings-cog icon instead of the sliders/EQ glyph, which is reserved for the audio/Trueplay controls.
-- When a bonding step fails, the progress screen now shows a plain-English reason (e.g. "Sonos is busy rearranging speakers right now") for the errors we recognize, instead of a raw exception string; the full technical detail is still available in the raw log view.
-- Profiles that save audio settings no longer capture irrelevant sub/surround/height values for plain speakers (e.g. a Play:1 or One in a zone) — that extended bundle is now saved only for soundbars, home theaters, or groups with a bonded sub; plain speakers keep bass, treble and loudness.
-- Tightened visual consistency across screens: shared section headers, info notes and a single muted-text style, plus unified card radius, page gutters and card spacing.
+- The bonding progress screen's Done button is now colored by result (green on success, red on failure/abort). On a partial failure it shows a plain-English reason for errors we recognize (full detail still in the raw log) and reassures you it's safe to retry — re-applying picks up where it left off and converges to the target.
+- A standalone (unbonded) Sub on the overview is now tappable — a small sheet identifies it and explains how to add it to a home theater or group (previously it was shown but did nothing).
+- An unreachable speaker's card is now shown dimmed with a short "Unreachable" subtitle instead of an alarming red warning tile with a long hint.
+- Identify chime is now a repeated percussive ping (sharp attack, bright harmonics) instead of a soft two-tone sine — far easier to tell which speaker it's coming from by ear.
+- iOS now carries the Apple-approved multicast entitlement, so discovery uses native SSDP multicast on physical iPhones instead of relying on the unicast /24 sweep (which stays as a backstop for multicast-filtering networks).
+- Internal cleanup: deduplicated shared widgets/helpers and removed dead code; the GitHub Pages landing page now deploys automatically on each release tag and shows the current version. No user-facing behaviour change.
 
 ### Fixed
-- Profile name field: the appearance swatch now stays vertically centered on the field (and no longer jumps when the "name exists" error appears) on desktop, where the compact input density had made the field shorter than the swatch.
+- The System overview no longer jitters / jumps while overscrolling with a trackpad on macOS (and iPad) — it now scrolls as a list view, which the platform bounce handles smoothly.
+- Pull-to-refresh on the System overview and home-theater pages now works even when the content fits the screen without scrolling (previously the pull gesture did nothing there).
+- The New/Re-snapshot profile form is now locked and dimmed while it reads a speaker's EQ/volume, so you can no longer flip the capture toggles or change the selection mid-save.
+- Profile name field: the appearance swatch now stays vertically centered (and no longer jumps when the "name exists" error appears) on desktop, where the compact input density had made the field shorter than the swatch.
+
+### Engine
+- The Sonos engine (`lib/data/sonos/`) is now fully Flutter-free: persistence goes through an injected `KeyValueStore` port (a `shared_preferences` adapter in the app, an in-memory default for tests/CLI), so firmware/wire-format logic stays isolated and headlessly testable.
+- Home-theater reconfiguration applies a **leaves-only diff**: a speaker that only changes channel (e.g. a fronts↔surrounds swap) is reassigned in place via `AddHTSatellite` instead of being unbonded first, so the layout no longer strips to one speaker per side mid-apply. Only speakers the target drops entirely are removed; an unchanged layout writes nothing.
+- EQ capture is gated by **role, not probing**: since a speaker's supported EQ tokens aren't discoverable from its SCPD (byte-identical across models, and small speakers answer sub/height queries with harmless defaults), profiles read the extended EQ bundle only for soundbars, home theaters, or groups with a bonded sub; every other speaker captures bass/treble/loudness only.
 
 ## [0.5.1] - 2026-07-15
 
