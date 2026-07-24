@@ -12,10 +12,7 @@ import '../widgets/app_scaffold.dart';
 import '../widgets/brand_wordmark.dart';
 import '../widgets/card_grid.dart';
 import '../widgets/entity_cards.dart';
-import '../widgets/identify_controls.dart';
-import '../widgets/member_channel_card.dart';
 import '../widgets/section_header.dart';
-import '../widgets/sheet_scaffold.dart';
 import '../widgets/version_badge.dart';
 
 /// Entry screen: auto-scans the LAN on launch and presents the system, leading
@@ -177,7 +174,7 @@ class _SystemView extends ConsumerWidget {
                   title: context.l10n.discoverySubwoofer,
                   subtitle: sub.typeLabel,
                 ),
-                onTap: () => _showSubSheet(context, sub),
+                onTap: () => context.push('/sub/${sub.uuid}'),
               ),
           ]),
         ],
@@ -189,37 +186,6 @@ class _SystemView extends ConsumerWidget {
 /// The overview's entity cards each carry their own bottom gap, so the shared
 /// [CardGrid] runs with `runSpacing: 0` here (it adds only column spacing).
 Widget _cardGrid(List<Widget> cards) => CardGrid(cards, runSpacing: 0);
-
-/// Opens a standalone (unbonded) Sub as a small sheet: identify it by ear/LED and
-/// a note on how to put it to use (it has no config of its own).
-Future<void> _showSubSheet(
-  BuildContext context,
-  SonosDevice sub,
-) => showSheet<void>(
-  context,
-  SheetScaffold(
-    title: context.l10n.discoverySubwoofer,
-    subtitle: sub.typeLabel,
-    body: Padding(
-      padding: const EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          MemberChannelCard(
-            icon: Icons.graphic_eq,
-            type: sub.typeLabel,
-            trailing: speakerIdentifyButton(sub),
-          ),
-          Gap.m,
-          Text(
-            context.l10n.discoverySubUnbondedNote,
-            style: Theme.of(context).mutedText,
-          ),
-        ],
-      ),
-    ),
-  ),
-);
 
 class _EmptyHint extends StatelessWidget {
   final String text;

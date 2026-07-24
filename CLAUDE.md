@@ -590,7 +590,9 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   zip** (`diagnostics_bundle.dart`): README, `parsed_topology.json`,
   `topology.txt`, fresh `raw_topology.xml` (`ZoneTopologyClient.getRawState`),
   raw `device_descriptions/*.xml` (`DeviceDescriptionClient.fetchRaw`),
-  `app_state.json` (all app SharedPreferences), plus optional `logs.txt` +
+  `app_state.json` (all app SharedPreferences), `speaker_settings.json`
+  (read-only per-speaker EQ/volume/mute reads, role-gated by `settingsReadPlan` /
+  `SonosSystem.extendedEqUuids`), plus optional `logs.txt` +
   `network.txt` toggles (both default on). Shares via `share_plus`, a prefilled
   developer email (`flutter_email_sender`, iOS/Android/macOS), or save-to-disk
   via a native save dialog on every platform (`file_saver`; macOS needs the

@@ -668,6 +668,75 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileRoleSurroundR => 'Surround R';
 
   @override
+  String get settingBass => 'Bass';
+
+  @override
+  String get settingTreble => 'Treble';
+
+  @override
+  String get settingLoudness => 'Loudness';
+
+  @override
+  String get settingVolume => 'Volume';
+
+  @override
+  String get settingMuted => 'Muted';
+
+  @override
+  String get settingNightMode => 'Night sound';
+
+  @override
+  String get settingDialogLevel => 'Speech enhancement';
+
+  @override
+  String get settingSubGain => 'Sub level';
+
+  @override
+  String get settingSubEnable => 'Sub';
+
+  @override
+  String get settingSubPolarity => 'Sub phase';
+
+  @override
+  String get settingSubCrossover => 'Sub crossover';
+
+  @override
+  String get settingSurroundLevel => 'Surround level (TV)';
+
+  @override
+  String get settingSurroundEnable => 'Surround';
+
+  @override
+  String get settingSurroundMode => 'Surround mode';
+
+  @override
+  String get settingMusicSurroundLevel => 'Surround level (music)';
+
+  @override
+  String get settingAudioDelay => 'Audio delay (lip sync)';
+
+  @override
+  String get settingAudioDelayLeftRear => 'Surround distance L';
+
+  @override
+  String get settingAudioDelayRightRear => 'Surround distance R';
+
+  @override
+  String get settingHeightChannelLevel => 'Height level';
+
+  @override
+  String get settingOn => 'On';
+
+  @override
+  String get settingOff => 'Off';
+
+  @override
+  String get settingSurroundAmbient => 'Ambient';
+
+  @override
+  String get settingSurroundFull => 'Full';
+
+  @override
   String get profileNameLabel => 'Profile name';
 
   @override
@@ -861,10 +930,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomAddToHomeTheater => 'Add to a home theater';
 
   @override
-  String get roomAddToHomeTheaterSubtitle => 'As a front, surround, or sub';
+  String get roomAddToHomeTheaterSubtitle => 'As a front or surround';
 
   @override
   String get roomAddToWhichHomeTheater => 'Add to which home theater?';
+
+  @override
+  String get subAddToGroup => 'Add to a speaker group';
+
+  @override
+  String get subAddToGroupSubtitle => 'Add this sub to a new group';
+
+  @override
+  String get subAddToHomeTheaterSubtitle => 'As the subwoofer';
 
   @override
   String get sectionSpeakers => 'Speakers';

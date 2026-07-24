@@ -54,7 +54,19 @@ seedHtRoles(ZoneGroupMember member) {
 /// [SonosController.applyHomeTheaterLayout]).
 class FrontSurroundsFlow extends ConsumerStatefulWidget {
   final String soundbarUuid;
-  const FrontSurroundsFlow({super.key, required this.soundbarUuid});
+
+  /// Optionally pre-selected when opened from a room / Sub detail shortcut: a
+  /// plain [preselectSpeaker] lands in the first open front/surround slot, a
+  /// [preselectSub] lands in the sub step — so the item the user came from is
+  /// already picked.
+  final String? preselectSpeaker;
+  final String? preselectSub;
+  const FrontSurroundsFlow({
+    super.key,
+    required this.soundbarUuid,
+    this.preselectSpeaker,
+    this.preselectSub,
+  });
 
   @override
   ConsumerState<FrontSurroundsFlow> createState() => _FrontSurroundsFlowState();
@@ -86,6 +98,24 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     _surrounds.addAll(seed.surrounds);
     _subs.addAll(seed.subs);
     _step = seed.step;
+
+    // Pre-select the item the shortcut came from, and jump to its step.
+    final already = {..._fronts, ..._surrounds, ..._subs};
+    final psub = widget.preselectSub;
+    if (psub != null && !already.contains(psub) && _subs.length < 2) {
+      _subs.add(psub);
+      _step = 2; // Subwoofer step
+    }
+    final psp = widget.preselectSpeaker;
+    if (psp != null && !already.contains(psp)) {
+      if (_fronts.isEmpty) {
+        _fronts.add(psp);
+        _step = 0; // Front speakers
+      } else if (_surrounds.isEmpty) {
+        _surrounds.add(psp);
+        _step = 1; // Rear surrounds
+      }
+    }
   }
 
   @override

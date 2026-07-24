@@ -50,4 +50,18 @@ void main() {
           const OperationCancelled().toString());
     });
   });
+
+  group('captured-settings copy', () {
+    // The profile-entity detail localizes SpeakerSettings.describe() rows via
+    // these keys; pin the ones that are words (not number formats) so a rename
+    // or deletion is caught.
+    test('setting labels and value words resolve', () {
+      expect(l10n.settingSubGain, 'Sub level');
+      expect(l10n.settingSurroundLevel, 'Surround level (TV)');
+      expect(l10n.settingOn, 'On');
+      expect(l10n.settingOff, 'Off');
+      expect(l10n.settingSurroundAmbient, 'Ambient');
+      expect(l10n.settingSurroundFull, 'Full');
+    });
+  });
 }
