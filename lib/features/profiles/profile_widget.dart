@@ -253,7 +253,7 @@ class _WidgetConfigScreenState extends State<_WidgetConfigScreen> {
           : list.isEmpty
               ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(24),
                     child: Text(context.l10n.profileWidgetEmpty,
                         textAlign: TextAlign.center),
                   ),
@@ -262,7 +262,8 @@ class _WidgetConfigScreenState extends State<_WidgetConfigScreen> {
                   children: [
                     Expanded(
                       child: ListView(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                        padding: const EdgeInsets.fromLTRB(
+                            kPageGutter, 0, kPageGutter, 12),
                         children: [
                           Padding(
                             padding: const EdgeInsets.fromLTRB(4, 8, 4, 12),

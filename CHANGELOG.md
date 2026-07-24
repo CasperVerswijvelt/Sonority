@@ -11,6 +11,9 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Changed
+- UI consistency pass: the Profiles list now aligns to the same page gutter as the other screens, share/save and empty-state layouts use consistent sizing, and short animations share one duration — plus removed a few redundant theme overrides that just restated Flutter defaults. No behaviour change.
+
 ## [0.6.0] - 2026-07-17
 
 ### Added

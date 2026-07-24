@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
+import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import 'bondable_speaker_tile.dart';
 
@@ -60,9 +61,9 @@ class SelectableSpeakerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // No card margin — the CardGrid / caller owns the spacing between cards.
+    // Card margin comes from the theme (zero) — the CardGrid / caller owns the
+    // spacing between cards.
     return Card(
-      margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -77,7 +78,7 @@ class SelectableSpeakerCard extends StatelessWidget {
           // CrossFade (not just AnimatedSize) so the control fades out WHILE the
           // height collapses on deselect, instead of vanishing instantly.
           AnimatedCrossFade(
-            duration: const Duration(milliseconds: 200),
+            duration: kShortAnim,
             sizeCurve: Curves.easeInOut,
             alignment: Alignment.topCenter,
             crossFadeState: showControl && control != null
