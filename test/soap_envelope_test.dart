@@ -85,4 +85,51 @@ void main() {
       );
     });
   });
+
+  group('retryUnreachable', () {
+    test('retries a transport error and returns once the speaker answers', () async {
+      var calls = 0;
+      final got = await retryUnreachable(
+        () async {
+          if (++calls < 3) throw http.ClientException('Connection refused');
+          return 'ok';
+        },
+        interval: Duration.zero,
+      );
+      expect(got, 'ok');
+      expect(calls, 3);
+    });
+
+    test('a SOAP fault is the speaker answering — rethrow, do not retry',
+        () async {
+      var calls = 0;
+      await expectLater(
+        retryUnreachable(
+          () async {
+            calls++;
+            throw SonosSoapException('AddBondedZones', faultCode: '402');
+          },
+          interval: Duration.zero,
+        ),
+        throwsA(isA<SonosSoapException>()),
+      );
+      expect(calls, 1);
+    });
+
+    test('gives up after the attempt cap', () async {
+      var calls = 0;
+      await expectLater(
+        retryUnreachable(
+          () async {
+            calls++;
+            throw http.ClientException('Connection refused');
+          },
+          attempts: 4,
+          interval: Duration.zero,
+        ),
+        throwsA(isA<http.ClientException>()),
+      );
+      expect(calls, 4);
+    });
+  });
 }

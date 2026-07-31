@@ -226,7 +226,12 @@ interpolated) then use it.
     full-range — vs a pair's single-sided `LF,LF`/`RF,RF`). Structurally like a
     pair (coordinator stays visible carrying the map, the rest go Invisible).
     Sonos does NOT restore member names on separate, so we snapshot + restore
-    them like pairs.
+    them like pairs. **A create write is "go verify" too, not pass/fail** — same
+    rule as `AddHTSatellite`: a timed-out (or 800) `AddBondedZones` very often
+    still applies (hardware-seen: a user's apply reported failure on an 8s
+    timeout, and the pair was formed by the time they retried). `createGroup`
+    therefore swallows timeout/800 and leaves the verdict to the caller's
+    poll-verify (every call site has one); only a non-800 fault rethrows.
   - **In-place group RECONFIGURE works like HT (hardware-confirmed,
     `tool/group_reassert_spike.dart` — self-restoring, 12/12 reassign + 6/6 add
     trials, all 1 attempt):** re-asserting `AddBondedZones` on a LIVE group's
@@ -418,13 +423,19 @@ interpolated) then use it.
      control port closed). Guarded by `dropSelfConflictingSingles`
      (`profile.dart`), applied at capture AND in `Profile.fromJson` so already-
      saved profiles heal. Anything that snapshots topology needs the same care.
-   - **A freshly-detached speaker refuses TCP :1400 for a while** (connection
-     refused, not a timeout). So never poll/settle-read from the speaker you
-     just unbonded — read from the former coordinator, which stays reachable
-     (`_applyEntity`'s `EntityKind.single` path). Topology converging is NOT the
-     same signal as that speaker answering again, so the first write aimed back
-     at it (the room-name restore) retries on a transport error
-     (`_setRoomNameRetrying`) rather than failing the whole apply.
+   - **A freshly-detached speaker refuses TCP :1400 for ~20-30s** (connection
+     refused, not a timeout) — measured across two user bundles, on both a
+     `RemoveHTSatellite`'d satellite and a freed group member. Consequences:
+     never poll/settle-read from the speaker you just unbonded (read from the
+     former coordinator, which stays reachable), and **topology converging is
+     NOT the same signal as that speaker answering again** — the settle wait
+     routinely finishes first. So any call aimed back at a just-unbonded speaker
+     goes through **`retryUnreachable`** (`soap_client.dart`: retries transport
+     errors, rethrows a `SonosSoapException` since a fault means it answered).
+     Live users: the profile room-name restore, and `createGroup` /
+     `reassertGroup`'s per-member name snapshot — which is how "remove the
+     surrounds, then pair them" failed its first attempts until it happened to
+     land outside the window.
 2. **Some writes silently no-op.** A SOAP call can return `200 OK` yet do nothing
    (e.g. `CreateStereoPair` on truly incompatible hardware — though **mismatched is
    allowed**: One + Play:1 pairs fine; only genuinely incompatible combos are

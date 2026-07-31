@@ -10,7 +10,7 @@ import '../data/sonos/diagnostics_log.dart';
 import '../data/sonos/front_layout.dart' as front_layout;
 import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
-import '../data/sonos/soap_client.dart' show SonosSoapException;
+import '../data/sonos/soap_client.dart' show retryUnreachable;
 import '../data/sonos/sonos_repository.dart';
 import '../data/sonos/sonority_error.dart';
 import '../data/sonos/speaker_settings.dart';
@@ -489,8 +489,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // Retried: topology converging doesn't mean the freed speaker is
         // answering again, and losing a whole profile apply over a room-name
         // restore isn't worth it (the exact failure in the user bundle).
-        if (!await _setRoomNameRetrying(
-            dev!.ip!, e.names[e.primaryUuid] ?? dev.roomName)) {
+        if (!await retryUnreachable(
+            () => _repo.setRoomName(
+                ip: dev!.ip!, name: e.names[e.primaryUuid] ?? dev.roomName),
+            cancel: _activeOp)) {
           ph.skipPhase(detail: l10n.stepNameUnchanged);
         }
         return sys;
@@ -560,7 +562,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             sub != null
                 ? l10n.stepBondNSpeakersWithSub(memberEntries.length)
                 : l10n.stepBondNSpeakers(memberEntries.length));
-        await _repo.createGroup(members: memberEntries, sub: sub);
+        await _repo.createGroup(
+            members: memberEntries, sub: sub, cancel: _activeOp);
         ph.note(l10n.stepWaitingConfirm);
         sys = await _pollUntil(
           previous: sys,
@@ -670,23 +673,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       onNote: ph.log,
       cancel: _activeOp,
     );
-  }
-
-  /// [SonosRepository.setRoomName], retried on a transport error: a speaker
-  /// that was just detached from a bond refuses :1400 for a while, and the
-  /// topology can settle before it starts answering again. A real SOAP fault is
-  /// permanent, so it rethrows immediately rather than burning three waits.
-  Future<bool> _setRoomNameRetrying(String ip, String name) async {
-    for (var attempt = 0;; attempt++) {
-      try {
-        return await _repo.setRoomName(ip: ip, name: name);
-      } on SonosSoapException {
-        rethrow;
-      } catch (_) {
-        if (attempt == 2) rethrow;
-        await interruptibleDelay(const Duration(seconds: 5), _activeOp);
-      }
-    }
   }
 
   Future<SonosSystem> _settleRead(SonosSystem sys, String ip) async {
@@ -854,7 +840,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       ]);
       try {
         ph.phase('bond', l10n.stepBondSpeakers);
-        await _repo.createGroup(members: members, sub: sub);
+        await _repo.createGroup(members: members, sub: sub, cancel: _activeOp);
         ph.phase('confirm', l10n.stepWaitForConfirm);
         var system = await _pollUntil(
           previous: previous,
@@ -1078,9 +1064,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           ph.phase('separate', l10n.stepSeparateRestore);
           await _repo.separateGroup(members: old, channelMapSet: cms);
           // Wait for the old group to dissolve AND its members to reappear as
-          // standalone rooms before re-bonding: `_repo.createGroup` is a single
-          // AddBondedZones (no retry), so recreating mid-reshuffle could fault
-          // and leave the group dissolved. Mirrors separateGroup's settle wait.
+          // standalone rooms before re-bonding: `_repo.createGroup` writes once
+          // (it treats a transient fault as "go verify" but never re-writes), so
+          // recreating mid-reshuffle could leave the group dissolved. Mirrors
+          // separateGroup's settle wait.
           final oldSub = existing.subUuid;
           final reappear =
               current.where((u) => u != existing.uuid && u != oldSub).toList();
@@ -1093,7 +1080,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
                 reappear.every((u) => s.allMembers.any((m) => m.uuid == u)),
           );
           ph.phase('bond', l10n.stepBondSpeakers);
-          await _repo.createGroup(members: members, sub: sub);
+          await _repo.createGroup(members: members, sub: sub, cancel: _activeOp);
         }
         if (needsBond) {
           ph.phase('confirm', l10n.stepWaitForConfirm);

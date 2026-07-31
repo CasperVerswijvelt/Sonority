@@ -276,6 +276,7 @@ class SonosRepository {
   Future<void> createGroup({
     required List<({SonosDevice device, GroupChannel channel})> members,
     SonosDevice? sub,
+    CancellationToken? cancel,
   }) async {
     if (members.length < 2) {
       throw const SonorityError(SonorityErrorCode.groupNeedsTwo);
@@ -286,16 +287,33 @@ class SonosRepository {
     }
     final attrs = <String, ZoneAttributes>{};
     for (final d in all) {
-      attrs[d.uuid] = await _deviceProps.getZoneAttributes(d.ip!);
+      // A member that was just unbonded elsewhere (a removed HT satellite, say)
+      // still refuses :1400 — wait for it rather than aborting the whole create
+      // before a single write, which is what a profile that rebuilds a pair out
+      // of ex-surrounds kept doing.
+      attrs[d.uuid] = await retryUnreachable(
+          () => _deviceProps.getZoneAttributes(d.ip!),
+          cancel: cancel);
     }
     await _saveZoneSnapshot(attrs);
-    await _deviceProps.addBondedZones(
-      ip: members.first.device.ip!,
-      channelMapSet: buildGroupMap(
-        [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
-        subUuid: sub?.uuid,
-      ),
-    );
+    try {
+      await _deviceProps.addBondedZones(
+        ip: members.first.device.ip!,
+        channelMapSet: buildGroupMap(
+          [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
+          subUuid: sub?.uuid,
+        ),
+      );
+    } on TimeoutException {
+      // NOT fatal — the same rule [bondAndVerify] and [reassertGroup] follow: a
+      // timed-out (or mid-reshuffle 800) bond write very often still applies, so
+      // it's a "go verify", never a failure. Every caller poll-verifies the
+      // group actually formed and reports a clear error if it didn't; throwing
+      // here skipped that and failed an apply whose write had in fact landed
+      // (hardware-seen: the group was formed by the time the user retried).
+    } on SonosSoapException catch (e) {
+      if (e.faultCode != '800') rethrow;
+    }
   }
 
   /// Reconfigures a LIVE group in place by re-asserting the [members] (+ [sub])
@@ -343,7 +361,13 @@ class SonosRepository {
       if (sub != null && !currentUuids.contains(sub.uuid)) sub,
     ];
     for (final d in added) {
-      if (d.ip != null) merged[d.uuid] = await _deviceProps.getZoneAttributes(d.ip!);
+      // Same as [createGroup]: a newly-added member may have just been unbonded
+      // and still be refusing :1400.
+      if (d.ip != null) {
+        merged[d.uuid] = await retryUnreachable(
+            () => _deviceProps.getZoneAttributes(d.ip!),
+            cancel: cancel);
+      }
     }
     if (merged.isNotEmpty) await _saveZoneSnapshot(merged);
 

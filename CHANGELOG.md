@@ -14,6 +14,8 @@ section into the GitHub Release notes regardless of the build suffix
 ### Fixed
 - Profiles captured while Sonos was still settling could store the same speaker twice — as a bonded surround/group member *and* as a standalone room — so applying the profile bonded that speaker and then immediately tore it back out, failing the apply and leaving the speaker stuck. Such entries are no longer captured, and profiles already saved with them are cleaned up on load.
 - Freeing a speaker from a bond during a profile apply no longer reads the topology from the speaker it just detached (which stops answering for a while) — it polls the former coordinator until the speaker is really free, and retries the room-name restore instead of failing the whole profile when the speaker hasn't come back yet.
+- A profile that unbonds speakers and then re-uses them in the same apply (for example removing two surrounds from a home theater and pairing them back into a stereo pair) no longer fails on the first try or two: a speaker that Sonos has just detached stops answering for ~20-30s, and the app now waits for it instead of giving up.
+- Creating a speaker group no longer reports failure when the write timed out but actually applied — it verifies the group before deciding, the same way home-theater bonding already did.
 
 ## [0.6.0] - 2026-07-17
 
