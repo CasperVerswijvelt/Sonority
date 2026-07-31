@@ -421,7 +421,10 @@ interpolated) then use it.
    - **A freshly-detached speaker refuses TCP :1400 for a while** (connection
      refused, not a timeout). So never poll/settle-read from the speaker you
      just unbonded — read from the former coordinator, which stays reachable
-     (`_applyEntity`'s `EntityKind.single` path).
+     (`_applyEntity`'s `EntityKind.single` path). Topology converging is NOT the
+     same signal as that speaker answering again, so the first write aimed back
+     at it (the room-name restore) retries on a transport error
+     (`_setRoomNameRetrying`) rather than failing the whole apply.
 2. **Some writes silently no-op.** A SOAP call can return `200 OK` yet do nothing
    (e.g. `CreateStereoPair` on truly incompatible hardware — though **mismatched is
    allowed**: One + Play:1 pairs fine; only genuinely incompatible combos are

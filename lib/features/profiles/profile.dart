@@ -167,12 +167,17 @@ class EntitySnapshot {
 /// Applied both at capture (the picker never offers the contradiction) and in
 /// [Profile.fromJson] (profiles already saved with it heal on load, since the
 /// stored copy can't be fixed retroactively).
+///
+/// Deliberately only single-vs-bonded: the same lag can in theory put a speaker
+/// in two *bonded* entities (a satellite mid-move shows in both the old and the
+/// new coordinator's map), which applies as a pointless bond→free→bond, but
+/// that path never renames a detached speaker so it can't fail an apply. Left
+/// alone until something is actually seen in the wild.
 List<EntitySnapshot> dropSelfConflictingSingles(List<EntitySnapshot> entities) {
   final bonded = {
     for (final e in entities)
       if (e.kind != EntityKind.single) ...e.involvedUuids,
   };
-  if (bonded.isEmpty) return entities;
   return [
     for (final e in entities)
       if (e.kind != EntityKind.single || !bonded.contains(e.primaryUuid)) e,

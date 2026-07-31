@@ -132,14 +132,27 @@ void main() {
     expect(entities.map((e) => e.primaryUuid), [beam]);
   });
 
-  test('keeps genuinely standalone singles, and group members too', () {
+  test('a group bonds its members too, not just an HT', () {
     const desk = 'RINCON_DESK01400';
     final entities = dropSelfConflictingSingles([
       EntitySnapshot.fromMember(ZoneGroupMember(
           uuid: fl, zoneName: 'Keuken', channelMapSet: '$fl:LF,LF;$fr:RF,RF')),
+      // The pair's hidden half, mid-settle still listed as its own room.
+      EntitySnapshot.fromMember(ZoneGroupMember(uuid: fr, zoneName: 'Keuken')),
+      // Genuinely standalone — must survive.
       EntitySnapshot.fromMember(ZoneGroupMember(uuid: desk, zoneName: 'Bureau')),
     ]);
     expect(entities.map((e) => e.primaryUuid), [fl, desk]);
+  });
+
+  test('a profile of only standalone speakers is untouched', () {
+    const desk = 'RINCON_DESK01400';
+    final singles = [
+      EntitySnapshot.fromMember(ZoneGroupMember(uuid: fl, zoneName: 'Keuken')),
+      EntitySnapshot.fromMember(ZoneGroupMember(uuid: desk, zoneName: 'Bureau')),
+    ];
+    expect(dropSelfConflictingSingles(singles).map((e) => e.primaryUuid),
+        [fl, desk]);
   });
 
   test('a stored self-conflicting profile heals on load', () {

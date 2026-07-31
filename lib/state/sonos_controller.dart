@@ -10,6 +10,7 @@ import '../data/sonos/diagnostics_log.dart';
 import '../data/sonos/front_layout.dart' as front_layout;
 import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
+import '../data/sonos/soap_client.dart' show SonosSoapException;
 import '../data/sonos/sonos_repository.dart';
 import '../data/sonos/sonority_error.dart';
 import '../data/sonos/speaker_settings.dart';
@@ -472,21 +473,24 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           await _repo.freeSpeaker(sys, e.primaryUuid);
           ph.note(l10n.stepWaitingSettle);
           // Poll the FORMER OWNER, never the speaker we just detached: a
-          // freshly-freed speaker closes its :1400 control port for a while
-          // (seen in a user's bundle — every call to it refused), so reading
-          // from it just times out and carries a stale topology forward. The
-          // owner is reachable by definition, and polling until the speaker is
-          // really out also gives it time to come back before the rename below.
+          // freshly-freed speaker refuses :1400 for a while (connection
+          // refused, seen in a user's bundle), so reading from it would fail
+          // every attempt and carry a stale topology forward. The owner stays
+          // reachable throughout. (A null ip routes _pollUntil to a full
+          // discover, which is also fine — just slower.)
           sys = await _pollUntil(
             previous: sys,
-            ip: sys.device(owner)?.ip ?? dev!.ip!,
+            ip: sys.device(owner)?.ip,
             until: (s) => s.ownerOf(e.primaryUuid) == null,
           );
         }
         _activeOp?.throwIfCancelled();
         ph.phase('names', l10n.stepRestoreRoomName);
-        if (!await _repo.setRoomName(
-            ip: dev!.ip!, name: e.names[e.primaryUuid] ?? dev.roomName)) {
+        // Retried: topology converging doesn't mean the freed speaker is
+        // answering again, and losing a whole profile apply over a room-name
+        // restore isn't worth it (the exact failure in the user bundle).
+        if (!await _setRoomNameRetrying(
+            dev!.ip!, e.names[e.primaryUuid] ?? dev.roomName)) {
           ph.skipPhase(detail: l10n.stepNameUnchanged);
         }
         return sys;
@@ -666,6 +670,23 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       onNote: ph.log,
       cancel: _activeOp,
     );
+  }
+
+  /// [SonosRepository.setRoomName], retried on a transport error: a speaker
+  /// that was just detached from a bond refuses :1400 for a while, and the
+  /// topology can settle before it starts answering again. A real SOAP fault is
+  /// permanent, so it rethrows immediately rather than burning three waits.
+  Future<bool> _setRoomNameRetrying(String ip, String name) async {
+    for (var attempt = 0;; attempt++) {
+      try {
+        return await _repo.setRoomName(ip: ip, name: name);
+      } on SonosSoapException {
+        rethrow;
+      } catch (_) {
+        if (attempt == 2) rethrow;
+        await interruptibleDelay(const Duration(seconds: 5), _activeOp);
+      }
+    }
   }
 
   Future<SonosSystem> _settleRead(SonosSystem sys, String ip) async {
