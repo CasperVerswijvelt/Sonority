@@ -166,9 +166,15 @@ extension SoapBodyText on XmlElement {
 ///
 /// A [SonosSoapException] means the speaker answered with a real fault, which no
 /// amount of waiting fixes, so it rethrows straight away.
+///
+/// ponytail: per-call budget (7 waits ≈ 35s, comfortably past the observed
+/// window), no shared deadline — so a caller looping over N speakers multiplies
+/// it. Fine while only the one or two just-unbonded speakers are ever in the
+/// window and the rest answer instantly; if a big zone with a genuinely dead
+/// member ever stalls a flow, thread one deadline through the loop instead.
 Future<T> retryUnreachable<T>(
   Future<T> Function() op, {
-  int attempts = 6,
+  int attempts = 8,
   Duration interval = const Duration(seconds: 5),
   CancellationToken? cancel,
 }) async {

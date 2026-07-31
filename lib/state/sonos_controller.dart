@@ -470,7 +470,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (owner != null) {
           _activeOp?.throwIfCancelled();
           ph.phase('free', l10n.stepFreeFromBond);
-          await _repo.freeSpeaker(sys, e.primaryUuid);
+          await _repo.freeSpeaker(sys, e.primaryUuid, cancel: _activeOp);
           ph.note(l10n.stepWaitingSettle);
           // Poll the FORMER OWNER, never the speaker we just detached: a
           // freshly-freed speaker refuses :1400 for a while (connection
@@ -528,8 +528,12 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             _activeOp?.throwIfCancelled();
             ph.phase('free', l10n.stepFreeConflicting);
             ph.note(l10n.stepFreeing(sys.device(u)?.roomName ?? u));
-            await _repo.freeSpeaker(sys, u);
-            sys = await _settleRead(sys, coord!.ip!);
+            await _repo.freeSpeaker(sys, u, cancel: _activeOp);
+            // Read from the FORMER OWNER, not the coordinator — when the
+            // coordinator is itself the speaker being freed it's the one thing
+            // that won't answer yet (same trap as the single-entity path above).
+            sys = await _settleRead(
+                sys, sys.device(owner)?.ip ?? coord!.ip!);
           }
         }
         // Resolve members (coordinator-first) + sub from the stored map.
@@ -562,6 +566,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             sub != null
                 ? l10n.stepBondNSpeakersWithSub(memberEntries.length)
                 : l10n.stepBondNSpeakers(memberEntries.length));
+        // createGroup can sit for ~30s waiting on a member Sonos only just
+        // unbonded, so say something rather than looking hung.
+        ph.note(l10n.stepApplyingSettle);
         await _repo.createGroup(
             members: memberEntries, sub: sub, cancel: _activeOp);
         ph.note(l10n.stepWaitingConfirm);
@@ -603,7 +610,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             _activeOp?.throwIfCancelled();
             ph.phase('free', l10n.stepFreeConflicting);
             ph.note(l10n.stepFreeing(sys.device(u)?.roomName ?? u));
-            await _repo.freeSpeaker(sys, u);
+            await _repo.freeSpeaker(sys, u, cancel: _activeOp);
             sys = await _settleRead(sys, bar.ip!);
           }
         }
@@ -934,7 +941,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         // 2. Dissolve (SeparateStereoPair on the live map) + restore names.
         ph.phase('separate', l10n.stepSeparateRestore);
-        await _repo.separateGroup(members: members, channelMapSet: cms);
+        await _repo.separateGroup(
+            members: members, channelMapSet: cms, cancel: _activeOp);
         ph.phase('settle', l10n.stepWaitForSettle);
         final system = await _pollUntil(
           previous: previous,
@@ -1062,7 +1070,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             );
           }
           ph.phase('separate', l10n.stepSeparateRestore);
-          await _repo.separateGroup(members: old, channelMapSet: cms);
+          await _repo.separateGroup(
+              members: old, channelMapSet: cms, cancel: _activeOp);
           // Wait for the old group to dissolve AND its members to reappear as
           // standalone rooms before re-bonding: `_repo.createGroup` writes once
           // (it treats a transient fault as "go verify" but never re-writes), so

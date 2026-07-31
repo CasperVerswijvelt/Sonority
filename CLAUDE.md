@@ -230,8 +230,9 @@ interpolated) then use it.
     rule as `AddHTSatellite`: a timed-out (or 800) `AddBondedZones` very often
     still applies (hardware-seen: a user's apply reported failure on an 8s
     timeout, and the pair was formed by the time they retried). `createGroup`
-    therefore swallows timeout/800 and leaves the verdict to the caller's
-    poll-verify (every call site has one); only a non-800 fault rethrows.
+    therefore swallows any transport failure + 800 and leaves the verdict to the
+    caller's poll-verify (every call site has one); only a non-800 fault
+    rethrows, since 401/402 never converge.
   - **In-place group RECONFIGURE works like HT (hardware-confirmed,
     `tool/group_reassert_spike.dart` — self-restoring, 12/12 reassign + 6/6 add
     trials, all 1 attempt):** re-asserting `AddBondedZones` on a LIVE group's
@@ -430,12 +431,15 @@ interpolated) then use it.
      former coordinator, which stays reachable), and **topology converging is
      NOT the same signal as that speaker answering again** — the settle wait
      routinely finishes first. So any call aimed back at a just-unbonded speaker
-     goes through **`retryUnreachable`** (`soap_client.dart`: retries transport
-     errors, rethrows a `SonosSoapException` since a fault means it answered).
-     Live users: the profile room-name restore, and `createGroup` /
-     `reassertGroup`'s per-member name snapshot — which is how "remove the
+     must go through **`retryUnreachable`** (`soap_client.dart`: retries
+     transport errors, rethrows a `SonosSoapException` since a fault means it
+     answered). Current users: the profile room-name restore, `createGroup` /
+     `reassertGroup`'s per-member name snapshot (which is how "remove the
      surrounds, then pair them" failed its first attempts until it happened to
-     land outside the window.
+     land outside the window), and `_restoreZoneNames` after a dissolve — where
+     it's ALSO per-member best-effort, because throwing there left `editGroup`
+     with a group it had dissolved and never rebuilt. Add a call site here when
+     you write new code that touches a speaker right after unbonding it.
 2. **Some writes silently no-op.** A SOAP call can return `200 OK` yet do nothing
    (e.g. `CreateStereoPair` on truly incompatible hardware — though **mismatched is
    allowed**: One + Play:1 pairs fine; only genuinely incompatible combos are

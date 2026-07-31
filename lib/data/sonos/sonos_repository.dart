@@ -296,23 +296,29 @@ class SonosRepository {
           cancel: cancel);
     }
     await _saveZoneSnapshot(attrs);
+    // Built OUTSIDE the try so a map-building bug can't hide in the catch below.
+    final map = buildGroupMap(
+      [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
+      subUuid: sub?.uuid,
+    );
     try {
       await _deviceProps.addBondedZones(
-        ip: members.first.device.ip!,
-        channelMapSet: buildGroupMap(
-          [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
-          subUuid: sub?.uuid,
-        ),
-      );
-    } on TimeoutException {
-      // NOT fatal — the same rule [bondAndVerify] and [reassertGroup] follow: a
-      // timed-out (or mid-reshuffle 800) bond write very often still applies, so
-      // it's a "go verify", never a failure. Every caller poll-verifies the
-      // group actually formed and reports a clear error if it didn't; throwing
-      // here skipped that and failed an apply whose write had in fact landed
-      // (hardware-seen: the group was formed by the time the user retried).
+          ip: members.first.device.ip!, channelMapSet: map);
     } on SonosSoapException catch (e) {
+      // 800 = mid-reshuffle (transient). Anything else (401 invalid action, 402
+      // malformed map) never converges — the caller should see it.
       if (e.faultCode != '800') rethrow;
+      DiagnosticsLog.add('createGroup: AddBondedZones error 800, verifying');
+    } catch (e) {
+      // NOT fatal — the same rule [bondAndVerify] and [reassertGroup] follow: a
+      // bond write that times out (or is refused mid-reshuffle) very often still
+      // applies, so it's a "go verify", never a verdict. Every caller
+      // poll-verifies the group actually formed and reports a clear error if it
+      // didn't; throwing here skipped that and failed an apply whose write had
+      // in fact landed (hardware-seen: the group was formed by the time the user
+      // retried). Cancellation is the one thing that must still stop everything.
+      if (e is OperationCancelled) rethrow;
+      DiagnosticsLog.add('createGroup: AddBondedZones failed ($e), verifying');
     }
   }
 
@@ -442,6 +448,7 @@ class SonosRepository {
   Future<void> separateGroup({
     required List<SonosDevice> members,
     required String channelMapSet,
+    CancellationToken? cancel,
   }) async {
     if (members.isEmpty) return;
     final coordIp = members.first.ip;
@@ -450,23 +457,40 @@ class SonosRepository {
     }
     await _deviceProps.separateBondedZones(
         ip: coordIp, channelMapSet: channelMapSet);
-    await _restoreZoneNames(members);
+    await _restoreZoneNames(members, cancel: cancel);
   }
 
   /// Restores each member's saved room name after a group is dissolved (Sonos
   /// absorbs member names into the coordinator's on separate, and doesn't put
   /// them back). No-op when no snapshot was persisted — e.g. the group was
   /// created outside the app or prefs were cleared.
-  Future<void> _restoreZoneNames(List<SonosDevice> members) async {
+  ///
+  /// **Best-effort, per member.** These are the speakers Sonos just detached, so
+  /// they're squarely inside the ~20-30s window where :1400 refuses connections
+  /// — hence [retryUnreachable]. And a name that still won't restore must not
+  /// take the whole operation down with it: the bond is already dissolved, so
+  /// throwing here left `editGroup` with a group it never rebuilt. A cosmetic
+  /// name loss beats that (the transport error is in the diagnostics log).
+  Future<void> _restoreZoneNames(List<SonosDevice> members,
+      {CancellationToken? cancel}) async {
     final snap = await _loadZoneSnapshot([for (final m in members) m.uuid]);
     if (snap == null) return;
-    await Future<void>.delayed(const Duration(seconds: 2));
+    await interruptibleDelay(const Duration(seconds: 2), cancel);
     for (final m in members) {
       final want = snap[m.uuid];
       final ip = m.ip;
       if (want == null || ip == null) continue;
-      if ((await _deviceProps.getZoneAttributes(ip)).zoneName != want.zoneName) {
-        await _deviceProps.setZoneAttributes(ip, want);
+      try {
+        await retryUnreachable(() async {
+          if ((await _deviceProps.getZoneAttributes(ip)).zoneName !=
+              want.zoneName) {
+            await _deviceProps.setZoneAttributes(ip, want);
+          }
+        }, cancel: cancel);
+      } on OperationCancelled {
+        rethrow;
+      } catch (e) {
+        DiagnosticsLog.add('restore name for ${m.uuid} failed, skipping: $e');
       }
     }
   }
@@ -475,7 +499,8 @@ class SonosRepository {
   /// elsewhere (profile-apply conflict resolution): unbonds it if it's a
   /// satellite, or separates the pair if it's a pair member. No-op if it's
   /// already standalone. Caller should settle + re-read afterward.
-  Future<void> freeSpeaker(SonosSystem system, String uuid) async {
+  Future<void> freeSpeaker(SonosSystem system, String uuid,
+      {CancellationToken? cancel}) async {
     for (final g in system.groups) {
       for (final m in g.members) {
         // A satellite (front/rear/sub) of an HT primary.
@@ -496,7 +521,7 @@ class SonosRepository {
           final cms = m.channelMapSet;
           if (ip != null && cms != null) {
             await _avTransport.becomeCoordinatorOfStandaloneGroup(ip);
-            await Future<void>.delayed(const Duration(seconds: 4));
+            await interruptibleDelay(const Duration(seconds: 4), cancel);
             await _deviceProps.separateBondedZones(ip: ip, channelMapSet: cms);
             // Same as separateGroup: Sonos leaves members under the coordinator's
             // absorbed name — restore them from the snapshot if we have one.
@@ -504,7 +529,7 @@ class SonosRepository {
               m.uuid,
               ...m.channelMapUuids.where((u) => u != m.uuid),
             ].map(system.device).whereType<SonosDevice>().toList();
-            await _restoreZoneNames(members);
+            await _restoreZoneNames(members, cancel: cancel);
           }
           return;
         }
