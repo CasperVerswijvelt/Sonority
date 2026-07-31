@@ -92,6 +92,20 @@ void main() {
     expect(fake.writes.length, 4);
   });
 
+  // apply() probes the speaker first (it may have just been bonded and still be
+  // refusing :1400). A probe that FAULTS means the speaker answered, so writes
+  // must proceed immediately — no waiting. `_FakeSoap(const {})` faults every
+  // read, so this is the path the tests above take too; asserted here so it's
+  // covered on purpose rather than by accident. The refused-then-recovers path
+  // is covered by the retryUnreachable tests in soap_envelope_test.dart.
+  test('a probe answered with a fault does not block the writes', () async {
+    final fake = _FakeSoap(const {});
+    final failed = await SpeakerSettingsClient(fake)
+        .apply('1.2.3.4', const SpeakerSettings(volume: 22));
+    expect(fake.writes, ['SetVolume=22']);
+    expect(failed, 0);
+  });
+
   test('empty settings write nothing', () async {
     final fake = _FakeSoap(const {});
     await SpeakerSettingsClient(fake).apply('1.2.3.4', SpeakerSettings.empty);

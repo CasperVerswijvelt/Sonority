@@ -1,5 +1,7 @@
 import 'package:xml/xml.dart';
 
+import 'cancellation.dart';
+import 'diagnostics_log.dart';
 import 'soap_client.dart';
 
 /// The `GetEQ`/`SetEQ` types captured in the EQ bundle — every stable sound
@@ -296,7 +298,20 @@ class SpeakerSettingsClient {
   /// swallowed so the remaining settings still apply. Returns the number of
   /// writes that failed — a non-zero count (e.g. a firmware change renaming an
   /// EQ token so every SetEQ faults) is otherwise invisible to the caller.
-  Future<int> apply(String ip, SpeakerSettings s) async {
+  Future<int> apply(String ip, SpeakerSettings s,
+      {CancellationToken? cancel}) async {
+    // Wait for the speaker before writing anything. Bonding closes a satellite's
+    // :1400 for ~20-30s and a profile restores settings right after the bond
+    // settles, so without this every write lands in a refused socket and the
+    // captured setting is silently lost — hardware-seen: a user's Sub and One SLs
+    // dropped their restored volume on roughly half his applies. Still
+    // best-effort: if the speaker never answers, fall through and let the writes
+    // below fail and be counted, exactly as before.
+    try {
+      await retryUnreachable(() => _readVolume(ip), cancel: cancel);
+    } catch (_) {
+      // Unreachable for the whole budget — the per-write counting reports it.
+    }
     var failed = 0;
     Future<void> set(String action, Map<String, String> extra) async {
       if (!await _set(ip, action, extra)) failed++;
@@ -331,6 +346,16 @@ class SpeakerSettingsClient {
     }
     return failed;
   }
+
+  /// A trivial read used only as a "are you answering yet?" probe — unlike
+  /// [_rawRead] it does NOT swallow, so [retryUnreachable] can see the refusal.
+  Future<void> _readVolume(String ip) => _soap.call(
+        ip: ip,
+        controlPath: _control,
+        serviceType: _service,
+        action: 'GetVolume',
+        args: const {'InstanceID': '0', 'Channel': 'Master'},
+      );
 
   // ---- read helpers (null on any fault so unsupported settings are skipped) ----
 
@@ -386,7 +411,12 @@ class SpeakerSettingsClient {
         args: {'InstanceID': '0', ...extra},
       );
       return true;
-    } catch (_) {
+    } catch (e) {
+      // Name it. The progress step only counts failures ("1 setting could not be
+      // applied"), and a SOAP fault isn't logged by the client (it expects the
+      // caller to narrate it) — so without this the rejected setting is
+      // invisible in a diagnostics bundle, which is exactly where we need it.
+      DiagnosticsLog.add('settings: $action $extra on $ip failed: $e');
       return false;
     }
   }

@@ -197,7 +197,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (s.hasVolume) l10n.stepVolume,
       ].join(' + ');
       ph.note(l10n.stepRestoring(what, dev!.typeLabel));
-      final failed = await _settings.apply(ip, s);
+      final failed = await _settings.apply(ip, s, cancel: _activeOp);
       if (failed > 0) {
         ph.note(l10n.stepSettingsFailed(failed, dev.typeLabel));
       }
