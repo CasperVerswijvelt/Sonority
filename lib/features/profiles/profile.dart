@@ -153,6 +153,32 @@ class EntitySnapshot {
       );
 }
 
+/// Drops standalone-speaker entities whose speaker another entity in the same
+/// list already bonds.
+///
+/// During the ~15s settle after a bonding change Sonos reports a speaker BOTH as
+/// a bonded satellite (in the coordinator's authoritative map) and as a visible
+/// room of its own — so a snapshot taken in that window captures it twice, and
+/// applying it bonds the speaker and then immediately frees it again. Seen in the
+/// wild: a profile whose HT held two Era 300 surrounds also held them as two
+/// standalone rooms, so every apply tore a surround back out and left it stuck in
+/// Sonos' `:orphan` state.
+///
+/// Applied both at capture (the picker never offers the contradiction) and in
+/// [Profile.fromJson] (profiles already saved with it heal on load, since the
+/// stored copy can't be fixed retroactively).
+List<EntitySnapshot> dropSelfConflictingSingles(List<EntitySnapshot> entities) {
+  final bonded = {
+    for (final e in entities)
+      if (e.kind != EntityKind.single) ...e.involvedUuids,
+  };
+  if (bonded.isEmpty) return entities;
+  return [
+    for (final e in entities)
+      if (e.kind != EntityKind.single || !bonded.contains(e.primaryUuid)) e,
+  ];
+}
+
 /// A named, ordered set of entity snapshots the user can re-apply in one tap.
 class Profile {
   final String id;
@@ -215,9 +241,12 @@ class Profile {
         iconId: j['iconId'] as String? ?? kDefaultProfileIcon,
         color: j['color'] as int? ?? 0,
         updatedAt: DateTime.tryParse(j['updatedAt'] as String? ?? ''),
-        entities: [
+        // Heal a snapshot taken mid-settle, which stores the same speaker as
+        // both a bonded member and a standalone room (see
+        // [dropSelfConflictingSingles]) — applying that fights itself.
+        entities: dropSelfConflictingSingles([
           for (final e in (j['entities'] as List))
             EntitySnapshot.fromJson(e as Map<String, dynamic>)
-        ],
+        ]),
       );
 }

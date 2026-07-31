@@ -409,6 +409,19 @@ interpolated) then use it.
      signal. E.g. create-pair polls until paired AND the right speaker is gone from
      the room list; separate polls until unpaired AND the name has propagated.
      See `SonosController._pollUntil`.
+   - **The lag also poisons *reads* that get persisted, not just writes** (real
+     user bug, 0.6.0): mid-settle a speaker shows up BOTH in its coordinator's
+     map and as a visible room, so a profile captured in that window stored the
+     same Era 300 as an HT surround *and* as a standalone room — and every apply
+     then bonded it and immediately freed it again, leaving it stuck in Sonos'
+     `ZoneGroup ID="…:orphan"` state (Invisible, still claiming its old channel,
+     control port closed). Guarded by `dropSelfConflictingSingles`
+     (`profile.dart`), applied at capture AND in `Profile.fromJson` so already-
+     saved profiles heal. Anything that snapshots topology needs the same care.
+   - **A freshly-detached speaker refuses TCP :1400 for a while** (connection
+     refused, not a timeout). So never poll/settle-read from the speaker you
+     just unbonded — read from the former coordinator, which stays reachable
+     (`_applyEntity`'s `EntityKind.single` path).
 2. **Some writes silently no-op.** A SOAP call can return `200 OK` yet do nothing
    (e.g. `CreateStereoPair` on truly incompatible hardware — though **mismatched is
    allowed**: One + Play:1 pairs fine; only genuinely incompatible combos are

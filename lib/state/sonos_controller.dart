@@ -465,12 +465,23 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (dev?.ip == null) {
           throw SonorityError(SonorityErrorCode.entityNotOnNetwork, e.label);
         }
-        if (sys.ownerOf(e.primaryUuid) != null) {
+        final owner = sys.ownerOf(e.primaryUuid);
+        if (owner != null) {
           _activeOp?.throwIfCancelled();
           ph.phase('free', l10n.stepFreeFromBond);
           await _repo.freeSpeaker(sys, e.primaryUuid);
           ph.note(l10n.stepWaitingSettle);
-          sys = await _settleRead(sys, dev!.ip!);
+          // Poll the FORMER OWNER, never the speaker we just detached: a
+          // freshly-freed speaker closes its :1400 control port for a while
+          // (seen in a user's bundle — every call to it refused), so reading
+          // from it just times out and carries a stale topology forward. The
+          // owner is reachable by definition, and polling until the speaker is
+          // really out also gives it time to come back before the rename below.
+          sys = await _pollUntil(
+            previous: sys,
+            ip: sys.device(owner)?.ip ?? dev!.ip!,
+            until: (s) => s.ownerOf(e.primaryUuid) == null,
+          );
         }
         _activeOp?.throwIfCancelled();
         ph.phase('names', l10n.stepRestoreRoomName);
