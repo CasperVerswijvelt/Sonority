@@ -442,13 +442,16 @@ interpolated) then use it.
      you write new code that touches a speaker right after unbonding it.
    - **BONDING closes the port too, not just unbonding** — same ~20-30s, per
      satellite, and independently for each. The profile settings restore runs
-     right after the bond settles, so it was firing `SetVolume`/`SetEQ` into a
-     refused socket and **silently losing the captured values** (`apply` counts
-     failures but they're per-field best-effort): a user's Sub + One SLs lost
-     their restored volume on roughly half his applies, visible only as "2
-     settings could not be applied". `SpeakerSettingsClient.apply` now probes
-     with a `GetVolume` through `retryUnreachable` before writing anything —
-     a probe *fault* means the speaker answered, so it proceeds immediately.
+     right after the bond settles, so it was firing writes into a refused socket
+     and **silently losing the captured values** (`apply` counts failures but
+     they're per-field best-effort): a user's Sub + One SLs lost their restored
+     `SetVolume`/`SetMute` on roughly half his applies — satellites never capture
+     the EQ bundle, so volume/mute is all they had — visible only as "2 settings
+     could not be applied". `SpeakerSettingsClient.apply` now probes with a
+     `GetVolume` through `retryUnreachable` before writing anything. **A probe
+     *fault* means the speaker answered** (`SonosSoapException` → write to it);
+     only a refused/timed-out socket waits, and a probe that never answers skips
+     that speaker's writes rather than burning an 8s timeout on each one.
 2. **Some writes silently no-op.** A SOAP call can return `200 OK` yet do nothing
    (e.g. `CreateStereoPair` on truly incompatible hardware — though **mismatched is
    allowed**: One + Play:1 pairs fine; only genuinely incompatible combos are

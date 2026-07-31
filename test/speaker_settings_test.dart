@@ -10,6 +10,7 @@ import 'package:xml/xml.dart';
 class _FakeSoap extends SonosSoapClient {
   final Map<String, String> reads; // key: action or "GetEQ:EQType" → out element text
   final List<String> writes = [];
+  final List<String> readCalls = [];
 
   _FakeSoap(this.reads);
 
@@ -28,6 +29,7 @@ class _FakeSoap extends SonosSoapClient {
           : '$action=${args.values.last}');
       return XmlDocument.parse('<Body/>').rootElement;
     }
+    readCalls.add(action == 'GetEQ' ? 'GetEQ:${args['EQType']}' : action);
     final key = action == 'GetEQ' ? 'GetEQ:${args['EQType']}' : action;
     final v = reads[key];
     if (v == null) throw SonosSoapException(action, faultString: 'unsupported');
@@ -96,14 +98,19 @@ void main() {
   // refusing :1400). A probe that FAULTS means the speaker answered, so writes
   // must proceed immediately — no waiting. `_FakeSoap(const {})` faults every
   // read, so this is the path the tests above take too; asserted here so it's
-  // covered on purpose rather than by accident. The refused-then-recovers path
-  // is covered by the retryUnreachable tests in soap_envelope_test.dart.
+  // covered on purpose rather than by accident. The refused-then-recovers path is
+  // covered by the retryUnreachable tests in soap_envelope_test.dart; exercising
+  // it through apply() would mean a real ~16s wait, so it isn't tested here.
   test('a probe answered with a fault does not block the writes', () async {
     final fake = _FakeSoap(const {});
     final failed = await SpeakerSettingsClient(fake)
         .apply('1.2.3.4', const SpeakerSettings(volume: 22));
     expect(fake.writes, ['SetVolume=22']);
     expect(failed, 0);
+    // Exactly ONE probe: a fault means the speaker answered, so it must not be
+    // retried. Without this assertion a regression that retried faults would
+    // still pass, just 20s slower per speaker.
+    expect(fake.readCalls, ['GetVolume']);
   });
 
   test('empty settings write nothing', () async {
