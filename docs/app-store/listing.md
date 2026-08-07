@@ -5,6 +5,13 @@ Support email + the hosted privacy/support URLs are filled in below. The only
 remaining placeholder is `DEMO_VIDEO_URL` (in the review notes) — record the demo
 first, then paste its link.
 
+> **No other platforms in Apple metadata (Guideline 2.3.10):** never name Android /
+> Google Play (or link them) in the App Store description, subtitle, promo text or
+> screenshots — it got 0.6.0 rejected (Jul 31 2026). Cross-platform availability
+> goes on the website/README only. Because this file feeds **both** stores, device
+> copy stays **platform-neutral** ("phones, tablets and desktops", "big screens") —
+> don't reintroduce iPhone/iPad/Mac/Android names.
+>
 > **Trademark note (important for review):** the intended-safe listing keeps
 > "Sonos" out of the **app name, subtitle, and icon** — it appears only
 > descriptively in the body + keywords, always with the disclaimer, to stay on
@@ -59,7 +66,7 @@ WHAT YOU CAN DO
 • Apply a profile without opening the app — from a home-screen widget (small, medium or large) or a long-press on the app icon.
 • Rename rooms, identify which physical speaker is which by blinking its status light (or a short chime on iPhone/iPad) — right from a room or a bonded speaker — and toggle a speaker’s room-calibration tuning.
 • Diagnostics — a technical, hide-nothing view of your system when something isn’t working, which you can share with support or email to the developer to get help.
-• Works on iPhone, iPad, Mac and Android, with a layout that adapts to the screen — a roomy side navigation and multi-column view on iPad and Mac, the familiar single column on phones.
+• Works on phones, tablets and desktops, with a layout that adapts to the screen — a roomy side navigation and multi-column view on big screens, the familiar single column on phones.
 
 Every change is made over your local network, is shown to you before it’s applied, and is fully reversible from within the app.
 
@@ -133,6 +140,32 @@ put the URL in `DEMO_VIDEO_URL`.
 ---
 
 ## Review history
+
+### 0.6.0 (60001) — iOS — rejected Jul 31 2026, **accepted after replying** (Submission ID `95f96eca-dedf-4cd3-affb-88de796347b6`)
+
+Reviewed on iPhone 17 Pro Max + iPad Air 11" (M3). Two issues; the version was
+approved after the metadata edit + the reply below (no code or feature changes).
+
+1. **Guideline 2.3.10 — Accurate Metadata.** The description mentioned Android.
+   **Fixed:** the "Works on…" bullet is now platform-neutral ("phones, tablets and
+   desktops"), which also keeps one copy usable for both stores. Cross-platform
+   availability lives on the website/README, never in Apple metadata.
+2. **Guideline 5.2.1 — Intellectual Property.** Same third-party-reference concern
+   as the 0.5 `4.1(a)` flag below, which was resolved in our favour after replying
+   (and the macOS build of the same app was approved). **Reply, no changes** —
+   point back at the earlier reply, restate it in one breath. Text sent:
+
+   > Hi, thanks for the review. Two points.
+   >
+   > **2.3.10:** fixed. The Android reference is removed from the description, which
+   > now mentions only iPhone, iPad and Mac.
+   >
+   > **5.2.1:** you raised this same point on an earlier submission and cleared it
+   > after our reply, which still applies: the app bundles no Sonos content, it just
+   > talks to speakers the user already owns over their own Wi-Fi, and we name Sonos
+   > only to say what it works with. The Mac version is on the store, and nothing
+   > about the app or its marketing changed in this update. Happy to change a
+   > specific line if you name it.
 
 ### 0.5 (50008) — iOS — rejected Jul 10 2026 (Submission ID `ee2688b7-5ae8-4039-9580-97a72c2ee25e`)
 
