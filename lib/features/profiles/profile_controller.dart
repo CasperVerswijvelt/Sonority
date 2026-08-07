@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/sonos_models.dart';
+import '../../data/sonos/channel_map.dart';
+import '../../data/sonos/front_layout.dart';
 import 'profile.dart';
 import 'profile_store.dart';
 
@@ -75,6 +77,35 @@ class EntityIssue {
 
   bool get blocked => missing.isNotEmpty;
 }
+
+/// True when the live [system] already carries this snapshot's layout AND room
+/// name — i.e. applying it would issue no bonding/rename write. Layout + name
+/// only: captured EQ/volume is readable over SOAP only, never from cached
+/// topology, so "active" means the configuration is in place, not that every
+/// captured setting is in effect.
+bool entityIsActive(EntitySnapshot e, SonosSystem system) {
+  // Visible members only — a bonded satellite / hidden pair half isn't one, so a
+  // snapshot whose primary got absorbed elsewhere is correctly inactive.
+  final live = system.memberByUuid(e.primaryUuid);
+  if (live == null || e.names[e.primaryUuid] != live.zoneName) return false;
+  final map = e.mapSet;
+  // The stored map read through the shared parsing getters (snapshot → member).
+  final snap = e.toMember();
+  return switch (e.kind) {
+    EntityKind.single => system.isStandalone(e.primaryUuid),
+    EntityKind.homeTheater => map != null &&
+        live.isHomeTheater &&
+        diffHtLayout(current: live, target: ChannelMap.parse(map)).isNoOp,
+    EntityKind.stereoPair || EntityKind.zone || EntityKind.custom => map != null &&
+        live.matchesGroupLayout(snap.groupChannels, subUuid: snap.subUuid),
+  };
+}
+
+/// Whether every entity of [p] is currently live (see [entityIsActive]) — drives
+/// the "Active" badge on the profile tile. Two profiles can both be active when
+/// they cover disjoint entities; that's truthful, not a bug.
+bool profileIsActive(Profile p, SonosSystem system) =>
+    p.entities.isNotEmpty && p.entities.every((e) => entityIsActive(e, system));
 
 /// Pre-flight: resolves every entity's speakers against the live [system] so the
 /// UI can show what will change and flag missing/conflicting speakers before any

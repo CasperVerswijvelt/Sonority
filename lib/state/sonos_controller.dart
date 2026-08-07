@@ -973,13 +973,11 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     // Verify the FULL target applied — per-member channel + Sub, not just the
     // membership set. Critical for an in-place channel reassignment (membership
     // is unchanged, so a set-only check would pass before the write even lands).
-    bool applied(SonosSystem s) {
-      final m = s.memberByUuid(coord.uuid);
-      if (m == null || !m.isGroup || m.subUuid != sub?.uuid) return false;
-      final live = m.groupChannels;
-      return live.length == members.length &&
-          members.every((mem) => live[mem.device.uuid] == mem.channel);
-    }
+    bool applied(SonosSystem s) =>
+        s.memberByUuid(coord.uuid)?.matchesGroupLayout(
+            {for (final m in members) m.device.uuid: m.channel},
+            subUuid: sub?.uuid) ??
+        false;
 
     final wanted = name?.trim();
     final needsName = wanted != null && wanted.isNotEmpty && coord.ip != null;

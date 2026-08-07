@@ -9,29 +9,42 @@ class PillChip extends StatelessWidget {
   final IconData icon;
   final String text;
   final Color color;
+
+  /// Solid [color] fill with on-color content instead of the faint tint — for a
+  /// state *badge* (the profile tile's "Active") rather than a tag, which needs
+  /// to stand out against a tinted card. Same pill, one knob: the app has
+  /// exactly one pill widget.
+  final bool filled;
+
   const PillChip({
     super.key,
     required this.icon,
     required this.text,
     required this.color,
+    this.filled = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final fg = filled
+        ? (ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+            ? Colors.white
+            : Colors.black)
+        : color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: filled ? color : color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(kCardRadius),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
+          Icon(icon, size: 14, color: fg),
           const SizedBox(width: 5),
           Text(text,
               style: TextStyle(
-                  color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+                  color: fg, fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );

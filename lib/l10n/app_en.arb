@@ -461,6 +461,7 @@
   "profileNoEntities": "No entities",
   "profileBadgeAudio": "Audio settings",
   "profileBadgeVolume": "Volume",
+  "profileBadgeActive": "Active",
   "profileUpdatedAgo": "Updated {time}",
   "@profileUpdatedAgo": {
     "placeholders": {

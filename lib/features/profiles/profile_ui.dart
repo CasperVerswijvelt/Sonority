@@ -265,6 +265,11 @@ class ProfileCard extends StatelessWidget {
   final Widget? actions;
   final bool selected;
 
+  /// A state badge left of [trailing] (the overview's "Active" pill). Its own
+  /// slot so it stays put while [trailing] cross-fades between the ⋮ menu and
+  /// the reorder drag handle.
+  final Widget? badge;
+
   /// When true, [actions] cross-fade + collapse away (animated) — used by the
   /// Profiles reorder mode. Pass [actions] anyway so they can animate out.
   final bool actionsCollapsed;
@@ -280,6 +285,7 @@ class ProfileCard extends StatelessWidget {
     this.trailing,
     this.actions,
     this.selected = false,
+    this.badge,
     this.actionsCollapsed = false,
     this.crossAxisAlignment = CrossAxisAlignment.center,
   });
@@ -377,6 +383,10 @@ class ProfileCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (badge != null) ...[
+                    const SizedBox(width: 8),
+                    badge!,
+                  ],
                   if (trailing != null) ...[
                     const SizedBox(width: 8),
                     // Cross-fade when the trailing swaps (⋮ menu ↔ drag handle
@@ -450,6 +460,17 @@ Widget? settingsBadges(
     ],
   );
 }
+
+/// The profile tile's "Active" badge: this profile's layout + room names are
+/// what the system currently carries (see `profileIsActive`). A FILLED [PillChip]
+/// so it reads as live state rather than one more tag on a card that already
+/// carries tonal capture chips.
+Widget activeBadge(BuildContext context) => PillChip(
+      icon: Icons.check_circle,
+      text: context.l10n.profileBadgeActive,
+      color: Theme.of(context).colorScheme.primary,
+      filled: true,
+    );
 
 /// The profile TILE's capture summary: what the snapshot stores. Layout & names
 /// are always captured; audio/volume are opt-in, so those show a positive

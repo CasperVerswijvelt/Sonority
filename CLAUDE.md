@@ -613,6 +613,14 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   `EntitySnapshot.settings` (empty for pre-feature profiles ⇒ zero extra writes).
   ⚠️ action names/EQType tokens assumed standard-UPnP — **verify with
   `tool/eq_probe.dart` on hardware** before shipping.
+  The overview marks the profile(s) the system currently runs — highlighted card
+  + a filled "Active" `PillChip` — via the pure `profileIsActive`/`entityIsActive`
+  (`profile_controller.dart`, next to `preflightProfile`): per entity, a
+  `diffHtLayout(...).isNoOp` for an HT, the channel-aware
+  `ZoneGroupMember.matchesGroupLayout` for a group (also what `editGroup` verifies
+  with), `isStandalone` for a single — plus the coordinator's room name. Match is
+  **layout + names only**; captured EQ/volume is SOAP-only, never in cached
+  topology, so "Active" means the config is in place, not that every setting is.
 - ✅ **Room renaming** from the room / HT detail pages (`renameRoom` + `rename_dialog`).
 - ✅ **Diagnostics** (`features/diagnostics/diagnostics_screen.dart`) — a
   **bottom-nav tab** (`DiagnosticsScreen`, `AppScaffold` page) with a

@@ -11,6 +11,9 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Added
+- Profiles now show which one the system is currently running: a profile whose saved layout and room names match the live configuration is highlighted with an "Active" badge (audio settings and volume aren't checked — they can't be read back without querying every speaker).
+
 ## [0.6.0] - 2026-07-17
 
 ### Added
