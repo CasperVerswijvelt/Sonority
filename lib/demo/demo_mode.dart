@@ -245,8 +245,24 @@ final demoSystem = SonosSystem(
   devicesByUuid: {for (final d in _devices) d.uuid: d},
 );
 
-/// Seed profiles, snapshotted straight off the demo members so their map
-/// strings can never drift from the system above.
+/// Upstairs plus the Kitchen speaker as one 4-speaker zone. Deliberately NOT
+/// the live layout (Upstairs is 3 speakers), so the overview shows BOTH states
+/// of the "Active" badge — one profile the system is currently running, one it
+/// isn't. Built through [buildGroupMap] like the live members, so only the
+/// membership differs, never the format.
+final _demoPartyZone = EntitySnapshot(
+  kind: EntityKind.zone,
+  primaryUuid: _up1,
+  mapSet: buildGroupMap([
+    for (final u in [_up1, _up2, _up3, _kitchen])
+      (uuid: u, channel: GroupChannel.both),
+  ]),
+  names: {_up1: 'Upstairs'},
+);
+
+/// Seed profiles. The layouts that match the live system are snapshotted
+/// straight off the demo members so their map strings can never drift from it;
+/// the one that deliberately does NOT match is [_demoPartyZone].
 List<Profile> demoProfiles() => [
       Profile(
         id: 'demo-movie-night',
@@ -264,7 +280,7 @@ List<Profile> demoProfiles() => [
         updatedAt: DateTime.now().subtract(const Duration(days: 14)),
         entities: [
           EntitySnapshot.fromMember(demoStereoPair),
-          EntitySnapshot.fromMember(demoZone),
+          _demoPartyZone,
         ],
       ),
     ];
