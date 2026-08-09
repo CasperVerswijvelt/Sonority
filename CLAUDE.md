@@ -673,7 +673,28 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
    `/ponytail-review`; address the findings.
 6. Integrate the latest `origin/main` into the branch, then open a PR to `main`
    (gh CLI).
-7. The **user merges the PR manually** unless they say otherwise.
+7. **Any change with a visible result ships screenshots in the PR body** — a new
+   screen, a new control/badge, a layout or theming change. Not optional; a
+   reviewer shouldn't have to build the branch to see what changed. **Demo-mode
+   shots are fine** (`flutter build apk --debug --dart-define=DEMO=true` →
+   `adb install -r build/app/outputs/flutter-apk/app-debug.apk`, drive + capture
+   per "Autonomous Android UI testing"), and preferred over the live system —
+   they're reproducible and stage nothing. Both themes when the change is
+   colour/contrast-sensitive (`adb shell cmd uimode night yes|no`, restore with
+   `auto`); before/after when the change alters an existing screen; the wide
+   layout too if it touches it. Hosting: GitHub has no upload API, so push the
+   PNGs to the **`pr-shots` branch** (screenshots only — never merged, never in
+   a PR diff, and outside the `docs/screenshots/*.png` LFS rule so raw URLs
+   serve real images) with plumbing that needs no checkout:
+   ```
+   b=$(git hash-object -w --no-filters shot.png)
+   t=$(printf "100644 blob %s\tpr-<N>-<name>.png\n" "$b" | git mktree)   # add a line per shot
+   c=$(git commit-tree "$t" -m "shots: PR #<N>")   # -p $(git rev-parse origin/pr-shots) to append
+   git push origin "$c":"refs/heads/pr-shots"      # quote the colon separately (zsh eats `:r`)
+   ```
+   then embed `<img src="https://raw.githubusercontent.com/CasperVerswijvelt/Sonority/pr-shots/pr-<N>-<name>.png" width="300">`
+   (a markdown table for side-by-side). Verify each URL returns `image/png`.
+8. The **user merges the PR manually** unless they say otherwise.
 
 ### Release flow (on `main`, after merges)
 1. Everything under `[Unreleased]` becomes the new version. Version = semver
