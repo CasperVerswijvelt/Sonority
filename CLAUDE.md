@@ -675,15 +675,31 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
    (gh CLI).
 7. **Any change with a visible result ships screenshots in the PR body** — a new
    screen, a new control/badge, a layout or theming change. Not optional; a
-   reviewer shouldn't have to build the branch to see what changed. **Demo-mode
-   shots are fine** (`flutter build apk --debug --dart-define=DEMO=true` →
-   `adb install -r build/app/outputs/flutter-apk/app-debug.apk`, drive + capture
-   per "Autonomous Android UI testing"), and preferred over the live system —
-   they're reproducible and stage nothing. Both themes when the change is
-   colour/contrast-sensitive (`adb shell cmd uimode night yes|no`, restore with
-   `auto`); before/after when the change alters an existing screen; the wide
-   layout too if it touches it. Hosting: GitHub has no upload API, so push the
-   PNGs to the **`pr-shots` branch** (screenshots only — never merged, never in
+   reviewer shouldn't have to build the branch to see what changed.
+   **Capture on the EMULATOR, never the physical device** — a real phone's
+   status bar leaks personal data (notification icons, contact avatars) into a
+   public PR. `emulator -list-avds` → `emulator -avd Sonority_API36
+   -no-snapshot-save -no-audio -no-boot-anim &`, then target it explicitly with
+   `adb -s emulator-5554 …` (the phone is usually also attached). Demo mode
+   covers the app data (`flutter build apk --debug --dart-define=DEMO=true` →
+   `adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-debug.apk`,
+   launch with `am start -n be.casperverswijvelt.sonority/.MainActivity` —
+   `monkey` can silently foreground the wrong app), so no LAN/hardware is
+   needed and nothing is staged. Then normalise the status bar via SysUI demo
+   mode (fixed 12:00 clock, full battery, no notification icons) so shots are
+   reproducible:
+   ```
+   adb -s emulator-5554 shell settings put global sysui_demo_allowed 1
+   D="adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command"
+   $D enter; $D clock -e hhmm 1200; $D notifications -e visible false
+   $D battery -e level 100 -e plugged false
+   $D network -e wifi show -e level 4 -e mobile hide
+   ```
+   (re-broadcast after a theme switch — it resets). Both themes when the change
+   is colour/contrast-sensitive (`adb -s emulator-5554 shell cmd uimode night
+   yes|no`, restore with `auto`); before/after when the change alters an
+   existing screen; the wide layout too if it touches it. Hosting: GitHub has
+   no upload API, so push the PNGs to the **`pr-shots` branch** (screenshots only — never merged, never in
    a PR diff, and outside the `docs/screenshots/*.png` LFS rule so raw URLs
    serve real images) with plumbing that needs no checkout:
    ```
@@ -693,7 +709,9 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
    git push origin "$c":"refs/heads/pr-shots"      # quote the colon separately (zsh eats `:r`)
    ```
    then embed `<img src="https://raw.githubusercontent.com/CasperVerswijvelt/Sonority/pr-shots/pr-<N>-<name>.png" width="300">`
-   (a markdown table for side-by-side). Verify each URL returns `image/png`.
+   (a markdown table for side-by-side). Verify each URL returns `image/png`;
+   add `?v=2` when replacing a shot under a name already in a PR body (GitHub
+   caches the old one).
 8. The **user merges the PR manually** unless they say otherwise.
 
 ### Release flow (on `main`, after merges)
