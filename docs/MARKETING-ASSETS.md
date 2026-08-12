@@ -41,8 +41,9 @@ source. (One-time repo setup: Settings → Pages → Source = "GitHub Actions".)
 
 ## 2. Screenshots — the four canonical screens
 
-Sonority markets four screens: **overview**, **home-theater detail**,
-**group creation**, **profiles**. Capture them with the app in **demo mode**
+Sonority markets four screens, in this order: **home-theater detail**,
+**group creation**, **profiles**, **overview** (the overview is context, not a
+selling feature, so it comes last). Capture them with the app in **demo mode**
 (`--dart-define=DEMO=true`, see `lib/demo/demo_mode.dart`): it feeds the UI a
 hand-crafted photogenic system — a Living Room 5.1 with dedicated fronts, an
 Office stereo pair, a 3-speaker Upstairs zone, three standalone rooms, and two
@@ -75,8 +76,10 @@ Chrome details the tool bakes in and the framer relies on: `--enable-unsafe-
 swiftshader` (else CanvasKit falls back to CPU rendering and draws images blank),
 and a render-settle before each shot.
 
-The four land as `design/shots/01-overview.png`, `02-home-theater.png`,
-`03-group.png`, `04-profiles.png` — the exact files §3's framer reads.
+The four land as `design/shots/01-home-theater.png`, `02-group.png`,
+`03-profiles.png`, `04-overview.png` — the exact files §3's framer reads. The
+`0N-` prefix IS the marketing order (`design/store.html`'s `SHOTS` index), so
+reordering means renaming the shots too.
 
 Each screen is captured **twice**: once at iPhone scale, and once at a **wide
 tablet/desktop profile** (1280×800 logical @ DPR 2 → 2560×1600 px) that lands as
