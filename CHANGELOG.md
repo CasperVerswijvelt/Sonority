@@ -11,6 +11,9 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Fixed
+- A Sonos Port (and Connect) is now offered as dedicated front speakers the same way a Sonos Amp is — one box driving both front channels (`LF,RF`) — instead of appearing as a single-channel speaker. Sonos firmware may still refuse the bond: unlike the Amp, a Port has never been an officially bondable satellite, and community reports so far are negative.
+
 ## [0.6.0] - 2026-07-17
 
 ### Added
