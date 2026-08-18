@@ -29,7 +29,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
   @override
   Widget build(BuildContext context) {
     final profiles = ref.watch(profilesProvider);
-    final hasSystem = ref.watch(sonosControllerProvider).value != null;
+    final system = ref.watch(sonosControllerProvider).value;
     // Reordering needs ≥2 profiles; keep the toggle visible while editing so
     // "Done" is always reachable.
     final count = profiles.value?.length ?? 0;
@@ -49,8 +49,11 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
           idOf: (p) => p.id,
           reordering: _editing,
           padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 96),
-          itemBuilder: (context, p) =>
-              _profileCard(context, ref, p, editing: _editing),
+          // `active`: the live system already carries this profile's layout +
+          // names (no system yet ⇒ nothing to compare against).
+          itemBuilder: (context, p) => _profileCard(context, ref, p,
+              editing: _editing,
+              active: system != null && profileIsActive(p, system)),
           onReorder: (from, to) =>
               ref.read(profilesProvider.notifier).reorder(from, to),
         );
@@ -73,7 +76,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       floatingActionButton: _editing
           ? null
           : FloatingActionButton.extended(
-              onPressed: hasSystem
+              onPressed: system != null
                   ? () => context.go('/profiles/new')
                   : () => ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(context.l10n.profileScanFirst)),
@@ -87,18 +90,24 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
 }
 
 /// One profile tile. In reorder mode (`editing`) the card is inert — no tap,
-/// no action buttons — and the ⋮ menu becomes a drag handle.
+/// no action buttons — and the ⋮ menu becomes a drag handle. `active` means the
+/// live system already carries this profile's layout + names: the card gets the
+/// highlighted treatment plus an "Active" badge (kept in reorder mode too — it's
+/// static state, and the badge adds no height).
 Widget _profileCard(
   BuildContext context,
   WidgetRef ref,
   Profile p, {
   bool editing = false,
+  bool active = false,
 }) {
   return ProfileCard(
     profile: p,
     onTap: editing ? null : () => context.go('/profiles/edit/${p.id}'),
     crossAxisAlignment: CrossAxisAlignment.start,
     actionsCollapsed: editing,
+    selected: active,
+    badge: active ? activeBadge(context) : null,
     // Drag handle in reorder mode, else the overflow menu (destructive Delete).
     // Both are IconButton-sized so they occupy the exact same spot; ProfileCard
     // cross-fades between them (keyed).

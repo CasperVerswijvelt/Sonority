@@ -618,6 +618,14 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   `EntitySnapshot.settings` (empty for pre-feature profiles ⇒ zero extra writes).
   ⚠️ action names/EQType tokens assumed standard-UPnP — **verify with
   `tool/eq_probe.dart` on hardware** before shipping.
+  The overview marks the profile(s) the system currently runs — highlighted card
+  + a filled "Active" `PillChip` — via the pure `profileIsActive`/`entityIsActive`
+  (`profile_controller.dart`, next to `preflightProfile`): per entity, a
+  `diffHtLayout(...).isNoOp` for an HT, the channel-aware
+  `ZoneGroupMember.matchesGroupLayout` for a group (also what `editGroup` verifies
+  with), `isStandalone` for a single — plus the coordinator's room name. Match is
+  **layout + names only**; captured EQ/volume is SOAP-only, never in cached
+  topology, so "Active" means the config is in place, not that every setting is.
 - ✅ **Room renaming** from the room / HT detail pages (`renameRoom` + `rename_dialog`).
 - ✅ **Diagnostics** (`features/diagnostics/diagnostics_screen.dart`) — a
   **bottom-nav tab** (`DiagnosticsScreen`, `AppScaffold` page) with a
@@ -670,7 +678,46 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
    `/ponytail-review`; address the findings.
 6. Integrate the latest `origin/main` into the branch, then open a PR to `main`
    (gh CLI).
-7. The **user merges the PR manually** unless they say otherwise.
+7. **Any change with a visible result ships screenshots in the PR body** — a new
+   screen, a new control/badge, a layout or theming change. Not optional; a
+   reviewer shouldn't have to build the branch to see what changed.
+   **Capture on the EMULATOR, never the physical device** — a real phone's
+   status bar leaks personal data (notification icons, contact avatars) into a
+   public PR. `emulator -list-avds` → `emulator -avd Sonority_API36
+   -no-snapshot-save -no-audio -no-boot-anim &`, then target it explicitly with
+   `adb -s emulator-5554 …` (the phone is usually also attached). Demo mode
+   covers the app data (`flutter build apk --debug --dart-define=DEMO=true` →
+   `adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-debug.apk`,
+   launch with `am start -n be.casperverswijvelt.sonority/.MainActivity` —
+   `monkey` can silently foreground the wrong app), so no LAN/hardware is
+   needed and nothing is staged. Then normalise the status bar via SysUI demo
+   mode (fixed 12:00 clock, full battery, no notification icons) so shots are
+   reproducible:
+   ```
+   adb -s emulator-5554 shell settings put global sysui_demo_allowed 1
+   D="adb -s emulator-5554 shell am broadcast -a com.android.systemui.demo -e command"
+   $D enter; $D clock -e hhmm 1200; $D notifications -e visible false
+   $D battery -e level 100 -e plugged false
+   $D network -e wifi show -e level 4 -e mobile hide
+   ```
+   (re-broadcast after a theme switch — it resets). Both themes when the change
+   is colour/contrast-sensitive (`adb -s emulator-5554 shell cmd uimode night
+   yes|no`, restore with `auto`); before/after when the change alters an
+   existing screen; the wide layout too if it touches it. Hosting: GitHub has
+   no upload API, so push the PNGs to the **`pr-shots` branch** (screenshots only — never merged, never in
+   a PR diff, and outside the `docs/screenshots/*.png` LFS rule so raw URLs
+   serve real images) with plumbing that needs no checkout:
+   ```
+   b=$(git hash-object -w --no-filters shot.png)
+   t=$(printf "100644 blob %s\tpr-<N>-<name>.png\n" "$b" | git mktree)   # add a line per shot
+   c=$(git commit-tree "$t" -m "shots: PR #<N>")   # -p $(git rev-parse origin/pr-shots) to append
+   git push origin "$c":"refs/heads/pr-shots"      # quote the colon separately (zsh eats `:r`)
+   ```
+   then embed `<img src="https://raw.githubusercontent.com/CasperVerswijvelt/Sonority/pr-shots/pr-<N>-<name>.png" width="300">`
+   (a markdown table for side-by-side). Verify each URL returns `image/png`;
+   add `?v=2` when replacing a shot under a name already in a PR body (GitHub
+   caches the old one).
+8. The **user merges the PR manually** unless they say otherwise.
 
 ### Release flow (on `main`, after merges)
 1. Everything under `[Unreleased]` becomes the new version. Version = semver

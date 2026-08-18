@@ -758,6 +758,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileBadgeVolume => 'Volume';
 
   @override
+  String get profileBadgeActive => 'Active';
+
+  @override
   String profileUpdatedAgo(String time) {
     return 'Updated $time';
   }

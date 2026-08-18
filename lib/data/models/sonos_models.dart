@@ -277,6 +277,20 @@ class ZoneGroupMember {
               : (e.tokens.contains('LF') ? GroupChannel.left : GroupChannel.right),
       };
 
+  /// True when this live group already carries exactly [targetChannels]
+  /// (per-speaker channel, order-insensitive) plus [subUuid] — the "would a write
+  /// change anything" test for a speaker group. Channel-aware on purpose: a
+  /// membership-set-only check passes before an in-place channel reassignment has
+  /// landed. Shared by the group-edit verification and the profile active-match
+  /// check so the two can't disagree.
+  bool matchesGroupLayout(Map<String, GroupChannel> targetChannels,
+      {String? subUuid}) {
+    if (!isGroup || this.subUuid != subUuid) return false;
+    final live = groupChannels;
+    return live.length == targetChannels.length &&
+        targetChannels.entries.every((e) => live[e.key] == e.value);
+  }
+
   /// [leftUuid, rightUuid] of the stereo pair, parsed from the ChannelMapSet.
   List<String> get stereoPairUuids => channelMapUuids;
 

@@ -11,6 +11,9 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Added
+- Profiles now show which one the system is currently running: a profile whose saved layout and room names match the live configuration is highlighted with an "Active" badge (audio settings and volume aren't checked — they can't be read back without querying every speaker).
+
 ### Fixed
 - A Sonos Port (and Connect) is now offered as dedicated front speakers the same way a Sonos Amp is — one box driving both front channels (`LF,RF`) — instead of appearing as a single-channel speaker. Sonos firmware may still refuse the bond: unlike the Amp, a Port has never been an officially bondable satellite, and community reports so far are negative.
 

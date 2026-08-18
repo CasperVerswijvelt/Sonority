@@ -1306,6 +1306,12 @@ abstract class AppLocalizations {
   /// **'Volume'**
   String get profileBadgeVolume;
 
+  /// No description provided for @profileBadgeActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get profileBadgeActive;
+
   /// No description provided for @profileUpdatedAgo.
   ///
   /// In en, this message translates to:
