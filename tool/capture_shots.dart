@@ -43,15 +43,15 @@ const _wideDsf = 2.0;
 // go_router uses the hash URL strategy on web; deep-link straight to each
 // screen (demo UUIDs are fixed in lib/demo/demo_mode.dart) instead of tapping.
 const _screens = <(String, String)>[
-  ('01-overview', '/#/'),
-  ('02-home-theater', '/#/theater/RINCON_DEMO_ARC000001400'),
-  ('03-group', '/#/group'),
-  ('04-profiles', '/#/profiles'),
+  ('01-home-theater', '/#/theater/RINCON_DEMO_ARC000001400'),
+  ('02-group', '/#/group'),
+  ('03-profiles', '/#/profiles'),
+  ('04-overview', '/#/'),
 ];
 
 // The four source shots, in `design/store.html`'s `i` order — used to name the
-// per-screen framed outputs (i=0 → "1-overview", …).
-const _shotNames = ['overview', 'home-theater', 'group', 'profiles'];
+// per-screen framed outputs (i=0 → "1-home-theater", …).
+const _shotNames = ['home-theater', 'group', 'profiles', 'overview'];
 
 /// One framed-graphic render: a `design/store.html` mode + output size + which
 /// source shot (`i`) + where it lands. Mirrors §3 of docs/MARKETING-ASSETS.md.
@@ -60,7 +60,9 @@ typedef _FrameJob = ({String mode, int w, int h, int i, String out});
 // Landscape store graphics (tablet7/tablet10/mac/ipad13) all render the WIDE
 // shots via design/store.html's framedLandscape — one wide capture set serves
 // Play tablet, Mac and iPad; only the canvas size differs. Portrait phone
-// graphics (phone/ios69) use the phone shots.
+// graphics (phone/ios69) use the phone shots. The single tablet graphics lead
+// with the FIRST shot (`i: 0`) — reorder `SHOTS` and the hero follows.
+// (`feature` ignores `i`: featureGraphic() has its own copy + diagram.)
 List<_FrameJob> _frameJobs() => [
       (mode: 'feature', w: 1024, h: 500, i: 0, out: 'design/play/feature-graphic.png'),
       (mode: 'tablet7', w: 1920, h: 1080, i: 0, out: 'design/play/tablet-7in.png'),

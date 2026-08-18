@@ -2005,7 +2005,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsFrontsHint.
   ///
   /// In en, this message translates to:
-  /// **'Pick two speakers (or a single Amp) for the front left & right, then set which is which.'**
+  /// **'Pick two speakers (or a single Amp or Port) for the front left & right, then set which is which.'**
   String get frontSurroundsFrontsHint;
 
   /// No description provided for @frontSurroundsStepSurrounds.
@@ -2059,7 +2059,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsPickWithAmp.
   ///
   /// In en, this message translates to:
-  /// **'Pick two speakers (ideally identical), or a single Sonos Amp that drives both front speakers.'**
+  /// **'Pick two speakers (ideally identical), or a single Sonos Amp or Port that feeds both front speakers.'**
   String get frontSurroundsPickWithAmp;
 
   /// No description provided for @frontSurroundsPickExactlyTwo.
@@ -2089,7 +2089,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsAmpWiring.
   ///
   /// In en, this message translates to:
-  /// **'The {amp} drives both front channels. Wire your left & right speakers to its L/R speaker outputs — there’s nothing to assign here.'**
+  /// **'The {amp} drives both front channels. Wire your left & right speakers to its L/R outputs — there’s nothing to assign here.'**
   String frontSurroundsAmpWiring(String amp);
 
   /// No description provided for @frontSurroundsChooseTwoFirst.

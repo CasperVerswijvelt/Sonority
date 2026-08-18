@@ -116,13 +116,29 @@ void main() {
     expect(m.subUuids, [sub, sub2]);
   });
 
-  test('isAmp matches Amp / Connect:Amp but not speakers, subs, or soundbars', () {
+  test('drivesExternalSpeakers matches Amp/Port/Connect but not speakers, '
+      'subs, or soundbars', () {
+    SonosDevice d(String model) =>
+        SonosDevice(uuid: amp, roomName: amp, modelName: model, ip: '1.2.3.4');
+    expect(d('Sonos Amp').drivesExternalSpeakers, isTrue);
+    expect(d('Sonos Connect:Amp').drivesExternalSpeakers, isTrue);
+    expect(d('Sonos Port').drivesExternalSpeakers, isTrue);
+    expect(d('Sonos Connect').drivesExternalSpeakers, isTrue);
+    expect(d('Sonos Beam').drivesExternalSpeakers, isFalse);
+    expect(d('Sonos One SL').drivesExternalSpeakers, isFalse);
+    expect(d('Sonos Sub').drivesExternalSpeakers, isFalse);
+    // Word-bounded: a SYMFONISK Table Lamp is a speaker, not an "amp".
+    expect(d('SYMFONISK Table Lamp').drivesExternalSpeakers, isFalse);
+  });
+
+  test('isAmp stays narrower than drivesExternalSpeakers (zones)', () {
     SonosDevice d(String model) =>
         SonosDevice(uuid: amp, roomName: amp, modelName: model, ip: '1.2.3.4');
     expect(d('Sonos Amp').isAmp, isTrue);
     expect(d('Sonos Connect:Amp').isAmp, isTrue);
-    expect(d('Sonos Beam').isAmp, isFalse);
-    expect(d('Sonos One SL').isAmp, isFalse);
-    expect(d('Sonos Sub').isAmp, isFalse);
+    // A Port/Connect keeps its (pre-existing) zone eligibility.
+    expect(d('Sonos Port').isAmp, isFalse);
+    expect(d('Sonos Connect').isAmp, isFalse);
+    expect(d('SYMFONISK Table Lamp').isAmp, isFalse);
   });
 }

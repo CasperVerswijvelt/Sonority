@@ -29,14 +29,19 @@ working Beam and the silent Arc Ultra are on near-identical `96.x` builds).
 
 ## Dedicated fronts (soundbar becomes center, external speakers take L/R)
 
-Fronts can be either **two discrete speakers** (one `LF`, one `RF`) or **one Amp
-on both** (`AMP:LF,RF`). Both are tracked below.
+Fronts can be either **two discrete speakers** (one `LF`, one `RF`) or **one
+line-out box on both** (`AMP:LF,RF` — Amp, Connect:Amp, Port, Connect). Both are
+tracked below.
 
 | Soundbar          | Soundbar fw  | Fronts device        | Result       | Source         |
 |-------------------|--------------|----------------------|--------------|----------------|
 | Beam (Gen 2, S31) | 96.1-78270   | 2× One SL (S22), discrete | ✅ audio | developer (live) |
 | Playbase          | (unknown)    | Connect:Amp (Gen 2)  | ✅ audio     | user-confirmed |
-| Arc Ultra (S45)   | 96.0-78270   | Amp (S16), fw 96.0-78270 | ❌ silent | user-confirmed |
+| Arc Ultra (S45)   | 96.0-78270   | Amp (S16), fw 96.0-78270 | ❌ silent (disputed) | user-confirmed |
+| Playbase          | (unknown)    | Port (S23)           | ❌ won't bond | community (r/SonoSequencr) |
+| Playbase          | (unknown)    | Connect (line-out)   | ❌ won't bond | community (r/SonoSequencr) |
+| Arc Ultra (S45)   | (unknown)    | Connect (line-out)   | ❌ won't bond | community (r/SonoSequencr) |
+| Arc Ultra (S45)   | (unknown)    | Amp (current gen)    | ✅ audio (disputes the ❌ above) | community (r/SonoSequencr) |
 
 ### ✅ Beam (Gen 2, S31) + 2× One SL (discrete fronts) — works
 
@@ -86,6 +91,33 @@ standalone room** (ungrouped) in the official Sonos app.
 - Passive speakers play → Amp/wiring is fine; the Arc Ultra isn't routing fronts (suspect #1) — nothing Sonority can fix.
 - Still silent → the Amp's own setup/wiring, unrelated to Sonority.
 
+### ❌ Port / Connect as fronts — community reports it never bonds
+
+Sonority offers a Port/Connect as one-box fronts (same `LF,RF` map shape as an
+Amp), but no one has yet reported it *working*. From r/SonoSequencr:
+
+- One user tried a **Port** as fronts on a **Playbase**, then a **Connect** on the
+  same Playbase, then the **Connect on an Arc Ultra** — none took. Also tried
+  Playbase↔Connect wired ethernet (the "older gear needs 5 GHz/wired" theory) with
+  no change. Their conclusion: neither Connect nor Port can serve as fronts.
+- A second user reports the same for front/surround, and separately confirmed a
+  **Port can't be a sub** either.
+- The SonoSequencr developer has asked the sub twice whether anyone got a
+  Connect (S15) working as fronts/surrounds; both threads went unanswered.
+
+**Failure mode differs from the Arc Ultra + Amp case above.** That one bonds
+cleanly and is merely silent. Here the *bond itself* doesn't take — meaning
+Sonority's `bondAndVerify` will burn its retries and surface an error, rather
+than quietly producing a mute front pair. Not great, but honest and reversible.
+
+Cause is presumably the same firmware gate: the Amp is an *officially* bondable
+surround device, the Port/Connect never has been.
+
+> Still worth leaving the option in the app: it costs nothing, the map shape is
+> identical to the Amp's, this is one user's testing on two bars (never a Beam),
+> and the whole point of Sonority is not gating on Sonos' blessed list. If a Beam
+> owner confirms it works, this row flips.
+
 ## Notes / recurring gotchas
 
 - **"Needs attention" + phantom "not connected" products in the official Sonos
@@ -96,9 +128,21 @@ standalone room** (ungrouped) in the official Sonos app.
   the same *bond-applies-but-silent* false positive (which two users here hit
   before verifying audio). Only treat a combo as ✅ once someone reports **heard
   audio**.
-- **Amp as fronts is one device on both channels** (`AMP:LF,RF`), exclusive
-  selection — not two separate front speakers. The passive speakers wired to the
-  Amp are not network devices and correctly never appear in the app.
+- **A line-out box as fronts is one device on both channels** (`AMP:LF,RF`),
+  exclusive selection — not two separate front speakers. Applies to the Amp,
+  Connect:Amp, **Port**, and Connect: none has drivers of its own, so one box
+  covers L+R. The speakers wired to it are not network devices and correctly
+  never appear in the app.
+- **Port/Connect fronts are offered but community-reported broken** — see the
+  section above. Needs one success report to flip.
+- **The Arc Ultra + Amp ❌ row is disputed.** A r/SonoSequencr user reports the
+  current-gen Sonos Amp driving bookshelf fronts on an **Arc Ultra** working
+  well, incl. all Arc Ultra drivers except its own L/R (they blame a YouTube
+  reviewer's misconfiguration for the "it disables up-firing" rumour). They also
+  note a **Connect:Amp** needs ethernet (itself + the bar, or the bar + another
+  wired Sonos) since it has no 5 GHz radio — which the silent Arc Ultra + Amp
+  report did not obviously rule in or out. So Amp-on-Arc-Ultra may be
+  setup-dependent rather than a hard firmware block.
 
 ## Adding a finding
 

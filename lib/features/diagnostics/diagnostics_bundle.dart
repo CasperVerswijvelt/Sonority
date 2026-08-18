@@ -153,7 +153,7 @@ Map<String, dynamic> topologyJson(SonosSystem system) => {
         'reachable': d.reachable,
         'isSoundbar': d.isSoundbar,
         'isSub': d.isSub,
-        'isAmp': d.isAmp,
+        'drivesExternalSpeakers': d.drivesExternalSpeakers,
       },
   ],
 };
