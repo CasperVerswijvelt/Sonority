@@ -104,10 +104,19 @@ class SonosDevice {
     return base.isEmpty ? 'Speaker' : base;
   }
 
-  /// A Sonos Amp / Connect:Amp drives passive L/R speakers, so it can serve as
-  /// BOTH front channels at once (`LF,RF`) — unlike a normal speaker, which is
-  /// a single side. Used to offer it as a one-box dedicated-fronts option.
-  bool get isAmp => modelName.toLowerCase().contains('amp');
+  /// Has no built-in drivers — it feeds external stereo speakers (Amp /
+  /// Connect:Amp via speaker terminals, Port / Connect via line-out). So ONE
+  /// box covers BOTH front channels at once (`LF,RF`), unlike a normal speaker
+  /// which is a single side. Also means it can't be Trueplay-tuned.
+  /// Word-bounded so a SYMFONISK Table **Lamp** isn't read as an Amp.
+  bool get drivesExternalSpeakers =>
+      modelName.toLowerCase().contains(RegExp(r'\b(amp|port|connect)\b'));
+
+  /// An Amp / Connect:Amp specifically — the one line-out box Sonos' stated
+  /// zone limits exclude. Narrower than [drivesExternalSpeakers] on purpose: a
+  /// Port/Connect has always been offered as a zone member and nobody has
+  /// reported that failing, so widening this would drop a working capability.
+  bool get isAmp => modelName.toLowerCase().contains(RegExp(r'\bamp\b'));
 
   SonosDevice copyWith({String? ip, String? roomName}) => SonosDevice(
         uuid: uuid,

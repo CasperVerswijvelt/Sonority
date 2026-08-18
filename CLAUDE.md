@@ -372,10 +372,13 @@ interpolated) then use it.
   soundbar is **`CC` (center)**, NOT `LF,RF`. To add **dedicated fronts**: keep the
   bar as `CC`, append the two chosen speakers as `LF` / `RF`, preserve existing
   rears/sub. This produces a real 5.1 with discrete fronts. (`front_layout.dart`.)
-- **Amp as fronts**: a single Sonos Amp drives two passive front speakers, so it
-  occupies BOTH front channels in one entry — `AMP:LF,RF` — instead of two
-  separate Sonos speakers. Bar still becomes `CC`. (`buildAmpFrontsMap`;
-  detected via `SonosDevice.isAmp`.) **Audio is per-soundbar and NOT
+- **Amp/Port as fronts**: a line-out box (Amp, Connect:Amp, Port, Connect) has no
+  drivers of its own and feeds two external front speakers, so it occupies BOTH
+  front channels in one entry — `AMP:LF,RF` — instead of two separate Sonos
+  speakers. Bar still becomes `CC`. (`buildLayoutMap` collapses the two channels
+  by UUID; detected via `SonosDevice.drivesExternalSpeakers` — the same getter
+  excludes these boxes from Trueplay lists and zone candidates, since neither
+  applies to a device with no speakers.) **Audio is per-soundbar and NOT
   API-discoverable** — confirmed working on a **Playbase + Connect:Amp**, but
   **silent on an Arc Ultra + Amp (S16)** despite a clean, correct bond (the Atmos
   bar appears not to route fronts to a satellite). Track confirmed/failing combos
@@ -610,7 +613,9 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 ## Feature status
 - ✅ Discovery + topology + Material 3 UI (discovery → home-theater diagram).
 - ✅ Dedicated front surrounds (add with guided flow + Identify; remove), incl. a
-  single **Sonos Amp** driving passive fronts (`AMP:LF,RF`; exclusive selection).
+  single line-out box (**Amp / Connect:Amp / Port / Connect**) driving both
+  external fronts (`AMP:LF,RF`; exclusive selection — `drivesExternalSpeakers`).
+  Port/Connect is offered but community-reported not to bond (`COMPATIBILITY.md`).
 - ✅ Identify a speaker by **blinking its status LED** (`led_identify.dart`, default,
   all platforms incl. macOS) with the audio chime as a mobile-only extra. Offered
   in the pick-a-speaker flows AND per-speaker in the room detail sheet / group &

@@ -41,7 +41,7 @@ class HomeTheaterScreen extends ConsumerWidget {
         ? <String>{member.uuid, ...member.channelAssignments.values}
               .map((u) => system.device(u))
               .whereType<SonosDevice>()
-              .where((d) => !d.isAmp)
+              .where((d) => !d.drivesExternalSpeakers)
               .toList()
         : <SonosDevice>[];
 

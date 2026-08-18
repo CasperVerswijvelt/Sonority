@@ -110,7 +110,7 @@ Future<void> main(List<String> argv) async {
   print('🎚️  Mode: $mode');
 
   if (!ampMode) _sanityCheck(fronts[0], fronts[1]);
-  if (ampMode && !fronts.first.isAmp) {
+  if (ampMode && !fronts.first.drivesExternalSpeakers) {
     print('⚠️  Note: ${fronts.first.modelName} is not an Amp; AMP:LF,RF assumes '
         'one device that drives both passive front speakers.');
   }

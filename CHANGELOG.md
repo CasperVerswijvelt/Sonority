@@ -18,6 +18,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Creating a speaker group no longer reports failure when the write timed out but actually applied — it verifies the group before deciding, the same way home-theater bonding already did.
 - Reconfiguring a speaker group in a way that needs a rebuild could leave it dissolved and not rebuilt if a member hadn't finished coming back online. Restoring room names after a group is dissolved is now best-effort per speaker, so it can't take the rest of the operation down.
 - Profiles that save volume or audio settings now actually restore them on the speakers that were just bonded. A speaker stops answering for ~20-30s after Sonos bonds it, and the restore ran straight into that window, so it reported "settings could not be applied" and silently dropped them (for a sub and surrounds, on roughly half of applies). It now waits for each speaker first, and names the exact setting in the diagnostics log when one is genuinely rejected.
+- A Sonos Port (and Connect) is now offered as dedicated front speakers the same way a Sonos Amp is — one box driving both front channels (`LF,RF`) — instead of appearing as a single-channel speaker. Sonos firmware may still refuse the bond: unlike the Amp, a Port has never been an officially bondable satellite, and community reports so far are negative.
 
 ## [0.6.0] - 2026-07-17
 

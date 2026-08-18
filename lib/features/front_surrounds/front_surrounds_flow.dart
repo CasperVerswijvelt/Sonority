@@ -320,10 +320,13 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     );
   }
 
-  bool _deviceIsAmp(String uuid) =>
-      ref.read(sonosControllerProvider).value?.device(uuid)?.isAmp ?? false;
+  bool _drivesExternalSpeakers(String uuid) =>
+      ref.read(sonosControllerProvider).value?.device(uuid)?.drivesExternalSpeakers ??
+      false;
 
-  bool get _ampMode => _fronts.length == 1 && _deviceIsAmp(_fronts.first);
+  /// One line-out box (Amp/Port) on both front channels instead of two speakers.
+  bool get _ampMode =>
+      _fronts.length == 1 && _drivesExternalSpeakers(_fronts.first);
   bool get _frontsValid => _fronts.isEmpty || _fronts.length == 2 || _ampMode;
   bool get _surroundsValid => _surrounds.isEmpty || _surrounds.length == 2;
 
@@ -352,7 +355,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       _fronts.remove(d.uuid);
       return;
     }
-    if (d.isAmp) {
+    if (d.drivesExternalSpeakers) {
       _fronts
         ..clear()
         ..add(d.uuid);
@@ -531,7 +534,7 @@ class _ChooseSpeakers extends StatelessWidget {
     if (candidates.isEmpty) {
       return Text(context.l10n.frontSurroundsNoFreeSpeakers);
     }
-    final hasAmp = allowAmp && candidates.any((d) => d.isAmp);
+    final hasAmp = allowAmp && candidates.any((d) => d.drivesExternalSpeakers);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -549,7 +552,7 @@ class _ChooseSpeakers extends StatelessWidget {
 
   Widget _card(BuildContext context, SonosDevice d) {
     final isSel = selected.contains(d.uuid);
-    final isAmp = allowAmp && d.isAmp;
+    final isAmp = allowAmp && d.drivesExternalSpeakers;
     final disabled = !isSel && !isAmp && selected.length >= 2;
     // The side is the speaker's slot in [selected] (0 = left, 1 = right). The
     // in-card toggle only appears once BOTH are chosen — before that there's no

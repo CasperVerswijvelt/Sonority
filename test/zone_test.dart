@@ -112,9 +112,15 @@ void main() {
         'sub': SonosDevice(uuid: 'sub', roomName: 'C', modelName: 'Sonos Sub', ip: '3'),
         'bar': SonosDevice(uuid: 'bar', roomName: 'D', modelName: 'Sonos Beam', ip: '4'),
         'play': SonosDevice(uuid: 'play', roomName: 'E', modelName: 'Sonos Play:1', ip: '5'),
+        // A Port drives external speakers (so it can take both HT fronts), but
+        // that must NOT cost it its zone eligibility — only Amps are excluded.
+        'port': SonosDevice(uuid: 'port', roomName: 'F', modelName: 'Sonos Port', ip: '6'),
       },
     );
-    expect(system.zoneableSpeakers.map((d) => d.uuid).toSet(), {'one', 'play'});
+    expect(
+      system.zoneableSpeakers.map((d) => d.uuid).toSet(),
+      {'one', 'play', 'port'},
+    );
   });
 
   test('EntitySnapshot captures a zone and round-trips through JSON', () {
