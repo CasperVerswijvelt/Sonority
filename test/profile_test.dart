@@ -116,6 +116,68 @@ void main() {
     expect(back.entities.first.toJson().containsKey('settings'), isFalse);
   });
 
+  test('drops a single entity whose speaker another entity already bonds', () {
+    // The mid-settle capture from a real bundle: the HT holds the surrounds AND
+    // they're each captured as a standalone room, so applying it bonds them and
+    // immediately frees them again.
+    final entities = dropSelfConflictingSingles([
+      EntitySnapshot.fromMember(ZoneGroupMember(
+        uuid: beam,
+        zoneName: 'Woonkamer',
+        htSatChanMapSet: '$beam:CC;$fl:LF;$fr:RF;$sub:SW',
+      )),
+      EntitySnapshot.fromMember(ZoneGroupMember(uuid: fl, zoneName: 'Woonkamer')),
+      EntitySnapshot.fromMember(ZoneGroupMember(uuid: fr, zoneName: 'Woonkamer')),
+    ]);
+    expect(entities.map((e) => e.primaryUuid), [beam]);
+  });
+
+  test('a group bonds its members too, not just an HT', () {
+    const desk = 'RINCON_DESK01400';
+    final entities = dropSelfConflictingSingles([
+      EntitySnapshot.fromMember(ZoneGroupMember(
+          uuid: fl, zoneName: 'Keuken', channelMapSet: '$fl:LF,LF;$fr:RF,RF')),
+      // The pair's hidden half, mid-settle still listed as its own room.
+      EntitySnapshot.fromMember(ZoneGroupMember(uuid: fr, zoneName: 'Keuken')),
+      // Genuinely standalone — must survive.
+      EntitySnapshot.fromMember(ZoneGroupMember(uuid: desk, zoneName: 'Bureau')),
+    ]);
+    expect(entities.map((e) => e.primaryUuid), [fl, desk]);
+  });
+
+  test('a profile of only standalone speakers is untouched', () {
+    const desk = 'RINCON_DESK01400';
+    final singles = [
+      EntitySnapshot.fromMember(ZoneGroupMember(uuid: fl, zoneName: 'Keuken')),
+      EntitySnapshot.fromMember(ZoneGroupMember(uuid: desk, zoneName: 'Bureau')),
+    ];
+    expect(dropSelfConflictingSingles(singles).map((e) => e.primaryUuid),
+        [fl, desk]);
+  });
+
+  test('a stored self-conflicting profile heals on load', () {
+    final broken = {
+      'id': 'p4',
+      'name': 'Surround TV',
+      'entities': [
+        {
+          'kind': 'homeTheater',
+          'primaryUuid': beam,
+          'mapSet': '$beam:CC;$fl:LR,LTR;$fr:RR,RTR',
+          'names': {beam: 'Living Room'},
+        },
+        {
+          'kind': 'single',
+          'primaryUuid': fr,
+          'mapSet': null,
+          'names': {fr: 'Living Room'},
+        },
+      ],
+    };
+    final back = Profile.fromJson(broken);
+    expect(back.entities.map((e) => e.primaryUuid), [beam]);
+  });
+
   test('per-entity settings flags reflect audio-only vs volume-only', () {
     final base = EntitySnapshot.fromMember(ZoneGroupMember(uuid: fl, zoneName: 'x'));
     final audioOnly = base.copyWith(settings: {fl: const SpeakerSettings(bass: 1)});

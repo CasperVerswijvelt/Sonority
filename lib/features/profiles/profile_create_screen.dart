@@ -56,8 +56,11 @@ class _State extends ConsumerState<ProfileCreateScreen> {
     // from what the profile stored, which is the whole point of re-snapshotting.
     final originalUuids =
         existing?.entities.expand((e) => e.involvedUuids).toSet();
-    for (final m in system.allMembers) {
-      final e = EntitySnapshot.fromMember(m);
+    // Mid-settle, Sonos lists a speaker both in its coordinator's map and as a
+    // visible room, which would offer (and capture) it twice — see
+    // [dropSelfConflictingSingles]. Bonded wins; the stray room isn't offered.
+    for (final e in dropSelfConflictingSingles(
+        [for (final m in system.allMembers) EntitySnapshot.fromMember(m)])) {
       _entities.add(e);
       _included[e.primaryUuid] = originalUuids == null
           ? true

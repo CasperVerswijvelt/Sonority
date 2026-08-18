@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
+import 'cancellation.dart';
 import 'diagnostics_log.dart';
 
 /// Minimal SOAP client for the Sonos local UPnP API (port 1400).
@@ -151,6 +152,41 @@ extension SoapBodyText on XmlElement {
   String? childText(String tag) {
     final els = findAllElements(tag);
     return els.isEmpty ? null : els.first.innerText.trim();
+  }
+}
+
+/// Retries [op] while it fails at the TRANSPORT level — connection refused, or
+/// the request timing out — which is exactly what a speaker does for ~20-30s
+/// after Sonos detaches it from a bond: its :1400 control port closes and
+/// reopens (hardware-observed in two user diagnostics bundles, on both a removed
+/// HT satellite and a freed group member). Without this, the first call aimed
+/// back at such a speaker fails an operation that would have worked moments
+/// later — a profile apply that unbonds speakers and then re-uses them was
+/// failing on exactly that.
+///
+/// A [SonosSoapException] means the speaker answered with a real fault, which no
+/// amount of waiting fixes, so it rethrows straight away.
+///
+/// ponytail: per-call budget (7 waits ≈ 35s, comfortably past the observed
+/// window), no shared deadline — so a caller looping over N speakers multiplies
+/// it. Fine while only the one or two just-unbonded speakers are ever in the
+/// window and the rest answer instantly; if a big zone with a genuinely dead
+/// member ever stalls a flow, thread one deadline through the loop instead.
+Future<T> retryUnreachable<T>(
+  Future<T> Function() op, {
+  int attempts = 8,
+  Duration interval = const Duration(seconds: 5),
+  CancellationToken? cancel,
+}) async {
+  for (var attempt = 1;; attempt++) {
+    try {
+      return await op();
+    } on SonosSoapException {
+      rethrow;
+    } catch (_) {
+      if (attempt >= attempts) rethrow;
+      await interruptibleDelay(interval, cancel);
+    }
   }
 }
 

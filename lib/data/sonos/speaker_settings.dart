@@ -1,5 +1,7 @@
 import 'package:xml/xml.dart';
 
+import 'cancellation.dart';
+import 'diagnostics_log.dart';
 import 'soap_client.dart';
 
 /// The `GetEQ`/`SetEQ` types captured in the EQ bundle — every stable sound
@@ -296,10 +298,39 @@ class SpeakerSettingsClient {
   /// swallowed so the remaining settings still apply. Returns the number of
   /// writes that failed — a non-zero count (e.g. a firmware change renaming an
   /// EQ token so every SetEQ faults) is otherwise invisible to the caller.
-  Future<int> apply(String ip, SpeakerSettings s) async {
+  ///
+  /// Can block for ~20s first: see the probe below. Never throws, except
+  /// [OperationCancelled] when [cancel] trips.
+  Future<int> apply(String ip, SpeakerSettings s,
+      {CancellationToken? cancel}) async {
+    if (s.isEmpty) return 0; // nothing to write, so nothing to wait for
+    // Wait for the speaker before writing anything. Bonding closes a satellite's
+    // :1400 for ~20-30s and a profile restores settings right after the bond
+    // settles, so without this every write lands in a refused socket and the
+    // captured setting is silently lost — hardware-seen: a user's Sub and One SLs
+    // dropped their restored volume on roughly half his applies. A probe that
+    // FAULTS means the speaker answered, so [retryUnreachable] rethrows and we
+    // carry on immediately; only a refused/timed-out socket waits. The budget is
+    // shorter than the default because the bond's own settle has already burned
+    // most of the window by the time we get here.
+    var answering = true;
+    try {
+      await retryUnreachable(() => _readVolume(ip),
+          attempts: 5, interval: const Duration(seconds: 4), cancel: cancel);
+    } on OperationCancelled {
+      rethrow; // Abort must stop here, not fire 17 doomed writes first
+    } on SonosSoapException {
+      // It answered, just not with a volume (a Sub, an odd firmware). That's a
+      // live speaker — write to it.
+    } catch (_) {
+      answering = false;
+      DiagnosticsLog.add('settings: $ip never answered, skipping its writes');
+    }
     var failed = 0;
     Future<void> set(String action, Map<String, String> extra) async {
-      if (!await _set(ip, action, extra)) failed++;
+      // Not answering → count it, but don't burn an 8s socket timeout per write
+      // proving what the probe already established.
+      if (!answering || !await _set(ip, action, extra)) failed++;
     }
 
     if (s.bass != null) {
@@ -331,6 +362,20 @@ class SpeakerSettingsClient {
     }
     return failed;
   }
+
+  /// A trivial read used only as a "are you answering yet?" probe — unlike
+  /// [_rawRead] it does NOT swallow, so [retryUnreachable] can see the refusal.
+  /// `GetVolume` is a plain RenderingControl action, so it's safe on every model
+  /// (the per-model support mess is confined to the `GetEQ` tokens). Short
+  /// timeout: a probe only needs to know whether the socket is open.
+  Future<void> _readVolume(String ip) => _soap.call(
+        ip: ip,
+        controlPath: _control,
+        serviceType: _service,
+        action: 'GetVolume',
+        args: const {'InstanceID': '0', 'Channel': 'Master'},
+        timeout: const Duration(seconds: 2),
+      );
 
   // ---- read helpers (null on any fault so unsupported settings are skipped) ----
 
@@ -386,7 +431,17 @@ class SpeakerSettingsClient {
         args: {'InstanceID': '0', ...extra},
       );
       return true;
-    } catch (_) {
+    } catch (e) {
+      // Name the setting Sonos REJECTED. The progress step only counts failures
+      // ("1 setting could not be applied") and the SOAP client deliberately
+      // doesn't log faults (it expects the caller to narrate them), so without
+      // this the rejected setting is invisible in a diagnostics bundle — which is
+      // exactly where we need it. Transport errors are already logged by the
+      // client, so only faults go here: logging both would double every entry and
+      // could evict the earlier lines that explain the failure.
+      if (e is SonosSoapException) {
+        DiagnosticsLog.add('settings: $action $extra on $ip rejected: $e');
+      }
       return false;
     }
   }

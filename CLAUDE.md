@@ -226,7 +226,13 @@ interpolated) then use it.
     full-range — vs a pair's single-sided `LF,LF`/`RF,RF`). Structurally like a
     pair (coordinator stays visible carrying the map, the rest go Invisible).
     Sonos does NOT restore member names on separate, so we snapshot + restore
-    them like pairs.
+    them like pairs. **A create write is "go verify" too, not pass/fail** — same
+    rule as `AddHTSatellite`: a timed-out (or 800) `AddBondedZones` very often
+    still applies (hardware-seen: a user's apply reported failure on an 8s
+    timeout, and the pair was formed by the time they retried). `createGroup`
+    therefore swallows any transport failure + 800 and leaves the verdict to the
+    caller's poll-verify (every call site has one); only a non-800 fault
+    rethrows, since 401/402 never converge.
   - **In-place group RECONFIGURE works like HT (hardware-confirmed,
     `tool/group_reassert_spike.dart` — self-restoring, 12/12 reassign + 6/6 add
     trials, all 1 attempt):** re-asserting `AddBondedZones` on a LIVE group's
@@ -412,6 +418,43 @@ interpolated) then use it.
      signal. E.g. create-pair polls until paired AND the right speaker is gone from
      the room list; separate polls until unpaired AND the name has propagated.
      See `SonosController._pollUntil`.
+   - **The lag also poisons *reads* that get persisted, not just writes** (real
+     user bug, 0.6.0): mid-settle a speaker shows up BOTH in its coordinator's
+     map and as a visible room, so a profile captured in that window stored the
+     same Era 300 as an HT surround *and* as a standalone room — and every apply
+     then bonded it and immediately freed it again, leaving it stuck in Sonos'
+     `ZoneGroup ID="…:orphan"` state (Invisible, still claiming its old channel,
+     control port closed). Guarded by `dropSelfConflictingSingles`
+     (`profile.dart`), applied at capture AND in `Profile.fromJson` so already-
+     saved profiles heal. Anything that snapshots topology needs the same care.
+   - **A freshly-detached speaker refuses TCP :1400 for ~20-30s** (connection
+     refused, not a timeout) — measured across two user bundles, on both a
+     `RemoveHTSatellite`'d satellite and a freed group member. Consequences:
+     never poll/settle-read from the speaker you just unbonded (read from the
+     former coordinator, which stays reachable), and **topology converging is
+     NOT the same signal as that speaker answering again** — the settle wait
+     routinely finishes first. So any call aimed back at a just-unbonded speaker
+     must go through **`retryUnreachable`** (`soap_client.dart`: retries
+     transport errors, rethrows a `SonosSoapException` since a fault means it
+     answered). Current users: the profile room-name restore, `createGroup` /
+     `reassertGroup`'s per-member name snapshot (which is how "remove the
+     surrounds, then pair them" failed its first attempts until it happened to
+     land outside the window), and `_restoreZoneNames` after a dissolve — where
+     it's ALSO per-member best-effort, because throwing there left `editGroup`
+     with a group it had dissolved and never rebuilt. Add a call site here when
+     you write new code that touches a speaker right after unbonding it.
+   - **BONDING closes the port too, not just unbonding** — same ~20-30s, per
+     satellite, and independently for each. The profile settings restore runs
+     right after the bond settles, so it was firing writes into a refused socket
+     and **silently losing the captured values** (`apply` counts failures but
+     they're per-field best-effort): a user's Sub + One SLs lost their restored
+     `SetVolume`/`SetMute` on roughly half his applies — satellites never capture
+     the EQ bundle, so volume/mute is all they had — visible only as "2 settings
+     could not be applied". `SpeakerSettingsClient.apply` now probes with a
+     `GetVolume` through `retryUnreachable` before writing anything. **A probe
+     *fault* means the speaker answered** (`SonosSoapException` → write to it);
+     only a refused/timed-out socket waits, and a probe that never answers skips
+     that speaker's writes rather than burning an 8s timeout on each one.
 2. **Some writes silently no-op.** A SOAP call can return `200 OK` yet do nothing
    (e.g. `CreateStereoPair` on truly incompatible hardware — though **mismatched is
    allowed**: One + Play:1 pairs fine; only genuinely incompatible combos are

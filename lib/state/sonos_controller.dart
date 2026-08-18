@@ -10,6 +10,7 @@ import '../data/sonos/diagnostics_log.dart';
 import '../data/sonos/front_layout.dart' as front_layout;
 import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
+import '../data/sonos/soap_client.dart' show retryUnreachable;
 import '../data/sonos/sonos_repository.dart';
 import '../data/sonos/sonority_error.dart';
 import '../data/sonos/speaker_settings.dart';
@@ -196,7 +197,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (s.hasVolume) l10n.stepVolume,
       ].join(' + ');
       ph.note(l10n.stepRestoring(what, dev!.typeLabel));
-      final failed = await _settings.apply(ip, s);
+      final failed = await _settings.apply(ip, s, cancel: _activeOp);
       if (failed > 0) {
         ph.note(l10n.stepSettingsFailed(failed, dev.typeLabel));
       }
@@ -465,17 +466,33 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (dev?.ip == null) {
           throw SonorityError(SonorityErrorCode.entityNotOnNetwork, e.label);
         }
-        if (sys.ownerOf(e.primaryUuid) != null) {
+        final owner = sys.ownerOf(e.primaryUuid);
+        if (owner != null) {
           _activeOp?.throwIfCancelled();
           ph.phase('free', l10n.stepFreeFromBond);
-          await _repo.freeSpeaker(sys, e.primaryUuid);
+          await _repo.freeSpeaker(sys, e.primaryUuid, cancel: _activeOp);
           ph.note(l10n.stepWaitingSettle);
-          sys = await _settleRead(sys, dev!.ip!);
+          // Poll the FORMER OWNER, never the speaker we just detached: a
+          // freshly-freed speaker refuses :1400 for a while (connection
+          // refused, seen in a user's bundle), so reading from it would fail
+          // every attempt and carry a stale topology forward. The owner stays
+          // reachable throughout. (A null ip routes _pollUntil to a full
+          // discover, which is also fine — just slower.)
+          sys = await _pollUntil(
+            previous: sys,
+            ip: sys.device(owner)?.ip,
+            until: (s) => s.ownerOf(e.primaryUuid) == null,
+          );
         }
         _activeOp?.throwIfCancelled();
         ph.phase('names', l10n.stepRestoreRoomName);
-        if (!await _repo.setRoomName(
-            ip: dev!.ip!, name: e.names[e.primaryUuid] ?? dev.roomName)) {
+        // Retried: topology converging doesn't mean the freed speaker is
+        // answering again, and losing a whole profile apply over a room-name
+        // restore isn't worth it (the exact failure in the user bundle).
+        if (!await retryUnreachable(
+            () => _repo.setRoomName(
+                ip: dev!.ip!, name: e.names[e.primaryUuid] ?? dev.roomName),
+            cancel: _activeOp)) {
           ph.skipPhase(detail: l10n.stepNameUnchanged);
         }
         return sys;
@@ -511,8 +528,12 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             _activeOp?.throwIfCancelled();
             ph.phase('free', l10n.stepFreeConflicting);
             ph.note(l10n.stepFreeing(sys.device(u)?.roomName ?? u));
-            await _repo.freeSpeaker(sys, u);
-            sys = await _settleRead(sys, coord!.ip!);
+            await _repo.freeSpeaker(sys, u, cancel: _activeOp);
+            // Read from the FORMER OWNER, not the coordinator — when the
+            // coordinator is itself the speaker being freed it's the one thing
+            // that won't answer yet (same trap as the single-entity path above).
+            sys = await _settleRead(
+                sys, sys.device(owner)?.ip ?? coord!.ip!);
           }
         }
         // Resolve members (coordinator-first) + sub from the stored map.
@@ -545,7 +566,11 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             sub != null
                 ? l10n.stepBondNSpeakersWithSub(memberEntries.length)
                 : l10n.stepBondNSpeakers(memberEntries.length));
-        await _repo.createGroup(members: memberEntries, sub: sub);
+        // createGroup can sit for ~30s waiting on a member Sonos only just
+        // unbonded, so say something rather than looking hung.
+        ph.note(l10n.stepApplyingSettle);
+        await _repo.createGroup(
+            members: memberEntries, sub: sub, cancel: _activeOp);
         ph.note(l10n.stepWaitingConfirm);
         sys = await _pollUntil(
           previous: sys,
@@ -585,7 +610,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             _activeOp?.throwIfCancelled();
             ph.phase('free', l10n.stepFreeConflicting);
             ph.note(l10n.stepFreeing(sys.device(u)?.roomName ?? u));
-            await _repo.freeSpeaker(sys, u);
+            await _repo.freeSpeaker(sys, u, cancel: _activeOp);
             sys = await _settleRead(sys, bar.ip!);
           }
         }
@@ -822,7 +847,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       ]);
       try {
         ph.phase('bond', l10n.stepBondSpeakers);
-        await _repo.createGroup(members: members, sub: sub);
+        await _repo.createGroup(members: members, sub: sub, cancel: _activeOp);
         ph.phase('confirm', l10n.stepWaitForConfirm);
         var system = await _pollUntil(
           previous: previous,
@@ -916,7 +941,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         // 2. Dissolve (SeparateStereoPair on the live map) + restore names.
         ph.phase('separate', l10n.stepSeparateRestore);
-        await _repo.separateGroup(members: members, channelMapSet: cms);
+        await _repo.separateGroup(
+            members: members, channelMapSet: cms, cancel: _activeOp);
         ph.phase('settle', l10n.stepWaitForSettle);
         final system = await _pollUntil(
           previous: previous,
@@ -1042,11 +1068,13 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             );
           }
           ph.phase('separate', l10n.stepSeparateRestore);
-          await _repo.separateGroup(members: old, channelMapSet: cms);
+          await _repo.separateGroup(
+              members: old, channelMapSet: cms, cancel: _activeOp);
           // Wait for the old group to dissolve AND its members to reappear as
-          // standalone rooms before re-bonding: `_repo.createGroup` is a single
-          // AddBondedZones (no retry), so recreating mid-reshuffle could fault
-          // and leave the group dissolved. Mirrors separateGroup's settle wait.
+          // standalone rooms before re-bonding: `_repo.createGroup` writes once
+          // (it treats a transient fault as "go verify" but never re-writes), so
+          // recreating mid-reshuffle could leave the group dissolved. Mirrors
+          // separateGroup's settle wait.
           final oldSub = existing.subUuid;
           final reappear =
               current.where((u) => u != existing.uuid && u != oldSub).toList();
@@ -1059,7 +1087,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
                 reappear.every((u) => s.allMembers.any((m) => m.uuid == u)),
           );
           ph.phase('bond', l10n.stepBondSpeakers);
-          await _repo.createGroup(members: members, sub: sub);
+          await _repo.createGroup(members: members, sub: sub, cancel: _activeOp);
         }
         if (needsBond) {
           ph.phase('confirm', l10n.stepWaitForConfirm);
