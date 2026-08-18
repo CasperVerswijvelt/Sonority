@@ -1212,7 +1212,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get frontSurroundsFrontsHint =>
-      'Pick two speakers (or a single Amp) for the front left & right, then set which is which.';
+      'Pick two speakers (or a single Amp or Port) for the front left & right, then set which is which.';
 
   @override
   String get frontSurroundsStepSurrounds => 'Rear surrounds';
@@ -1252,7 +1252,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get frontSurroundsPickWithAmp =>
-      'Pick two speakers (ideally identical), or a single Sonos Amp that drives both front speakers.';
+      'Pick two speakers (ideally identical), or a single Sonos Amp or Port that feeds both front speakers.';
 
   @override
   String get frontSurroundsPickExactlyTwo =>
@@ -1273,7 +1273,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String frontSurroundsAmpWiring(String amp) {
-    return 'The $amp drives both front channels. Wire your left & right speakers to its L/R speaker outputs — there’s nothing to assign here.';
+    return 'The $amp drives both front channels. Wire your left & right speakers to its L/R outputs — there’s nothing to assign here.';
   }
 
   @override
