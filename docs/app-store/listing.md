@@ -86,12 +86,11 @@ Sonority is an independent app and is not affiliated with, authorized, maintaine
 ## What's New
 
 ```
-• Now a proper iPad and desktop app: a roomy side navigation and multi-column layout on big screens, resizable on Mac, with the phone layout unchanged
-• Reconfigure an existing speaker group in place — add, remove or re-channel speakers without starting over
-• Profiles: drag to reorder them, and tap any saved entity to see exactly what the profile captured
-• Diagnostics: a new tab with a technical, hide-nothing system view you can package and share for help
-• Identify a speaker (blink its light, or chime on iPhone/iPad) right from a room or a bonded speaker
-• Clearer, more consistent design throughout, plus faster and calmer setup progress
+• Profiles now show which one your system is currently running, with an "Active" badge
+• Applying a profile is far more reliable: it waits for speakers that were just unbonded or bonded instead of giving up on them, and saved volume and audio settings now really do get restored
+• Profiles no longer save the same speaker twice (which made the apply fail); profiles already saved that way are repaired automatically
+• Creating a speaker group no longer reports a failure when the group was actually created
+• A Port or Connect can now be picked as your dedicated front speakers, the same way an Amp can — one box driving both front channels
 ```
 
 ## Support / marketing URLs

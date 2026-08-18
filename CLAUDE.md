@@ -777,9 +777,10 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 5. **Check visual marketing assets.** Review the version's features/changes and
    decide whether the store screenshots or framed graphics (`design/shots/*`,
    `design/play/*`, `design/appstore/*`, `docs/screenshots/*`) no longer reflect
-   the app. If they do, **notify the user and get approval before regenerating**
-   — capturing screenshots stages the live Sonos system (see §2–3 of
-   `docs/MARKETING-ASSETS.md`), so never do it unprompted.
+   the app. If they do, regenerate them — capture is **demo mode + headless
+   Chrome** (`dart run tool/capture_shots.dart --frame`): no hardware, no LAN,
+   and the live Sonos system is never touched (§2–3 of
+   `docs/MARKETING-ASSETS.md`).
 6. CI publishes the GitHub Release **as pre-release**, with the version's full
    changelog section (the build suffix is stripped for the notes lookup). The
    user removes the pre-release mark when it's actually released.
