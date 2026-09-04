@@ -15,6 +15,7 @@ import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_spinner.dart';
+import '../widgets/issue_note_dialog.dart';
 import '../widgets/settings_section.dart';
 import 'diagnostics_bundle.dart';
 
@@ -41,7 +42,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
 
   bool get _isBusy => _busy != null;
 
-  Future<String?> _collect() async {
+  Future<String?> _collect(String? note) async {
     final system = ref.read(sonosControllerProvider).value;
     if (system == null) return null;
     final pkg = await PackageInfo.fromPlatform();
@@ -50,9 +51,11 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       repo: ref.read(sonosRepositoryProvider),
       package: pkg,
       now: DateTime.now(),
+      settings: ref.read(speakerSettingsProvider),
       options: DiagnosticsOptions(
         includeLogs: _includeLogs,
         includeNetwork: _includeNetwork,
+        note: note,
       ),
     );
   }
@@ -69,14 +72,15 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
 
   Future<void> _run(
     _Action which,
-    Future<void> Function(String path) action,
-  ) async {
+    Future<void> Function(String path) action, {
+    String? note,
+  }) async {
     final l10n = context.l10n;
     setState(() => _busy = which);
     try {
       final String path;
       try {
-        final built = await _collect();
+        final built = await _collect(note);
         if (built == null) {
           _snack(l10n.diagNoSystemToCollect);
           return;
@@ -113,11 +117,21 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   Widget _busyIcon(_Action which, IconData icon) =>
       _busy == which ? const BusySpinner() : Icon(icon);
 
-  Future<void> _email(String path) => FlutterEmailSender.send(
+  /// Ask for the description, then collect + email. Cancelling the dialog
+  /// builds nothing. The note travels twice — in the mail body (what gets read
+  /// first) and as `user_note.txt` inside the zip, which survives the composer
+  /// and any onward forwarding of the file.
+  Future<void> _emailFlow() async {
+    final note = await showIssueNoteDialog(context);
+    if (note == null) return;
+    await _run(_Action.email, (path) => _email(path, note), note: note);
+  }
+
+  Future<void> _email(String path, String note) => FlutterEmailSender.send(
     Email(
       subject: 'Sonority diagnostics',
       recipients: const [_devEmail],
-      body: context.l10n.diagEmailBody,
+      body: '$note\n\n${context.l10n.diagEmailAttached}',
       attachmentPaths: [path],
     ),
   );
@@ -209,10 +223,9 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                   child: FilledButton.icon(
                     onPressed: (_isBusy || !hasSystem)
                         ? null
-                        : () => _run(
-                            _emailSupported ? _Action.email : _Action.share,
-                            _emailSupported ? _email : _share,
-                          ),
+                        : (_emailSupported
+                            ? _emailFlow
+                            : () => _run(_Action.share, _share)),
                     style: FilledButton.styleFrom(minimumSize: const Size(0, 54)),
                     icon: _busyIcon(
                       _emailSupported ? _Action.email : _Action.share,
