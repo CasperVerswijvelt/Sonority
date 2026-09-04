@@ -11,8 +11,8 @@ import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
 import '../data/sonos/room_calibration.dart';
 import '../data/sonos/soap_client.dart';
-import '../data/sonos/speaker_settings.dart';
 import '../data/sonos/sonos_repository.dart';
+import '../data/sonos/speaker_settings.dart';
 import '../data/sonos/zone_layout.dart' show buildGroupMap;
 import '../data/sonos/zone_topology.dart';
 import '../features/profiles/profile.dart';
@@ -27,8 +27,8 @@ import '../state/sonos_controller.dart';
 const kDemoMode = bool.fromEnvironment('DEMO');
 
 /// The provider overrides demo mode swaps in: the repository (topology +
-/// Trueplay reads), the profile store, and the identify clients. Everything on
-/// screen derives from these.
+/// Trueplay reads), the profile store, the identify clients, and the speaker
+/// settings client. Everything on screen derives from these.
 List<Override> demoOverrides() => [
       sonosRepositoryProvider.overrideWithValue(_DemoSonosRepository()),
       profileStoreProvider.overrideWithValue(_DemoProfileStore()),
@@ -49,15 +49,6 @@ final _demoSoap = _DemoSoapClient();
 
 /// Throws on any SOAP call, so NOTHING in a demo build can emit network I/O —
 /// including repository write methods and any read method added later.
-/// Same idea for the plain-HTTP path: `device_description.xml` fetches don't go
-/// through SOAP, so the diagnostics bundle's raw-description dump would hit the
-/// unrouteable demo IPs for real (a 5s timeout per device).
-class _DemoHttpClient extends http.BaseClient {
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
-      throw StateError('demo mode: no network I/O (${request.url})');
-}
-
 class _DemoSoapClient extends SonosSoapClient {
   @override
   Future<XmlElement> call({
@@ -69,6 +60,15 @@ class _DemoSoapClient extends SonosSoapClient {
     Duration timeout = const Duration(seconds: 8),
   }) async =>
       throw StateError('demo mode: no network I/O ($action)');
+}
+
+/// Same idea for the plain-HTTP path: `device_description.xml` fetches don't go
+/// through SOAP, so the diagnostics bundle's raw-description dump would hit the
+/// unrouteable demo IPs for real (a 5s timeout per device).
+class _DemoHttpClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
+      throw StateError('demo mode: no network I/O (${request.url})');
 }
 
 // ponytail: demo is navigation-only — write flows (apply/bond/separate/rename)

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sonority/features/widgets/issue_note_dialog.dart';
+import 'package:sonority/features/diagnostics/issue_note_dialog.dart';
 import 'package:sonority/l10n/app_localizations.dart';
 
 /// The gate that stops an unexplained diagnostics bundle reaching the developer:
@@ -8,7 +8,7 @@ import 'package:sonority/l10n/app_localizations.dart';
 /// must yield null so the caller builds nothing.
 void main() {
   /// Opens the dialog and returns the future holding its result.
-  Future<Future<String?>> open(WidgetTester tester) async {
+  Future<Future<String?>> open(WidgetTester tester, {String? initial}) async {
     late Future<String?> result;
     await tester.pumpWidget(
       MaterialApp(
@@ -17,7 +17,8 @@ void main() {
         home: Scaffold(
           body: Builder(
             builder: (ctx) => TextButton(
-              onPressed: () => result = showIssueNoteDialog(ctx),
+              onPressed: () =>
+                  result = showIssueNoteDialog(ctx, initial: initial),
               child: const Text('open'),
             ),
           ),
@@ -68,6 +69,17 @@ void main() {
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     expect(await result, 'fronts bond but stay silent');
+  });
+
+  testWidgets('initial text is kept, so a failed send costs nothing',
+      (tester) async {
+    const typed = 'fronts bond but stay silent on Arc Ultra';
+    final result = await open(tester, initial: typed);
+    expect(find.text(typed), findsOneWidget);
+    expect(continueAction(tester), isNotNull, reason: 'already long enough');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(await result, typed);
   });
 
   testWidgets('Cancel returns null so nothing is collected', (tester) async {

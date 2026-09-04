@@ -10,9 +10,10 @@ const kMinIssueNoteLength = 20;
 /// Prompts for a description of the problem before a diagnostics bundle is
 /// emailed. Returns the trimmed text, or null if cancelled — the caller then
 /// builds nothing. Continue stays disabled until the text passes
-/// [kMinIssueNoteLength].
-Future<String?> showIssueNoteDialog(BuildContext context) {
-  final controller = TextEditingController();
+/// [kMinIssueNoteLength]. [initial] pre-fills the field so a send that failed
+/// (no mail app configured) doesn't cost the reporter their typed text.
+Future<String?> showIssueNoteDialog(BuildContext context, {String? initial}) {
+  final controller = TextEditingController(text: initial);
   return showDialog<String>(
     context: context,
     // StatefulBuilder so Continue enables live on the threshold without a
@@ -21,6 +22,9 @@ Future<String?> showIssueNoteDialog(BuildContext context) {
       builder: (ctx, setState) {
         final text = controller.text.trim();
         return AlertDialog(
+          // A 3-line field + helper + actions can outgrow the dialog at a large
+          // text scale with the keyboard up.
+          scrollable: true,
           title: Text(ctx.l10n.diagNoteTitle),
           content: TextField(
             controller: controller,
@@ -36,7 +40,11 @@ Future<String?> showIssueNoteDialog(BuildContext context) {
               hintText: ctx.l10n.diagNoteHint,
               hintMaxLines: 3,
               helperText: ctx.l10n.diagNoteHelper(kMinIssueNoteLength),
-              counterText: '${text.length}/$kMinIssueNoteLength',
+              // Counter only while short: Material's "n/max" shape reads as an
+              // exceeded limit once past a MINimum ("200/20").
+              counterText: text.length >= kMinIssueNoteLength
+                  ? ''
+                  : '${text.length}/$kMinIssueNoteLength',
             ),
             onChanged: (_) => setState(() {}),
           ),

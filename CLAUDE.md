@@ -692,13 +692,16 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   (read-only per-speaker EQ/volume/mute reads, role-gated by `settingsReadPlan` /
   `SonosSystem.extendedEqUuids`), plus optional `logs.txt` +
   `network.txt` toggles (both default on). **The email path prompts for a
-  description first** (`features/widgets/issue_note_dialog.dart`, min
+  description first** (`features/diagnostics/issue_note_dialog.dart`, min
   `kMinIssueNoteLength` = 20 trimmed chars, Continue disabled below it,
   cancel = build nothing) — bundles kept arriving with an empty mail body, so
   the text is now collected in-app and written BOTH into the mail body and into
   the zip as `user_note.txt` (`DiagnosticsOptions.note`), which survives the
   composer and any onward forwarding of the file. Share/save don't prompt, so
-  their bundles carry no note. Shares via `share_plus`, a prefilled
+  their bundles carry no note. The typed text is held in `_pendingNote` until
+  the send actually succeeds (`_run` returns a bool) and re-seeds the dialog —
+  a failed send (no mail account configured) must not cost the reporter their
+  report. Shares via `share_plus`, a prefilled
   developer email (`flutter_email_sender`, iOS/Android/macOS), or save-to-disk
   via a native save dialog on every platform (`file_saver`; macOS needs the
   `files.user-selected.read-write` sandbox entitlement — self-granted, no Apple
