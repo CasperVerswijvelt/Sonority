@@ -11,16 +11,22 @@ import '../../data/sonos/speaker_settings.dart';
 import '../widgets/version_badge.dart' show fullVersionLabel;
 import 'diagnostics_platform.dart';
 
-/// Which optional sources to fold into the bundle (both default on in the UI).
-/// The core files — README, parsed_topology.json, topology.txt, raw_topology.xml,
-/// device_descriptions/, app_state.json — are always included.
+/// Which optional sources to fold into the bundle (the two bools default on in
+/// the UI). The core files — README, parsed_topology.json, topology.txt,
+/// raw_topology.xml, device_descriptions/, app_state.json — are always included.
 class DiagnosticsOptions {
   const DiagnosticsOptions({
     this.includeLogs = true,
     this.includeNetwork = true,
+    this.note,
   });
   final bool includeLogs;
   final bool includeNetwork;
+
+  /// The reporter's description of the problem, collected in the app before an
+  /// email escalation. Written as `user_note.txt`; null on the share/save paths,
+  /// which don't prompt for one.
+  final String? note;
 }
 
 /// Builds the diagnostics zip and returns its file path. Re-fetches the raw
@@ -33,6 +39,7 @@ Future<String> buildDiagnosticsZip({
   required SonosRepository repo,
   required PackageInfo package,
   required DateTime now,
+  required SpeakerSettingsClient settings,
   DiagnosticsOptions options = const DiagnosticsOptions(),
 }) async {
   final archive = Archive();
@@ -40,6 +47,10 @@ Future<String> buildDiagnosticsZip({
     final bytes = utf8.encode(content);
     archive.addFile(ArchiveFile(name, bytes.length, bytes));
   }
+
+  // The reporter's own words first — the file that says why the bundle exists.
+  final note = options.note;
+  if (note != null) add('user_note.txt', note);
 
   // Core topology views.
   add(
@@ -79,7 +90,7 @@ Future<String> buildDiagnosticsZip({
   add(
     'speaker_settings.json',
     const JsonEncoder.withIndent('  ')
-        .convert(await readSpeakerSettings(system, SpeakerSettingsClient())),
+        .convert(await readSpeakerSettings(system, settings)),
   );
 
   if (options.includeNetwork) {
@@ -370,6 +381,8 @@ String _readme(
   DiagnosticsOptions o,
 ) {
   final files = [
+    if (o.note != null)
+      'user_note.txt           — what the reporter said went wrong',
     'README.txt              — this file',
     'parsed_topology.json    — machine-readable system dump (all members incl. hidden)',
     'topology.txt            — human-readable version of the same',

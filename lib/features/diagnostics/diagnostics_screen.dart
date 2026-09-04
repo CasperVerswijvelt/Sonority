@@ -17,6 +17,7 @@ import '../widgets/app_scaffold.dart';
 import '../widgets/busy_spinner.dart';
 import '../widgets/settings_section.dart';
 import 'diagnostics_bundle.dart';
+import 'issue_note_dialog.dart';
 
 const _devEmail = 'casperverswijveltdev@gmail.com';
 
@@ -39,9 +40,13 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   bool _includeNetwork = true;
   _Action? _busy; // null = idle; else the action currently running
 
+  /// The typed description, held only while a send is outstanding, so a failed
+  /// email (no mail app configured) doesn't discard what the reporter wrote.
+  String? _pendingNote;
+
   bool get _isBusy => _busy != null;
 
-  Future<String?> _collect() async {
+  Future<String?> _collect(String? note) async {
     final system = ref.read(sonosControllerProvider).value;
     if (system == null) return null;
     final pkg = await PackageInfo.fromPlatform();
@@ -50,9 +55,11 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
       repo: ref.read(sonosRepositoryProvider),
       package: pkg,
       now: DateTime.now(),
+      settings: ref.read(speakerSettingsProvider),
       options: DiagnosticsOptions(
         includeLogs: _includeLogs,
         includeNetwork: _includeNetwork,
+        note: note,
       ),
     );
   }
@@ -67,29 +74,35 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
           defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.macOS);
 
-  Future<void> _run(
+  /// Runs [action] on a freshly built bundle. Returns true only if [action]
+  /// itself completed — the email path uses that to decide whether the typed
+  /// note can be dropped.
+  Future<bool> _run(
     _Action which,
-    Future<void> Function(String path) action,
-  ) async {
+    Future<void> Function(String path) action, {
+    String? note,
+  }) async {
     final l10n = context.l10n;
     setState(() => _busy = which);
     try {
       final String path;
       try {
-        final built = await _collect();
+        final built = await _collect(note);
         if (built == null) {
           _snack(l10n.diagNoSystemToCollect);
-          return;
+          return false;
         }
         path = built;
       } catch (e) {
         _snack(l10n.diagBuildFailed(localizedError(l10n, e)));
-        return;
+        return false;
       }
       try {
         await action(path);
+        return true;
       } catch (e) {
         _snack(l10n.diagActionFailed(localizedError(l10n, e)));
+        return false;
       }
     } finally {
       if (mounted) setState(() => _busy = null);
@@ -113,11 +126,27 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   Widget _busyIcon(_Action which, IconData icon) =>
       _busy == which ? const BusySpinner() : Icon(icon);
 
-  Future<void> _email(String path) => FlutterEmailSender.send(
+  /// Ask for the description, then collect + email. Cancelling the dialog
+  /// builds nothing. The note travels twice — in the mail body (what gets read
+  /// first) and as `user_note.txt` inside the zip, which survives the composer
+  /// and any onward forwarding of the file.
+  Future<void> _emailFlow() async {
+    final note = await showIssueNoteDialog(context, initial: _pendingNote);
+    if (note == null || !mounted) return;
+    _pendingNote = note;
+    // Compose the body here, while the context is known-good — collecting the
+    // bundle takes seconds, and _email runs after it.
+    final body = '$note\n\n${context.l10n.diagEmailAttached}';
+    final sent =
+        await _run(_Action.email, (path) => _email(path, body), note: note);
+    if (sent) _pendingNote = null;
+  }
+
+  Future<void> _email(String path, String body) => FlutterEmailSender.send(
     Email(
       subject: 'Sonority diagnostics',
       recipients: const [_devEmail],
-      body: context.l10n.diagEmailBody,
+      body: body,
       attachmentPaths: [path],
     ),
   );
@@ -172,7 +201,8 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                     ),
                   ),
           ),
-          // Bundle-content toggles + note + escalation actions, pinned below the
+          // Bundle-content toggles + the always-included line + escalation
+          // actions, pinned below the
           // scrolling topology. The toggles are a flat register (leading divider +
           // square ink) via the shared SettingsSection, like the room / new-profile
           // registers.
@@ -209,10 +239,9 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                   child: FilledButton.icon(
                     onPressed: (_isBusy || !hasSystem)
                         ? null
-                        : () => _run(
-                            _emailSupported ? _Action.email : _Action.share,
-                            _emailSupported ? _email : _share,
-                          ),
+                        : (_emailSupported
+                            ? _emailFlow
+                            : () => _run(_Action.share, _share)),
                     style: FilledButton.styleFrom(minimumSize: const Size(0, 54)),
                     icon: _busyIcon(
                       _emailSupported ? _Action.email : _Action.share,

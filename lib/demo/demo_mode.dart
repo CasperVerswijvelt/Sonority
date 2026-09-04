@@ -1,15 +1,18 @@
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart' show XmlElement;
 
 import '../data/models/sonos_models.dart';
 import '../data/sonos/av_transport.dart';
 import '../data/sonos/channel_map.dart';
+import '../data/sonos/device_description.dart';
 import '../data/sonos/device_properties.dart';
 import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
 import '../data/sonos/room_calibration.dart';
 import '../data/sonos/soap_client.dart';
 import '../data/sonos/sonos_repository.dart';
+import '../data/sonos/speaker_settings.dart';
 import '../data/sonos/zone_layout.dart' show buildGroupMap;
 import '../data/sonos/zone_topology.dart';
 import '../features/profiles/profile.dart';
@@ -24,8 +27,8 @@ import '../state/sonos_controller.dart';
 const kDemoMode = bool.fromEnvironment('DEMO');
 
 /// The provider overrides demo mode swaps in: the repository (topology +
-/// Trueplay reads), the profile store, and the identify clients. Everything on
-/// screen derives from these.
+/// Trueplay reads), the profile store, the identify clients, and the speaker
+/// settings client. Everything on screen derives from these.
 List<Override> demoOverrides() => [
       sonosRepositoryProvider.overrideWithValue(_DemoSonosRepository()),
       profileStoreProvider.overrideWithValue(_DemoProfileStore()),
@@ -34,6 +37,12 @@ List<Override> demoOverrides() => [
       ledIdentifyProvider.overrideWithValue(LedIdentifyClient(_demoSoap)),
       identifyServiceProvider
           .overrideWithValue(IdentifyServiceClient(_demoSoap)),
+      // Profile settings-capture and the diagnostics bundle both read EQ/volume
+      // per speaker; against the unrouteable demo IPs every read would burn its
+      // full 8s timeout (a bundle took >15min). Reads swallow failures, so a
+      // throwing client just yields empty settings, instantly.
+      speakerSettingsProvider
+          .overrideWithValue(SpeakerSettingsClient(_demoSoap)),
     ];
 
 final _demoSoap = _DemoSoapClient();
@@ -53,15 +62,23 @@ class _DemoSoapClient extends SonosSoapClient {
       throw StateError('demo mode: no network I/O ($action)');
 }
 
+/// Same idea for the plain-HTTP path: `device_description.xml` fetches don't go
+/// through SOAP, so the diagnostics bundle's raw-description dump would hit the
+/// unrouteable demo IPs for real (a 5s timeout per device).
+class _DemoHttpClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
+      throw StateError('demo mode: no network I/O (${request.url})');
+}
+
 // ponytail: demo is navigation-only — write flows (apply/bond/separate/rename)
 // fail fast on _DemoSoapClient instead of succeeding against fake state. Fake
 // the write semantics (mutate demoSystem) if a demo of a full apply is ever
-// needed. Known leak: SpeakerSettingsClient is constructed inside
-// SonosController, so the profile-create "save speaker settings" toggle still
-// times out against the (unrouteable TEST-NET) demo IPs.
+// needed.
 class _DemoSonosRepository extends SonosRepository {
   _DemoSonosRepository()
       : super(
+          descriptions: DeviceDescriptionClient(_DemoHttpClient()),
           topology: ZoneTopologyClient(_demoSoap),
           deviceProps: DevicePropertiesClient(_demoSoap),
           calibration: RoomCalibrationClient(_demoSoap),

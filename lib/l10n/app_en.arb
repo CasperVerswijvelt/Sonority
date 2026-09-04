@@ -809,5 +809,13 @@
   "diagCollecting": "Collecting…",
   "diagEmailToDeveloper": "Email to developer",
   "diagShareDiagnostics": "Share diagnostics",
-  "diagEmailBody": "Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———"
+  "diagEmailAttached": "——— the diagnostics bundle is attached below ———",
+  "diagNoteTitle": "What went wrong?",
+  "diagNoteHint": "What you tried, what you expected, what happened",
+  "diagNoteHelper": "At least {min} characters",
+  "@diagNoteHelper": {
+    "placeholders": {
+      "min": { "type": "int" }
+    }
+  }
 }

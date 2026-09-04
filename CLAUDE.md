@@ -599,7 +599,16 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   needed; the marketing-screenshot path (`docs/MARKETING-ASSETS.md` §2). UI work
   can be verified against it without touching the real system: navigation-only —
   write/identify taps fail fast (the demo SOAP client throws, so a demo build
-  emits no network I/O; IPs are unrouteable TEST-NET besides).
+  emits no network I/O; IPs are unrouteable TEST-NET besides). **Every client
+  that talks to a speaker must be overridable, or demo mode silently waits out
+  real timeouts against the TEST-NET IPs** — `SpeakerSettingsClient` was
+  constructed inside `SonosController` and `DeviceDescriptionClient` wasn't
+  passed to the demo repository, so a diagnostics bundle took >15min in demo
+  mode (EQ reads 8s each + a 5s description fetch per device) instead of 2s.
+  Both are injected now (`speakerSettingsProvider`, overridden in
+  `demoOverrides()`; `descriptions: DeviceDescriptionClient(_DemoHttpClient())`
+  — the HTTP path needs its own stub since it isn't SOAP). Add the override
+  when you add a client.
 - **Web is a screenshot-only demo target, NOT a shipped platform.** A browser
   can't do SSDP/sockets, so the app only runs meaningfully on web under
   `DEMO=true`. The engine's `dart:io` bits (`ssdp_discovery.dart`,
@@ -682,7 +691,17 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   `app_state.json` (all app SharedPreferences), `speaker_settings.json`
   (read-only per-speaker EQ/volume/mute reads, role-gated by `settingsReadPlan` /
   `SonosSystem.extendedEqUuids`), plus optional `logs.txt` +
-  `network.txt` toggles (both default on). Shares via `share_plus`, a prefilled
+  `network.txt` toggles (both default on). **The email path prompts for a
+  description first** (`features/diagnostics/issue_note_dialog.dart`, min
+  `kMinIssueNoteLength` = 20 trimmed chars, Continue disabled below it,
+  cancel = build nothing) — bundles kept arriving with an empty mail body, so
+  the text is now collected in-app and written BOTH into the mail body and into
+  the zip as `user_note.txt` (`DiagnosticsOptions.note`), which survives the
+  composer and any onward forwarding of the file. Share/save don't prompt, so
+  their bundles carry no note. The typed text is held in `_pendingNote` until
+  the send actually succeeds (`_run` returns a bool) and re-seeds the dialog —
+  a failed send (no mail account configured) must not cost the reporter their
+  report. Shares via `share_plus`, a prefilled
   developer email (`flutter_email_sender`, iOS/Android/macOS), or save-to-disk
   via a native save dialog on every platform (`file_saver`; macOS needs the
   `files.user-selected.read-write` sandbox entitlement — self-granted, no Apple
