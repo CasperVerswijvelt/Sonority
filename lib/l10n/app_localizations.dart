@@ -2239,14 +2239,14 @@ abstract class AppLocalizations {
   /// Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and the whole source bond loses its tuning.
   ///
   /// In en, this message translates to:
-  /// **'These speakers must be freed first, which clears room calibration on all {count}.'**
+  /// **'They must be freed first, which clears room calibration on all {count}.'**
   String pickerCostFreedFirst(int count);
 
-  /// Subtitle on a picker card for a speaker that is bonded elsewhere: choosing it takes it out of that bond.
+  /// Section-header helper for a bond a speaker would be taken from.
   ///
   /// In en, this message translates to:
-  /// **'Leaves this bond'**
-  String get pickerLeavesBond;
+  /// **'Choosing a speaker here removes it from this bond.'**
+  String get pickerSectionLeavesBond;
 }
 
 class _AppLocalizationsDelegate

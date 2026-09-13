@@ -111,32 +111,37 @@ String _kindLabel(AppLocalizations l10n, ZoneGroupMember m) =>
 /// holds a tuning — warning about calibration that does not exist would be
 /// false. Wording tracks [SonosSystem.tuningLostByTaking] exactly, including
 /// which rows are measured and which are inferred.
-String? _cost(
+String _cost(
   BuildContext context,
   SonosSystem system,
   ZoneGroupMember src,
   Map<String, RoomCalibration> calibration,
   bool absorbing,
 ) {
-  final members = system.bondMemberUuids(src);
-  if (!members.any((u) => calibration[u]?.available ?? false)) return null;
   final l10n = context.l10n;
+  final members = system.bondMemberUuids(src);
+  // Always state the consequence of picking — it is true whether or not any
+  // calibration is at stake, and it is why these speakers are listed apart.
+  final base = l10n.pickerSectionLeavesBond;
+  if (!members.any((u) => calibration[u]?.available ?? false)) return base;
   // A group destination cannot absorb, so the speaker gets freed first and the
   // whole source bond pays — regardless of what kind of bond it is.
-  if (!absorbing) return l10n.pickerCostFreedFirst(members.length);
-  if (src.isStereoPair) return l10n.pickerCostPair;
-  if (src.isZone || src.isGroup) return l10n.pickerCostZone;
+  if (!absorbing) return '$base ${l10n.pickerCostFreedFirst(members.length)}';
+  if (src.isStereoPair) return '$base ${l10n.pickerCostPair}';
+  if (src.isZone || src.isGroup) return '$base ${l10n.pickerCostZone}';
   // Home theater: never measured (one soundbar on the test system), so this is
   // deliberately hedged rather than asserted.
-  return l10n.pickerCostHomeTheaterMaybe;
+  return '$base ${l10n.pickerCostHomeTheaterMaybe}';
 }
 
-/// The channel [uuid] currently holds in its bond, as a chip for the card's
-/// TITLE row, or null when the bond gives it no distinguishing role.
+/// The channel [uuid] currently holds in its bond, as plain muted text for the
+/// card's TITLE row, or null when the bond gives it no distinguishing role.
 ///
-/// It sits beside the title rather than below because for a bonded speaker it
-/// is the only thing telling two same-model cards apart — a bonded speaker has
-/// no name of its own, so `LR`/`RR` is doing the work a name normally would.
+/// It sits beside the title because for a bonded speaker it is the only thing
+/// telling two same-model cards apart — a bonded speaker has no name of its
+/// own, so `LR`/`RR` does the work a name normally would. Deliberately NOT a
+/// [PillChip]: a pill reads as a tag you might act on, and two characters of
+/// plain text carry this just as well with less furniture.
 Widget? speakerChannelChip(
   BuildContext context, {
   required SonosSystem system,
@@ -148,8 +153,10 @@ Widget? speakerChannelChip(
   final source = system.memberByUuid(owner);
   final role = source == null ? null : _roleIn(source, uuid);
   if (role == null) return null;
-  return PillChip(
-      text: role, color: Theme.of(context).colorScheme.onSurfaceVariant);
+  final theme = Theme.of(context);
+  return Text(role,
+      style: theme.textTheme.labelMedium
+          ?.copyWith(color: theme.colorScheme.onSurfaceVariant));
 }
 
 /// Whether this speaker holds a Trueplay tuning. Provenance is NOT here — that

@@ -826,7 +826,7 @@
   "pickerCostPair": "Taking one leaves the other without its room calibration.",
   "pickerCostZone": "Only the first speaker keeps its room calibration; the others lose theirs.",
   "pickerCostHomeTheaterMaybe": "This may clear room calibration on the whole home theater.",
-  "pickerCostFreedFirst": "These speakers must be freed first, which clears room calibration on all {count}.",
+  "pickerCostFreedFirst": "They must be freed first, which clears room calibration on all {count}.",
   "@pickerCostFreedFirst": {
     "description": "Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and the whole source bond loses its tuning.",
     "placeholders": {
@@ -835,8 +835,8 @@
       }
     }
   },
-  "pickerLeavesBond": "Leaves this bond",
-  "@pickerLeavesBond": {
-    "description": "Subtitle on a picker card for a speaker that is bonded elsewhere: choosing it takes it out of that bond."
+  "pickerSectionLeavesBond": "Choosing a speaker here removes it from this bond.",
+  "@pickerSectionLeavesBond": {
+    "description": "Section-header helper for a bond a speaker would be taken from."
   }
 }

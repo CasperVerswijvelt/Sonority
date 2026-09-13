@@ -667,11 +667,9 @@ class _ChooseSpeakers extends StatelessWidget {
       enabled: !disabled,
       onToggle: () => onToggle(d),
       titleOverride: _bonded.contains(d.uuid) ? d.typeLabel : null,
-      subtitle: _bonded.contains(d.uuid)
-          ? context.l10n.pickerLeavesBond
-          : isAmp
-              ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel)
-              : d.typeLabel,
+      subtitle: isAmp
+          ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel)
+          : d.typeLabel,
       identify: identifyControls(d),
       titleTrailing: channelChip(d),
       badges: badges(d),

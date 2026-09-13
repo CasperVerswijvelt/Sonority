@@ -45,8 +45,9 @@ class SelectableSpeakerCard extends StatelessWidget {
   /// block, where the heading already names the bond and the speaker's own name
   /// was absorbed into it by Sonos — so the TYPE is what identifies it.
   ///
-  /// When set, [subtitle] should say what choosing this speaker DOES (it leaves
-  /// its current bond) rather than repeat the type.
+  /// When set the subtitle is dropped: it would repeat the type, and what
+  /// choosing the speaker DOES is stated once on the section header instead of
+  /// on every card under it.
   final String? titleOverride;
   final Widget? identify;
 
@@ -93,9 +94,7 @@ class SelectableSpeakerCard extends StatelessWidget {
             onChanged: enabled ? (_) => onToggle() : null,
             titleOverride: titleOverride,
             titleTrailing: titleTrailing,
-            // A card titled by TYPE must not repeat the type below it; the
-            // caller supplies a subtitle saying what picking it does instead.
-            subtitle: titleOverride == null ? subtitle ?? device.typeLabel : subtitle,
+            subtitle: titleOverride == null ? subtitle ?? device.typeLabel : null,
             secondary: identify,
           ),
           if (badges.isNotEmpty)

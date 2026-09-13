@@ -608,9 +608,7 @@ class _SelectStep extends StatelessWidget {
       selected: isSel,
       enabled: !disabled,
       onToggle: () => onToggle(d.uuid),
-      subtitle: _bonded.contains(d.uuid)
-          ? context.l10n.pickerLeavesBond
-          : d.typeLabel,
+      subtitle: d.typeLabel,
       titleOverride: _bonded.contains(d.uuid) ? d.typeLabel : null,
       identify: identifyControls(d),
       titleTrailing: channelChip(d),
