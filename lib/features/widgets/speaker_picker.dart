@@ -84,6 +84,7 @@ Widget? pickerSectionHeader(
   required PickerSection section,
   required int sectionCount,
   required Map<String, RoomCalibration> calibration,
+  required bool absorbing,
 }) {
   if (sectionCount < 2) return null;
   final l10n = context.l10n;
@@ -96,7 +97,7 @@ Widget? pickerSectionHeader(
             icon: src.isHomeTheater
                 ? Icons.surround_sound
                 : groupKindIcon(src.groupKind),
-            helper: _cost(context, system, src, calibration),
+            helper: _cost(context, system, src, calibration, absorbing),
           ),
         _ => null,
       },
@@ -108,19 +109,26 @@ String _kindLabel(AppLocalizations l10n, ZoneGroupMember m) =>
 
 /// What taking a speaker out of [src] costs, or null when nothing in that bond
 /// holds a tuning — warning about calibration that does not exist would be
-/// false. Wording follows the measured rule (EXP-23): a stereo pair costs only
-/// the speakers left behind; a home theater or group costs every member.
+/// false. Wording tracks [SonosSystem.tuningLostByTaking] exactly, including
+/// which rows are measured and which are inferred.
 String? _cost(
   BuildContext context,
   SonosSystem system,
   ZoneGroupMember src,
   Map<String, RoomCalibration> calibration,
+  bool absorbing,
 ) {
   final members = system.bondMemberUuids(src);
   if (!members.any((u) => calibration[u]?.available ?? false)) return null;
-  return src.isStereoPair
-      ? context.l10n.pickerCostPair
-      : context.l10n.pickerCostWholeBond(members.length);
+  final l10n = context.l10n;
+  // A group destination cannot absorb, so the speaker gets freed first and the
+  // whole source bond pays — regardless of what kind of bond it is.
+  if (!absorbing) return l10n.pickerCostFreedFirst(members.length);
+  if (src.isStereoPair) return l10n.pickerCostPair;
+  if (src.isZone || src.isGroup) return l10n.pickerCostZone;
+  // Home theater: never measured (one soundbar on the test system), so this is
+  // deliberately hedged rather than asserted.
+  return l10n.pickerCostHomeTheaterMaybe;
 }
 
 /// The tags a speaker carries on its card: the channel it currently holds, and
@@ -191,6 +199,7 @@ String? stealWarning(
   required SonosSystem system,
   required Set<String> selected,
   required Map<String, RoomCalibration> calibration,
+  required bool absorbing,
   String? exceptPrimary,
 }) {
   final byOwner = <String, Set<String>>{};
@@ -203,7 +212,8 @@ String? stealWarning(
   for (final entry in byOwner.entries) {
     final source = system.memberByUuid(entry.key);
     if (source == null) continue;
-    losing.addAll(system.tuningLostByTaking(source, entry.value));
+    losing.addAll(system.tuningLostByTaking(source, entry.value,
+        absorbing: absorbing));
   }
   final tuned = losing
       .where((u) => calibration[u]?.available ?? false)

@@ -220,13 +220,15 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           system: system,
           section: s,
           sectionCount: count,
-                calibration: calibration,
+          calibration: calibration,
+          absorbing: true, // AddHTSatellite takes a speaker out of a live bond
         );
     String? warningFor(List<String> chosen) => stealWarning(
           context,
           system: system,
           selected: chosen.toSet(),
           calibration: calibration,
+          absorbing: true,
           exceptPrimary: member.uuid,
         );
 

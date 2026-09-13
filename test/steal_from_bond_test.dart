@@ -99,8 +99,27 @@ void main() {
       expect(system.tuningLostByTaking(ht, {rear}), {bar, rear, sub});
     });
 
-    test('group → every member loses it, even taking both', () {
-      expect(system.tuningLostByTaking(zone, {zoneA, zoneB}), {zoneA, zoneB});
+    test('zone → only the COORDINATOR keeps it (Q10, 2 cycles)', () {
+      // Measured: absorbing both members of a live zone into a home theater
+      // kept the zone coordinator's tuning and lost the other member's, with
+      // the same decay series on both cycles.
+      expect(system.tuningLostByTaking(zone, {zoneA, zoneB}), {zoneB});
+      expect(system.tuningLostByTaking(zone, {zoneB}), {zoneB});
+    });
+
+    test('a GROUP destination cannot absorb, so the whole source bond pays', () {
+      // AddBondedZones is accepted and silently no-ops on a speaker bonded
+      // elsewhere (Q11, 2 cycles), so the speaker is freed first — which
+      // dissolves the source bond and costs every member, pair or not.
+      expect(
+        system.tuningLostByTaking(pair, {pairL, pairR}, absorbing: false),
+        {pairL, pairR},
+        reason: 'the pair is dissolved, not absorbed',
+      );
+      expect(
+        system.tuningLostByTaking(zone, {zoneA}, absorbing: false),
+        {zoneA, zoneB},
+      );
     });
   });
 

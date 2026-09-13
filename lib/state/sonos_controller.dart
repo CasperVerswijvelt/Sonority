@@ -847,13 +847,36 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       tracker.start('group');
       final ph = _phases(tracker, 'group');
       final wanted = name?.trim();
+      // Speakers bonded elsewhere must be FREED first: unlike `AddHTSatellite`,
+      // which absorbs a speaker straight out of a live pair or zone,
+      // `AddBondedZones` is ACCEPTED and silently does nothing when a member is
+      // still bonded somewhere else — the group never forms (EXP-23 Q11, two
+      // cycles). Freeing clears that bond's room calibration, which is why the
+      // picker warns before you get here.
+      var sys = previous ?? await _repo.discover();
+      final toFree = [
+        for (final u in involved)
+          if (sys.ownerOf(u) case final o? when !involved.contains(o)) u,
+      ];
       ph.seed([
+        if (toFree.isNotEmpty) ('free', l10n.stepFreeConflicting),
         ('bond', l10n.stepBondSpeakers),
         ('confirm', l10n.stepWaitForConfirm),
         if (wanted != null && wanted.isNotEmpty && coord.ip != null)
           ('name', l10n.stepNameGroup),
       ]);
       try {
+        for (final u in toFree) {
+          _activeOp?.throwIfCancelled();
+          ph.phase('free', l10n.stepFreeConflicting);
+          ph.note(l10n.stepFreeing(sys.device(u)?.roomName ?? u));
+          await _repo.freeSpeaker(sys, u);
+          // Read back from the COORDINATOR, never the speaker just freed — a
+          // just-detached player refuses :1400 for ~20-30s.
+          if (coord.ip ?? _lastIp case final ip?) {
+            sys = await _settleRead(sys, ip);
+          }
+        }
         ph.phase('bond', l10n.stepBondSpeakers);
         await _repo.createGroup(members: members, sub: sub, cancel: _activeOp);
         ph.phase('confirm', l10n.stepWaitForConfirm);

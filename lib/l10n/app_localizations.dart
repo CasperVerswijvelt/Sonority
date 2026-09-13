@@ -2224,11 +2224,23 @@ abstract class AppLocalizations {
   /// **'Taking one leaves the other without its room calibration.'**
   String get pickerCostPair;
 
-  /// Section-header helper: taking a speaker out of a home theater or group costs every member's Trueplay.
+  /// No description provided for @pickerCostZone.
   ///
   /// In en, this message translates to:
-  /// **'Taking any speaker clears room calibration on all {count}.'**
-  String pickerCostWholeBond(int count);
+  /// **'Only the first speaker keeps its room calibration; the others lose theirs.'**
+  String get pickerCostZone;
+
+  /// No description provided for @pickerCostHomeTheaterMaybe.
+  ///
+  /// In en, this message translates to:
+  /// **'This may clear room calibration on the whole home theater.'**
+  String get pickerCostHomeTheaterMaybe;
+
+  /// Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and the whole source bond loses its tuning.
+  ///
+  /// In en, this message translates to:
+  /// **'These speakers must be freed first, which clears room calibration on all {count}.'**
+  String pickerCostFreedFirst(int count);
 }
 
 class _AppLocalizationsDelegate

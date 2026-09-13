@@ -535,17 +535,36 @@ class SonosSystem {
       ];
 
   /// Which speakers LOSE their Trueplay tuning when [taking] is taken out of the
-  /// bond [source]. Every row hardware-measured in EXP-23:
+  /// bond [source].
   ///
-  /// * **stereo pair** — only the speakers LEFT BEHIND lose it. The ones taken
-  ///   are absorbed by `AddHTSatellite` with their tuning intact (both halves ⇒
-  ///   nothing lost; one half ⇒ the other one loses it).
-  /// * **home theater / group** — EVERY member loses it, including the speakers
-  ///   taken: the source needs a `RemoveHTSatellite` (which wipes the whole set)
-  ///   or an `AddBondedZones`/dissolve (which rebuilds the bond, wiping it even
-  ///   when the map is unchanged).
-  Set<String> tuningLostByTaking(ZoneGroupMember source, Set<String> taking) {
+  /// [absorbing] is the destination's capability, and it changes everything:
+  /// `AddHTSatellite` **absorbs** a speaker straight out of a live bond, so a
+  /// home-theater destination passes true. `AddBondedZones` absorbs from
+  /// nothing — it is accepted and silently no-ops on a speaker bonded elsewhere
+  /// (EXP-23 Q11, 2 cycles) — so a group destination must free the speaker
+  /// first, which dissolves the source bond and costs every member.
+  ///
+  /// When absorbing, measured per source kind (EXP-23):
+  /// * **stereo pair** — only the speakers LEFT BEHIND lose it; the ones taken
+  ///   keep theirs (both halves ⇒ nothing lost, ×2 cycles; one half ⇒ the other
+  ///   loses it, ×1).
+  /// * **zone** — only the zone's COORDINATOR keeps its tuning; every other
+  ///   member loses it, taken or not (×2 cycles, on a 2-member zone).
+  /// * **home theater** — ⚠️ INFERRED, not measured: this system has one
+  ///   soundbar, so an HT-into-HT take could not be performed. Assumed to cost
+  ///   every member, which is the conservative direction, and the UI says "may"
+  ///   rather than asserting it.
+  Set<String> tuningLostByTaking(
+    ZoneGroupMember source,
+    Set<String> taking, {
+    bool absorbing = true,
+  }) {
     final members = bondMemberUuids(source);
-    return source.isStereoPair ? members.difference(taking) : members;
+    if (!absorbing) return members;
+    if (source.isStereoPair) return members.difference(taking);
+    if (source.isZone || source.isGroup) {
+      return members.difference({source.uuid}); // the coordinator keeps its own
+    }
+    return members;
   }
 }

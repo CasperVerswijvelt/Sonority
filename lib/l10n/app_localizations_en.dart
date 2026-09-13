@@ -1367,7 +1367,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Taking one leaves the other without its room calibration.';
 
   @override
-  String pickerCostWholeBond(int count) {
-    return 'Taking any speaker clears room calibration on all $count.';
+  String get pickerCostZone =>
+      'Only the first speaker keeps its room calibration; the others lose theirs.';
+
+  @override
+  String get pickerCostHomeTheaterMaybe =>
+      'This may clear room calibration on the whole home theater.';
+
+  @override
+  String pickerCostFreedFirst(int count) {
+    return 'These speakers must be freed first, which clears room calibration on all $count.';
   }
 }

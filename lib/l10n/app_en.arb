@@ -824,9 +824,11 @@
   },
   "pickerSectionAvailable": "Available",
   "pickerCostPair": "Taking one leaves the other without its room calibration.",
-  "pickerCostWholeBond": "Taking any speaker clears room calibration on all {count}.",
-  "@pickerCostWholeBond": {
-    "description": "Section-header helper: taking a speaker out of a home theater or group costs every member's Trueplay.",
+  "pickerCostZone": "Only the first speaker keeps its room calibration; the others lose theirs.",
+  "pickerCostHomeTheaterMaybe": "This may clear room calibration on the whole home theater.",
+  "pickerCostFreedFirst": "These speakers must be freed first, which clears room calibration on all {count}.",
+  "@pickerCostFreedFirst": {
+    "description": "Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and the whole source bond loses its tuning.",
     "placeholders": {
       "count": {
         "type": "int"

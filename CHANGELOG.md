@@ -12,8 +12,9 @@ section into the GitHub Release notes regardless of the build suffix
 ## [Unreleased]
 
 ### Added
-- Speaker pickers now offer speakers that are already bonded into another stereo pair, home theater or group, so you no longer have to unbond by hand first. They're grouped under a heading per source bond that names what taking one costs, and each card shows the channel it currently holds plus whether it has a Trueplay tuning.
-- Choosing such a speaker shows exactly which speakers lose their room calibration, per hardware-measured rules (taking both halves of a tuned stereo pair into a home theater costs nothing).
+- Speaker pickers now offer speakers that are already bonded into another stereo pair, home theater or group, so you no longer have to unbond by hand first. They're grouped under a heading per source bond that says what taking one costs, and each card shows the channel it currently holds plus whether it has a Trueplay tuning.
+- Choosing such a speaker names exactly which speakers lose their room calibration. The cost differs by case and each one is measured on real hardware: taking both halves of a tuned stereo pair into a home theater costs nothing, taking one costs the speaker left behind, and taking from a zone costs every member except the zone's first speaker.
+- Creating a speaker group from a speaker that's bonded elsewhere now frees it first. Sonos accepts the grouping command and silently does nothing otherwise, so the group would never have formed.
 
 ### Fixed
 - Bonding a tuned stereo pair as dedicated fronts no longer destroys its Trueplay tuning: Sonority now lets `AddHTSatellite` absorb the live pair instead of separating it first, which was both unnecessary and the sole cause of the loss.

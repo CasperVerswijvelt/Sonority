@@ -188,13 +188,17 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
           system: system,
           section: s,
           sectionCount: count,
-                calibration: calibration,
+          calibration: calibration,
+          // AddBondedZones no-ops on a speaker bonded elsewhere (EXP-23 Q11),
+          // so createGroup frees it first — and the whole source bond pays.
+          absorbing: false,
         );
     String? warningFor(List<String> chosen) => stealWarning(
           context,
           system: system,
           selected: chosen.toSet(),
           calibration: calibration,
+          absorbing: false,
           exceptPrimary: widget.editUuid,
         );
 
