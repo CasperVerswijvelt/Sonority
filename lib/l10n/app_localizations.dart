@@ -2206,12 +2206,6 @@ abstract class AppLocalizations {
   /// **'Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———'**
   String get diagEmailBody;
 
-  /// Pill on a picker tile: the bond this speaker must be taken out of.
-  ///
-  /// In en, this message translates to:
-  /// **'From {name}'**
-  String speakerBadgeFromBond(String name);
-
   /// No description provided for @speakerBadgeTrueplayOn.
   ///
   /// In en, this message translates to:
@@ -2230,11 +2224,35 @@ abstract class AppLocalizations {
   /// **'{count, plural, one{{names} will lose its room calibration — Sonos clears a speaker\'s Trueplay when its bond changes. Re-tune it in the Sonos app afterwards.} other{{names} will lose their room calibration — Sonos clears a speaker\'s Trueplay when its bond changes. Re-tune them in the Sonos app afterwards.}}'**
   String speakerStealTrueplayWarning(String names, int count);
 
-  /// No description provided for @speakerStealHint.
+  /// No description provided for @pickerSectionAvailable.
   ///
   /// In en, this message translates to:
-  /// **'Speakers already in a stereo pair, home theater or group are listed too — choosing one takes it from there.'**
-  String get speakerStealHint;
+  /// **'Available'**
+  String get pickerSectionAvailable;
+
+  /// No description provided for @pickerSectionCurrentHt.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently in this home theater'**
+  String get pickerSectionCurrentHt;
+
+  /// No description provided for @pickerSectionCurrentGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently in this group'**
+  String get pickerSectionCurrentGroup;
+
+  /// No description provided for @pickerCostPair.
+  ///
+  /// In en, this message translates to:
+  /// **'Taking one leaves the other without its room calibration.'**
+  String get pickerCostPair;
+
+  /// Section-header helper: taking a speaker out of a home theater or group costs every member's Trueplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Taking any speaker clears room calibration on all {count}.'**
+  String pickerCostWholeBond(int count);
 }
 
 class _AppLocalizationsDelegate

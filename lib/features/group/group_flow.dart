@@ -13,7 +13,7 @@ import '../widgets/max_width_body.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/selectable_speaker_card.dart';
 import '../widgets/info_note.dart';
-import '../widgets/speaker_badges.dart';
+import '../widgets/speaker_picker.dart';
 import '../../state/trueplay_controller.dart';
 
 /// How the segmented control frames the bond. All three build a `ChannelMapSet`
@@ -178,6 +178,19 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
           calibration: calibration[d.uuid],
           exceptPrimary: widget.editUuid,
         );
+    final sections = pickerSections(
+      system: system,
+      candidates: candidates,
+      exceptPrimary: widget.editUuid,
+    );
+    Widget? headerFor(PickerSection s, int count) => pickerSectionHeader(
+          context,
+          system: system,
+          section: s,
+          sectionCount: count,
+          currentLabel: context.l10n.pickerSectionCurrentGroup,
+          calibration: calibration,
+        );
     String? warningFor(List<String> chosen) => stealWarning(
           context,
           system: system,
@@ -284,6 +297,8 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                               mode: _mode,
                               candidates: candidates,
                               selected: _selected,
+                              sections: sections,
+                              sectionHeader: headerFor,
                               badges: badgesFor,
                               warning: warningFor(_selected),
                               channels: _channels,
@@ -481,8 +496,14 @@ class _SelectStep extends StatelessWidget {
   final VoidCallback onSwap;
   final Widget Function(SonosDevice device) identifyControls;
 
-  /// Source-bond / Trueplay tags for a candidate ([speakerBadges]).
+  /// Channel / Trueplay tags for a candidate ([speakerBadges]).
   final List<Widget> Function(SonosDevice device) badges;
+
+  /// Ordered picker blocks ([pickerSections]).
+  final List<PickerSection> sections;
+
+  /// Builds a block's heading, or null when there is only one block.
+  final Widget? Function(PickerSection section, int count) sectionHeader;
 
   /// What the current selection costs in room calibration, or null.
   final String? warning;
@@ -497,6 +518,8 @@ class _SelectStep extends StatelessWidget {
     required this.onSwap,
     required this.identifyControls,
     required this.badges,
+    required this.sections,
+    required this.sectionHeader,
     this.warning,
   });
 
@@ -514,11 +537,23 @@ class _SelectStep extends StatelessWidget {
       children: [
         Text(_hint(context), style: Theme.of(context).textTheme.bodySmall),
         Gap.s,
-        CardGrid([for (final d in candidates) _card(context, d, cap)]),
+        for (final s in sections) ...[
+          if (sectionHeader(s, sections.length) case final h?) h,
+          CardGrid([for (final d in s.devices) _card(context, d, cap)]),
+          if (s != sections.last) Gap.m,
+        ],
         if (warning case final w?) ...[Gap.m, InfoNote(w)],
       ],
     );
   }
+
+  /// UUIDs shown under a bond heading — those title by type, since the heading
+  /// already names the bond and Sonos absorbed their own names into it.
+  Set<String> get _bonded => {
+        for (final s in sections)
+          if (s.kind == PickerSectionKind.bond)
+            for (final d in s.devices) d.uuid,
+      };
 
   /// One selectable speaker, with an in-card channel selector revealed once
   /// selected: custom → per-speaker Left/Both/Right; stereo → a Left/Right that
@@ -560,6 +595,7 @@ class _SelectStep extends StatelessWidget {
       enabled: !disabled,
       onToggle: () => onToggle(d.uuid),
       subtitle: d.typeLabel,
+      titleOverride: _bonded.contains(d.uuid) ? d.typeLabel : null,
       identify: identifyControls(d),
       badges: badges(d),
       showControl: showControl,

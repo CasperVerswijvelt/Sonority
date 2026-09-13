@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
+import 'package:sonority/features/widgets/speaker_picker.dart';
 
 /// Taking speakers out of an existing bond, and what each case costs in room
 /// calibration. Every expectation here is a hardware-measured row of EXP-23
@@ -106,5 +107,57 @@ void main() {
   test('bondMemberUuids covers satellites and channel-map members', () {
     expect(system.bondMemberUuids(ht), {bar, rear, sub});
     expect(system.bondMemberUuids(pair), {pairL, pairR});
+  });
+
+  group('pickerSections', () {
+    List<SonosDevice> cands(List<String> ids) =>
+        [for (final id in ids) devices[id]!];
+
+    test('splits free / current / one block per source bond, in that order', () {
+      final s = pickerSections(
+        system: system,
+        candidates: cands([pairL, rear, zoneA, pairR, zoneB]),
+        exceptPrimary: bar, // configuring the home theater
+      );
+      expect(s.map((x) => x.kind), [
+        PickerSectionKind.current, // `rear` belongs to the HT being configured
+        PickerSectionKind.bond, // the pair
+        PickerSectionKind.bond, // the zone
+      ]);
+      expect(s[0].devices.map((d) => d.uuid), [rear]);
+      expect(s[1].source?.uuid, pairL);
+      expect(s[1].devices.map((d) => d.uuid), [pairL, pairR],
+          reason: 'both halves land under one heading, in candidate order');
+      expect(s[2].devices.map((d) => d.uuid), [zoneA, zoneB]);
+    });
+
+    test('a free speaker gets the available block', () {
+      final free = SonosDevice(
+          uuid: 'RINCON_FREE01400',
+          roomName: 'Kitchen',
+          modelName: 'Sonos One',
+          ip: '1.2.3.9');
+      final sys = SonosSystem(
+        groups: [
+          ZoneGroup(coordinatorUuid: free.uuid, members: [
+            ZoneGroupMember(uuid: free.uuid, zoneName: 'Kitchen'),
+          ]),
+        ],
+        devicesByUuid: {free.uuid: free},
+      );
+      final s = pickerSections(system: sys, candidates: [free]);
+      expect(s.single.kind, PickerSectionKind.available);
+      expect(s.single.source, isNull);
+    });
+
+    test('empty blocks are dropped, so one source means one block', () {
+      final s = pickerSections(
+        system: system,
+        candidates: cands([pairL, pairR]),
+      );
+      expect(s, hasLength(1),
+          reason: 'a single block renders without a heading at all');
+      expect(s.single.kind, PickerSectionKind.bond);
+    });
   });
 }

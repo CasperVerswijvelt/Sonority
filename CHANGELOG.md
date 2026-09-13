@@ -12,7 +12,7 @@ section into the GitHub Release notes regardless of the build suffix
 ## [Unreleased]
 
 ### Added
-- Speaker pickers now offer speakers that are already bonded into another stereo pair, home theater or group — tagged with the bond they'd come from and whether they hold a Trueplay tuning — so you no longer have to unbond by hand first.
+- Speaker pickers now offer speakers that are already bonded into another stereo pair, home theater or group, so you no longer have to unbond by hand first. They're grouped under a heading per source bond that names what taking one costs, and each card shows the channel it currently holds plus whether it has a Trueplay tuning.
 - Choosing such a speaker shows exactly which speakers lose their room calibration, per hardware-measured rules (taking both halves of a tuned stereo pair into a home theater costs nothing).
 
 ### Fixed

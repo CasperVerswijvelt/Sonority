@@ -1349,11 +1349,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———';
 
   @override
-  String speakerBadgeFromBond(String name) {
-    return 'From $name';
-  }
-
-  @override
   String get speakerBadgeTrueplayOn => 'Trueplay on';
 
   @override
@@ -1373,6 +1368,20 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get speakerStealHint =>
-      'Speakers already in a stereo pair, home theater or group are listed too — choosing one takes it from there.';
+  String get pickerSectionAvailable => 'Available';
+
+  @override
+  String get pickerSectionCurrentHt => 'Currently in this home theater';
+
+  @override
+  String get pickerSectionCurrentGroup => 'Currently in this group';
+
+  @override
+  String get pickerCostPair =>
+      'Taking one leaves the other without its room calibration.';
+
+  @override
+  String pickerCostWholeBond(int count) {
+    return 'Taking any speaker clears room calibration on all $count.';
+  }
 }
