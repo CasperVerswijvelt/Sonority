@@ -271,24 +271,25 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       // THEATER — untestable here, one soundbar — so those are freed first
       // rather than assumed. Without this the write would target a speaker the
       // other bar still claims.
-      var sys = previous ?? await _repo.discover();
-      // _freeConflicts decides what actually needs freeing; the caller just
-      // hands it every satellite the target asks for.
+      // Seeded from what we already know; the authoritative read happens inside
+      // the try so a discovery failure still marks the step failed.
+      final known = previous;
       final satellites = [for (final e in target.entries.skip(1)) e.uuid];
-      final current = sys.memberByUuid(soundbar.uuid);
-      final keep = {
-        soundbar.uuid,
-        if (current != null) ...sys.bondMemberUuids(current),
-      };
-      final needsFree = satellites
-          .any((u) => sys.mustFreeBeforeBonding(u, keep: keep, absorbing: true));
+      Set<String> keepFor(SonosSystem s) {
+        final live = s.memberByUuid(soundbar.uuid);
+        return {soundbar.uuid, if (live != null) ...s.bondMemberUuids(live)};
+      }
+      final needsFree = known != null &&
+          satellites.any((u) => known.mustFreeBeforeBonding(u,
+              keep: keepFor(known), absorbing: true));
       ph.seed([
         if (needsFree) ('free', l10n.stepFreeConflicting),
         ('bond', l10n.stepBondNSpeakers(target.entries.length - 1)),
       ]);
       try {
+        var sys = known ?? await _repo.discover();
         sys = await _freeConflicts(sys, satellites,
-            keep: keep, absorbing: true, ph: ph,
+            keep: keepFor(sys), absorbing: true, ph: ph,
             fallbackIp: soundbarDevice.ip);
         sys = await _applyHtTarget(
           bar: soundbarDevice,
@@ -621,11 +622,15 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // directly: the pair dissolves implicitly and the speaker KEEPS its
         // Trueplay tuning, whereas freeing it first (detach +
         // `SeparateStereoPair`) destroys that tuning irrecoverably. Measured
-        // over two cycles each way — EXP-23 Q7/Q9. Deliberately narrow: an
-        // owner that is a home theater or a speaker group still gets freed,
-        // because absorbing out of those is untested.
+        // over two cycles each way — EXP-23 Q7/Q9. `keep` MUST include this
+        // bar's current members: an HT is not absorbable, so without them an
+        // unchanged re-apply would free every satellite it already has —
+        // stripping the bond, wiping its Trueplay, and destroying the
+        // zero-write no-op the diff exists for.
+        final live = sys.memberByUuid(bar!.uuid);
         sys = await _freeConflicts(sys, satUuids,
-            keep: {bar!.uuid}, absorbing: true, ph: ph, fallbackIp: bar.ip);
+            keep: {bar.uuid, if (live != null) ...sys.bondMemberUuids(live)},
+            absorbing: true, ph: ph, fallbackIp: bar.ip);
         // Diff against the live layout and apply only what changed — no strip.
         // A re-applied/unchanged layout is a no-op (zero writes); otherwise
         // remove just the satellites that move or leave, then additively bond.
@@ -684,9 +689,13 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       ph.phase('free', l10n.stepFreeConflicting);
       ph.note(l10n.stepFreeing(sys.device(u)?.roomName ?? u));
       await _repo.freeSpeaker(sys, u, cancel: _activeOp);
-      // Read back from the FORMER OWNER, never the speaker just detached — and
-      // the owner is often that same speaker (a coordinator), so fall back.
-      final ip = sys.device(owner ?? '')?.ip ?? fallbackIp ?? _lastIp;
+      // Read back from the FORMER OWNER — but a bond's COORDINATOR is its own
+      // owner, so in that case the "owner" is the very speaker that just
+      // stopped answering :1400 for ~20-30s. Fall back then, or _settleRead
+      // swallows the refused socket and hands the next iteration stale
+      // topology.
+      final ownerIp = owner == null || owner == u ? null : sys.device(owner)?.ip;
+      final ip = ownerIp ?? fallbackIp ?? _lastIp;
       if (ip != null) sys = await _settleRead(sys, ip);
     }
     return sys;

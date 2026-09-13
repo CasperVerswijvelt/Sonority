@@ -54,7 +54,7 @@ class BondableSpeakerTile extends StatelessWidget {
         ? CheckboxListTile(
             value: false,
             onChanged: null,
-            title: Text(device.roomName),
+            title: Text(titleOverride ?? device.roomName),
             subtitle: Text(
               context.l10n.widgetsUnreachableSpeakerHint,
               style: TextStyle(color: scheme.error),

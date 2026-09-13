@@ -228,6 +228,26 @@ void main() {
           isTrue);
     });
 
+    test('re-applying an HT unchanged frees NOTHING', () {
+      // Regression: an HT is not absorbable, so without the bar's own members
+      // in `keep` every satellite it already has reads as needing a free — a
+      // no-op re-apply would strip the bond and wipe its Trueplay. `keep` must
+      // be the bar plus its live bond, which is what both HT paths now pass.
+      final keep = {bar, ...system.bondMemberUuids(ht)};
+      for (final u in [rear, sub]) {
+        expect(system.mustFreeBeforeBonding(u, keep: keep, absorbing: true),
+            isFalse,
+            reason: '$u is already in this home theater');
+      }
+      // …while a speaker from elsewhere in the same apply still gets freed.
+      expect(system.mustFreeBeforeBonding(zoneA, keep: keep, absorbing: true),
+          isFalse,
+          reason: 'a zone IS absorbable');
+      expect(system.mustFreeBeforeBonding(pairL, keep: keep, absorbing: false),
+          isTrue,
+          reason: 'a group target absorbs nothing');
+    });
+
     test('the coordinator trap: ownerOf returns self, isStandalone does not',
         () {
       // The exact hardware-caught bug — an owner-based test skipped this.
