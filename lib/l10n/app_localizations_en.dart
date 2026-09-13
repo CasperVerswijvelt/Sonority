@@ -1364,22 +1364,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pickerCostPair =>
-      'Taking one leaves the other without its room calibration.';
+      'Take both and they keep their Trueplay; take one and the other loses it.';
 
   @override
   String get pickerCostZone =>
-      'Only the first speaker keeps its room calibration; the others lose theirs.';
+      'Only the first speaker keeps its Trueplay; the others lose it.';
 
   @override
   String get pickerCostHomeTheaterMaybe =>
-      'This may clear room calibration on the whole home theater.';
+      'Trueplay may be cleared on the whole home theater.';
 
   @override
   String pickerCostFreedFirst(int count) {
-    return 'They must be freed first, which clears room calibration on all $count.';
+    return 'They must be freed first, so Trueplay is cleared on all $count.';
   }
 
   @override
   String get pickerSectionLeavesBond =>
-      'Choosing a speaker here removes it from this bond.';
+      'Choosing a speaker here removes it from its current bond.';
 }

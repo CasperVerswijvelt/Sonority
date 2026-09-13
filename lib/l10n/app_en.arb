@@ -823,10 +823,10 @@
     }
   },
   "pickerSectionAvailable": "Available",
-  "pickerCostPair": "Taking one leaves the other without its room calibration.",
-  "pickerCostZone": "Only the first speaker keeps its room calibration; the others lose theirs.",
-  "pickerCostHomeTheaterMaybe": "This may clear room calibration on the whole home theater.",
-  "pickerCostFreedFirst": "They must be freed first, which clears room calibration on all {count}.",
+  "pickerCostPair": "Take both and they keep their Trueplay; take one and the other loses it.",
+  "pickerCostZone": "Only the first speaker keeps its Trueplay; the others lose it.",
+  "pickerCostHomeTheaterMaybe": "Trueplay may be cleared on the whole home theater.",
+  "pickerCostFreedFirst": "They must be freed first, so Trueplay is cleared on all {count}.",
   "@pickerCostFreedFirst": {
     "description": "Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and the whole source bond loses its tuning.",
     "placeholders": {
@@ -835,7 +835,7 @@
       }
     }
   },
-  "pickerSectionLeavesBond": "Choosing a speaker here removes it from this bond.",
+  "pickerSectionLeavesBond": "Choosing a speaker here removes it from its current bond.",
   "@pickerSectionLeavesBond": {
     "description": "Section-header helper for a bond a speaker would be taken from."
   }

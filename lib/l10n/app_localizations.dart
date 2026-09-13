@@ -2221,31 +2221,31 @@ abstract class AppLocalizations {
   /// No description provided for @pickerCostPair.
   ///
   /// In en, this message translates to:
-  /// **'Taking one leaves the other without its room calibration.'**
+  /// **'Take both and they keep their Trueplay; take one and the other loses it.'**
   String get pickerCostPair;
 
   /// No description provided for @pickerCostZone.
   ///
   /// In en, this message translates to:
-  /// **'Only the first speaker keeps its room calibration; the others lose theirs.'**
+  /// **'Only the first speaker keeps its Trueplay; the others lose it.'**
   String get pickerCostZone;
 
   /// No description provided for @pickerCostHomeTheaterMaybe.
   ///
   /// In en, this message translates to:
-  /// **'This may clear room calibration on the whole home theater.'**
+  /// **'Trueplay may be cleared on the whole home theater.'**
   String get pickerCostHomeTheaterMaybe;
 
   /// Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and the whole source bond loses its tuning.
   ///
   /// In en, this message translates to:
-  /// **'They must be freed first, which clears room calibration on all {count}.'**
+  /// **'They must be freed first, so Trueplay is cleared on all {count}.'**
   String pickerCostFreedFirst(int count);
 
   /// Section-header helper for a bond a speaker would be taken from.
   ///
   /// In en, this message translates to:
-  /// **'Choosing a speaker here removes it from this bond.'**
+  /// **'Choosing a speaker here removes it from its current bond.'**
   String get pickerSectionLeavesBond;
 }
 
