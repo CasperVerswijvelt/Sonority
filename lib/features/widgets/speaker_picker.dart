@@ -134,29 +134,25 @@ String _cost(
   return '$base ${l10n.pickerCostHomeTheaterMaybe}';
 }
 
-/// The channel [uuid] currently holds in its bond, as plain muted text for the
-/// card's TITLE row, or null when the bond gives it no distinguishing role.
+/// The card title for [uuid] in a bond block: the speaker TYPE, plus the
+/// channel it currently holds when the bond gives it a distinguishing one —
+/// `One · LR`.
 ///
-/// It sits beside the title because for a bonded speaker it is the only thing
-/// telling two same-model cards apart — a bonded speaker has no name of its
-/// own, so `LR`/`RR` does the work a name normally would. Deliberately NOT a
-/// [PillChip]: a pill reads as a tag you might act on, and two characters of
-/// plain text carry this just as well with less furniture.
-Widget? speakerChannelChip(
-  BuildContext context, {
-  required SonosSystem system,
-  required String uuid,
+/// One string in one style on purpose. A bonded speaker has no name of its own
+/// (Sonos absorbs it into the bond's), so the channel is not decoration — it is
+/// the part that tells two same-model cards apart, and styling it more faintly
+/// than the type would work against the only job it has.
+String bondedCardTitle(
+  SonosSystem system, {
+  required SonosDevice device,
   String? exceptPrimary,
 }) {
-  final owner = system.ownerOf(uuid);
-  if (owner == null || owner == exceptPrimary) return null;
-  final source = system.memberByUuid(owner);
-  final role = source == null ? null : _roleIn(source, uuid);
-  if (role == null) return null;
-  final theme = Theme.of(context);
-  return Text(role,
-      style: theme.textTheme.labelMedium
-          ?.copyWith(color: theme.colorScheme.onSurfaceVariant));
+  final owner = system.ownerOf(device.uuid);
+  final source = owner == null || owner == exceptPrimary
+      ? null
+      : system.memberByUuid(owner);
+  final role = source == null ? null : _roleIn(source, device.uuid);
+  return role == null ? device.typeLabel : '${device.typeLabel} · $role';
 }
 
 /// Whether this speaker holds a Trueplay tuning. Provenance is NOT here — that

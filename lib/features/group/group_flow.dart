@@ -171,12 +171,8 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     // Trueplay per candidate, so a speaker holding a tuning is tagged before it
     // is moved out of whatever it is bonded into.
     final calibration = ref.watch(trueplayControllerProvider).byUuid;
-    Widget? channelChipFor(SonosDevice d) => speakerChannelChip(
-          context,
-          system: system,
-          uuid: d.uuid,
-          exceptPrimary: widget.editUuid,
-        );
+    String bondedTitleFor(SonosDevice d) =>
+        bondedCardTitle(system, device: d, exceptPrimary: widget.editUuid);
     List<Widget> badgesFor(SonosDevice d) => speakerBadges(
           context,
           system: system,
@@ -309,7 +305,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                               sections: sections,
                               sectionHeader: headerFor,
                               badges: badgesFor,
-                              channelChip: channelChipFor,
+                              bondedTitle: bondedTitleFor,
                               warning: warningFor(_selected),
                               channels: _channels,
                               onToggle: _toggle,
@@ -509,8 +505,8 @@ class _SelectStep extends StatelessWidget {
   /// Trueplay tag for a candidate ([speakerBadges]).
   final List<Widget> Function(SonosDevice device) badges;
 
-  /// The channel chip shown beside the title ([speakerChannelChip]).
-  final Widget? Function(SonosDevice device) channelChip;
+  /// The card title for a speaker in a bond block ([bondedCardTitle]).
+  final String Function(SonosDevice device) bondedTitle;
 
   /// Ordered picker blocks ([pickerSections]).
   final List<PickerSection> sections;
@@ -531,7 +527,7 @@ class _SelectStep extends StatelessWidget {
     required this.onSwap,
     required this.identifyControls,
     required this.badges,
-    required this.channelChip,
+    required this.bondedTitle,
     required this.sections,
     required this.sectionHeader,
     this.warning,
@@ -609,9 +605,8 @@ class _SelectStep extends StatelessWidget {
       enabled: !disabled,
       onToggle: () => onToggle(d.uuid),
       subtitle: d.typeLabel,
-      titleOverride: _bonded.contains(d.uuid) ? d.typeLabel : null,
+      titleOverride: _bonded.contains(d.uuid) ? bondedTitle(d) : null,
       identify: identifyControls(d),
-      titleTrailing: channelChip(d),
       badges: badges(d),
       showControl: showControl,
       control: control,

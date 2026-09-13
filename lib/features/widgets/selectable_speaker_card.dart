@@ -51,8 +51,6 @@ class SelectableSpeakerCard extends StatelessWidget {
   final String? titleOverride;
   final Widget? identify;
 
-  /// Tag beside the title — see [BondableSpeakerTile.titleTrailing].
-  final Widget? titleTrailing;
 
   /// Tags shown under the row — the bond this speaker must be taken from, and
   /// its Trueplay state. Built with [PillChip] so a picker tags a speaker the
@@ -73,7 +71,6 @@ class SelectableSpeakerCard extends StatelessWidget {
     this.subtitle,
     this.titleOverride,
     this.identify,
-    this.titleTrailing,
     this.control,
     this.showControl = false,
     this.badges = const [],
@@ -93,7 +90,6 @@ class SelectableSpeakerCard extends StatelessWidget {
             selected: selected,
             onChanged: enabled ? (_) => onToggle() : null,
             titleOverride: titleOverride,
-            titleTrailing: titleTrailing,
             subtitle: titleOverride == null ? subtitle ?? device.typeLabel : null,
             secondary: identify,
           ),
