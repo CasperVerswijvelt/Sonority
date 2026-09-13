@@ -2253,6 +2253,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, one{{types} leaves this home theater and becomes a standalone room. Removing a speaker clears Trueplay on every speaker in the home theater, not just that one.} other{{types} leave this home theater and become standalone rooms. Removing a speaker clears Trueplay on every speaker in the home theater, not just those.}}'**
   String frontSurroundsDropNote(String types, int count);
+
+  /// No description provided for @pickerZoneAllOrNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Take both or neither — Sonos leaves a single speaker stranded in the group.'**
+  String get pickerZoneAllOrNothing;
 }
 
 class _AppLocalizationsDelegate

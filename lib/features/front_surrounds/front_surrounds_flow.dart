@@ -275,8 +275,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     _ChooseSpeakers(
                       candidates: avail(_fronts),
                       selected: _fronts,
+                      allSelected: _allSelected,
                       picker: picker,
-                      warning: picker.warning(context, _fronts.toSet()),
                       onToggle: _toggleFront,
                       onSwap: () => setState(
                         () => _fronts.setAll(0, [_fronts[1], _fronts[0]]),
@@ -311,7 +311,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     _ChooseSpeakers(
                       candidates: avail(_surrounds),
                       picker: picker,
-                      warning: picker.warning(context, _surrounds.toSet()),
+                      allSelected: _allSelected,
                       selected: _surrounds,
                       onToggle: _toggleSurround,
                       onSwap: () => setState(
@@ -520,6 +520,9 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
 
   /// Speakers currently bonded to this HT that the selection drops. One
   /// computation, so the review note cannot disagree with what apply does.
+  /// Every speaker the user has picked across all three steps.
+  Set<String> get _allSelected => {..._fronts, ..._surrounds, ..._subs};
+
   Set<String> _droppedUuids(ZoneGroupMember member) => <String>{
         for (final c in const [
           SonosChannel.leftFront,
@@ -529,7 +532,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         ])
           ...member.uuidsForChannel(c),
         ...member.subUuids,
-      }.difference({..._fronts, ..._surrounds, ..._subs});
+      }.difference(_allSelected);
 }
 
 class _ChooseSpeakers extends StatelessWidget {
@@ -545,8 +548,12 @@ class _ChooseSpeakers extends StatelessWidget {
 
   final PickerContext picker;
 
+  /// Every speaker chosen across ALL steps — the Trueplay cost depends on the
+  /// whole selection (taking both halves of a pair is free), so pricing one
+  /// step in isolation reported the opposite of the truth.
+  final Set<String> allSelected;
+
   /// What the current selection costs in room calibration, or null.
-  final String? warning;
   final bool allowAmp;
 
   const _ChooseSpeakers({
@@ -556,7 +563,7 @@ class _ChooseSpeakers extends StatelessWidget {
     required this.onSwap,
     required this.identifyControls,
     required this.picker,
-    this.warning,
+    required this.allSelected,
     this.allowAmp = true,
   });
 
@@ -568,7 +575,7 @@ class _ChooseSpeakers extends StatelessWidget {
     return SpeakerPickerSections(
       ctx: picker,
       candidates: candidates,
-      warning: warning,
+      selected: allSelected,
       card: (d) => _card(context, d),
     );
   }

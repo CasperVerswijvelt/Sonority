@@ -428,6 +428,13 @@ class SonosSystem {
         for (final g in groups)
           for (final m in g.members) ...[
             if (m.isHomeTheater) m.uuid,
+            // The AUTHORITATIVE channel map first — `<Satellite>` elements
+            // briefly vanish for ~15s after any bonding change (gotcha #1), and
+            // this set decides whether a speaker gets freed before a bond
+            // write. Reading only the satellite list would let a satellite of
+            // ANOTHER home theater look standalone mid-settle, skip its free,
+            // and target a speaker that bar still claims.
+            ...m.channelAssignments.values,
             ...m.satellites.map((s) => s.uuid),
             // Covers both stereo-pair halves and all zone members.
             ...m.channelMapUuids,
@@ -512,6 +519,9 @@ class SonosSystem {
   /// invalidates room calibration per BOND, not per speaker (EXP-23).
   Set<String> bondMemberUuids(ZoneGroupMember m) => {
         m.uuid,
+        // Authoritative map first — see [_bondedUuids] on why the `<Satellite>`
+        // list alone is not safe to decide bonding on.
+        ...m.channelAssignments.values,
         ...m.satellites.map((s) => s.uuid),
         ...m.channelMapUuids,
       };
@@ -525,7 +535,8 @@ class SonosSystem {
   /// both unnecessary and the sole cause of the tuning loss. What each case costs
   /// is [tuningLostByTaking].
   ///
-  /// Excludes soundbars and Subs (each has its own picker) and the bond
+  /// Excludes soundbars and Subs (neither is offered anywhere as a stealable
+  /// speaker — the Sub pickers list standalone Subs only) and the bond
   /// [exceptPrimary], whose own members the caller lists separately.
   List<SonosDevice> stealableSpeakers({String? exceptPrimary}) => [
         for (final m in allMembers)
@@ -572,6 +583,16 @@ class SonosSystem {
     if (source.isStereoPair) return members.difference(taking);
     return members.difference({source.uuid}); // the coordinator keeps its own
   }
+
+  /// Speakers that may not be taken from [source] on their own.
+  ///
+  /// Q10 absorbed BOTH members of a 2-member zone; taking one was never
+  /// measured, and it would leave a single-entry `ChannelMapSet` — the
+  /// orphaned-`Invisible`-survivor state that the UI hides and that needs a
+  /// targeted `SeparateStereoPair` to recover. So a 2-member zone is
+  /// all-or-nothing until someone measures the partial take.
+  bool requiresTakingWholeBond(ZoneGroupMember source) =>
+      source.isZone && bondMemberUuids(source).length == 2;
 
   /// Whether [uuid] must be freed from whatever it is bonded to before a new
   /// bond can claim it.

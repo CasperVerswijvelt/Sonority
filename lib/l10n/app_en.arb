@@ -839,5 +839,6 @@
         "type": "int"
       }
     }
-  }
+  },
+  "pickerZoneAllOrNothing": "Take both or neither — Sonos leaves a single speaker stranded in the group."
 }

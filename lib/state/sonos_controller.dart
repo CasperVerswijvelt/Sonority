@@ -545,11 +545,15 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           }
           return sys;
         }
-        // Free any member bonded outside this group. `keep` is this group's own
-        // members, so an unchanged re-apply frees nothing.
+        // Free any member bonded elsewhere. `keep` must be the LIVE group's
+        // members, never the target set — passing `involved` here made `keep`
+        // and `uuids` identical, so the loop could never free anything. The
+        // unchanged case is already handled by the `_isGroupFormed` early
+        // return above, so reaching here means something really does differ.
         sys = await _freeConflicts(sys, involved,
-            keep: involved.toSet(), absorbing: false, ph: ph,
-            fallbackIp: coord!.ip);
+            keep: sys.memberByUuid(e.primaryUuid)?.channelMapUuids.toSet() ??
+                const {},
+            absorbing: false, ph: ph, fallbackIp: coord!.ip);
         // Resolve members (coordinator-first) + sub from the stored map.
         final parsed = ZoneGroupMember(
           uuid: e.primaryUuid,
@@ -655,11 +659,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     }
   }
 
-  /// Brings the coordinator [bar]'s live layout to [target] with the minimum
-  /// writes: skip entirely when unchanged, `RemoveHTSatellite` only the
-  /// satellites that move/leave (AddHTSatellite 800s on a map that would drop
-  /// them), then additively `bondAndVerify` the target. Shared by profile-apply
-  /// and the in-app HT setup flow.
   /// Free every speaker in [uuids] that is bonded somewhere the target cannot
   /// absorb it from, returning the settled system.
   ///
@@ -696,11 +695,24 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       // topology.
       final ownerIp = owner == null || owner == u ? null : sys.device(owner)?.ip;
       final ip = ownerIp ?? fallbackIp ?? _lastIp;
-      if (ip != null) sys = await _settleRead(sys, ip);
+      // POLL, don't settle-read once: the topology lags ~15s and a single 4s
+      // read swallows its own error, so the next iteration would act on a
+      // system where this speaker is still bonded.
+      sys = await _pollUntil(
+        previous: sys,
+        ip: ip,
+        attempts: 6,
+        until: (s) => s.ownerOf(u) == null,
+      );
     }
     return sys;
   }
 
+  /// Brings the coordinator [bar]'s live layout to [target] with the minimum
+  /// writes: skip entirely when unchanged, `RemoveHTSatellite` only the
+  /// satellites that move/leave (AddHTSatellite 800s on a map that would drop
+  /// them), then additively `bondAndVerify` the target. Shared by profile-apply
+  /// and the in-app HT setup flow.
   Future<SonosSystem> _applyHtTarget({
     required SonosDevice bar,
     required ZoneGroupMember current,
@@ -920,8 +932,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         ph.phase('bond', l10n.stepBondSpeakers);
         await _repo.createGroup(members: members, sub: sub, cancel: _activeOp);
         ph.phase('confirm', l10n.stepWaitForConfirm);
+        // Seed from `sys`, not `previous` — the free loop advanced it, and the
+        // pre-free topology still shows the members bonded elsewhere.
         var system = await _pollUntil(
-          previous: previous,
+          previous: sys,
           ip: coord.ip ?? _lastIp,
           attempts: 8,
           until: (s) =>
@@ -1138,17 +1152,18 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             existing.uuid,
             ...current.where((u) => u != existing.uuid),
           ];
+          // `system`, not `previous`: the free loop above may have advanced it.
           final old = ordered
-              .map((u) => previous?.device(u))
+              .map((u) => system?.device(u))
               .whereType<SonosDevice>()
               .toList();
           if (existing.ip != null &&
-              previous != null &&
-              !_isOwnGroupCoordinator(previous, existing.uuid)) {
+              system != null &&
+              !_isOwnGroupCoordinator(system, existing.uuid)) {
             ph.phase('detach', l10n.stepDetach);
             await _repo.detachFromGroup(existing.ip!);
             system = await _pollUntil(
-              previous: previous,
+              previous: system,
               ip: existing.ip,
               attempts: 6,
               until: (s) => _isOwnGroupCoordinator(s, existing.uuid),

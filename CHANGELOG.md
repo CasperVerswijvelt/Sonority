@@ -13,7 +13,7 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Added
 - Speaker pickers now offer speakers that are already bonded into another stereo pair, home theater or group, so you no longer have to unbond by hand first. They're grouped under a heading per source bond that says what taking one costs, and each card shows the channel it currently holds plus whether it has a Trueplay tuning.
-- Choosing such a speaker names exactly which speakers lose their room calibration. The cost differs by case and each one is measured on real hardware: taking both halves of a tuned stereo pair into a home theater costs nothing, taking one costs the speaker left behind, and taking from a zone costs every member except the zone's first speaker.
+- Choosing such a speaker names exactly which speakers lose their room calibration. The cost differs by case and each one is measured on real hardware: taking both halves of a tuned stereo pair into a home theater costs nothing, taking one costs the speaker left behind, and taking a whole zone into a home theater keeps its first speaker's tuning.
 - Creating a speaker group from a speaker that's bonded elsewhere now frees it first. Sonos accepts the grouping command and silently does nothing otherwise, so the group would never have formed.
 
 ### Fixed

@@ -1383,4 +1383,8 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get pickerZoneAllOrNothing =>
+      'Take both or neither — Sonos leaves a single speaker stranded in the group.';
 }

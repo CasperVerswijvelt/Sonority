@@ -177,6 +177,10 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
       // createGroup/editGroup free it first — and the whole source bond pays.
       absorbing: false,
       exceptPrimary: widget.editUuid,
+      // Editing a group rebuilds it, clearing its OWN members' Trueplay too.
+      ownBondMembers: existing == null
+          ? const {}
+          : system.bondMemberUuids(existing),
     );
 
     final scheme = Theme.of(context).colorScheme;
@@ -278,7 +282,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                               candidates: candidates,
                               selected: _selected,
                               picker: picker,
-                              warning: picker.warning(context, _selected.toSet()),
+
                               channels: _channels,
                               onToggle: _toggle,
                               onChannel: (u, c) =>
@@ -476,9 +480,6 @@ class _SelectStep extends StatelessWidget {
 
   final PickerContext picker;
 
-  /// What the current selection costs in room calibration, or null.
-  final String? warning;
-
   const _SelectStep({
     required this.mode,
     required this.candidates,
@@ -489,7 +490,6 @@ class _SelectStep extends StatelessWidget {
     required this.onSwap,
     required this.identifyControls,
     required this.picker,
-    this.warning,
   });
 
   String _hint(BuildContext context) => switch (mode) {
@@ -509,7 +509,7 @@ class _SelectStep extends StatelessWidget {
         SpeakerPickerSections(
           ctx: picker,
           candidates: candidates,
-          warning: warning,
+          selected: selected.toSet(),
           card: (d) => _card(context, d, cap),
         ),
       ],

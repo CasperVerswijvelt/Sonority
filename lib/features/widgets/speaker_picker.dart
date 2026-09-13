@@ -67,7 +67,7 @@ List<PickerSection> pickerSections({
 /// disambiguate — a single block needs no chrome, so a system with no other
 /// bonds looks exactly as it did before speakers could be taken from one.
 ///
-Widget? pickerSectionHeader(
+Widget? _sectionHeader(
   BuildContext context, {
   required SonosSystem system,
   required PickerSection section,
@@ -113,7 +113,9 @@ String _cost(
   final members = system.bondMemberUuids(src);
   // Always state the consequence of picking — it is true whether or not any
   // calibration is at stake, and it is why these speakers are listed apart.
-  final base = l10n.pickerSectionLeavesBond;
+  final base = system.requiresTakingWholeBond(src)
+      ? '${l10n.pickerSectionLeavesBond} ${l10n.pickerZoneAllOrNothing}'
+      : l10n.pickerSectionLeavesBond;
   if (!members.any((u) => calibration[u]?.available ?? false)) return base;
   // Anything that cannot be absorbed has to be freed first, and then the whole
   // source bond pays. That is every source in a group flow (AddBondedZones
@@ -186,7 +188,9 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
     if (channels.contains(SonosChannel.rightFront)) l10n.pickerRoleFrontR,
     if (channels.contains(SonosChannel.leftRear)) l10n.pickerRoleSurroundL,
     if (channels.contains(SonosChannel.rightRear)) l10n.pickerRoleSurroundR,
-    if (channels.contains(SonosChannel.sub)) 'Sub', // Sonos' own channel token
+    // 'Sub' stays untranslated — Sonos' own product/channel token, like the
+    // L/R group-channel shorts (same call as profile_entity_detail_screen).
+    if (channels.contains(SonosChannel.sub)) 'Sub',
   ];
   return parts.isEmpty ? null : parts.join(' · ');
 }
@@ -194,17 +198,23 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
 /// The calibration cost of a selection that takes speakers out of other bonds,
 /// or null when nothing tuned is at stake.
 ///
+/// [ownBondMembers] is the destination group's CURRENT members when editing one:
+/// `AddBondedZones` rebuilds a bond even on an unchanged map (EXP-23 Q8a, 2
+/// cycles), so an edit clears its own members' Trueplay too. Nothing else in the
+/// UI says that, and without it a green "Trueplay" pill reads as "this is free".
+///
 /// This stays selection-dependent on purpose, so it cannot move into a section
 /// header: taking BOTH halves of a stereo pair costs nothing, taking one costs
 /// the other (EXP-23 Q7/Q9). Only speakers that actually hold a tuning are
 /// named.
-String? stealWarning(
+String? _stealWarning(
   BuildContext context, {
   required SonosSystem system,
   required Set<String> selected,
   required Map<String, RoomCalibration> calibration,
   required bool absorbing,
   String? exceptPrimary,
+  Set<String> ownBondMembers = const {},
 }) {
   final byOwner = <String, Set<String>>{};
   for (final uuid in selected) {
@@ -212,7 +222,7 @@ String? stealWarning(
     if (owner == null || owner == exceptPrimary) continue;
     byOwner.putIfAbsent(owner, () => {}).add(uuid);
   }
-  final losing = <String>{};
+  final losing = <String>{...ownBondMembers};
   for (final entry in byOwner.entries) {
     final source = system.memberByUuid(entry.key);
     if (source == null) continue;
@@ -259,11 +269,18 @@ class PickerContext {
   /// The entity being configured — its own members are "available", not stolen.
   final String? exceptPrimary;
 
+  /// When editing a GROUP, that group's current members: `AddBondedZones`
+  /// rebuilds the bond and clears their Trueplay even on an unchanged map
+  /// (EXP-23 Q8a), so they belong in the cost. Empty for a home theater, whose
+  /// re-assert is free, and for creating a group from scratch.
+  final Set<String> ownBondMembers;
+
   const PickerContext({
     required this.system,
     required this.calibration,
     required this.absorbing,
     this.exceptPrimary,
+    this.ownBondMembers = const {},
   });
 
   List<PickerSection> sections(List<SonosDevice> candidates) => pickerSections(
@@ -285,20 +302,21 @@ class PickerContext {
       : null;
 
   Widget? header(BuildContext context, PickerSection s, int count) =>
-      pickerSectionHeader(context,
+      _sectionHeader(context,
           system: system,
           section: s,
           sectionCount: count,
           calibration: calibration,
           absorbing: absorbing);
 
-  String? warning(BuildContext context, Set<String> selected) => stealWarning(
+  String? warning(BuildContext context, Set<String> selected) => _stealWarning(
         context,
         system: system,
         selected: selected,
         calibration: calibration,
         absorbing: absorbing,
         exceptPrimary: exceptPrimary,
+        ownBondMembers: ownBondMembers,
       );
 }
 
@@ -309,14 +327,18 @@ class SpeakerPickerSections extends StatelessWidget {
   final PickerContext ctx;
   final List<SonosDevice> candidates;
   final Widget Function(SonosDevice device) card;
-  final String? warning;
+
+  /// The current selection — the calibration cost depends on it (taking BOTH
+  /// halves of a pair is free, taking one is not), so it cannot be precomputed
+  /// per section.
+  final Set<String> selected;
 
   const SpeakerPickerSections({
     super.key,
     required this.ctx,
     required this.candidates,
     required this.card,
-    this.warning,
+    required this.selected,
   });
 
   @override
@@ -330,7 +352,10 @@ class SpeakerPickerSections extends StatelessWidget {
           CardGrid([for (final d in s.devices) card(d)]),
           if (s != sections.last) Gap.m,
         ],
-        if (warning case final w?) ...[Gap.m, InfoNote(w)],
+        if (ctx.warning(context, selected) case final w?) ...[
+          Gap.m,
+          InfoNote(w),
+        ],
       ],
     );
   }

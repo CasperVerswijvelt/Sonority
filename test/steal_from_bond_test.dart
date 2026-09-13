@@ -116,12 +116,22 @@ void main() {
       expect(system.canAbsorbFrom(zone), isTrue);
     });
 
-    test('zone → only the COORDINATOR keeps it (Q10, 2 cycles)', () {
+    test('zone, BOTH members → only the COORDINATOR keeps it (Q10, 2 cycles)',
+        () {
       // Measured: absorbing both members of a live zone into a home theater
       // kept the zone coordinator's tuning and lost the other member's, with
       // the same decay series on both cycles.
       expect(system.tuningLostByTaking(zone, {zoneA, zoneB}), {zoneB});
-      expect(system.tuningLostByTaking(zone, {zoneB}), {zoneB});
+    });
+
+    test('a 2-member zone is all-or-nothing (partial take unmeasured)', () {
+      // Q10 took BOTH. Taking one would leave a single-entry ChannelMapSet —
+      // the orphaned-Invisible-survivor state with no in-app recovery — so the
+      // picker refuses rather than pricing a case nobody measured.
+      expect(system.requiresTakingWholeBond(zone), isTrue);
+      expect(system.requiresTakingWholeBond(pair), isFalse,
+          reason: 'a pair partial take IS measured (Q9)');
+      expect(system.requiresTakingWholeBond(ht), isFalse);
     });
 
     test('a GROUP destination cannot absorb, so the whole source bond pays', () {
