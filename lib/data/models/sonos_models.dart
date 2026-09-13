@@ -531,7 +531,12 @@ class SonosSystem {
         for (final m in allMembers)
           if ((m.isHomeTheater || m.isGroup) && m.uuid != exceptPrimary)
             for (final id in bondMemberUuids(m))
-              if (device(id) case final d? when !d.isSoundbar && !d.isSub) d,
+              // A home theater's PRIMARY is the bar itself — never a candidate,
+              // and `ownerOf` returns null for it, so offering one would land it
+              // in the "available" block and skip freeing. (A group's primary IS
+              // a normal member and stays.)
+              if (id != m.uuid || m.isGroup)
+                if (device(id) case final d? when !d.isSoundbar && !d.isSub) d,
       ];
 
   /// Which speakers LOSE their Trueplay tuning when [taking] is taken out of the

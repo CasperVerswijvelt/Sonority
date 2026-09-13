@@ -136,6 +136,7 @@ String _cost(
 /// the part that tells two same-model cards apart, and styling it more faintly
 /// than the type would work against the only job it has.
 String bondedCardTitle(
+  AppLocalizations l10n,
   SonosSystem system, {
   required SonosDevice device,
   String? exceptPrimary,
@@ -144,7 +145,7 @@ String bondedCardTitle(
   final source = owner == null || owner == exceptPrimary
       ? null
       : system.memberByUuid(owner);
-  final role = source == null ? null : _roleIn(source, device.uuid);
+  final role = source == null ? null : _roleIn(l10n, source, device.uuid);
   return role == null ? device.typeLabel : '${device.typeLabel} · $role';
 }
 
@@ -161,19 +162,33 @@ Widget? trueplayBadge(BuildContext context, RoomCalibration? calibration) =>
           )
         : null;
 
-/// The channel [uuid] currently holds inside [source], short form — `L`/`R` for
-/// a stereo pair, `LR`/`RR`/`SW` for a home-theater satellite. Null when the
-/// bond gives it no distinguishing role: every member of a full-range zone is
-/// `L+R`.
-String? _roleIn(ZoneGroupMember source, String uuid) {
+/// The channel [uuid] currently holds inside [source], as a short human label —
+/// `Front L`, `Surround R`, `Sub`, or `L`/`R` in a stereo pair. Null when the
+/// bond gives it no distinguishing role (every member of a full-range zone is
+/// `L+R`, so it separates nobody — Identify does that).
+///
+/// Deliberately NOT shared with `_roleLabel` in `profile_entity_detail_screen`:
+/// that one collapses both fronts into one "Front" because a profile summary
+/// does not need to tell them apart, and here telling them apart is the entire
+/// job. Same words, different granularity.
+String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
   if (source.isGroup) {
     final c = source.groupChannels[uuid];
     return c == null || c == GroupChannel.both ? null : groupChannelShort(c);
   }
-  for (final e in source.channelAssignments.entries) {
-    if (e.value == uuid) return e.key.token;
-  }
-  return null;
+  final channels = source.channelAssignments.entries
+      .where((e) => e.value == uuid)
+      .map((e) => e.key)
+      .toSet();
+  final parts = [
+    if (channels.contains(SonosChannel.center)) l10n.pickerRoleCentre,
+    if (channels.contains(SonosChannel.leftFront)) l10n.pickerRoleFrontL,
+    if (channels.contains(SonosChannel.rightFront)) l10n.pickerRoleFrontR,
+    if (channels.contains(SonosChannel.leftRear)) l10n.pickerRoleSurroundL,
+    if (channels.contains(SonosChannel.rightRear)) l10n.pickerRoleSurroundR,
+    if (channels.contains(SonosChannel.sub)) 'Sub', // Sonos' own channel token
+  ];
+  return parts.isEmpty ? null : parts.join(' · ');
 }
 
 /// The calibration cost of a selection that takes speakers out of other bonds,
@@ -216,7 +231,7 @@ String? stealWarning(
         final src = owner == null ? null : system.memberByUuid(owner);
         return src == null
             ? d.roomName
-            : '${src.zoneName} · ${bondedCardTitle(system, device: d)}';
+            : '${src.zoneName} · ${bondedCardTitle(context.l10n, system, device: d)}';
       })
       .toSet()
       .toList()
@@ -264,8 +279,9 @@ class PickerContext {
   }
 
   /// The card title: room name normally, `Type · Channel` under a bond heading.
-  String? titleOverride(SonosDevice d) => isBonded(d.uuid)
-      ? bondedCardTitle(system, device: d, exceptPrimary: exceptPrimary)
+  String? titleOverride(BuildContext context, SonosDevice d) => isBonded(d.uuid)
+      ? bondedCardTitle(context.l10n, system,
+          device: d, exceptPrimary: exceptPrimary)
       : null;
 
   Widget? header(BuildContext context, PickerSection s, int count) =>

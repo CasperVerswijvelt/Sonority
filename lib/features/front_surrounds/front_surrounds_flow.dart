@@ -10,7 +10,6 @@ import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
-import '../widgets/confirm_dialog.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/info_note.dart';
 import '../widgets/max_width_body.dart';
@@ -101,10 +100,13 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     if (system != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ref.read(trueplayControllerProvider.notifier).load({
-          ...system.bondableSpeakers,
-          ...system.stealableSpeakers(),
-        });
+        // EVERY device, not just the candidates: taking a satellite out of
+        // another home theater costs that bond's SOUNDBAR and SUB their tuning
+        // too, and neither is ever a candidate — so gathering only candidates
+        // left them out of the cost line and out of the named losers.
+        ref
+            .read(trueplayControllerProvider.notifier)
+            .load(system.devicesByUuid.values);
       });
     }
     final seed = seedHtRoles(member);
@@ -346,6 +348,10 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   member: member,
                   additions: _additions(system),
                   subCount: _subs.length,
+                  dropped: [
+                    for (final u in _droppedUuids(member))
+                      if (system.device(u) case final d?) d,
+                  ],
                 ),
               ),
             ],
@@ -494,20 +500,6 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     final additions = _additions(system);
     final subs = _subDevices(system);
 
-    // Speakers bonded now but not in the new selection → they'll be unbonded.
-    // Live writes are destructive, so confirm before removing any (gotcha #3).
-    final desiredUuids = <String>{..._fronts, ..._surrounds, ..._subs};
-    final removed = <String>{
-      for (final c in const [
-        SonosChannel.leftFront,
-        SonosChannel.rightFront,
-        SonosChannel.leftRear,
-        SonosChannel.rightRear,
-      ])
-        ...member.uuidsForChannel(c),
-      ...member.subUuids,
-    }.difference(desiredUuids);
-    if (removed.isNotEmpty && !await _confirmRemoval(system, removed)) return;
     if (!mounted) return;
 
     final controller = ref.read(sonosControllerProvider.notifier);
@@ -526,21 +518,18 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     if (outcome == BondingOutcome.success) router.pop();
   }
 
-  /// Confirms unbonding the speakers the user deselected (they become standalone
-  /// rooms again). Shows their type since a bonded speaker's name is absorbed.
-  Future<bool> _confirmRemoval(SonosSystem system, Set<String> removed) async {
-    final types = [
-      for (final u in removed)
-        system.device(u)?.typeLabel ?? context.l10n.widgetsSpeaker,
-    ].join(', ');
-    return confirmDialog(
-      context,
-      icon: Icons.link_off,
-      title: context.l10n.frontSurroundsUnbondTitle(removed.length),
-      message: context.l10n.frontSurroundsUnbondMessage(types),
-      confirmLabel: context.l10n.frontSurroundsUnbond,
-    );
-  }
+  /// Speakers currently bonded to this HT that the selection drops. One
+  /// computation, so the review note cannot disagree with what apply does.
+  Set<String> _droppedUuids(ZoneGroupMember member) => <String>{
+        for (final c in const [
+          SonosChannel.leftFront,
+          SonosChannel.rightFront,
+          SonosChannel.leftRear,
+          SonosChannel.rightRear,
+        ])
+          ...member.uuidsForChannel(c),
+        ...member.subUuids,
+      }.difference({..._fronts, ..._surrounds, ..._subs});
 }
 
 class _ChooseSpeakers extends StatelessWidget {
@@ -599,7 +588,7 @@ class _ChooseSpeakers extends StatelessWidget {
       selected: isSel,
       enabled: !disabled,
       onToggle: () => onToggle(d),
-      titleOverride: picker.titleOverride(d),
+      titleOverride: picker.titleOverride(context, d),
       subtitle: isAmp
           ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel)
           : d.typeLabel,
@@ -686,11 +675,16 @@ class _Review extends StatelessWidget {
 
   /// Resulting Sub count (existing ∪ newly picked) — for the diagram chip.
   final int subCount;
+
+  /// Speakers currently in this home theater that the selection drops.
+  final List<SonosDevice> dropped;
+
   const _Review({
     required this.system,
     required this.member,
     required this.additions,
     required this.subCount,
+    required this.dropped,
   });
 
   @override
@@ -715,6 +709,17 @@ class _Review extends StatelessWidget {
           subCount: subCount,
         ),
         Gap.m,
+        // Removing a member is the expensive edit: `RemoveHTSatellite` clears
+        // Trueplay on EVERY speaker in the bond, not just the one leaving
+        // (EXP-23). This replaces the old confirm modal — same information, one
+        // screen earlier, where the user can still change the selection.
+        if (dropped.isNotEmpty) ...[
+          InfoNote(context.l10n.frontSurroundsDropNote(
+            dropped.map((d) => d.typeLabel).join(', '),
+            dropped.length,
+          )),
+          Gap.m,
+        ],
         InfoNote(context.l10n.frontSurroundsReviewNote),
       ],
     );

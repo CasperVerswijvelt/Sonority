@@ -2032,24 +2032,6 @@ abstract class AppLocalizations {
   /// **'Review & apply'**
   String get frontSurroundsStepReview;
 
-  /// No description provided for @frontSurroundsUnbondTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, one{Unbond {count} speaker?} other{Unbond {count} speakers?}}'**
-  String frontSurroundsUnbondTitle(int count);
-
-  /// No description provided for @frontSurroundsUnbondMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'{types} will be removed from this home theater and become standalone rooms again. The rest of your layout stays as it is.'**
-  String frontSurroundsUnbondMessage(String types);
-
-  /// No description provided for @frontSurroundsUnbond.
-  ///
-  /// In en, this message translates to:
-  /// **'Unbond'**
-  String get frontSurroundsUnbond;
-
   /// No description provided for @frontSurroundsNoFreeSpeakers.
   ///
   /// In en, this message translates to:
@@ -2235,6 +2217,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Trueplay'**
   String get speakerBadgeTrueplay;
+
+  /// No description provided for @pickerRoleFrontL.
+  ///
+  /// In en, this message translates to:
+  /// **'Front L'**
+  String get pickerRoleFrontL;
+
+  /// No description provided for @pickerRoleFrontR.
+  ///
+  /// In en, this message translates to:
+  /// **'Front R'**
+  String get pickerRoleFrontR;
+
+  /// No description provided for @pickerRoleSurroundL.
+  ///
+  /// In en, this message translates to:
+  /// **'Surround L'**
+  String get pickerRoleSurroundL;
+
+  /// No description provided for @pickerRoleSurroundR.
+  ///
+  /// In en, this message translates to:
+  /// **'Surround R'**
+  String get pickerRoleSurroundR;
+
+  /// No description provided for @pickerRoleCentre.
+  ///
+  /// In en, this message translates to:
+  /// **'Centre'**
+  String get pickerRoleCentre;
+
+  /// Review-step note when the selection drops current HT members. RemoveHTSatellite wipes the whole bond's calibration (EXP-23), which nothing else in the flow states.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{types} leaves this home theater and becomes a standalone room. Removing a speaker clears Trueplay on every speaker in the home theater, not just that one.} other{{types} leave this home theater and become standalone rooms. Removing a speaker clears Trueplay on every speaker in the home theater, not just those.}}'**
+  String frontSurroundsDropNote(String types, int count);
 }
 
 class _AppLocalizationsDelegate

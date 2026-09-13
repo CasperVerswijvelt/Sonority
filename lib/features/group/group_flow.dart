@@ -70,10 +70,12 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     if (sys != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ref.read(trueplayControllerProvider.notifier).load({
-          ...sys.zoneableSpeakers,
-          ...sys.stealableSpeakers(),
-        });
+        // EVERY device, not just the candidates: taking a satellite out of
+        // another home theater costs that bond's SOUNDBAR and SUB their tuning
+        // too, and neither is ever a candidate — so gathering only candidates
+        // left them out of the cost line and out of the named losers.
+        ref.read(trueplayControllerProvider.notifier)
+            .load(sys.devicesByUuid.values);
       });
     }
     // Edit mode: seed the whole selection from the live group (mirrors
@@ -554,7 +556,7 @@ class _SelectStep extends StatelessWidget {
       enabled: !disabled,
       onToggle: () => onToggle(d.uuid),
       subtitle: d.typeLabel,
-      titleOverride: picker.titleOverride(d),
+      titleOverride: picker.titleOverride(context, d),
       identify: identifyControls(d),
       badges: [?trueplayBadge(context, picker.calibration[d.uuid])],
       showControl: showControl,

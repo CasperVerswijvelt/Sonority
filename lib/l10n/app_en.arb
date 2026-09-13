@@ -732,23 +732,6 @@
   "frontSurroundsSurroundsHint": "Pick two speakers (ideally an identical pair) for the rear left & right surrounds.",
   "frontSurroundsStepSub": "Subwoofer",
   "frontSurroundsStepReview": "Review & apply",
-  "frontSurroundsUnbondTitle": "{count, plural, one{Unbond {count} speaker?} other{Unbond {count} speakers?}}",
-  "@frontSurroundsUnbondTitle": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "frontSurroundsUnbondMessage": "{types} will be removed from this home theater and become standalone rooms again. The rest of your layout stays as it is.",
-  "@frontSurroundsUnbondMessage": {
-    "placeholders": {
-      "types": {
-        "type": "String"
-      }
-    }
-  },
-  "frontSurroundsUnbond": "Unbond",
   "frontSurroundsNoFreeSpeakers": "No speakers available to bond.",
   "frontSurroundsAmpSubtitle": "{type} — drives both fronts (L + R)",
   "@frontSurroundsAmpSubtitle": {
@@ -839,5 +822,22 @@
   "speakerBadgeTrueplay": "Trueplay",
   "@speakerBadgeTrueplay": {
     "description": "Pill on a picker card: Trueplay is active on this speaker (stored and enabled)."
+  },
+  "pickerRoleFrontL": "Front L",
+  "pickerRoleFrontR": "Front R",
+  "pickerRoleSurroundL": "Surround L",
+  "pickerRoleSurroundR": "Surround R",
+  "pickerRoleCentre": "Centre",
+  "frontSurroundsDropNote": "{count, plural, one{{types} leaves this home theater and becomes a standalone room. Removing a speaker clears Trueplay on every speaker in the home theater, not just that one.} other{{types} leave this home theater and become standalone rooms. Removing a speaker clears Trueplay on every speaker in the home theater, not just those.}}",
+  "@frontSurroundsDropNote": {
+    "description": "Review-step note when the selection drops current HT members. RemoveHTSatellite wipes the whole bond's calibration (EXP-23), which nothing else in the flow states.",
+    "placeholders": {
+      "types": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

@@ -1231,25 +1231,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get frontSurroundsStepReview => 'Review & apply';
 
   @override
-  String frontSurroundsUnbondTitle(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Unbond $count speakers?',
-      one: 'Unbond $count speaker?',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String frontSurroundsUnbondMessage(String types) {
-    return '$types will be removed from this home theater and become standalone rooms again. The rest of your layout stays as it is.';
-  }
-
-  @override
-  String get frontSurroundsUnbond => 'Unbond';
-
-  @override
   String get frontSurroundsNoFreeSpeakers => 'No speakers available to bond.';
 
   @override
@@ -1374,4 +1355,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get speakerBadgeTrueplay => 'Trueplay';
+
+  @override
+  String get pickerRoleFrontL => 'Front L';
+
+  @override
+  String get pickerRoleFrontR => 'Front R';
+
+  @override
+  String get pickerRoleSurroundL => 'Surround L';
+
+  @override
+  String get pickerRoleSurroundR => 'Surround R';
+
+  @override
+  String get pickerRoleCentre => 'Centre';
+
+  @override
+  String frontSurroundsDropNote(String types, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$types leave this home theater and become standalone rooms. Removing a speaker clears Trueplay on every speaker in the home theater, not just those.',
+      one:
+          '$types leaves this home theater and becomes a standalone room. Removing a speaker clears Trueplay on every speaker in the home theater, not just that one.',
+    );
+    return '$_temp0';
+  }
 }
