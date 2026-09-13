@@ -220,8 +220,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           system: system,
           section: s,
           sectionCount: count,
-          currentLabel: context.l10n.pickerSectionCurrentHt,
-          calibration: calibration,
+                calibration: calibration,
         );
     String? warningFor(List<String> chosen) => stealWarning(
           context,
@@ -614,17 +613,9 @@ class _ChooseSpeakers extends StatelessWidget {
     if (candidates.isEmpty) {
       return Text(context.l10n.frontSurroundsNoFreeSpeakers);
     }
-    final hasAmp = allowAmp && candidates.any((d) => d.drivesExternalSpeakers);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          hasAmp
-              ? context.l10n.frontSurroundsPickWithAmp
-              : context.l10n.frontSurroundsPickExactlyTwo,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        Gap.s,
         for (final s in sections) ...[
           if (sectionHeader(s, sections.length) case final h?) h,
           CardGrid([for (final d in s.devices) _card(context, d)]),

@@ -13,9 +13,6 @@ enum PickerSectionKind {
   /// Free to bond — nothing else claims it.
   available,
 
-  /// Already part of the entity being configured, so it shows pre-selected.
-  current,
-
   /// Bonded into some OTHER pair / home theater / group; choosing it takes it
   /// from there, at a cost given by [SonosSystem.tuningLostByTaking].
   bond,
@@ -37,9 +34,10 @@ class PickerSection {
   });
 }
 
-/// Split [candidates] into ordered picker blocks: free speakers, then the ones
-/// already in the entity being configured ([exceptPrimary]), then one block per
-/// bond they'd have to be taken from.
+/// Split [candidates] into ordered picker blocks: everything free to use —
+/// which includes the entity's OWN current members ([exceptPrimary]), since
+/// those cost nothing to keep — then one block per bond a speaker would have to
+/// be taken from.
 ///
 /// Grouping by source is what lets the picker state provenance ONCE in a header
 /// instead of repeating it on every card — and it is why a card inside a bond
@@ -55,14 +53,11 @@ List<PickerSection> pickerSections({
   String? exceptPrimary,
 }) {
   final free = <SonosDevice>[];
-  final current = <SonosDevice>[];
   final byOwner = <String, List<SonosDevice>>{};
   for (final d in candidates) {
     final owner = system.ownerOf(d.uuid);
-    if (owner == null) {
+    if (owner == null || owner == exceptPrimary) {
       free.add(d);
-    } else if (owner == exceptPrimary) {
-      current.add(d);
     } else {
       byOwner.putIfAbsent(owner, () => []).add(d);
     }
@@ -70,8 +65,6 @@ List<PickerSection> pickerSections({
   return [
     if (free.isNotEmpty)
       PickerSection(kind: PickerSectionKind.available, devices: free),
-    if (current.isNotEmpty)
-      PickerSection(kind: PickerSectionKind.current, devices: current),
     for (final e in byOwner.entries)
       PickerSection(
         kind: PickerSectionKind.bond,
@@ -85,14 +78,11 @@ List<PickerSection> pickerSections({
 /// disambiguate — a single block needs no chrome, so a system with no other
 /// bonds looks exactly as it did before speakers could be taken from one.
 ///
-/// [currentLabel] names the entity being configured ("Currently in this home
-/// theater" / "…this group"), which only the calling flow knows.
 Widget? pickerSectionHeader(
   BuildContext context, {
   required SonosSystem system,
   required PickerSection section,
   required int sectionCount,
-  required String currentLabel,
   required Map<String, RoomCalibration> calibration,
 }) {
   if (sectionCount < 2) return null;
@@ -100,8 +90,6 @@ Widget? pickerSectionHeader(
   return switch (section.kind) {
     PickerSectionKind.available =>
       SectionHeader(l10n.pickerSectionAvailable, icon: Icons.speaker_outlined),
-    PickerSectionKind.current =>
-      SectionHeader(currentLabel, icon: Icons.check_circle_outline),
     PickerSectionKind.bond => switch (section.source) {
         final src? => SectionHeader(
             '${src.zoneName} · ${_kindLabel(l10n, src)}',
@@ -164,11 +152,7 @@ List<Widget> speakerBadges(
   final role = source == null ? null : _roleIn(source, uuid);
   return [
     if (role != null)
-      PillChip(
-        icon: Icons.tune,
-        text: role,
-        color: scheme.onSurfaceVariant,
-      ),
+      PillChip(text: role, color: scheme.onSurfaceVariant),
     if (calibration?.available ?? false)
       PillChip(
         icon: Icons.graphic_eq,

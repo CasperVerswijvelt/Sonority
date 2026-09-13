@@ -188,8 +188,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
           system: system,
           section: s,
           sectionCount: count,
-          currentLabel: context.l10n.pickerSectionCurrentGroup,
-          calibration: calibration,
+                calibration: calibration,
         );
     String? warningFor(List<String> chosen) => stealWarning(
           context,

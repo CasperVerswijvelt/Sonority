@@ -1215,14 +1215,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get frontSurroundsFrontsHint =>
-      'Pick two speakers (or a single Amp or Port) for the front left & right, then set which is which.';
+      'Pick two speakers (ideally an identical pair), or a single Amp or Port that feeds both, for the front left & right — then set which is which.';
 
   @override
   String get frontSurroundsStepSurrounds => 'Rear surrounds';
 
   @override
   String get frontSurroundsSurroundsHint =>
-      'Pick two speakers for the rear left & right surrounds.';
+      'Pick two speakers (ideally an identical pair) for the rear left & right surrounds.';
 
   @override
   String get frontSurroundsStepSub => 'Subwoofer';
@@ -1252,14 +1252,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get frontSurroundsNoFreeSpeakers =>
       'No free speakers available. They must be standalone (not already part of a home theater or stereo pair).';
-
-  @override
-  String get frontSurroundsPickWithAmp =>
-      'Pick two speakers (ideally identical), or a single Sonos Amp or Port that feeds both front speakers.';
-
-  @override
-  String get frontSurroundsPickExactlyTwo =>
-      'Pick exactly two — ideally an identical pair.';
 
   @override
   String frontSurroundsAmpSubtitle(String type) {
@@ -1369,12 +1361,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pickerSectionAvailable => 'Available';
-
-  @override
-  String get pickerSectionCurrentHt => 'Currently in this home theater';
-
-  @override
-  String get pickerSectionCurrentGroup => 'Currently in this group';
 
   @override
   String get pickerCostPair =>

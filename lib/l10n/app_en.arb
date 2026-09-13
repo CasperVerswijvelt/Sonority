@@ -727,9 +727,9 @@
   "frontSurroundsTitle": "Configure home theater",
   "frontSurroundsStepFronts": "Front speakers",
   "frontSurroundsOptional": "Optional",
-  "frontSurroundsFrontsHint": "Pick two speakers (or a single Amp or Port) for the front left & right, then set which is which.",
+  "frontSurroundsFrontsHint": "Pick two speakers (ideally an identical pair), or a single Amp or Port that feeds both, for the front left & right — then set which is which.",
   "frontSurroundsStepSurrounds": "Rear surrounds",
-  "frontSurroundsSurroundsHint": "Pick two speakers for the rear left & right surrounds.",
+  "frontSurroundsSurroundsHint": "Pick two speakers (ideally an identical pair) for the rear left & right surrounds.",
   "frontSurroundsStepSub": "Subwoofer",
   "frontSurroundsStepReview": "Review & apply",
   "frontSurroundsUnbondTitle": "{count, plural, one{Unbond {count} speaker?} other{Unbond {count} speakers?}}",
@@ -750,8 +750,6 @@
   },
   "frontSurroundsUnbond": "Unbond",
   "frontSurroundsNoFreeSpeakers": "No free speakers available. They must be standalone (not already part of a home theater or stereo pair).",
-  "frontSurroundsPickWithAmp": "Pick two speakers (ideally identical), or a single Sonos Amp or Port that feeds both front speakers.",
-  "frontSurroundsPickExactlyTwo": "Pick exactly two — ideally an identical pair.",
   "frontSurroundsAmpSubtitle": "{type} — drives both fronts (L + R)",
   "@frontSurroundsAmpSubtitle": {
     "placeholders": {
@@ -825,8 +823,6 @@
     }
   },
   "pickerSectionAvailable": "Available",
-  "pickerSectionCurrentHt": "Currently in this home theater",
-  "pickerSectionCurrentGroup": "Currently in this group",
   "pickerCostPair": "Taking one leaves the other without its room calibration.",
   "pickerCostWholeBond": "Taking any speaker clears room calibration on all {count}.",
   "@pickerCostWholeBond": {

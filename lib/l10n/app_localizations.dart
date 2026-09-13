@@ -2005,7 +2005,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsFrontsHint.
   ///
   /// In en, this message translates to:
-  /// **'Pick two speakers (or a single Amp or Port) for the front left & right, then set which is which.'**
+  /// **'Pick two speakers (ideally an identical pair), or a single Amp or Port that feeds both, for the front left & right — then set which is which.'**
   String get frontSurroundsFrontsHint;
 
   /// No description provided for @frontSurroundsStepSurrounds.
@@ -2017,7 +2017,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsSurroundsHint.
   ///
   /// In en, this message translates to:
-  /// **'Pick two speakers for the rear left & right surrounds.'**
+  /// **'Pick two speakers (ideally an identical pair) for the rear left & right surrounds.'**
   String get frontSurroundsSurroundsHint;
 
   /// No description provided for @frontSurroundsStepSub.
@@ -2055,18 +2055,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No free speakers available. They must be standalone (not already part of a home theater or stereo pair).'**
   String get frontSurroundsNoFreeSpeakers;
-
-  /// No description provided for @frontSurroundsPickWithAmp.
-  ///
-  /// In en, this message translates to:
-  /// **'Pick two speakers (ideally identical), or a single Sonos Amp or Port that feeds both front speakers.'**
-  String get frontSurroundsPickWithAmp;
-
-  /// No description provided for @frontSurroundsPickExactlyTwo.
-  ///
-  /// In en, this message translates to:
-  /// **'Pick exactly two — ideally an identical pair.'**
-  String get frontSurroundsPickExactlyTwo;
 
   /// No description provided for @frontSurroundsAmpSubtitle.
   ///
@@ -2229,18 +2217,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Available'**
   String get pickerSectionAvailable;
-
-  /// No description provided for @pickerSectionCurrentHt.
-  ///
-  /// In en, this message translates to:
-  /// **'Currently in this home theater'**
-  String get pickerSectionCurrentHt;
-
-  /// No description provided for @pickerSectionCurrentGroup.
-  ///
-  /// In en, this message translates to:
-  /// **'Currently in this group'**
-  String get pickerSectionCurrentGroup;
 
   /// No description provided for @pickerCostPair.
   ///

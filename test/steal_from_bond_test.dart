@@ -113,18 +113,20 @@ void main() {
     List<SonosDevice> cands(List<String> ids) =>
         [for (final id in ids) devices[id]!];
 
-    test('splits free / current / one block per source bond, in that order', () {
+    test('available first, then one block per source bond', () {
       final s = pickerSections(
         system: system,
         candidates: cands([pairL, rear, zoneA, pairR, zoneB]),
         exceptPrimary: bar, // configuring the home theater
       );
       expect(s.map((x) => x.kind), [
-        PickerSectionKind.current, // `rear` belongs to the HT being configured
+        PickerSectionKind.available, // `rear` is already in THIS HT: free to keep
         PickerSectionKind.bond, // the pair
         PickerSectionKind.bond, // the zone
       ]);
-      expect(s[0].devices.map((d) => d.uuid), [rear]);
+      expect(s[0].devices.map((d) => d.uuid), [rear],
+          reason: "the configured entity's own members are available, not a "
+              'separate block — keeping one costs nothing');
       expect(s[1].source?.uuid, pairL);
       expect(s[1].devices.map((d) => d.uuid), [pairL, pairR],
           reason: 'both halves land under one heading, in candidate order');
