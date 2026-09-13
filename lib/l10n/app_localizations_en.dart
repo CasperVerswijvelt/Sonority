@@ -1341,20 +1341,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———';
 
   @override
-  String get speakerBadgeTrueplayOn => 'Trueplay on';
-
-  @override
-  String get speakerBadgeTrueplayOff => 'Trueplay off';
-
-  @override
   String speakerStealTrueplayWarning(String names, int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other:
-          '$names will lose their room calibration — Sonos clears a speaker\'s Trueplay when its bond changes. Re-tune them in the Sonos app afterwards.',
+          '$names will lose their Trueplay. Re-tune them in the Sonos app afterwards.',
       one:
-          '$names will lose its room calibration — Sonos clears a speaker\'s Trueplay when its bond changes. Re-tune it in the Sonos app afterwards.',
+          '$names will lose its Trueplay. Re-tune it in the Sonos app afterwards.',
     );
     return '$_temp0';
   }
@@ -1378,4 +1372,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get pickerSectionLeavesBond =>
       'Choosing a speaker here removes it from its current bond.';
+
+  @override
+  String get speakerBadgeTrueplay => 'Trueplay';
 }

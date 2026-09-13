@@ -161,9 +161,10 @@ String bondedCardTitle(
 /// is the section header's job (see [pickerSections]) — and neither is the
 /// channel, which is [speakerChannelChip].
 ///
-/// The Trueplay pill appears only when the speaker actually holds a tuning:
-/// "not tuned" on every free speaker would be noise. It reports
-/// `available`/`enabled` and nothing more — a stored tuning is not evidence the
+/// The pill appears only when Trueplay is actually ACTIVE (stored *and*
+/// enabled). "Trueplay off" on a speaker holding a dormant tuning, and "not
+/// tuned" on every free speaker, are both noise — the useful signal is "this
+/// speaker is calibrated right now". It says nothing about whether the stored
 /// correction still fits.
 List<Widget> speakerBadges(
   BuildContext context, {
@@ -175,13 +176,11 @@ List<Widget> speakerBadges(
   final scheme = Theme.of(context).colorScheme;
   final l10n = context.l10n;
   return [
-    if (calibration?.available ?? false)
+    if (calibration?.active ?? false)
       PillChip(
         icon: Icons.graphic_eq,
-        text: calibration!.enabled
-            ? l10n.speakerBadgeTrueplayOn
-            : l10n.speakerBadgeTrueplayOff,
-        color: calibration.enabled ? scheme.secondary : scheme.onSurfaceVariant,
+        text: l10n.speakerBadgeTrueplay,
+        color: scheme.secondary,
       ),
   ];
 }
@@ -229,9 +228,20 @@ String? stealWarning(
     losing.addAll(system.tuningLostByTaking(source, entry.value,
         destinationAbsorbs: absorbing));
   }
+  // Name them the way the cards do. A bonded speaker's room name is the BOND's
+  // name, so several losers would otherwise render as the same word — here the
+  // two members of one zone were both just "Eetkamer".
   final tuned = losing
       .where((u) => calibration[u]?.available ?? false)
-      .map((u) => system.device(u)?.roomName ?? u)
+      .map((u) {
+        final d = system.device(u);
+        if (d == null) return u;
+        final owner = system.ownerOf(u);
+        final src = owner == null ? null : system.memberByUuid(owner);
+        return src == null
+            ? d.roomName
+            : '${src.zoneName} · ${bondedCardTitle(system, device: d)}';
+      })
       .toSet()
       .toList()
     ..sort();

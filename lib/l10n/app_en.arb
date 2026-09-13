@@ -808,9 +808,7 @@
   "diagEmailToDeveloper": "Email to developer",
   "diagShareDiagnostics": "Share diagnostics",
   "diagEmailBody": "Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———",
-  "speakerBadgeTrueplayOn": "Trueplay on",
-  "speakerBadgeTrueplayOff": "Trueplay off",
-  "speakerStealTrueplayWarning": "{count, plural, one{{names} will lose its room calibration — Sonos clears a speaker's Trueplay when its bond changes. Re-tune it in the Sonos app afterwards.} other{{names} will lose their room calibration — Sonos clears a speaker's Trueplay when its bond changes. Re-tune them in the Sonos app afterwards.}}",
+  "speakerStealTrueplayWarning": "{count, plural, one{{names} will lose its Trueplay. Re-tune it in the Sonos app afterwards.} other{{names} will lose their Trueplay. Re-tune them in the Sonos app afterwards.}}",
   "@speakerStealTrueplayWarning": {
     "description": "Warning shown when the chosen speakers must be taken out of another bond, naming only the speakers that actually hold a tuning.",
     "placeholders": {
@@ -837,5 +835,9 @@
   "pickerSectionLeavesBond": "Choosing a speaker here removes it from its current bond.",
   "@pickerSectionLeavesBond": {
     "description": "Section-header helper for a bond a speaker would be taken from."
+  },
+  "speakerBadgeTrueplay": "Trueplay",
+  "@speakerBadgeTrueplay": {
+    "description": "Pill on a picker card: Trueplay is active on this speaker (stored and enabled)."
   }
 }

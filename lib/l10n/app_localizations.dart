@@ -2194,22 +2194,10 @@ abstract class AppLocalizations {
   /// **'Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———'**
   String get diagEmailBody;
 
-  /// No description provided for @speakerBadgeTrueplayOn.
-  ///
-  /// In en, this message translates to:
-  /// **'Trueplay on'**
-  String get speakerBadgeTrueplayOn;
-
-  /// No description provided for @speakerBadgeTrueplayOff.
-  ///
-  /// In en, this message translates to:
-  /// **'Trueplay off'**
-  String get speakerBadgeTrueplayOff;
-
   /// Warning shown when the chosen speakers must be taken out of another bond, naming only the speakers that actually hold a tuning.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one{{names} will lose its room calibration — Sonos clears a speaker\'s Trueplay when its bond changes. Re-tune it in the Sonos app afterwards.} other{{names} will lose their room calibration — Sonos clears a speaker\'s Trueplay when its bond changes. Re-tune them in the Sonos app afterwards.}}'**
+  /// **'{count, plural, one{{names} will lose its Trueplay. Re-tune it in the Sonos app afterwards.} other{{names} will lose their Trueplay. Re-tune them in the Sonos app afterwards.}}'**
   String speakerStealTrueplayWarning(String names, int count);
 
   /// No description provided for @pickerSectionAvailable.
@@ -2241,6 +2229,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choosing a speaker here removes it from its current bond.'**
   String get pickerSectionLeavesBond;
+
+  /// Pill on a picker card: Trueplay is active on this speaker (stored and enabled).
+  ///
+  /// In en, this message translates to:
+  /// **'Trueplay'**
+  String get speakerBadgeTrueplay;
 }
 
 class _AppLocalizationsDelegate
