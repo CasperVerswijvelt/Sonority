@@ -11,6 +11,13 @@ section into the GitHub Release notes regardless of the build suffix
 
 ## [Unreleased]
 
+### Added
+- Speaker pickers now offer speakers that are already bonded into another stereo pair, home theater or group — tagged with the bond they'd come from and whether they hold a Trueplay tuning — so you no longer have to unbond by hand first.
+- Choosing such a speaker shows exactly which speakers lose their room calibration, per hardware-measured rules (taking both halves of a tuned stereo pair into a home theater costs nothing).
+
+### Fixed
+- Bonding a tuned stereo pair as dedicated fronts no longer destroys its Trueplay tuning: Sonority now lets `AddHTSatellite` absorb the live pair instead of separating it first, which was both unnecessary and the sole cause of the loss.
+
 ## [0.7.0] - 2026-08-18
 
 ### Added

@@ -603,10 +603,18 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // channel→uuid map, which would collapse two SW entries into one.
         final fullTarget = ChannelMap.parse(map);
         final satUuids = fullTarget.entries.skip(1).map((e) => e.uuid).toSet();
-        // Free any satellite currently bonded to a different coordinator/pair.
+        // Free any satellite currently bonded to a different coordinator/pair —
+        // EXCEPT one sitting in a stereo pair, which `AddHTSatellite` absorbs
+        // directly: the pair dissolves implicitly and the speaker KEEPS its
+        // Trueplay tuning, whereas freeing it first (detach +
+        // `SeparateStereoPair`) destroys that tuning irrecoverably. Measured
+        // over two cycles each way — EXP-23 Q7/Q9. Deliberately narrow: an
+        // owner that is a home theater or a speaker group still gets freed,
+        // because absorbing out of those is untested.
         for (final u in satUuids) {
           final owner = sys.ownerOf(u);
           if (owner != null && owner != bar!.uuid) {
+            if (sys.memberByUuid(owner)?.isStereoPair ?? false) continue;
             _activeOp?.throwIfCancelled();
             ph.phase('free', l10n.stepFreeConflicting);
             ph.note(l10n.stepFreeing(sys.device(u)?.roomName ?? u));

@@ -347,15 +347,45 @@ interpolated) then use it.
     (non-destructive, instant), which is the part the Sonos app won't expose for
     the unofficial fronts config. Toggle ALL bonded members so the separately-tuned
     fronts engage; **Amp-driven fronts can't be Trueplay'd** (native speakers only).
-  - **Gotcha (A/B-tested on hardware):** Sonos **invalidates** Trueplay across the
-    WHOLE bonded set when that set changes. Measured: a freshly-tuned Beam HT
-    (bar `CC`, rears `LR`/`RR`, sub `SW` all `available=1`) → `AddHTSatellite`
-    fronts → **every** member, coordinator included, dropped to `available=0`; an
-    untouched standalone (Eetkamer) kept `available=1` throughout. So the
-    "tune-then-bond" workaround **failed outright on Beam-gen gear** — and it's a
-    catch-22 (the official app refuses to tune the very fronts config you want).
-    Reddit reports of it working are firmware/model-specific. Sonority reads and
-    reports this honestly but cannot restore a tuning Sonos has cleared.
+  - ⭐ **THE RULE (EXP-23, 2026-09-13 — hardware-measured, but read the tiers below
+    before quoting a row):** a speaker keeps
+    its Trueplay tuning **iff it is ABSORBED by a mutating operation**; it loses it if
+    it is removed, or if its bond is dissolved or rebuilt around it. Channel ids and
+    roles are **irrelevant** — falsified both ways (ids identical + tuning lost when a
+    pair was separated; ids swapped `[5]`↔`[6]` + tuning kept on an in-place reassign).
+    | operation | cost |
+    |---|---|
+    | `AddHTSatellite` — re-assert, channel reassign, additive add, **absorbing a live stereo pair** | **free** |
+    | `SetZoneAttributes` (rename) | **free** |
+    | `RemoveHTSatellite` | **wipes EVERY member of the set**, not just the one removed |
+    | `SeparateStereoPair` | wipes the pair |
+    | `AddBondedZones` — **even with an identical map** | wipes every member (it REBUILDS the bond) |
+    ⇒ **`AddHTSatellite` mutates a bond; `AddBondedZones` rebuilds one.** So an HT edit
+    has a free path and a group edit does not — `editGroup`'s in-place `reassertGroup`
+    is **not** gentler than its dissolve path.
+    ⇒ **Taking speakers from another bond costs:** a stereo pair — only the speakers
+    *left behind* (both halves ⇒ nothing lost, one half ⇒ the other loses it); an HT or
+    group — every member, including the ones taken. This is
+    `SonosSystem.tuningLostByTaking`, which the pickers price per selection.
+    ⚠️ **A set that has JUST changed refuses a tuning for minutes, silently** (HTTP 200
+    on every POST, `available` stays 0), and the `available` oracle reads 0→1→0 around
+    a bonding change ⇒ settle, then read repeatedly; never verdict on one read.
+    An untouched standalone elsewhere keeps its tuning throughout.
+    ⚠️ `available=1` means **stored**, never *correct*: a role-swapped satellite keeps
+    `available=1` while holding coefficients authored for the other channel.
+    The bar remains the hard case — its channel-id list is **path-dependent** (four
+    distinct values observed on one Beam in a single session), so the official app's
+    refusal to tune the fronts config is still a catch-22 for the soundbar itself.
+    Sonority reads and reports all of this honestly.
+    ⚠️ **TIERS — not every row is equally established.** Two independently-baselined
+    cycles: absorbing a **whole** tuned stereo pair into an HT (retained), and an
+    `AddBondedZones` re-assert wiping a group. **One cycle only** (provisional by this
+    project's own rule): taking **one** half of a pair (stolen keeps / leftover loses),
+    `RemoveHTSatellite` wiping the whole set, and a group dissolve.
+    ⚠️⚠️ **NOT measured at all: taking a speaker OUT of a home theater or a group and
+    INTO another bond.** Those two cells are inferred from the removal/dissolve
+    experiments, which never re-bonded the speaker elsewhere. The stereo-pair source is
+    the only one where the actual take-from-A-into-B operation was performed.
 
 ### Terminology (the same thing has three names — don't get lost)
 - **zone group** = Sonos' API/topology term (`ZoneGroupTopology`, `ZoneGroupMember`)

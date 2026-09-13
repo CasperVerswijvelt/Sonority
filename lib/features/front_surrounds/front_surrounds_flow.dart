@@ -16,7 +16,9 @@ import '../widgets/identify_controls.dart';
 import '../widgets/info_note.dart';
 import '../widgets/max_width_body.dart';
 import '../widgets/selectable_speaker_card.dart';
+import '../widgets/speaker_badges.dart';
 import '../widgets/speaker_diagram.dart';
+import '../../state/trueplay_controller.dart';
 
 /// Seeds the configure-HT selectors from [member]'s current bond: front uuids
 /// ordered [left, right] (a single device on both fronts — an Amp — collapses to
@@ -93,6 +95,19 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         .cast<ZoneGroupMember?>()
         .firstOrNull;
     if (member == null) return;
+    // Read Trueplay for everything on offer, so the picker can tag a candidate
+    // that holds a tuning before the user moves it. Best-effort and off the
+    // build path; unreachable speakers are simply dropped by the controller.
+    final system = ref.read(sonosControllerProvider).value;
+    if (system != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(trueplayControllerProvider.notifier).load({
+          ...system.bondableSpeakers,
+          ...system.stealableSpeakers(),
+        });
+      });
+    }
     final seed = seedHtRoles(member);
     _fronts.addAll(seed.fronts);
     _surrounds.addAll(seed.surrounds);
@@ -157,6 +172,14 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       for (final d in system.bondableSpeakers) {
         consider(d.uuid);
       }
+      // Speakers bonded into ANOTHER entity. `AddHTSatellite` absorbs one
+      // straight out of a live stereo pair with its Trueplay tuning intact
+      // (EXP-23), so making the user unbond by hand first was unnecessary — and
+      // was itself what destroyed the tuning. What each case costs is tagged on
+      // the card and summarised by [stealWarning].
+      for (final d in system.stealableSpeakers(exceptPrimary: member.uuid)) {
+        consider(d.uuid);
+      }
       for (final id in htOwn) {
         consider(id);
       }
@@ -175,6 +198,25 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         if (!system.bondableSubs.any((d) => d.uuid == id))
           if (system.device(id) case final d?) d,
     ];
+
+    // Trueplay state for every speaker on offer — a candidate taken out of
+    // another bond may hold a tuning that the move would cost, and the picker
+    // says so rather than letting the user find out afterwards.
+    final calibration = ref.watch(trueplayControllerProvider).byUuid;
+    List<Widget> badgesFor(SonosDevice d) => speakerBadges(
+          context,
+          system: system,
+          uuid: d.uuid,
+          calibration: calibration[d.uuid],
+          exceptPrimary: member.uuid,
+        );
+    String? warningFor(List<String> chosen) => stealWarning(
+          context,
+          system: system,
+          selected: chosen.toSet(),
+          calibration: calibration,
+          exceptPrimary: member.uuid,
+        );
 
     // Chime only for a standalone speaker; an already-bonded pick (a current
     // satellite shown pre-selected) can only blink its LED.
@@ -242,6 +284,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     _ChooseSpeakers(
                       candidates: avail(_fronts),
                       selected: _fronts,
+                      badges: badgesFor,
+                      warning: warningFor(_fronts),
                       onToggle: _toggleFront,
                       onSwap: () => setState(
                         () => _fronts.setAll(0, [_fronts[1], _fronts[0]]),
@@ -275,6 +319,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     Gap.s,
                     _ChooseSpeakers(
                       candidates: avail(_surrounds),
+                      badges: badgesFor,
+                      warning: warningFor(_surrounds),
                       selected: _surrounds,
                       onToggle: _toggleSurround,
                       onSwap: () => setState(
@@ -518,6 +564,12 @@ class _ChooseSpeakers extends StatelessWidget {
   /// Swap which chosen speaker is left vs right (there are only two).
   final VoidCallback onSwap;
   final Widget Function(SonosDevice device) identifyControls;
+
+  /// Source-bond / Trueplay tags for a candidate ([speakerBadges]).
+  final List<Widget> Function(SonosDevice device) badges;
+
+  /// What the current selection costs in room calibration, or null.
+  final String? warning;
   final bool allowAmp;
 
   const _ChooseSpeakers({
@@ -526,6 +578,8 @@ class _ChooseSpeakers extends StatelessWidget {
     required this.onToggle,
     required this.onSwap,
     required this.identifyControls,
+    required this.badges,
+    this.warning,
     this.allowAmp = true,
   });
 
@@ -546,6 +600,10 @@ class _ChooseSpeakers extends StatelessWidget {
         ),
         Gap.s,
         CardGrid([for (final d in candidates) _card(context, d)]),
+        if (warning case final w?) ...[
+          Gap.m,
+          InfoNote(w),
+        ],
       ],
     );
   }
@@ -569,6 +627,7 @@ class _ChooseSpeakers extends StatelessWidget {
           ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel)
           : d.typeLabel,
       identify: identifyControls(d),
+      badges: badges(d),
       showControl: showLR,
       control: showLR ? SideSelector(isRight: idx == 1, onSwap: onSwap) : null,
     );

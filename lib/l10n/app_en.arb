@@ -809,5 +809,29 @@
   "diagCollecting": "Collecting…",
   "diagEmailToDeveloper": "Email to developer",
   "diagShareDiagnostics": "Share diagnostics",
-  "diagEmailBody": "Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———"
+  "diagEmailBody": "Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———",
+  "speakerBadgeFromBond": "From {name}",
+  "@speakerBadgeFromBond": {
+    "description": "Pill on a picker tile: the bond this speaker must be taken out of.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "speakerBadgeTrueplayOn": "Trueplay on",
+  "speakerBadgeTrueplayOff": "Trueplay off",
+  "speakerStealTrueplayWarning": "{count, plural, one{{names} will lose its room calibration — Sonos clears a speaker's Trueplay when its bond changes. Re-tune it in the Sonos app afterwards.} other{{names} will lose their room calibration — Sonos clears a speaker's Trueplay when its bond changes. Re-tune them in the Sonos app afterwards.}}",
+  "@speakerStealTrueplayWarning": {
+    "description": "Warning shown when the chosen speakers must be taken out of another bond, naming only the speakers that actually hold a tuning.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "speakerStealHint": "Speakers already in a stereo pair, home theater or group are listed too — choosing one takes it from there."
 }

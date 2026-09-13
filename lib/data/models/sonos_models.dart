@@ -506,4 +506,46 @@ class SonosSystem {
     }
     return null;
   }
+
+  /// Every speaker belonging to the bond [m] — its primary plus satellites and
+  /// channel-map members. This is the unit a bonding change acts on: Sonos
+  /// invalidates room calibration per BOND, not per speaker (EXP-23).
+  Set<String> bondMemberUuids(ZoneGroupMember m) => {
+        m.uuid,
+        ...m.satellites.map((s) => s.uuid),
+        ...m.channelMapUuids,
+      };
+
+  /// Speakers already bonded into some OTHER entity, offered so a picker can
+  /// take them from it rather than making the user unbond by hand first.
+  ///
+  /// Hardware-measured (EXP-23): `AddHTSatellite` absorbs a speaker straight out
+  /// of a live stereo pair — the pair dissolves implicitly and the speaker KEEPS
+  /// its Trueplay tuning — so the unbond-first step Sonority used to require was
+  /// both unnecessary and the sole cause of the tuning loss. What each case costs
+  /// is [tuningLostByTaking].
+  ///
+  /// Excludes soundbars and Subs (each has its own picker) and the bond
+  /// [exceptPrimary], whose own members the caller lists separately.
+  List<SonosDevice> stealableSpeakers({String? exceptPrimary}) => [
+        for (final m in allMembers)
+          if ((m.isHomeTheater || m.isGroup) && m.uuid != exceptPrimary)
+            for (final id in bondMemberUuids(m))
+              if (device(id) case final d? when !d.isSoundbar && !d.isSub) d,
+      ];
+
+  /// Which speakers LOSE their Trueplay tuning when [taking] is taken out of the
+  /// bond [source]. Every row hardware-measured in EXP-23:
+  ///
+  /// * **stereo pair** — only the speakers LEFT BEHIND lose it. The ones taken
+  ///   are absorbed by `AddHTSatellite` with their tuning intact (both halves ⇒
+  ///   nothing lost; one half ⇒ the other one loses it).
+  /// * **home theater / group** — EVERY member loses it, including the speakers
+  ///   taken: the source needs a `RemoveHTSatellite` (which wipes the whole set)
+  ///   or an `AddBondedZones`/dissolve (which rebuilds the bond, wiping it even
+  ///   when the map is unchanged).
+  Set<String> tuningLostByTaking(ZoneGroupMember source, Set<String> taking) {
+    final members = bondMemberUuids(source);
+    return source.isStereoPair ? members.difference(taking) : members;
+  }
 }

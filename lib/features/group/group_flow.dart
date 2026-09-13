@@ -12,6 +12,9 @@ import '../widgets/identify_controls.dart';
 import '../widgets/max_width_body.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/selectable_speaker_card.dart';
+import '../widgets/info_note.dart';
+import '../widgets/speaker_badges.dart';
+import '../../state/trueplay_controller.dart';
 
 /// How the segmented control frames the bond. All three build a `ChannelMapSet`
 /// and go through the same `AddBondedZones` engine path.
@@ -64,6 +67,17 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
   void initState() {
     super.initState();
     final sys = ref.read(sonosControllerProvider).value;
+    // Trueplay for everything on offer. Kicked off before the seeding branches
+    // below, which each return early. Best-effort and off the build path.
+    if (sys != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(trueplayControllerProvider.notifier).load({
+          ...sys.zoneableSpeakers,
+          ...sys.stealableSpeakers(),
+        });
+      });
+    }
     // Edit mode: seed the whole selection from the live group (mirrors
     // FrontSurroundsFlow). Preselects are create-only and ignored here.
     final uuid = widget.editUuid;
@@ -134,6 +148,16 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     final candidates = system.zoneableSpeakers
         .where((d) => d.reachable)
         .toList();
+    // Speakers bonded into ANOTHER entity are offered too, so a user need not
+    // unbond by hand first. ⚠️ Unlike a home theater, every group write costs
+    // the calibration of the whole source bond (EXP-23: `AddBondedZones`
+    // rebuilds a bond even on an unchanged map), which is what [stealWarning]
+    // spells out.
+    for (final d in system.stealableSpeakers(exceptPrimary: widget.editUuid)) {
+      if (d.reachable && !d.isAmp && !candidates.any((x) => x.uuid == d.uuid)) {
+        candidates.add(d);
+      }
+    }
     final subs = system.bondableSubs.where((d) => d.reachable).toList();
     if (existing != null) {
       for (final u in existing.groupChannels.keys) {
@@ -144,6 +168,24 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
       final subD = subU == null ? null : system.device(subU);
       if (subD != null && !subs.any((x) => x.uuid == subU)) subs.add(subD);
     }
+    // Trueplay per candidate, so a speaker holding a tuning is tagged before it
+    // is moved out of whatever it is bonded into.
+    final calibration = ref.watch(trueplayControllerProvider).byUuid;
+    List<Widget> badgesFor(SonosDevice d) => speakerBadges(
+          context,
+          system: system,
+          uuid: d.uuid,
+          calibration: calibration[d.uuid],
+          exceptPrimary: widget.editUuid,
+        );
+    String? warningFor(List<String> chosen) => stealWarning(
+          context,
+          system: system,
+          selected: chosen.toSet(),
+          calibration: calibration,
+          exceptPrimary: widget.editUuid,
+        );
+
     final scheme = Theme.of(context).colorScheme;
     // Candidates here are all standalone, so chime applies; gate per-device
     // anyway so the rule stays consistent with the HT flow.
@@ -242,6 +284,8 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                               mode: _mode,
                               candidates: candidates,
                               selected: _selected,
+                              badges: badgesFor,
+                              warning: warningFor(_selected),
                               channels: _channels,
                               onToggle: _toggle,
                               onChannel: (u, c) =>
@@ -437,6 +481,12 @@ class _SelectStep extends StatelessWidget {
   final VoidCallback onSwap;
   final Widget Function(SonosDevice device) identifyControls;
 
+  /// Source-bond / Trueplay tags for a candidate ([speakerBadges]).
+  final List<Widget> Function(SonosDevice device) badges;
+
+  /// What the current selection costs in room calibration, or null.
+  final String? warning;
+
   const _SelectStep({
     required this.mode,
     required this.candidates,
@@ -446,6 +496,8 @@ class _SelectStep extends StatelessWidget {
     required this.onChannel,
     required this.onSwap,
     required this.identifyControls,
+    required this.badges,
+    this.warning,
   });
 
   String _hint(BuildContext context) => switch (mode) {
@@ -463,6 +515,7 @@ class _SelectStep extends StatelessWidget {
         Text(_hint(context), style: Theme.of(context).textTheme.bodySmall),
         Gap.s,
         CardGrid([for (final d in candidates) _card(context, d, cap)]),
+        if (warning case final w?) ...[Gap.m, InfoNote(w)],
       ],
     );
   }
@@ -508,6 +561,7 @@ class _SelectStep extends StatelessWidget {
       onToggle: () => onToggle(d.uuid),
       subtitle: d.typeLabel,
       identify: identifyControls(d),
+      badges: badges(d),
       showControl: showControl,
       control: control,
     );

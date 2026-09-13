@@ -42,6 +42,11 @@ class SelectableSpeakerCard extends StatelessWidget {
   final String? subtitle;
   final Widget? identify;
 
+  /// Tags shown under the row — the bond this speaker must be taken from, and
+  /// its Trueplay state. Built with [PillChip] so a picker tags a speaker the
+  /// same way a card tags a bonded role.
+  final List<Widget> badges;
+
   /// The in-card channel selector to reveal when [showControl]. Kept null when
   /// this speaker has no side to assign (unselected, or an Amp on both fronts).
   final Widget? control;
@@ -57,6 +62,7 @@ class SelectableSpeakerCard extends StatelessWidget {
     this.identify,
     this.control,
     this.showControl = false,
+    this.badges = const [],
   });
 
   @override
@@ -75,6 +81,14 @@ class SelectableSpeakerCard extends StatelessWidget {
             subtitle: subtitle ?? device.typeLabel,
             secondary: identify,
           ),
+          if (badges.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: Wrap(spacing: 6, runSpacing: 6, children: badges),
+              ),
+            ),
           // CrossFade (not just AnimatedSize) so the control fades out WHILE the
           // height collapses on deselect, instead of vanishing instantly.
           AnimatedCrossFade(

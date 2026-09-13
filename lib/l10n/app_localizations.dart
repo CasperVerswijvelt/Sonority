@@ -2205,6 +2205,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———'**
   String get diagEmailBody;
+
+  /// Pill on a picker tile: the bond this speaker must be taken out of.
+  ///
+  /// In en, this message translates to:
+  /// **'From {name}'**
+  String speakerBadgeFromBond(String name);
+
+  /// No description provided for @speakerBadgeTrueplayOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Trueplay on'**
+  String get speakerBadgeTrueplayOn;
+
+  /// No description provided for @speakerBadgeTrueplayOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Trueplay off'**
+  String get speakerBadgeTrueplayOff;
+
+  /// Warning shown when the chosen speakers must be taken out of another bond, naming only the speakers that actually hold a tuning.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{names} will lose its room calibration — Sonos clears a speaker\'s Trueplay when its bond changes. Re-tune it in the Sonos app afterwards.} other{{names} will lose their room calibration — Sonos clears a speaker\'s Trueplay when its bond changes. Re-tune them in the Sonos app afterwards.}}'**
+  String speakerStealTrueplayWarning(String names, int count);
+
+  /// No description provided for @speakerStealHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Speakers already in a stereo pair, home theater or group are listed too — choosing one takes it from there.'**
+  String get speakerStealHint;
 }
 
 class _AppLocalizationsDelegate
