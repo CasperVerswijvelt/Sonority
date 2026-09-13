@@ -1378,4 +1378,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String pickerCostFreedFirst(int count) {
     return 'These speakers must be freed first, which clears room calibration on all $count.';
   }
+
+  @override
+  String get pickerLeavesBond => 'Leaves this bond';
 }

@@ -29,6 +29,12 @@ class BondableSpeakerTile extends StatelessWidget {
   /// [SelectableSpeakerCard.titleOverride].
   final String? titleOverride;
 
+  /// A tag shown beside the title (the channel this speaker currently holds).
+  /// Inline rather than below, because for a bonded speaker it is the only
+  /// thing telling two same-model cards apart — on its own line it reads as
+  /// incidental.
+  final Widget? titleTrailing;
+
   /// Trailing controls (identify buttons). Hidden when unreachable.
   final Widget? secondary;
 
@@ -43,6 +49,7 @@ class BondableSpeakerTile extends StatelessWidget {
     required this.onChanged,
     this.subtitle,
     this.titleOverride,
+    this.titleTrailing,
     this.secondary,
     this.outlined = false,
   });
@@ -65,7 +72,13 @@ class BondableSpeakerTile extends StatelessWidget {
         : CheckboxListTile(
             value: selected,
             onChanged: onChanged,
-            title: Text(titleOverride ?? device.roomName),
+            title: titleTrailing == null
+                ? Text(titleOverride ?? device.roomName)
+                : Row(children: [
+                    Flexible(child: Text(titleOverride ?? device.roomName)),
+                    const SizedBox(width: 8),
+                    titleTrailing!,
+                  ]),
             subtitle: subtitle == null ? null : Text(subtitle!),
             controlAffinity: ListTileControlAffinity.leading,
             secondary: secondary,

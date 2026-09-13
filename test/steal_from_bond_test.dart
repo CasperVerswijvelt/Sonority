@@ -123,6 +123,39 @@ void main() {
     });
   });
 
+  group('who needs freeing before a new group can form', () {
+    // Regression, caught on hardware: createGroup used
+    // `ownerOf(u)` + `!involved.contains(owner)` to spot conflicts. For a
+    // group's COORDINATOR `ownerOf` returns that speaker's OWN uuid, so the
+    // coordinator read as unbonded, no free step ran, and `AddBondedZones`
+    // dissolved the source zone without forming the new pair. `isStandalone`
+    // is the right question.
+    test('a zone COORDINATOR is not standalone', () {
+      expect(system.isStandalone(zoneA), isFalse,
+          reason: 'ownerOf(zoneA) returns zoneA itself — the trap');
+      expect(system.ownerOf(zoneA), zoneA);
+    });
+
+    test('every other bonded role is caught too', () {
+      for (final u in [zoneB, pairL, pairR, rear, sub, bar]) {
+        expect(system.isStandalone(u), isFalse, reason: u);
+      }
+    });
+
+    test('a free speaker needs no freeing', () {
+      const free = 'RINCON_FREE01400';
+      final sys = SonosSystem(
+        groups: [
+          ZoneGroup(coordinatorUuid: free, members: const [
+            ZoneGroupMember(uuid: free, zoneName: 'Kitchen'),
+          ]),
+        ],
+        devicesByUuid: {free: dev(free, 'Sonos One')},
+      );
+      expect(sys.isStandalone(free), isTrue);
+    });
+  });
+
   test('bondMemberUuids covers satellites and channel-map members', () {
     expect(system.bondMemberUuids(ht), {bar, rear, sub});
     expect(system.bondMemberUuids(pair), {pairL, pairR});

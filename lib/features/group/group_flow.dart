@@ -171,6 +171,12 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     // Trueplay per candidate, so a speaker holding a tuning is tagged before it
     // is moved out of whatever it is bonded into.
     final calibration = ref.watch(trueplayControllerProvider).byUuid;
+    Widget? channelChipFor(SonosDevice d) => speakerChannelChip(
+          context,
+          system: system,
+          uuid: d.uuid,
+          exceptPrimary: widget.editUuid,
+        );
     List<Widget> badgesFor(SonosDevice d) => speakerBadges(
           context,
           system: system,
@@ -303,6 +309,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                               sections: sections,
                               sectionHeader: headerFor,
                               badges: badgesFor,
+                              channelChip: channelChipFor,
                               warning: warningFor(_selected),
                               channels: _channels,
                               onToggle: _toggle,
@@ -499,8 +506,11 @@ class _SelectStep extends StatelessWidget {
   final VoidCallback onSwap;
   final Widget Function(SonosDevice device) identifyControls;
 
-  /// Channel / Trueplay tags for a candidate ([speakerBadges]).
+  /// Trueplay tag for a candidate ([speakerBadges]).
   final List<Widget> Function(SonosDevice device) badges;
+
+  /// The channel chip shown beside the title ([speakerChannelChip]).
+  final Widget? Function(SonosDevice device) channelChip;
 
   /// Ordered picker blocks ([pickerSections]).
   final List<PickerSection> sections;
@@ -521,6 +531,7 @@ class _SelectStep extends StatelessWidget {
     required this.onSwap,
     required this.identifyControls,
     required this.badges,
+    required this.channelChip,
     required this.sections,
     required this.sectionHeader,
     this.warning,
@@ -597,9 +608,12 @@ class _SelectStep extends StatelessWidget {
       selected: isSel,
       enabled: !disabled,
       onToggle: () => onToggle(d.uuid),
-      subtitle: d.typeLabel,
+      subtitle: _bonded.contains(d.uuid)
+          ? context.l10n.pickerLeavesBond
+          : d.typeLabel,
       titleOverride: _bonded.contains(d.uuid) ? d.typeLabel : null,
       identify: identifyControls(d),
+      titleTrailing: channelChip(d),
       badges: badges(d),
       showControl: showControl,
       control: control,

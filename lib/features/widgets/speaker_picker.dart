@@ -131,14 +131,30 @@ String? _cost(
   return l10n.pickerCostHomeTheaterMaybe;
 }
 
-/// The tags a speaker carries on its card: the channel it currently holds, and
-/// whether it holds a Trueplay tuning. Provenance is NOT here — that is the
-/// section header's job (see [pickerSections]).
+/// The channel [uuid] currently holds in its bond, as a chip for the card's
+/// TITLE row, or null when the bond gives it no distinguishing role.
 ///
-/// The channel pill exists because a bonded speaker has no name of its own, so
-/// `L`/`R`/`LR` is what tells two members of one bond apart. Null for a
-/// full-range zone member (every one is `L+R`, so it disambiguates nothing —
-/// the Identify button does that).
+/// It sits beside the title rather than below because for a bonded speaker it
+/// is the only thing telling two same-model cards apart — a bonded speaker has
+/// no name of its own, so `LR`/`RR` is doing the work a name normally would.
+Widget? speakerChannelChip(
+  BuildContext context, {
+  required SonosSystem system,
+  required String uuid,
+  String? exceptPrimary,
+}) {
+  final owner = system.ownerOf(uuid);
+  if (owner == null || owner == exceptPrimary) return null;
+  final source = system.memberByUuid(owner);
+  final role = source == null ? null : _roleIn(source, uuid);
+  if (role == null) return null;
+  return PillChip(
+      text: role, color: Theme.of(context).colorScheme.onSurfaceVariant);
+}
+
+/// Whether this speaker holds a Trueplay tuning. Provenance is NOT here — that
+/// is the section header's job (see [pickerSections]) — and neither is the
+/// channel, which is [speakerChannelChip].
 ///
 /// The Trueplay pill appears only when the speaker actually holds a tuning:
 /// "not tuned" on every free speaker would be noise. It reports
@@ -153,14 +169,7 @@ List<Widget> speakerBadges(
 }) {
   final scheme = Theme.of(context).colorScheme;
   final l10n = context.l10n;
-  final owner = system.ownerOf(uuid);
-  final source = owner == null || owner == exceptPrimary
-      ? null
-      : system.memberByUuid(owner);
-  final role = source == null ? null : _roleIn(source, uuid);
   return [
-    if (role != null)
-      PillChip(text: role, color: scheme.onSurfaceVariant),
     if (calibration?.available ?? false)
       PillChip(
         icon: Icons.graphic_eq,

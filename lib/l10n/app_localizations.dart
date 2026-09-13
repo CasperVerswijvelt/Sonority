@@ -2241,6 +2241,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'These speakers must be freed first, which clears room calibration on all {count}.'**
   String pickerCostFreedFirst(int count);
+
+  /// Subtitle on a picker card for a speaker that is bonded elsewhere: choosing it takes it out of that bond.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaves this bond'**
+  String get pickerLeavesBond;
 }
 
 class _AppLocalizationsDelegate

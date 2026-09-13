@@ -203,6 +203,12 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     // another bond may hold a tuning that the move would cost, and the picker
     // says so rather than letting the user find out afterwards.
     final calibration = ref.watch(trueplayControllerProvider).byUuid;
+    Widget? channelChipFor(SonosDevice d) => speakerChannelChip(
+          context,
+          system: system,
+          uuid: d.uuid,
+          exceptPrimary: member.uuid,
+        );
     List<Widget> badgesFor(SonosDevice d) => speakerBadges(
           context,
           system: system,
@@ -301,6 +307,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                       sections: sectionsFor(avail(_fronts)),
                       sectionHeader: headerFor,
                       badges: badgesFor,
+                      channelChip: channelChipFor,
                       warning: warningFor(_fronts),
                       onToggle: _toggleFront,
                       onSwap: () => setState(
@@ -338,6 +345,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                       sections: sectionsFor(avail(_surrounds)),
                       sectionHeader: headerFor,
                       badges: badgesFor,
+                      channelChip: channelChipFor,
                       warning: warningFor(_surrounds),
                       selected: _surrounds,
                       onToggle: _toggleSurround,
@@ -583,8 +591,11 @@ class _ChooseSpeakers extends StatelessWidget {
   final VoidCallback onSwap;
   final Widget Function(SonosDevice device) identifyControls;
 
-  /// Channel / Trueplay tags for a candidate ([speakerBadges]).
+  /// Trueplay tag for a candidate ([speakerBadges]).
   final List<Widget> Function(SonosDevice device) badges;
+
+  /// The channel chip shown beside the title ([speakerChannelChip]).
+  final Widget? Function(SonosDevice device) channelChip;
 
   /// Ordered picker blocks — free speakers, this HT's own, then one per bond
   /// the speakers would be taken from ([pickerSections]).
@@ -604,6 +615,7 @@ class _ChooseSpeakers extends StatelessWidget {
     required this.onSwap,
     required this.identifyControls,
     required this.badges,
+    required this.channelChip,
     required this.sections,
     required this.sectionHeader,
     this.warning,
@@ -655,10 +667,13 @@ class _ChooseSpeakers extends StatelessWidget {
       enabled: !disabled,
       onToggle: () => onToggle(d),
       titleOverride: _bonded.contains(d.uuid) ? d.typeLabel : null,
-      subtitle: isAmp
-          ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel)
-          : d.typeLabel,
+      subtitle: _bonded.contains(d.uuid)
+          ? context.l10n.pickerLeavesBond
+          : isAmp
+              ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel)
+              : d.typeLabel,
       identify: identifyControls(d),
+      titleTrailing: channelChip(d),
       badges: badges(d),
       showControl: showLR,
       control: showLR ? SideSelector(isRight: idx == 1, onSwap: onSwap) : null,

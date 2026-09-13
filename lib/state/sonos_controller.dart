@@ -854,10 +854,13 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       // cycles). Freeing clears that bond's room calibration, which is why the
       // picker warns before you get here.
       var sys = previous ?? await _repo.discover();
-      final toFree = [
-        for (final u in involved)
-          if (sys.ownerOf(u) case final o? when !involved.contains(o)) u,
-      ];
+      // `isStandalone`, NOT `ownerOf`: for a group's COORDINATOR `ownerOf`
+      // returns that speaker's own uuid, so an `!involved.contains(owner)` test
+      // reads it as unbonded and skips it. Hardware-caught — grouping a zone's
+      // coordinator then dissolved that zone WITHOUT forming the new pair.
+      // Every bond a new group's member sits in has to go, so the question is
+      // simply "is this speaker bonded at all?".
+      final toFree = [for (final u in involved) if (!sys.isStandalone(u)) u];
       ph.seed([
         if (toFree.isNotEmpty) ('free', l10n.stepFreeConflicting),
         ('bond', l10n.stepBondSpeakers),

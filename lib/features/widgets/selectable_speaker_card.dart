@@ -44,8 +44,14 @@ class SelectableSpeakerCard extends StatelessWidget {
   /// Replaces the speaker's room name as the card title. Used inside a bond
   /// block, where the heading already names the bond and the speaker's own name
   /// was absorbed into it by Sonos — so the TYPE is what identifies it.
+  ///
+  /// When set, [subtitle] should say what choosing this speaker DOES (it leaves
+  /// its current bond) rather than repeat the type.
   final String? titleOverride;
   final Widget? identify;
+
+  /// Tag beside the title — see [BondableSpeakerTile.titleTrailing].
+  final Widget? titleTrailing;
 
   /// Tags shown under the row — the bond this speaker must be taken from, and
   /// its Trueplay state. Built with [PillChip] so a picker tags a speaker the
@@ -66,6 +72,7 @@ class SelectableSpeakerCard extends StatelessWidget {
     this.subtitle,
     this.titleOverride,
     this.identify,
+    this.titleTrailing,
     this.control,
     this.showControl = false,
     this.badges = const [],
@@ -85,8 +92,10 @@ class SelectableSpeakerCard extends StatelessWidget {
             selected: selected,
             onChanged: enabled ? (_) => onToggle() : null,
             titleOverride: titleOverride,
-            // A card titled by type needs no subtitle — it would repeat.
-            subtitle: titleOverride == null ? subtitle ?? device.typeLabel : null,
+            titleTrailing: titleTrailing,
+            // A card titled by TYPE must not repeat the type below it; the
+            // caller supplies a subtitle saying what picking it does instead.
+            subtitle: titleOverride == null ? subtitle ?? device.typeLabel : subtitle,
             secondary: identify,
           ),
           if (badges.isNotEmpty)
