@@ -2,14 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 
-/// A small rounded pill: an optional icon + label tinted [color], on a faint
-/// tint of the same color. Used on cards to tag a bonded group's role (Fronts /
-/// Surrounds / Sub) or a group member's channel (L / R / L+R).
+/// A small rounded pill: an icon + label tinted [color], on a faint tint of the
+/// same color. Used on cards to tag a bonded group's role (Fronts / Surrounds /
+/// Sub) or a group member's channel (L / R / L+R).
 class PillChip extends StatelessWidget {
-  /// Omit for a tag whose text already carries the whole meaning — a channel
-  /// token like `LR` says everything a glyph could, and an icon just competes
-  /// with two characters of pure signal.
-  final IconData? icon;
+  final IconData icon;
   final String text;
   final Color color;
 
@@ -21,7 +18,7 @@ class PillChip extends StatelessWidget {
 
   const PillChip({
     super.key,
-    this.icon,
+    required this.icon,
     required this.text,
     required this.color,
     this.filled = false,
@@ -43,10 +40,8 @@ class PillChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 14, color: fg),
-            const SizedBox(width: 5),
-          ],
+          Icon(icon, size: 14, color: fg),
+          const SizedBox(width: 5),
           Text(text,
               style: TextStyle(
                   color: fg, fontSize: 12, fontWeight: FontWeight.w600)),

@@ -10,7 +10,6 @@ import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
-import '../widgets/card_grid.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/info_note.dart';
@@ -199,40 +198,14 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           if (system.device(id) case final d?) d,
     ];
 
-    // Trueplay state for every speaker on offer — a candidate taken out of
-    // another bond may hold a tuning that the move would cost, and the picker
-    // says so rather than letting the user find out afterwards.
-    final calibration = ref.watch(trueplayControllerProvider).byUuid;
-    String bondedTitleFor(SonosDevice d) =>
-        bondedCardTitle(system, device: d, exceptPrimary: member.uuid);
-    List<Widget> badgesFor(SonosDevice d) => speakerBadges(
-          context,
-          system: system,
-          uuid: d.uuid,
-          calibration: calibration[d.uuid],
-          exceptPrimary: member.uuid,
-        );
-    List<PickerSection> sectionsFor(List<SonosDevice> cands) => pickerSections(
-          system: system,
-          candidates: cands,
-          exceptPrimary: member.uuid,
-        );
-    Widget? headerFor(PickerSection s, int count) => pickerSectionHeader(
-          context,
-          system: system,
-          section: s,
-          sectionCount: count,
-          calibration: calibration,
-          absorbing: true, // AddHTSatellite takes a speaker out of a live bond
-        );
-    String? warningFor(List<String> chosen) => stealWarning(
-          context,
-          system: system,
-          selected: chosen.toSet(),
-          calibration: calibration,
-          absorbing: true,
-          exceptPrimary: member.uuid,
-        );
+    // Trueplay per candidate — a speaker taken from another bond may hold a
+    // tuning the move would cost, and the picker says so before it happens.
+    final picker = PickerContext(
+      system: system,
+      calibration: ref.watch(trueplayControllerProvider).byUuid,
+      absorbing: true, // AddHTSatellite takes a speaker out of a live bond
+      exceptPrimary: member.uuid,
+    );
 
     // Chime only for a standalone speaker; an already-bonded pick (a current
     // satellite shown pre-selected) can only blink its LED.
@@ -300,11 +273,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     _ChooseSpeakers(
                       candidates: avail(_fronts),
                       selected: _fronts,
-                      sections: sectionsFor(avail(_fronts)),
-                      sectionHeader: headerFor,
-                      badges: badgesFor,
-                      bondedTitle: bondedTitleFor,
-                      warning: warningFor(_fronts),
+                      picker: picker,
+                      warning: picker.warning(context, _fronts.toSet()),
                       onToggle: _toggleFront,
                       onSwap: () => setState(
                         () => _fronts.setAll(0, [_fronts[1], _fronts[0]]),
@@ -338,11 +308,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     Gap.s,
                     _ChooseSpeakers(
                       candidates: avail(_surrounds),
-                      sections: sectionsFor(avail(_surrounds)),
-                      sectionHeader: headerFor,
-                      badges: badgesFor,
-                      bondedTitle: bondedTitleFor,
-                      warning: warningFor(_surrounds),
+                      picker: picker,
+                      warning: picker.warning(context, _surrounds.toSet()),
                       selected: _surrounds,
                       onToggle: _toggleSurround,
                       onSwap: () => setState(
@@ -587,18 +554,7 @@ class _ChooseSpeakers extends StatelessWidget {
   final VoidCallback onSwap;
   final Widget Function(SonosDevice device) identifyControls;
 
-  /// Trueplay tag for a candidate ([speakerBadges]).
-  final List<Widget> Function(SonosDevice device) badges;
-
-  /// The card title for a speaker in a bond block ([bondedCardTitle]).
-  final String Function(SonosDevice device) bondedTitle;
-
-  /// Ordered picker blocks — free speakers, this HT's own, then one per bond
-  /// the speakers would be taken from ([pickerSections]).
-  final List<PickerSection> sections;
-
-  /// Builds a block's heading, or null when there is only one block.
-  final Widget? Function(PickerSection section, int count) sectionHeader;
+  final PickerContext picker;
 
   /// What the current selection costs in room calibration, or null.
   final String? warning;
@@ -610,10 +566,7 @@ class _ChooseSpeakers extends StatelessWidget {
     required this.onToggle,
     required this.onSwap,
     required this.identifyControls,
-    required this.badges,
-    required this.bondedTitle,
-    required this.sections,
-    required this.sectionHeader,
+    required this.picker,
     this.warning,
     this.allowAmp = true,
   });
@@ -623,29 +576,13 @@ class _ChooseSpeakers extends StatelessWidget {
     if (candidates.isEmpty) {
       return Text(context.l10n.frontSurroundsNoFreeSpeakers);
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final s in sections) ...[
-          if (sectionHeader(s, sections.length) case final h?) h,
-          CardGrid([for (final d in s.devices) _card(context, d)]),
-          if (s != sections.last) Gap.m,
-        ],
-        if (warning case final w?) ...[
-          Gap.m,
-          InfoNote(w),
-        ],
-      ],
+    return SpeakerPickerSections(
+      ctx: picker,
+      candidates: candidates,
+      warning: warning,
+      card: (d) => _card(context, d),
     );
   }
-
-  /// UUIDs shown under a bond heading — those title by type, since the heading
-  /// already names the bond and Sonos absorbed their own names into it.
-  Set<String> get _bonded => {
-        for (final s in sections)
-          if (s.kind == PickerSectionKind.bond)
-            for (final d in s.devices) d.uuid,
-      };
 
   Widget _card(BuildContext context, SonosDevice d) {
     final isSel = selected.contains(d.uuid);
@@ -662,12 +599,12 @@ class _ChooseSpeakers extends StatelessWidget {
       selected: isSel,
       enabled: !disabled,
       onToggle: () => onToggle(d),
-      titleOverride: _bonded.contains(d.uuid) ? bondedTitle(d) : null,
+      titleOverride: picker.titleOverride(d),
       subtitle: isAmp
           ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel)
           : d.typeLabel,
       identify: identifyControls(d),
-      badges: badges(d),
+      badges: [?trueplayBadge(context, picker.calibration[d.uuid])],
       showControl: showLR,
       control: showLR ? SideSelector(isRight: idx == 1, onSwap: onSwap) : null,
     );

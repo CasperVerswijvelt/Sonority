@@ -1,37 +1,30 @@
 import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
+import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/room_calibration.dart';
+import 'card_grid.dart';
 import 'entity_cards.dart' show groupKindL10n;
 import 'entity_icons.dart';
+import 'info_note.dart';
 import 'pill_chip.dart';
 import 'section_header.dart';
 
-/// Which block of the picker a speaker belongs to.
-enum PickerSectionKind {
-  /// Free to bond — nothing else claims it.
-  available,
-
-  /// Bonded into some OTHER pair / home theater / group; choosing it takes it
-  /// from there, at a cost given by [SonosSystem.tuningLostByTaking].
-  bond,
-}
-
 /// One block of a speaker picker: a heading plus the speakers under it.
+///
+/// [source] IS the discriminator — null means "free to use", set means "bonded
+/// into that entity, and choosing one takes it from there" at a cost given by
+/// [SonosSystem.tuningLostByTaking]. A separate kind enum would let
+/// `{bond, source: null}` exist, which rendered as a headerless block.
 @immutable
 class PickerSection {
-  final PickerSectionKind kind;
-
-  /// The bond these speakers must be taken from. Only set for [kind] `bond`.
   final ZoneGroupMember? source;
   final List<SonosDevice> devices;
 
-  const PickerSection({
-    required this.kind,
-    required this.devices,
-    this.source,
-  });
+  const PickerSection({required this.devices, this.source});
+
+  bool get isAvailable => source == null;
 }
 
 /// Split [candidates] into ordered picker blocks: everything free to use —
@@ -63,14 +56,10 @@ List<PickerSection> pickerSections({
     }
   }
   return [
-    if (free.isNotEmpty)
-      PickerSection(kind: PickerSectionKind.available, devices: free),
+    if (free.isNotEmpty) PickerSection(devices: free),
     for (final e in byOwner.entries)
-      PickerSection(
-        kind: PickerSectionKind.bond,
-        source: system.memberByUuid(e.key),
-        devices: e.value,
-      ),
+      if (system.memberByUuid(e.key) case final src?)
+        PickerSection(source: src, devices: e.value),
   ];
 }
 
@@ -86,22 +75,24 @@ Widget? pickerSectionHeader(
   required Map<String, RoomCalibration> calibration,
   required bool absorbing,
 }) {
-  if (sectionCount < 2) return null;
+  // Only the plain "Available" block is chrome-free when it stands alone; a
+  // lone BOND block still has to say whose speakers these are and what taking
+  // one costs (a fully-bonded system has no free speakers at all).
   final l10n = context.l10n;
-  return switch (section.kind) {
-    PickerSectionKind.available =>
-      SectionHeader(l10n.pickerSectionAvailable, icon: Icons.speaker_outlined),
-    PickerSectionKind.bond => switch (section.source) {
-        final src? => SectionHeader(
-            '${src.zoneName} · ${_kindLabel(l10n, src)}',
-            icon: src.isHomeTheater
-                ? Icons.surround_sound
-                : groupKindIcon(src.groupKind),
-            helper: _cost(context, system, src, calibration, absorbing),
-          ),
-        _ => null,
-      },
-  };
+  final src = section.source;
+  if (src == null) {
+    return sectionCount < 2
+        ? null
+        : SectionHeader(l10n.pickerSectionAvailable,
+            icon: Icons.speaker_outlined);
+  }
+  return SectionHeader(
+    '${src.zoneName} · ${_kindLabel(l10n, src)}',
+    icon: src.isHomeTheater
+        ? Icons.surround_sound
+        : groupKindIcon(src.groupKind),
+    helper: _cost(context, system, src, calibration, absorbing),
+  );
 }
 
 String _kindLabel(AppLocalizations l10n, ZoneGroupMember m) =>
@@ -157,33 +148,18 @@ String bondedCardTitle(
   return role == null ? device.typeLabel : '${device.typeLabel} · $role';
 }
 
-/// Whether this speaker holds a Trueplay tuning. Provenance is NOT here — that
-/// is the section header's job (see [pickerSections]) — and neither is the
-/// channel, which is [speakerChannelChip].
-///
-/// The pill appears only when Trueplay is actually ACTIVE (stored *and*
-/// enabled). "Trueplay off" on a speaker holding a dormant tuning, and "not
-/// tuned" on every free speaker, are both noise — the useful signal is "this
-/// speaker is calibrated right now". It says nothing about whether the stored
-/// correction still fits.
-List<Widget> speakerBadges(
-  BuildContext context, {
-  required SonosSystem system,
-  required String uuid,
-  RoomCalibration? calibration,
-  String? exceptPrimary,
-}) {
-  final scheme = Theme.of(context).colorScheme;
-  final l10n = context.l10n;
-  return [
-    if (calibration?.active ?? false)
-      PillChip(
-        icon: Icons.graphic_eq,
-        text: l10n.speakerBadgeTrueplay,
-        color: scheme.secondary,
-      ),
-  ];
-}
+/// Whether Trueplay is ACTIVE on this speaker (stored *and* enabled), as a tag
+/// for its card. "Trueplay off" on a dormant tuning and "not tuned" on every
+/// free speaker are both noise — the useful signal is "calibrated right now".
+/// Says nothing about whether the stored correction still fits.
+Widget? trueplayBadge(BuildContext context, RoomCalibration? calibration) =>
+    (calibration?.active ?? false)
+        ? PillChip(
+            icon: Icons.graphic_eq,
+            text: context.l10n.speakerBadgeTrueplay,
+            color: Theme.of(context).colorScheme.secondary,
+          )
+        : null;
 
 /// The channel [uuid] currently holds inside [source], short form — `L`/`R` for
 /// a stereo pair, `LR`/`RR`/`SW` for a home-theater satellite. Null when the
@@ -247,4 +223,99 @@ String? stealWarning(
     ..sort();
   if (tuned.isEmpty) return null;
   return context.l10n.speakerStealTrueplayWarning(tuned.join(', '), tuned.length);
+}
+
+
+/// Everything a bond-aware picker needs, gathered once per build so the
+/// home-theater and group flows configure it instead of each re-deriving it.
+///
+/// The two flows differ in exactly two values — which entity is being
+/// configured, and whether its bonding call can absorb a speaker out of another
+/// bond — so those are the only fields that vary.
+@immutable
+class PickerContext {
+  final SonosSystem system;
+  final Map<String, RoomCalibration> calibration;
+
+  /// True for a home-theater target (`AddHTSatellite` absorbs a live pair or
+  /// zone); false for a group target (`AddBondedZones` absorbs nothing).
+  final bool absorbing;
+
+  /// The entity being configured — its own members are "available", not stolen.
+  final String? exceptPrimary;
+
+  const PickerContext({
+    required this.system,
+    required this.calibration,
+    required this.absorbing,
+    this.exceptPrimary,
+  });
+
+  List<PickerSection> sections(List<SonosDevice> candidates) => pickerSections(
+        system: system,
+        candidates: candidates,
+        exceptPrimary: exceptPrimary,
+      );
+
+  /// Whether this speaker is shown under a bond heading (and so titles by type).
+  bool isBonded(String uuid) {
+    final owner = system.ownerOf(uuid);
+    return owner != null && owner != exceptPrimary;
+  }
+
+  /// The card title: room name normally, `Type · Channel` under a bond heading.
+  String? titleOverride(SonosDevice d) => isBonded(d.uuid)
+      ? bondedCardTitle(system, device: d, exceptPrimary: exceptPrimary)
+      : null;
+
+  Widget? header(BuildContext context, PickerSection s, int count) =>
+      pickerSectionHeader(context,
+          system: system,
+          section: s,
+          sectionCount: count,
+          calibration: calibration,
+          absorbing: absorbing);
+
+  String? warning(BuildContext context, Set<String> selected) => stealWarning(
+        context,
+        system: system,
+        selected: selected,
+        calibration: calibration,
+        absorbing: absorbing,
+        exceptPrimary: exceptPrimary,
+      );
+}
+
+/// The candidate list as bond-grouped blocks, with the selection's calibration
+/// cost underneath. Shared so the two flows lay out identically; each supplies
+/// only its own [card] (they differ in channel selectors and caps).
+class SpeakerPickerSections extends StatelessWidget {
+  final PickerContext ctx;
+  final List<SonosDevice> candidates;
+  final Widget Function(SonosDevice device) card;
+  final String? warning;
+
+  const SpeakerPickerSections({
+    super.key,
+    required this.ctx,
+    required this.candidates,
+    required this.card,
+    this.warning,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sections = ctx.sections(candidates);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final s in sections) ...[
+          if (ctx.header(context, s, sections.length) case final h?) h,
+          CardGrid([for (final d in s.devices) card(d)]),
+          if (s != sections.last) Gap.m,
+        ],
+        if (warning case final w?) ...[Gap.m, InfoNote(w)],
+      ],
+    );
+  }
 }

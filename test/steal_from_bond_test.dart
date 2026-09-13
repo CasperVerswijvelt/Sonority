@@ -174,6 +174,70 @@ void main() {
     });
   });
 
+  group('mustFreeBeforeBonding — what each apply path decides to free', () {
+    // This predicate is where every bug in this feature lived: three controller
+    // paths each hand-rolled it and each got it wrong differently. One of them
+    // dissolved a live zone on real hardware.
+    test('a free speaker never needs freeing', () {
+      const free = 'RINCON_FREE01400';
+      final sys = SonosSystem(
+        groups: [
+          ZoneGroup(coordinatorUuid: free, members: const [
+            ZoneGroupMember(uuid: free, zoneName: 'Kitchen'),
+          ]),
+        ],
+        devicesByUuid: {free: dev(free, 'Sonos One')},
+      );
+      expect(
+          sys.mustFreeBeforeBonding(free, keep: const {}, absorbing: true),
+          isFalse);
+    });
+
+    test('the target keeps its OWN members — an unchanged re-apply frees none',
+        () {
+      for (final u in [bar, rear, sub]) {
+        expect(
+            system.mustFreeBeforeBonding(u,
+                keep: {bar, rear, sub}, absorbing: true),
+            isFalse,
+            reason: u);
+      }
+    });
+
+    test('an HT target ABSORBS a pair or zone member — no free', () {
+      for (final u in [pairL, pairR, zoneA, zoneB]) {
+        expect(
+            system.mustFreeBeforeBonding(u, keep: const {}, absorbing: true),
+            isFalse,
+            reason: u);
+      }
+    });
+
+    test('a GROUP target absorbs nothing — every bonded speaker is freed', () {
+      for (final u in [pairL, pairR, zoneA, zoneB, rear]) {
+        expect(
+            system.mustFreeBeforeBonding(u, keep: const {}, absorbing: false),
+            isTrue,
+            reason: u);
+      }
+    });
+
+    test('an HT SOURCE is freed even by an HT target (never measured)', () {
+      expect(
+          system.mustFreeBeforeBonding(rear, keep: const {}, absorbing: true),
+          isTrue);
+    });
+
+    test('the coordinator trap: ownerOf returns self, isStandalone does not',
+        () {
+      // The exact hardware-caught bug — an owner-based test skipped this.
+      expect(system.ownerOf(zoneA), zoneA);
+      expect(
+          system.mustFreeBeforeBonding(zoneA, keep: const {}, absorbing: false),
+          isTrue);
+    });
+  });
+
   test('bondMemberUuids covers satellites and channel-map members', () {
     expect(system.bondMemberUuids(ht), {bar, rear, sub});
     expect(system.bondMemberUuids(pair), {pairL, pairR});
@@ -189,10 +253,10 @@ void main() {
         candidates: cands([pairL, rear, zoneA, pairR, zoneB]),
         exceptPrimary: bar, // configuring the home theater
       );
-      expect(s.map((x) => x.kind), [
-        PickerSectionKind.available, // `rear` is already in THIS HT: free to keep
-        PickerSectionKind.bond, // the pair
-        PickerSectionKind.bond, // the zone
+      expect(s.map((x) => x.isAvailable), [
+        true, // `rear` is already in THIS HT: free to keep
+        false, // the pair
+        false, // the zone
       ]);
       expect(s[0].devices.map((d) => d.uuid), [rear],
           reason: "the configured entity's own members are available, not a "
@@ -218,7 +282,7 @@ void main() {
         devicesByUuid: {free.uuid: free},
       );
       final s = pickerSections(system: sys, candidates: [free]);
-      expect(s.single.kind, PickerSectionKind.available);
+      expect(s.single.isAvailable, isTrue);
       expect(s.single.source, isNull);
     });
 
@@ -229,7 +293,7 @@ void main() {
       );
       expect(s, hasLength(1),
           reason: 'a single block renders without a heading at all');
-      expect(s.single.kind, PickerSectionKind.bond);
+      expect(s.single.isAvailable, isFalse);
     });
   });
 }

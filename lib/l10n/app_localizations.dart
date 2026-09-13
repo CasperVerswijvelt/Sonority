@@ -1969,7 +1969,7 @@ abstract class AppLocalizations {
   /// No description provided for @htTrueplayNote.
   ///
   /// In en, this message translates to:
-  /// **'Trueplay can only be measured from the Sonos app on iOS — tune the home theater, and the fronts separately as a stereo pair. Heads-up: Sonos often clears a tuning when speakers are bonded/unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.'**
+  /// **'Trueplay can only be measured from the Sonos app on iOS. Tune the fronts as a stereo pair first and Sonority will bond them without losing it — but don\'t unbond the pair yourself, that\'s what clears a tuning. Sonority only reads and toggles a stored tuning.'**
   String get htTrueplayNote;
 
   /// No description provided for @htAllExtraSpeakers.
@@ -2053,7 +2053,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsNoFreeSpeakers.
   ///
   /// In en, this message translates to:
-  /// **'No free speakers available. They must be standalone (not already part of a home theater or stereo pair).'**
+  /// **'No speakers available to bond.'**
   String get frontSurroundsNoFreeSpeakers;
 
   /// No description provided for @frontSurroundsAmpSubtitle.

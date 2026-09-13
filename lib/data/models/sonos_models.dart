@@ -568,6 +568,28 @@ class SonosSystem {
     return members.difference({source.uuid}); // the coordinator keeps its own
   }
 
+  /// Whether [uuid] must be freed from whatever it is bonded to before a new
+  /// bond can claim it.
+  ///
+  /// The question is [isStandalone], NOT `ownerOf(uuid) != target` — for a
+  /// group's COORDINATOR `ownerOf` returns that speaker's own uuid, so an
+  /// owner-based test reads it as unbonded, skips the free, and the bond write
+  /// then silently no-ops. Hardware-caught: it dissolved a live zone without
+  /// forming the new group.
+  ///
+  /// [keep] is the target's own current members (freeing those would undo the
+  /// thing being built). [absorbing] is true for a home-theater target, which
+  /// takes a speaker straight out of a pair or zone with its tuning intact.
+  bool mustFreeBeforeBonding(
+    String uuid, {
+    required Set<String> keep,
+    required bool absorbing,
+  }) {
+    if (keep.contains(uuid) || isStandalone(uuid)) return false;
+    final src = memberByUuid(ownerOf(uuid) ?? '');
+    return !(absorbing && src != null && canAbsorbFrom(src));
+  }
+
   /// Whether `AddHTSatellite` can take a speaker straight out of [source]
   /// without freeing it first — true for an `AddBondedZones`-style bond (pair,
   /// zone, custom group), false for a home theater (never measured; see

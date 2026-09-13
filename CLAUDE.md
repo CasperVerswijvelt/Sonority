@@ -219,6 +219,14 @@ interpolated) then use it.
     now a no-op apply). **Sub-on-a-stereo-pair is NOT supported** —
     `AddHTSatellite` on a pair coordinator returns UPnPError 401.
   - `CreateStereoPair` / `SeparateStereoPair` — stereo pairs.
+  - ⭐ **`AddHTSatellite` ABSORBS a speaker straight out of a live stereo pair or
+    zone** — no separate/dissolve first, one write, and the speaker keeps its
+    Trueplay (EXP-23 Q7/Q9/Q10). **`AddBondedZones` absorbs from NOTHING**: it is
+    accepted (HTTP 200) and silently no-ops on a speaker bonded elsewhere (Q11, 2
+    cycles), so a group target must free the speaker first. Absorbing out of another
+    home theater is **unmeasured** (one soundbar here) and treated as not possible.
+    ⇒ `SonosSystem.canAbsorbFrom` / `mustFreeBeforeBonding` encode this, and all four
+    apply paths route through `SonosController._freeConflicts`.
   - `AddBondedZones(ChannelMapSet)` — **creates** a Sonos **zone** (the 2025
     multi-speaker bond: 2–16 individual speakers play as one room, full-range
     L+R, no L/R split). **Confirmed on hardware** (`tool/zone_probe.dart`):
@@ -363,10 +371,12 @@ interpolated) then use it.
     ⇒ **`AddHTSatellite` mutates a bond; `AddBondedZones` rebuilds one.** So an HT edit
     has a free path and a group edit does not — `editGroup`'s in-place `reassertGroup`
     is **not** gentler than its dissolve path.
-    ⇒ **Taking speakers from another bond costs:** a stereo pair — only the speakers
-    *left behind* (both halves ⇒ nothing lost, one half ⇒ the other loses it); an HT or
-    group — every member, including the ones taken. This is
-    `SonosSystem.tuningLostByTaking`, which the pickers price per selection.
+    ⇒ **Taking speakers from another bond costs** (`SonosSystem.tuningLostByTaking`,
+    which the pickers price per selection): a **stereo pair** — only the speakers
+    *left behind* (both halves ⇒ nothing lost, one half ⇒ the other loses it); a
+    **zone** — every member except the zone's **coordinator**, which keeps its own
+    (Q10, 2 cycles); a **home theater** — every member, because absorbing out of one
+    was never measured so the speaker is freed first instead of assumed.
     ⚠️ **A set that has JUST changed refuses a tuning for minutes, silently** (HTTP 200
     on every POST, `available` stays 0), and the `available` oracle reads 0→1→0 around
     a bonding change ⇒ settle, then read repeatedly; never verdict on one read.
@@ -382,10 +392,9 @@ interpolated) then use it.
     `AddBondedZones` re-assert wiping a group. **One cycle only** (provisional by this
     project's own rule): taking **one** half of a pair (stolen keeps / leftover loses),
     `RemoveHTSatellite` wiping the whole set, and a group dissolve.
-    ⚠️⚠️ **NOT measured at all: taking a speaker OUT of a home theater or a group and
-    INTO another bond.** Those two cells are inferred from the removal/dissolve
-    experiments, which never re-bonded the speaker elsewhere. The stereo-pair source is
-    the only one where the actual take-from-A-into-B operation was performed.
+    ⚠️⚠️ **NOT measured: taking a speaker out of a HOME THEATER into another bond.**
+    One soundbar on the test system, so it cannot be performed — the code therefore
+    frees an HT source rather than assuming it can be absorbed (`canAbsorbFrom`).
 
 ### Terminology (the same thing has three names — don't get lost)
 - **zone group** = Sonos' API/topology term (`ZoneGroupTopology`, `ZoneGroupMember`)
