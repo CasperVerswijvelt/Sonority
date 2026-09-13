@@ -99,6 +99,23 @@ void main() {
       expect(system.tuningLostByTaking(ht, {rear}), {bar, rear, sub});
     });
 
+    test('a home-theater source is never absorbed, so the whole HT pays', () {
+      // Absorbing out of another home theater was never measured (one soundbar
+      // on the test system), so it is not assumed: the speaker gets freed
+      // first, exactly as in a group flow. This is why BOTH pickers say the
+      // same thing about a home-theater source.
+      expect(system.canAbsorbFrom(ht), isFalse);
+      expect(system.tuningLostByTaking(ht, {rear}), {bar, rear, sub});
+      expect(system.tuningLostByTaking(ht, {rear}, destinationAbsorbs: false),
+          {bar, rear, sub},
+          reason: 'same either way — the destination cannot rescue it');
+    });
+
+    test('pair and zone ARE absorbable', () {
+      expect(system.canAbsorbFrom(pair), isTrue);
+      expect(system.canAbsorbFrom(zone), isTrue);
+    });
+
     test('zone → only the COORDINATOR keeps it (Q10, 2 cycles)', () {
       // Measured: absorbing both members of a live zone into a home theater
       // kept the zone coordinator's tuning and lost the other member's, with
@@ -112,12 +129,13 @@ void main() {
       // elsewhere (Q11, 2 cycles), so the speaker is freed first — which
       // dissolves the source bond and costs every member, pair or not.
       expect(
-        system.tuningLostByTaking(pair, {pairL, pairR}, absorbing: false),
+        system.tuningLostByTaking(pair, {pairL, pairR},
+            destinationAbsorbs: false),
         {pairL, pairR},
         reason: 'the pair is dissolved, not absorbed',
       );
       expect(
-        system.tuningLostByTaking(zone, {zoneA}, absorbing: false),
+        system.tuningLostByTaking(zone, {zoneA}, destinationAbsorbs: false),
         {zoneA, zoneB},
       );
     });

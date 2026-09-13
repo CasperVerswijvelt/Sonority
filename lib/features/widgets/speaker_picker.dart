@@ -124,14 +124,16 @@ String _cost(
   // calibration is at stake, and it is why these speakers are listed apart.
   final base = l10n.pickerSectionLeavesBond;
   if (!members.any((u) => calibration[u]?.available ?? false)) return base;
-  // A group destination cannot absorb, so the speaker gets freed first and the
-  // whole source bond pays — regardless of what kind of bond it is.
-  if (!absorbing) return '$base ${l10n.pickerCostFreedFirst(members.length)}';
+  // Anything that cannot be absorbed has to be freed first, and then the whole
+  // source bond pays. That is every source in a group flow (AddBondedZones
+  // absorbs from nothing) AND a home-theater source in either flow (absorbing
+  // out of another HT is unmeasured, so it is not assumed) — which is why both
+  // flows say the same thing about a home-theater source.
+  if (!absorbing || !system.canAbsorbFrom(src)) {
+    return '$base ${l10n.pickerCostFreedFirst(members.length)}';
+  }
   if (src.isStereoPair) return '$base ${l10n.pickerCostPair}';
-  if (src.isZone || src.isGroup) return '$base ${l10n.pickerCostZone}';
-  // Home theater: never measured (one soundbar on the test system), so this is
-  // deliberately hedged rather than asserted.
-  return '$base ${l10n.pickerCostHomeTheaterMaybe}';
+  return '$base ${l10n.pickerCostZone}';
 }
 
 /// The card title for [uuid] in a bond block: the speaker TYPE, plus the
@@ -225,7 +227,7 @@ String? stealWarning(
     final source = system.memberByUuid(entry.key);
     if (source == null) continue;
     losing.addAll(system.tuningLostByTaking(source, entry.value,
-        absorbing: absorbing));
+        destinationAbsorbs: absorbing));
   }
   final tuned = losing
       .where((u) => calibration[u]?.available ?? false)

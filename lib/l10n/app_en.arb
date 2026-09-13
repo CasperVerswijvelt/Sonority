@@ -825,7 +825,6 @@
   "pickerSectionAvailable": "Available",
   "pickerCostPair": "Take both and they keep their Trueplay; take one and the other loses it.",
   "pickerCostZone": "Only the first speaker keeps its Trueplay; the others lose it.",
-  "pickerCostHomeTheaterMaybe": "Trueplay may be cleared on the whole home theater.",
   "pickerCostFreedFirst": "They must be freed first, so Trueplay is cleared on all {count}.",
   "@pickerCostFreedFirst": {
     "description": "Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and the whole source bond loses its tuning.",

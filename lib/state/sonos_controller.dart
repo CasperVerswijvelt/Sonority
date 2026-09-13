@@ -265,13 +265,39 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final result = await AsyncValue.guard(() async {
       tracker.start('bond');
       final ph = _phases(tracker, 'bond');
-      ph.seed([('bond', l10n.stepBondNSpeakers(target.entries.length - 1))]);
+      // `AddHTSatellite` absorbs a speaker straight out of a stereo pair or a
+      // zone (EXP-23 Q7/Q9/Q10), so those need no freeing and keep their
+      // Trueplay. It has NEVER been shown to absorb one out of another HOME
+      // THEATER — untestable here, one soundbar — so those are freed first
+      // rather than assumed. Without this the write would target a speaker the
+      // other bar still claims.
+      var sys = previous ?? await _repo.discover();
+      final toFree = [
+        for (final e in target.entries.skip(1))
+          if (sys.memberByUuid(sys.ownerOf(e.uuid) ?? '') case final src?
+              when !sys.canAbsorbFrom(src) && src.uuid != soundbar.uuid)
+            e.uuid,
+      ];
+      ph.seed([
+        if (toFree.isNotEmpty) ('free', l10n.stepFreeConflicting),
+        ('bond', l10n.stepBondNSpeakers(target.entries.length - 1)),
+      ]);
       try {
-        final sys = await _applyHtTarget(
+        for (final u in toFree) {
+          _activeOp?.throwIfCancelled();
+          ph.phase('free', l10n.stepFreeConflicting);
+          ph.note(l10n.stepFreeing(sys.device(u)?.roomName ?? u));
+          await _repo.freeSpeaker(sys, u, cancel: _activeOp);
+          // Read back from the BAR, never the speaker just detached.
+          if (soundbarDevice.ip case final ip?) {
+            sys = await _settleRead(sys, ip);
+          }
+        }
+        sys = await _applyHtTarget(
           bar: soundbarDevice,
-          current: soundbar,
+          current: sys.memberByUuid(soundbar.uuid) ?? soundbar,
           target: target,
-          sys: previous ?? await _repo.discover(),
+          sys: sys,
           ph: ph,
         );
         tracker.done('bond');

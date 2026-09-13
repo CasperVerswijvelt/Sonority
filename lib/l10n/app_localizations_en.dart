@@ -1371,10 +1371,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Only the first speaker keeps its Trueplay; the others lose it.';
 
   @override
-  String get pickerCostHomeTheaterMaybe =>
-      'Trueplay may be cleared on the whole home theater.';
-
-  @override
   String pickerCostFreedFirst(int count) {
     return 'They must be freed first, so Trueplay is cleared on all $count.';
   }

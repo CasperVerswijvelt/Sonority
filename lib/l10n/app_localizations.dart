@@ -2230,12 +2230,6 @@ abstract class AppLocalizations {
   /// **'Only the first speaker keeps its Trueplay; the others lose it.'**
   String get pickerCostZone;
 
-  /// No description provided for @pickerCostHomeTheaterMaybe.
-  ///
-  /// In en, this message translates to:
-  /// **'Trueplay may be cleared on the whole home theater.'**
-  String get pickerCostHomeTheaterMaybe;
-
   /// Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and the whole source bond loses its tuning.
   ///
   /// In en, this message translates to:
