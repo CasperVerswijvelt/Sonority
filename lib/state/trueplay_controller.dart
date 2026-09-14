@@ -1,11 +1,12 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/sonos_models.dart';
 import '../data/sonos/diagnostics_log.dart';
 import '../data/sonos/room_calibration.dart';
 import '../data/sonos/sonos_repository.dart';
-import 'sonos_controller.dart' show sonosRepositoryProvider;
+import 'sonos_controller.dart'
+    show sonosControllerProvider, sonosRepositoryProvider;
 
 /// Trueplay state is a per-speaker `RenderingControl` read, orthogonal to the
 /// topology, so it lives in its own provider rather than the `SonosSystem`
@@ -21,6 +22,22 @@ class TrueplayState {
     Map<String, RoomCalibration>? byUuid,
     Set<String>? busy,
   }) => TrueplayState(byUuid: byUuid ?? this.byUuid, busy: busy ?? this.busy);
+}
+
+/// Starts a full [TrueplayController.loadAll] after the current frame — the
+/// one call a bond-aware setup flow makes from `initState`.
+///
+/// Deferred because `load` touches provider state synchronously, which Riverpod
+/// forbids during build. Best-effort: a system that hasn't been discovered yet,
+/// or a flow the user has already left, simply skips it.
+void loadTrueplayForPickers(WidgetRef ref) {
+  final system = ref.read(sonosControllerProvider).value;
+  if (system == null) return;
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (ref.context.mounted) {
+      ref.read(trueplayControllerProvider.notifier).loadAll(system);
+    }
+  });
 }
 
 final trueplayControllerProvider =
@@ -56,6 +73,17 @@ class TrueplayController extends Notifier<TrueplayState> {
     );
     return results;
   }
+
+  /// Fetch calibration for EVERY speaker in [system], for the bond-aware
+  /// pickers.
+  ///
+  /// Every device, not just the candidates: taking a satellite out of another
+  /// home theater costs that bond's soundbar and Sub their tuning too, and
+  /// neither is ever a candidate — gathering only candidates left them out of
+  /// the cost line and out of the named losers. Both setup flows call this, so
+  /// they can't drift.
+  Future<void> loadAll(SonosSystem system) =>
+      load(system.devicesByUuid.values);
 
   /// Fetch (or refresh) calibration status for a set of speakers.
   Future<void> load(Iterable<SonosDevice> devices) async {

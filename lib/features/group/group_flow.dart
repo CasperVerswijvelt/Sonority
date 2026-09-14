@@ -6,13 +6,13 @@ import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
+import '../../state/trueplay_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/max_width_body.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/selectable_speaker_card.dart';
 import '../widgets/speaker_picker.dart';
-import '../../state/trueplay_controller.dart';
 
 /// How the segmented control frames the bond. All three build a `ChannelMapSet`
 /// and go through the same `AddBondedZones` engine path.
@@ -65,19 +65,8 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
   void initState() {
     super.initState();
     final sys = ref.read(sonosControllerProvider).value;
-    // Trueplay for everything on offer. Kicked off before the seeding branches
-    // below, which each return early. Best-effort and off the build path.
-    if (sys != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        // EVERY device, not just the candidates: taking a satellite out of
-        // another home theater costs that bond's SOUNDBAR and SUB their tuning
-        // too, and neither is ever a candidate — so gathering only candidates
-        // left them out of the cost line and out of the named losers.
-        ref.read(trueplayControllerProvider.notifier)
-            .load(sys.devicesByUuid.values);
-      });
-    }
+    // Before the seeding branches below, which each return early.
+    loadTrueplayForPickers(ref);
     // Edit mode: seed the whole selection from the live group (mirrors
     // FrontSurroundsFlow). Preselects are create-only and ignored here.
     final uuid = widget.editUuid;
@@ -173,12 +162,11 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     final picker = PickerContext(
       system: system,
       calibration: ref.watch(trueplayControllerProvider).byUuid,
-      // AddBondedZones no-ops on a speaker bonded elsewhere (EXP-23 Q11), so
-      // createGroup/editGroup free it first — and the whole source bond pays.
-      absorbing: false,
       exceptPrimary: widget.editUuid,
-      // Editing a group rebuilds it, clearing its OWN members' Trueplay too.
-      ownBondMembers: existing == null
+      // Editing a group REBUILDS it, clearing its own members' Trueplay too —
+      // but only if the bond actually changes. Gating on that is what keeps
+      // the flow from warning the moment it opens on an untouched group.
+      ownBondMembers: existing == null || !_bondDiffers(system, existing)
           ? const {}
           : system.bondMemberUuids(existing),
     );
@@ -282,7 +270,6 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                               candidates: candidates,
                               selected: _selected,
                               picker: picker,
-
                               channels: _channels,
                               onToggle: _toggle,
                               onChannel: (u, c) =>
@@ -370,9 +357,10 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     return members;
   }
 
-  /// True when the current selection would actually change [existing] — so an
-  /// unchanged edit disables Apply (no needless re-assert / dissolve).
-  bool _differs(SonosSystem system, ZoneGroupMember existing) {
+  /// True when the current selection would rewrite [existing]'s BOND — the
+  /// part that costs Trueplay, since `AddBondedZones` rebuilds the bond even on
+  /// an unchanged map. A rename alone doesn't, which is why it isn't in here.
+  bool _bondDiffers(SonosSystem system, ZoneGroupMember existing) {
     // Ordered uuid:channel signature captures membership, channels, and (for
     // stereo) the L/R order in one compare.
     final want = [
@@ -381,10 +369,14 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     final have = [
       for (final e in existing.groupChannels.entries) '${e.key}:${e.value.name}',
     ].join(';');
-    return want != have ||
-        _subUuid != existing.subUuid ||
-        _nameController.text.trim() != existing.zoneName;
+    return want != have || _subUuid != existing.subUuid;
   }
+
+  /// True when the current selection would actually change [existing] — so an
+  /// unchanged edit disables Apply (no needless re-assert / dissolve).
+  bool _differs(SonosSystem system, ZoneGroupMember existing) =>
+      _bondDiffers(system, existing) ||
+      _nameController.text.trim() != existing.zoneName;
 
   Widget _controls(SonosSystem system) {
     final isLast = _step == _stepReview;
@@ -555,7 +547,6 @@ class _SelectStep extends StatelessWidget {
       selected: isSel,
       enabled: !disabled,
       onToggle: () => onToggle(d.uuid),
-      subtitle: d.typeLabel,
       titleOverride: picker.titleOverride(context, d),
       identify: identifyControls(d),
       badges: [?trueplayBadge(context, picker.calibration[d.uuid])],

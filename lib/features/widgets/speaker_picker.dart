@@ -73,7 +73,6 @@ Widget? _sectionHeader(
   required PickerSection section,
   required int sectionCount,
   required Map<String, RoomCalibration> calibration,
-  required bool absorbing,
 }) {
   // Only the plain "Available" block is chrome-free when it stands alone; a
   // lone BOND block still has to say whose speakers these are and what taking
@@ -237,60 +236,49 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
   return (names: names, count: tuned.length);
 }
 
-/// The calibration cost of a selection that takes speakers out of other bonds,
-/// or null when nothing tuned is at stake.
-String? _stealWarning(
-  AppLocalizations l10n, {
-  required SonosSystem system,
-  required Set<String> selected,
-  required Map<String, RoomCalibration> calibration,
-  required bool absorbing,
-  String? exceptPrimary,
-  Set<String> ownBondMembers = const {},
-}) {
-  final losing = system.tuningLostBySelection(
-    selected: selected,
-    absorbing: absorbing,
-    exceptPrimary: exceptPrimary,
-    alsoLosing: ownBondMembers,
-  );
-  final tuned = tunedSpeakers(l10n, system, losing, calibration,
-      ownBond: exceptPrimary);
-  if (tuned.names.isEmpty) return null;
-  // Plural on the SPEAKER count, not the name count — two identical models in
-  // one bond share a label, and "its … re-tune it" would then be wrong.
-  return l10n.speakerStealTrueplayWarning(tuned.names.join(', '), tuned.count);
-}
-
+/// User-facing cost copy never credits an absorb with saving a tuning.
+///
+/// [SonosSystem.tuningLostByTaking] models faithfully what survives in
+/// STORAGE, and the engine still relies on that — `_freeConflicts` really does
+/// skip the free for an HT target. But a surviving tuning comes back switched
+/// OFF and cannot be switched on again without being destroyed (CLAUDE.md, the
+/// destructive-enable rule), so there is nothing a screen can promise. Every
+/// screen therefore prices a take the same way the section headers already
+/// word it: the whole source bond pays.
+///
+/// This was two different answers three taps apart — the picker note credited
+/// the absorb and the review card did not — which is why it is one named
+/// constant now instead of a flag each caller passes.
+const _absorbSavesNothing = false;
 
 /// Everything a bond-aware picker needs, gathered once per build so the
 /// home-theater and group flows configure it instead of each re-deriving it.
 ///
-/// The two flows differ in exactly two values — which entity is being
-/// configured, and whether its bonding call can absorb a speaker out of another
-/// bond — so those are the only fields that vary.
+/// The two flows differ only in which entity is being configured (and, for a
+/// group edit, that its own members are part of the cost).
 @immutable
 class PickerContext {
   final SonosSystem system;
   final Map<String, RoomCalibration> calibration;
 
-  /// True for a home-theater target (`AddHTSatellite` absorbs a live pair or
-  /// zone); false for a group target (`AddBondedZones` absorbs nothing).
-  final bool absorbing;
-
   /// The entity being configured — its own members are "available", not stolen.
   final String? exceptPrimary;
 
-  /// When editing a GROUP, that group's current members: `AddBondedZones`
-  /// rebuilds the bond and clears their Trueplay even on an unchanged map
-  /// (EXP-23 Q8a), so they belong in the cost. Empty for a home theater, whose
-  /// re-assert is free, and for creating a group from scratch.
+  /// The configured entity's OWN members, when the apply about to run costs
+  /// them their tuning as well — the part no source bond can know about.
+  ///
+  /// A group edit: always, since `AddBondedZones` rebuilds the bond even on an
+  /// unchanged map (EXP-23 Q8a). A home theater: whenever the apply writes
+  /// anything at all, NOT only when it drops a satellite — a purely additive
+  /// `AddHTSatellite` was measured dropping the bar and both rears to
+  /// `available=0` with nothing removed (CLAUDE.md, Q20), and which satellites
+  /// survive is not predictable. Empty when the apply is a no-op, and when
+  /// creating a group from scratch.
   final Set<String> ownBondMembers;
 
   const PickerContext({
     required this.system,
     required this.calibration,
-    required this.absorbing,
     this.exceptPrimary,
     this.ownBondMembers = const {},
   });
@@ -318,20 +306,38 @@ class PickerContext {
           system: system,
           section: s,
           sectionCount: count,
-          calibration: calibration,
-          absorbing: absorbing);
+          calibration: calibration);
 
-  /// Takes the [AppLocalizations] rather than a `BuildContext`: this one is
-  /// pure text, so it stays callable (and testable) without an element tree.
-  String? warning(AppLocalizations l10n, Set<String> selected) => _stealWarning(
-        l10n,
-        system: system,
-        selected: selected,
-        calibration: calibration,
-        absorbing: absorbing,
-        exceptPrimary: exceptPrimary,
-        ownBondMembers: ownBondMembers,
-      );
+  /// The speakers [selected] costs their Trueplay tuning, named for display.
+  ///
+  /// THE one cost computation behind every screen in a flow — the picker note
+  /// and the home-theater review card render it with different sentences but
+  /// must never disagree about who is on the list, which they did until this
+  /// was a single method.
+  ///
+  /// Takes the [AppLocalizations] rather than a `BuildContext`: this is pure
+  /// text, so it stays callable (and testable) without an element tree.
+  ({List<String> names, int count}) tuningCost(
+      AppLocalizations l10n, Set<String> selected) {
+    final losing = system.tuningLostBySelection(
+      selected: selected,
+      absorbing: _absorbSavesNothing,
+      exceptPrimary: exceptPrimary,
+      alsoLosing: ownBondMembers,
+    );
+    return tunedSpeakers(l10n, system, losing, calibration,
+        ownBond: exceptPrimary);
+  }
+
+  /// [tuningCost] as the one-sentence note under a picker list, or null when
+  /// nothing tuned is at stake.
+  String? warning(AppLocalizations l10n, Set<String> selected) {
+    final tuned = tuningCost(l10n, selected);
+    if (tuned.names.isEmpty) return null;
+    // Plural on the SPEAKER count, not the name count — two identical models in
+    // one bond share a label, and "its … re-tune it" would then be wrong.
+    return l10n.speakerStealTrueplayWarning(tuned.names.join(', '), tuned.count);
+  }
 }
 
 /// The candidate list as bond-grouped blocks, with the selection's calibration

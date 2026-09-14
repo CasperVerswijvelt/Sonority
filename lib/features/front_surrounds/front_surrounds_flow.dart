@@ -6,8 +6,8 @@ import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/front_layout.dart';
-import '../../data/sonos/room_calibration.dart';
 import '../../state/sonos_controller.dart';
+import '../../state/trueplay_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
@@ -17,7 +17,6 @@ import '../widgets/max_width_body.dart';
 import '../widgets/selectable_speaker_card.dart';
 import '../widgets/speaker_picker.dart';
 import '../widgets/speaker_diagram.dart';
-import '../../state/trueplay_controller.dart';
 
 /// Seeds the configure-HT selectors from [member]'s current bond: front uuids
 /// ordered [left, right] (a single device on both fronts — an Amp — collapses to
@@ -94,22 +93,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         .cast<ZoneGroupMember?>()
         .firstOrNull;
     if (member == null) return;
-    // Read Trueplay for everything on offer, so the picker can tag a candidate
-    // that holds a tuning before the user moves it. Best-effort and off the
-    // build path; unreachable speakers are simply dropped by the controller.
-    final system = ref.read(sonosControllerProvider).value;
-    if (system != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        // EVERY device, not just the candidates: taking a satellite out of
-        // another home theater costs that bond's SOUNDBAR and SUB their tuning
-        // too, and neither is ever a candidate — so gathering only candidates
-        // left them out of the cost line and out of the named losers.
-        ref
-            .read(trueplayControllerProvider.notifier)
-            .load(system.devicesByUuid.values);
-      });
-    }
+    loadTrueplayForPickers(ref);
     final seed = seedHtRoles(member);
     _fronts.addAll(seed.fronts);
     _surrounds.addAll(seed.surrounds);
@@ -201,13 +185,22 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           if (system.device(id) case final d?) d,
     ];
 
+    // What applying would do, asked once per build: it gates Apply, names what
+    // leaves on the review card, and decides whether this home theater's own
+    // members are part of the Trueplay cost.
+    final diff = _diff(system, member, soundbar);
     // Trueplay per candidate — a speaker taken from another bond may hold a
     // tuning the move would cost, and the picker says so before it happens.
     final picker = PickerContext(
       system: system,
       calibration: ref.watch(trueplayControllerProvider).byUuid,
-      absorbing: true, // AddHTSatellite takes a speaker out of a live bond
       exceptPrimary: member.uuid,
+      // Any write costs this bond its tuning, not just one that drops a
+      // satellite (CLAUDE.md, Q20: a pure add took the bar and both rears to
+      // `available=0`). A no-op writes nothing, so it costs nothing — which is
+      // also what keeps the flow from warning the moment it opens.
+      ownBondMembers:
+          diff.isNoOp ? const {} : system.bondMemberUuids(member),
     );
 
     // Chime only for a standalone speaker; an already-bonded pick (a current
@@ -256,7 +249,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
             type: StepperType.vertical,
             onStepTapped: (i) => setState(() => _step = i),
             controlsBuilder: (context, _) =>
-                _controls(context, system, member, soundbar),
+                _controls(context, member, soundbar, diff),
             steps: [
               Step(
                 title: Text(context.l10n.frontSurroundsStepFronts),
@@ -349,11 +342,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   member: member,
                   additions: _additions(system),
                   subs: _subDevices(system),
-                  calibration: picker.calibration,
-                  dropped: [
-                    for (final u in _diff(system, member, soundbar).toRemove)
-                      if (system.device(u) case final d?) d,
-                  ],
+                  diff: diff,
+                  picker: picker,
                 ),
               ),
             ],
@@ -464,9 +454,9 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
 
   Widget _controls(
     BuildContext context,
-    SonosSystem system,
     ZoneGroupMember member,
     SonosDevice soundbar,
+    HtDiff diff,
   ) {
     final canNext = switch (_step) {
       0 => _frontsValid,
@@ -474,9 +464,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       _ => true,
     };
     final isLast = _step == 3;
-    final canApply = _frontsValid &&
-        _surroundsValid &&
-        !_diff(system, member, soundbar).isNoOp;
+    final canApply = _frontsValid && _surroundsValid && !diff.isNoOp;
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Row(
@@ -589,9 +577,10 @@ class _ChooseSpeakers extends StatelessWidget {
       enabled: !disabled,
       onToggle: () => onToggle(d),
       titleOverride: picker.titleOverride(context, d),
-      subtitle: isAmp
-          ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel)
-          : d.typeLabel,
+      // Only the Amp note is worth saying; the plain type label is the card's
+      // own default (and is already the title under a bond heading).
+      subtitle:
+          isAmp ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel) : null,
       identify: identifyControls(d),
       badges: [?trueplayBadge(context, picker.calibration[d.uuid])],
       showControl: showLR,
@@ -676,18 +665,22 @@ class _Review extends StatelessWidget {
   /// Resulting Subs (existing ∪ newly picked) — up to two.
   final List<SonosDevice> subs;
 
-  /// Speakers currently in this home theater that the selection drops.
-  final List<SonosDevice> dropped;
+  /// What applying would do, straight from the engine — `toRemove` names what
+  /// leaves. Same object that gates the Apply button, so the card can't
+  /// describe an apply different from the one that runs.
+  final HtDiff diff;
 
-  final Map<String, RoomCalibration> calibration;
+  /// The same context the pickers used, so the review card and the note under
+  /// the speaker list can't price the same selection differently.
+  final PickerContext picker;
 
   const _Review({
     required this.system,
     required this.member,
     required this.additions,
     required this.subs,
-    required this.dropped,
-    required this.calibration,
+    required this.diff,
+    required this.picker,
   });
 
   @override
@@ -718,34 +711,24 @@ class _Review extends StatelessWidget {
     );
   }
 
-  /// The one review note: what leaves, who keeps their Trueplay and who loses
-  /// it, and a closing reassurance. One card, because the pieces are one story
-  /// and the diagram above already shows the layout itself.
+  /// The one review note: what leaves, who loses their Trueplay, and a closing
+  /// reassurance. One card, because the pieces are one story and the diagram
+  /// above already shows the layout itself.
   String _note(BuildContext context) {
     final l10n = context.l10n;
+    final dropped = [
+      for (final u in diff.toRemove)
+        if (system.device(u) case final d?) d,
+    ];
     // What the HT holds after apply — the bar plus everything still selected.
-    final resulting = {
+    // Priced by the SAME PickerContext the speaker lists used (which already
+    // carries this home theater in `ownBondMembers` when the apply writes), so
+    // the two screens name the same speakers.
+    final loses = picker.tuningCost(l10n, {
       member.uuid,
       for (final d in additions.values) d.uuid,
       for (final d in subs) d.uuid,
-    };
-    final losing = system.tuningLostBySelection(
-      selected: resulting,
-      // `false` is NOT a claim that AddHTSatellite fails to absorb — it does,
-      // and the model says so. It is that an absorbed tuning is a ZOMBIE:
-      // EXP-23 Q15/Q16 measured it comes back switched off and that switching
-      // it on destroys it, with no safe delay and the role-preserving case
-      // dying too. A user cannot tell that from a lost one, so the card names
-      // every speaker that needs re-tuning and promises nothing.
-      absorbing: false,
-      exceptPrimary: member.uuid,
-      // Removing a member is the expensive edit: `RemoveHTSatellite` clears
-      // Trueplay on EVERY speaker in the bond, not just the one leaving
-      // (EXP-23), so one drop puts the whole current home theater in the list.
-      alsoLosing: dropped.isEmpty ? const {} : system.bondMemberUuids(member),
-    );
-    final loses =
-        tunedSpeakers(l10n, system, losing, calibration, ownBond: member.uuid);
+    });
     return [
       if (dropped.isNotEmpty)
         l10n.frontSurroundsDropNote(

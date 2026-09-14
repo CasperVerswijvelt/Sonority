@@ -6,8 +6,8 @@ import 'package:sonority/features/widgets/speaker_picker.dart';
 import 'package:sonority/l10n/app_localizations.dart';
 
 /// Taking speakers out of an existing bond, and what each case costs in room
-/// calibration. Every expectation here is a hardware-measured row of EXP-23
-/// of EXP-23, not a guess:
+/// calibration. Every expectation here is a hardware-measured row of EXP-23,
+/// not a guess:
 ///
 ///  * stereo pair, both halves taken → nothing lost (the pair dissolves under
 ///    `AddHTSatellite` and both keep their tuning)
@@ -329,36 +329,62 @@ void main() {
     });
   });
 
-  group('the HT review step prices the whole apply', () {
-    // What the review card computes: everything the apply takes out of another
-    // bond, plus the whole current home theater when the apply drops a member
-    // (`RemoveHTSatellite` wipes the set, EXP-23).
-    Set<String> losing(Set<String> resulting, {bool dropping = false}) =>
-        system.tuningLostBySelection(
-          selected: resulting,
-          absorbing: true, // AddHTSatellite
+  group('one cost model, every screen in the HT flow', () {
+    late AppLocalizations l10n;
+    setUpAll(() async {
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    // The PickerContext the flow builds. `writes` is `!diff.isNoOp` there:
+    // ANY write costs this home theater its own tuning, not only one that
+    // drops a satellite (CLAUDE.md Q20 — a pure add took the bar and both
+    // rears to available=0). A no-op writes nothing, so it costs nothing.
+    PickerContext ctx({required bool writes}) => PickerContext(
+          system: system,
+          calibration: {
+            for (final u in [bar, sub, rear, pairL, pairR, zoneA, zoneB])
+              u: const RoomCalibration(available: true, enabled: true),
+          },
           exceptPrimary: bar,
-          alsoLosing: dropping ? system.bondMemberUuids(ht) : const {},
+          ownBondMembers:
+              writes ? system.bondMemberUuids(ht) : const <String>{},
         );
 
-    test('an additive apply that takes a whole pair costs nothing', () {
-      expect(losing({bar, rear, sub, pairL, pairR}), isEmpty,
-          reason: 'the HT keeps every member and both halves come along');
+    // The speaker list's note and the review card are rendered from the SAME
+    // method with the same selection; the bar is skipped either way by
+    // exceptPrimary. They disagreed once — that is what this pins.
+    test('the picker note and the review card name the same speakers', () {
+      final c = ctx(writes: true);
+      final picked = {pairL, pairR}; // what the speaker step has selected
+      final resulting = {bar, ...picked}; // what the review step prices
+      expect(c.tuningCost(l10n, resulting).names,
+          c.tuningCost(l10n, picked).names);
+      expect(c.warning(l10n, picked), isNotNull,
+          reason: 'the note cannot stay silent while the header says cleared');
     });
 
-    test('taking one half of a pair costs only the half left behind', () {
-      final lost = losing({bar, rear, sub, pairL});
-      expect(lost, {pairR});
-      expect({bar, rear, sub, pairL}.difference(lost), {bar, rear, sub, pairL},
-          reason: 'the absorbed half keeps its tuning, and so does the HT');
+    test('taking a WHOLE pair still costs it — no screen credits an absorb',
+        () {
+      // tuningLostByTaking models storage faithfully (both halves absorbed ⇒
+      // nothing lost), but a surviving tuning comes back off and cannot be
+      // switched on again, so the copy promises nothing. Q15/Q16.
+      expect(system.tuningLostByTaking(pair, {pairL, pairR}), isEmpty,
+          reason: 'the storage model is unchanged');
+      expect(ctx(writes: true).tuningCost(l10n, {bar, pairL, pairR}).count, 5,
+          reason: 'both pair halves plus the whole home theater');
     });
 
-    test('dropping a satellite costs the whole home theater', () {
-      // The rear surround is deselected AND the pair is raided for one front.
-      final lost = losing({bar, sub, pairL}, dropping: true);
-      expect(lost, {bar, rear, sub, pairR});
-      expect({bar, sub, pairL}.difference(lost), {pairL},
-          reason: 'only the newly absorbed speaker keeps a tuning');
+    test('a purely ADDITIVE apply still prices this home theater', () {
+      // Nothing dropped: the old gate said "costs nothing", Q20 says the bar
+      // and the rears go to available=0 anyway.
+      final lost = ctx(writes: true).tuningCost(l10n, {bar, rear, sub, pairL});
+      expect(lost.count, 5);
+      expect(lost.names.join(' '), contains('Beam'));
+    });
+
+    test('a NO-OP apply costs nothing', () {
+      expect(ctx(writes: false).tuningCost(l10n, {bar, rear, sub}).names,
+          isEmpty);
     });
   });
 
@@ -383,29 +409,34 @@ void main() {
 
     /// Two identical models in one zone share a card title, so the name list
     /// collapses to one entry while TWO speakers actually lose their tuning.
-    Future<String?> warn(
-        {required bool absorbing, required Set<String> taking}) async {
+    Future<String?> warn(Set<String> taking) async {
       return PickerContext(
         system: twins,
         calibration: const {
           p1a: RoomCalibration(available: true, enabled: true),
           p1b: RoomCalibration(available: true, enabled: true),
         },
-        absorbing: absorbing,
       ).warning(await AppLocalizations.delegate.load(const Locale('en')), taking);
     }
 
     test('one label, two speakers ⇒ plural wording', () async {
-      final w = await warn(absorbing: false, taking: {p1a});
+      final w = await warn({p1a});
       expect(w, contains('Boven · Play:1'));
       expect(w, contains('their Trueplay'),
           reason: 'both Play:1s lose it even though they share a label');
     });
 
-    test('the whole zone absorbed ⇒ only the leftover pays, singular', () async {
-      final w = await warn(absorbing: true, taking: {p1a, p1b});
+    test('a single tuned speaker ⇒ singular wording', () async {
+      final w = PickerContext(
+        system: twins,
+        calibration: const {
+          p1a: RoomCalibration(available: true, enabled: true),
+          p1b: RoomCalibration(available: false, enabled: false),
+        },
+      ).warning(
+          await AppLocalizations.delegate.load(const Locale('en')), {p1a});
       expect(w, contains('its Trueplay'),
-          reason: 'the zone coordinator keeps its own (EXP-23 Q10)');
+          reason: 'only p1a holds a tuning, so one speaker pays');
     });
   });
 
