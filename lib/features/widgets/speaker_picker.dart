@@ -156,7 +156,10 @@ String bondedCardTitle(
       ? null
       : system.memberByUuid(owner);
   final role = source == null ? null : _roleIn(l10n, source, device.uuid);
-  return role == null ? device.typeLabel : '${device.typeLabel} · $role';
+  // A Sub's type and its channel are the same word, and "Sub · Sub" is just
+  // noise. Seen on hardware in the review card.
+  if (role == null || role == device.typeLabel) return device.typeLabel;
+  return '${device.typeLabel} · $role';
 }
 
 /// Whether Trueplay is ACTIVE on this speaker (stored *and* enabled), as a tag

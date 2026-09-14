@@ -389,6 +389,11 @@ interpolated) then use it.
     bond destroyed around a speaker takes its tuning with it; a **home theater** —
     every member, because absorbing out of one was never measured so the speaker is
     freed first instead of assumed.
+    ⚠️ **"Free" means the COEFFICIENTS survive, not that Trueplay is still ON.** An
+    absorbed speaker comes back `available=1 enabled=0` — measured end to end through
+    the app, 6 stable reads. So a retained tuning still needs re-enabling (which is
+    exactly what Sonority's own Trueplay toggle does, non-destructively), and any copy
+    that says "keeps Trueplay" has to say that too.
     ⚠️ **A set that has JUST changed refuses a tuning for minutes, silently** (HTTP 200
     on every POST, `available` stays 0), and the `available` oracle reads 0→1→0 around
     a bonding change ⇒ settle, then read repeatedly; never verdict on one read.
@@ -400,10 +405,13 @@ interpolated) then use it.
     refusal to tune the fronts config is still a catch-22 for the soundbar itself.
     Sonority reads and reports all of this honestly.
     ⚠️ **TIERS — not every row is equally established.** Two independently-baselined
-    cycles: absorbing a **whole** tuned stereo pair into an HT (retained), and an
-    `AddBondedZones` re-assert wiping a group. **One cycle only** (provisional by this
+    cycles: absorbing a **whole** tuned stereo pair into an HT (retained), an
+    `AddBondedZones` re-assert wiping a group, **`RemoveHTSatellite` wiping the whole
+    set**, and **a whole zone absorbed into an HT (coordinator keeps, the rest lose)** —
+    the last two promoted 2026-09-14 by an app-driven end-to-end run that predicted all
+    8 tuned speakers correctly. **One cycle only** (provisional by this
     project's own rule): taking **one** half of a pair (stolen keeps / leftover loses),
-    `RemoveHTSatellite` wiping the whole set, a group dissolve, and the Q12 partial
+    a group dissolve, and the Q12 partial
     zone take wiping all three (its first cycle read `1/0 → 0/0 → 0/0` and scored
     UNKNOWN — a set that has just changed keeps moving for **minutes**; wait ≥120 s
     and read 4×30 s, not the 25 s + 3×20 s the other cells use).
