@@ -658,9 +658,13 @@ class SonosSystem {
   }) {
     if (keep.contains(uuid) || isStandalone(uuid)) return false;
     final src = memberByUuid(ownerOf(uuid) ?? '');
-    // Bonded but ownerless is a home theater's own PRIMARY: `ownerOf` returns
-    // null for a soundbar. There is nothing to free it FROM, and asking anyway
-    // costs a no-op write plus an 18s poll on a condition already met.
+    // No resolvable source. Normally that means a home theater's own PRIMARY —
+    // `ownerOf` returns null for a soundbar — where there is nothing to free it
+    // FROM, and asking anyway costs a no-op write plus an 18s poll on a
+    // condition already met. It also covers the `ZoneGroup ID="…:orphan"` case
+    // (an Invisible survivor whose coordinator is gone), where `freeSpeaker`
+    // would find nothing to act on either; the caller's poll-verify is the
+    // backstop there.
     if (src == null) return false;
     return !(absorbing && canAbsorbFrom(src));
   }

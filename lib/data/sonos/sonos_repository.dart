@@ -305,6 +305,7 @@ class SonosRepository {
     required List<({SonosDevice device, GroupChannel channel})> members,
     SonosDevice? sub,
     required SonosSystem? previous,
+    Set<String> skipNameSnapshot = const {},
     void Function(String note)? onNote,
     CancellationToken? cancel,
   }) async {
@@ -320,6 +321,7 @@ class SonosRepository {
       sub: sub,
       currentUuids: const [], // nothing bonded yet: every member is "added"
       previous: previous,
+      skipNameSnapshot: skipNameSnapshot,
       onNote: onNote,
       cancel: cancel,
     );
@@ -350,11 +352,19 @@ class SonosRepository {
   /// [createGroup] delegates here with an empty [currentUuids]: creating a group
   /// is the same write/verify/re-assert loop with nothing bonded yet, so every
   /// member counts as added and gets its name snapshotted.
+  ///
+  /// [skipNameSnapshot] names members whose CURRENT room name is not their own
+  /// and must not be stored: a speaker just freed out of a home theater still
+  /// carries the bar's name, because `RemoveHTSatellite` does not restore names
+  /// and nothing ever captured the original. Snapshotting it would make a later
+  /// separate rename the speaker to the live home theater's name and collide
+  /// (`Woonkamer` → `Woonkamer 2`). No snapshot ⇒ Sonos picks the default.
   Future<SonosSystem> reassertGroup({
     required List<({SonosDevice device, GroupChannel channel})> members,
     SonosDevice? sub,
     required List<String> currentUuids,
     required SonosSystem? previous,
+    Set<String> skipNameSnapshot = const {},
     void Function(String note)? onNote,
     CancellationToken? cancel,
   }) async {
@@ -374,12 +384,19 @@ class SonosRepository {
       if (sub != null && !currentUuids.contains(sub.uuid)) sub,
     ];
     for (final d in added) {
-      // Same as [createGroup]: a newly-added member may have just been unbonded
-      // and still be refusing :1400.
-      if (d.ip != null) {
+      if (d.ip == null || skipNameSnapshot.contains(d.uuid)) continue;
+      // A newly-added member may have just been unbonded and still be refusing
+      // :1400. BEST-EFFORT: this runs before the first write, and on the
+      // dissolve→recreate path the group is already torn down by now — losing
+      // one member's name snapshot is far cheaper than aborting the rebuild.
+      try {
         merged[d.uuid] = await retryUnreachable(
             () => _deviceProps.getZoneAttributes(d.ip!),
             cancel: cancel);
+      } on OperationCancelled {
+        rethrow;
+      } catch (e) {
+        DiagnosticsLog.add('name snapshot for ${d.uuid} failed, skipping: $e');
       }
     }
     if (merged.isNotEmpty) await _saveZoneSnapshot(merged);

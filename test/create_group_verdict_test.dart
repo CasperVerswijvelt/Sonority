@@ -52,7 +52,12 @@ class _Soap extends SonosSoapClient {
   int attrCalls = 0;
   int stateCalls = 0;
 
-  _Soap(this.onBond, {bool Function(int)? formed})
+  /// IPs whose `GetZoneAttributes` should fail. A SOAP fault rather than a
+  /// refused socket so the test doesn't sit through `retryUnreachable`'s real
+  /// 8×5s — both land in the same catch inside `reassertGroup`.
+  final Set<String> attrsFailFor;
+
+  _Soap(this.onBond, {bool Function(int)? formed, this.attrsFailFor = const {}})
       : formed = formed ?? ((n) => n > 0);
 
   @override
@@ -78,6 +83,9 @@ class _Soap extends SonosSoapClient {
         return b.buildDocument().rootElement;
       default:
         attrCalls++;
+        if (attrsFailFor.contains(ip)) {
+          throw SonosSoapException('GetZoneAttributes', faultCode: '500');
+        }
         return XmlDocument.parse(
                 '<Body><CurrentZoneName>Living Room</CurrentZoneName></Body>')
             .rootElement;
@@ -99,13 +107,19 @@ void main() {
     devicesByUuid: const {a: devA, b: devB},
   );
 
-  Future<SonosSystem> create(_Soap soap) => SonosRepository(
+  Future<SonosSystem> create(_Soap soap,
+          {Set<String> skipNameSnapshot = const {}}) =>
+      SonosRepository(
         deviceProps: DevicePropertiesClient(soap),
         topology: ZoneTopologyClient(soap),
         // Real cadence is 3s per verify read; the loop is what's under test,
         // not the waiting.
         groupVerifyInterval: Duration.zero,
-      ).createGroup(members: members, previous: before);
+      ).createGroup(
+        members: members,
+        previous: before,
+        skipNameSnapshot: skipNameSnapshot,
+      );
 
   // A bond write that times out or is refused very often still applies, so
   // createGroup must NOT decide — it verifies. Reporting failure on the write
@@ -156,6 +170,26 @@ void main() {
     expect(soap.bondCalls, 2);
     expect(soap.attrCalls, 2, reason: 'names are snapshotted once, up front');
     expect(after.memberByUuid(a)?.isStereoPair, isTrue);
+  });
+
+  // A speaker just pulled out of a home theater still answers with the BAR's
+  // room name — `RemoveHTSatellite` doesn't restore names and nothing ever
+  // captured the original. Storing it would make a later separate rename the
+  // speaker into a collision with the live home theater.
+  test('a skipped member has no name read at all', () async {
+    final soap = _Soap((_) => null);
+    await create(soap, skipNameSnapshot: {b});
+    expect(soap.attrCalls, 1, reason: 'only A is snapshotted');
+  });
+
+  // The snapshot runs BEFORE the first write, and on the dissolve→recreate path
+  // the old group is already torn down by then — rethrowing here left a user
+  // with no group at all rather than one member's name unrecorded.
+  test('a name read that fails does not abort the bond', () async {
+    final soap = _Soap((_) => null, attrsFailFor: {'1.2.3.5'});
+    final after = await create(soap);
+    expect(after.memberByUuid(a)?.isStereoPair, isTrue);
+    expect(soap.bondCalls, 1);
   });
 
   test('a write that never takes reports failure, not success', () async {

@@ -490,24 +490,12 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (dev?.ip == null) {
           throw SonorityError(SonorityErrorCode.entityNotOnNetwork, e.label);
         }
-        final owner = sys.ownerOf(e.primaryUuid);
-        if (owner != null) {
-          _activeOp?.throwIfCancelled();
-          ph.phase('free', l10n.stepFreeFromBond);
-          await _repo.freeSpeaker(sys, e.primaryUuid, cancel: _activeOp);
-          ph.note(l10n.stepWaitingSettle);
-          // Poll the FORMER OWNER, never the speaker we just detached: a
-          // freshly-freed speaker refuses :1400 for a while (connection
-          // refused, seen in a user's bundle), so reading from it would fail
-          // every attempt and carry a stale topology forward. The owner stays
-          // reachable throughout. (A null ip routes _pollUntil to a full
-          // discover, which is also fine — just slower.)
-          sys = await _pollUntil(
-            previous: sys,
-            ip: sys.device(owner)?.ip,
-            until: (s) => s.ownerOf(e.primaryUuid) == null,
-          );
-        }
+        // Nothing to keep and nothing absorbs a standalone room, so this is
+        // the shared helper with the degenerate arguments — it also reads back
+        // from the right speaker when the bond's coordinator IS the one freed.
+        sys = await _freeConflicts(sys, [e.primaryUuid],
+            keep: const {}, absorbing: false, ph: ph,
+            phaseLabel: l10n.stepFreeFromBond);
         _activeOp?.throwIfCancelled();
         ph.phase('names', l10n.stepRestoreRoomName);
         // Retried: topology converging doesn't mean the freed speaker is
@@ -545,14 +533,27 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           }
           return sys;
         }
-        // Free any member bonded elsewhere. `keep` must be the LIVE group's
-        // members, never the target set — passing `involved` here made `keep`
-        // and `uuids` identical, so the loop could never free anything. The
-        // unchanged case is already handled by the `_isGroupFormed` early
-        // return above, so reaching here means something really does differ.
+        // Free any member bonded elsewhere. `keep` must come from the LIVE
+        // group, never the target set — passing `involved` made `keep` and
+        // `uuids` identical, so a member that coordinates its own bond (where
+        // `ownerOf` returns itself) was never freed.
+        //
+        // …but `AddBondedZones` cannot DROP a member, or move the coordinator:
+        // such a map faults on every attempt. `groupEditIsInPlace` is exactly
+        // that test, so the live group only counts as "keep" when the rebuild
+        // really can re-assert over it. Otherwise nothing is kept and the whole
+        // bond is dissolved first — which is what `editGroup` does too.
+        final live =
+            sys.memberByUuid(e.primaryUuid)?.channelMapUuids ?? const <String>[];
+        final htSourced = _htSourced(sys, involved);
         sys = await _freeConflicts(sys, involved,
-            keep: sys.memberByUuid(e.primaryUuid)?.channelMapUuids.toSet() ??
-                const {},
+            keep: groupEditIsInPlace(
+              currentUuids: live,
+              targetUuids: involved,
+              targetCoordUuid: e.primaryUuid,
+            )
+                ? live.toSet()
+                : const <String>{},
             absorbing: false, ph: ph, fallbackIp: coord!.ip);
         // Resolve members (coordinator-first) + sub from the stored map.
         final parsed = ZoneGroupMember(
@@ -593,6 +594,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             members: memberEntries,
             sub: sub,
             previous: sys,
+            skipNameSnapshot: htSourced,
             onNote: ph.log,
             cancel: _activeOp);
         _activeOp?.throwIfCancelled();
@@ -658,7 +660,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// Free every speaker in [uuids] that is bonded somewhere the target cannot
   /// absorb it from, returning the settled system.
   ///
-  /// ONE implementation because the four callers kept drifting: the question is
+  /// ONE implementation because every caller kept drifting: the question is
   /// `isStandalone`, NOT `ownerOf(u) != target` — for a group's COORDINATOR
   /// `ownerOf` returns that speaker's own uuid, so an owner-based test reads it
   /// as unbonded, skips the free, and the bond write then silently no-ops
@@ -675,13 +677,15 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     required bool absorbing,
     required Phases ph,
     String? fallbackIp,
+    String? phaseLabel,
   }) async {
     final l10n = appL10n();
+    final label = phaseLabel ?? l10n.stepFreeConflicting;
     for (final u in uuids) {
       if (!sys.mustFreeBeforeBonding(u, keep: keep, absorbing: absorbing)) continue;
       final owner = sys.ownerOf(u);
       _activeOp?.throwIfCancelled();
-      ph.phase('free', l10n.stepFreeConflicting);
+      ph.phase('free', label);
       ph.note(l10n.stepFreeing(sys.device(u)?.roomName ?? u));
       await _repo.freeSpeaker(sys, u, cancel: _activeOp);
       // Read back from the FORMER OWNER — but a bond's COORDINATOR is its own
@@ -703,6 +707,19 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     }
     return sys;
   }
+
+  /// Members of [uuids] currently bonded into a HOME THEATER, whose room name
+  /// is therefore the BAR's, not their own.
+  ///
+  /// Must be read BEFORE freeing. `RemoveHTSatellite` doesn't restore a
+  /// satellite's name and nothing ever captured the original, so a group built
+  /// out of one would snapshot the bar's name and a later separate would
+  /// rename the speaker into a collision with the live home theater
+  /// (`Woonkamer` → `Woonkamer 2`). Better no snapshot than a wrong one.
+  Set<String> _htSourced(SonosSystem sys, Iterable<String> uuids) => {
+    for (final u in uuids)
+      if (sys.memberByUuid(sys.ownerOf(u) ?? '')?.isHomeTheater ?? false) u,
+  };
 
   /// Brings the coordinator [bar]'s live layout to [target] with the minimum
   /// writes: skip entirely when unchanged, `RemoveHTSatellite` only the
@@ -923,6 +940,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           ('name', l10n.stepNameGroup),
       ]);
       try {
+        final htSourced = _htSourced(sys, involved);
         sys = await _freeConflicts(sys, involved,
             keep: const {}, absorbing: false, ph: ph, fallbackIp: coord.ip);
         ph.phase('bond', l10n.stepBondSpeakers);
@@ -934,6 +952,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             members: members,
             sub: sub,
             previous: sys,
+            skipNameSnapshot: htSourced,
             onNote: ph.log,
             cancel: _activeOp);
         // The bond is confirmed, but the absorbed members can linger in the
@@ -1125,7 +1144,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       ]);
       try {
         var system = previous;
+        var htSourced = const <String>{};
         if (needsBond && system != null) {
+          htSourced = _htSourced(system, target);
           system = await _freeConflicts(system, target,
               keep: keepInGroup, absorbing: false, ph: ph,
               fallbackIp: coord.ip);
@@ -1141,6 +1162,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             sub: sub,
             currentUuids: current,
             previous: system,
+            skipNameSnapshot: htSourced,
             onNote: ph.log,
             cancel: _activeOp,
           );
@@ -1179,6 +1201,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
               members: members,
               sub: sub,
               previous: system,
+              skipNameSnapshot: htSourced,
               onNote: ph.log,
               cancel: _activeOp);
         }
