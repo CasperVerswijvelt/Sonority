@@ -1,6 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
+import 'package:sonority/data/sonos/room_calibration.dart';
 import 'package:sonority/features/widgets/speaker_picker.dart';
+import 'package:sonority/l10n/app_localizations.dart';
 
 /// Taking speakers out of an existing bond, and what each case costs in room
 /// calibration. Every expectation here is a hardware-measured row of EXP-23
@@ -324,6 +327,62 @@ void main() {
       expect(s, hasLength(1),
           reason: 'a single block renders without a heading at all');
       expect(s.single.isAvailable, isFalse);
+    });
+  });
+
+  group('the steal warning names losers, and pluralises on speakers', () {
+    const p1a = 'RINCON_P1A01400';
+    const p1b = 'RINCON_P1B01400';
+    final twins = SonosSystem(
+      groups: [
+        ZoneGroup(coordinatorUuid: p1a, members: const [
+          ZoneGroupMember(
+            uuid: p1a,
+            zoneName: 'Boven',
+            channelMapSet: '$p1a:LF,RF;$p1b:LF,RF',
+          ),
+        ]),
+      ],
+      devicesByUuid: {
+        p1a: dev(p1a, 'Sonos Play:1'),
+        p1b: dev(p1b, 'Sonos Play:1'),
+      },
+    );
+
+    /// Two identical models in one zone share a card title, so the name list
+    /// collapses to one entry while TWO speakers actually lose their tuning.
+    Future<String?> warn(WidgetTester tester, {required bool absorbing}) async {
+      String? out;
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(builder: (context) {
+          out = PickerContext(
+            system: twins,
+            calibration: const {
+              p1a: RoomCalibration(available: true, enabled: true),
+              p1b: RoomCalibration(available: true, enabled: true),
+            },
+            absorbing: absorbing,
+          ).warning(context, {p1a});
+          return const SizedBox();
+        }),
+      ));
+      return out;
+    }
+
+    testWidgets('one label, two speakers ⇒ plural wording', (tester) async {
+      final w = await warn(tester, absorbing: false);
+      expect(w, contains('Boven · Play:1'));
+      expect(w, contains('their Trueplay'),
+          reason: 'both Play:1s lose it even though they share a label');
+    });
+
+    testWidgets('absorbed into a home theater, only the leftover pays',
+        (tester) async {
+      final w = await warn(tester, absorbing: true);
+      expect(w, contains('its Trueplay'),
+          reason: 'the zone coordinator keeps its own (EXP-23 Q10)');
     });
   });
 }

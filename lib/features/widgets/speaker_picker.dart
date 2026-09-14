@@ -232,8 +232,9 @@ String? _stealWarning(
   // Name them the way the cards do. A bonded speaker's room name is the BOND's
   // name, so several losers would otherwise render as the same word — here the
   // two members of one zone were both just "Eetkamer".
-  final tuned = losing
-      .where((u) => calibration[u]?.available ?? false)
+  final tuned =
+      losing.where((u) => calibration[u]?.available ?? false).toList();
+  final names = tuned
       .map((u) {
         final d = system.device(u);
         if (d == null) return u;
@@ -246,8 +247,11 @@ String? _stealWarning(
       .toSet()
       .toList()
     ..sort();
-  if (tuned.isEmpty) return null;
-  return context.l10n.speakerStealTrueplayWarning(tuned.join(', '), tuned.length);
+  if (names.isEmpty) return null;
+  // Plural on the SPEAKER count, not the name count — two identical models in
+  // one bond share a label, and "its … re-tune it" would then be wrong.
+  return context.l10n
+      .speakerStealTrueplayWarning(names.join(', '), tuned.length);
 }
 
 
