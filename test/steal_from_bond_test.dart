@@ -127,14 +127,13 @@ void main() {
       expect(system.tuningLostByTaking(zone, {zoneA, zoneB}), {zoneB});
     });
 
-    test('a 2-member zone is all-or-nothing (partial take unmeasured)', () {
-      // Q10 took BOTH. Taking one would leave a single-entry ChannelMapSet —
-      // the orphaned-Invisible-survivor state with no in-app recovery — so the
-      // picker refuses rather than pricing a case nobody measured.
-      expect(system.requiresTakingWholeBond(zone), isTrue);
-      expect(system.requiresTakingWholeBond(pair), isFalse,
-          reason: 'a pair partial take IS measured (Q9)');
-      expect(system.requiresTakingWholeBond(ht), isFalse);
+    test('zone, taken IN PART → EVERYONE loses it, coordinator included', () {
+      // Q12: absorbing one member does not shrink a zone, it dissolves the
+      // whole thing, and a bond destroyed around a speaker takes its tuning
+      // with it. The coordinator is only spared when the zone is taken whole.
+      expect(system.tuningLostByTaking(zone, {zoneB}), {zoneA, zoneB});
+      expect(system.tuningLostByTaking(zone, {zoneA}), {zoneA, zoneB},
+          reason: 'taking the coordinator itself is still a partial take');
     });
 
     test('a GROUP destination cannot absorb, so the whole source bond pays', () {
@@ -351,7 +350,8 @@ void main() {
 
     /// Two identical models in one zone share a card title, so the name list
     /// collapses to one entry while TWO speakers actually lose their tuning.
-    Future<String?> warn(WidgetTester tester, {required bool absorbing}) async {
+    Future<String?> warn(WidgetTester tester,
+        {required bool absorbing, required Set<String> taking}) async {
       String? out;
       await tester.pumpWidget(MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -364,7 +364,7 @@ void main() {
               p1b: RoomCalibration(available: true, enabled: true),
             },
             absorbing: absorbing,
-          ).warning(context, {p1a});
+          ).warning(context, taking);
           return const SizedBox();
         }),
       ));
@@ -372,15 +372,15 @@ void main() {
     }
 
     testWidgets('one label, two speakers ⇒ plural wording', (tester) async {
-      final w = await warn(tester, absorbing: false);
+      final w = await warn(tester, absorbing: false, taking: {p1a});
       expect(w, contains('Boven · Play:1'));
       expect(w, contains('their Trueplay'),
           reason: 'both Play:1s lose it even though they share a label');
     });
 
-    testWidgets('absorbed into a home theater, only the leftover pays',
+    testWidgets('the whole zone absorbed ⇒ only the leftover pays, singular',
         (tester) async {
-      final w = await warn(tester, absorbing: true);
+      final w = await warn(tester, absorbing: true, taking: {p1a, p1b});
       expect(w, contains('its Trueplay'),
           reason: 'the zone coordinator keeps its own (EXP-23 Q10)');
     });

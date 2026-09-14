@@ -374,9 +374,13 @@ interpolated) then use it.
     ⇒ **Taking speakers from another bond costs** (`SonosSystem.tuningLostByTaking`,
     which the pickers price per selection): a **stereo pair** — only the speakers
     *left behind* (both halves ⇒ nothing lost, one half ⇒ the other loses it); a
-    **zone** — every member except the zone's **coordinator**, which keeps its own
-    (Q10, 2 cycles); a **home theater** — every member, because absorbing out of one
-    was never measured so the speaker is freed first instead of assumed.
+    **zone taken WHOLE** — every member except the **coordinator**, which keeps its
+    own (Q10, 2 cycles); a **zone taken IN PART** — **everyone**, coordinator and
+    taken speaker alike, because absorbing one member **dissolves the entire zone**
+    rather than shrinking it (Q12: dissolve ×2 cycles, the all-lose sweep ×1) and a
+    bond destroyed around a speaker takes its tuning with it; a **home theater** —
+    every member, because absorbing out of one was never measured so the speaker is
+    freed first instead of assumed.
     ⚠️ **A set that has JUST changed refuses a tuning for minutes, silently** (HTTP 200
     on every POST, `available` stays 0), and the `available` oracle reads 0→1→0 around
     a bonding change ⇒ settle, then read repeatedly; never verdict on one read.
@@ -391,7 +395,16 @@ interpolated) then use it.
     cycles: absorbing a **whole** tuned stereo pair into an HT (retained), and an
     `AddBondedZones` re-assert wiping a group. **One cycle only** (provisional by this
     project's own rule): taking **one** half of a pair (stolen keeps / leftover loses),
-    `RemoveHTSatellite` wiping the whole set, and a group dissolve.
+    `RemoveHTSatellite` wiping the whole set, a group dissolve, and the Q12 partial
+    zone take wiping all three (its first cycle read `1/0 → 0/0 → 0/0` and scored
+    UNKNOWN — a set that has just changed keeps moving for **minutes**; wait ≥120 s
+    and read 4×30 s, not the 25 s + 3×20 s the other cells use).
+    ⚠️ **Sonos restores room names on an IMPLICIT dissolve too** (Q12/Q13, 2 cycles):
+    a speaker ejected when `AddHTSatellite` absorbs a bond member out from under it
+    comes back under its own pre-bond name, with no separate call and nothing for
+    Sonority to restore. A returning name that collides with a live room is
+    disambiguated by Sonos (`Woonkamer` → `Woonkamer 2`) — that is a collision, not a
+    lost name, and it is what made the first cycle look like a failure.
     ⚠️⚠️ **NOT measured: taking a speaker out of a HOME THEATER into another bond.**
     One soundbar on the test system, so it cannot be performed — the code therefore
     frees an HT source rather than assuming it can be absorbed (`canAbsorbFrom`).

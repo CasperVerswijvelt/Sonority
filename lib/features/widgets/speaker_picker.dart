@@ -113,9 +113,7 @@ String _cost(
   final members = system.bondMemberUuids(src);
   // Always state the consequence of picking — it is true whether or not any
   // calibration is at stake, and it is why these speakers are listed apart.
-  final base = system.requiresTakingWholeBond(src)
-      ? '${l10n.pickerSectionLeavesBond} ${l10n.pickerZoneAllOrNothing}'
-      : l10n.pickerSectionLeavesBond;
+  final base = l10n.pickerSectionLeavesBond;
   if (!members.any((u) => calibration[u]?.available ?? false)) return base;
   // Anything that cannot be absorbed has to be freed first, and then the whole
   // source bond pays. That is every source in a group flow (AddBondedZones

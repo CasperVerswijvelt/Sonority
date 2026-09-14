@@ -13,7 +13,7 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Added
 - Speaker pickers now offer speakers that are already bonded into another stereo pair, home theater or group, so you no longer have to unbond by hand first. They're grouped under a heading per source bond that says what taking one costs, and each card shows the channel it currently holds plus whether it has a Trueplay tuning.
-- Choosing such a speaker names exactly which speakers lose their room calibration. The cost differs by case and each one is measured on real hardware: taking both halves of a tuned stereo pair into a home theater costs nothing, taking one costs the speaker left behind, and taking a whole zone into a home theater keeps its first speaker's tuning.
+- Choosing such a speaker names exactly which speakers lose their room calibration. The cost differs by case and each one is measured on real hardware: taking both halves of a tuned stereo pair into a home theater costs nothing, taking one costs the speaker left behind, taking a whole zone keeps its first speaker's tuning, and taking part of a zone dissolves the group and costs every speaker in it.
 - Creating a speaker group from a speaker that's bonded elsewhere now frees it first. Sonos accepts the grouping command and silently does nothing otherwise, so the group would never have formed.
 - Sonority now carries a license: the code is source-available under PolyForm Perimeter 1.0.1 — read, build, modify and contribute freely, but redistributing a competing product (paid or free) isn't permitted. The "Sonority" name, icon, wordmark and marketing assets remain reserved, and `CONTRIBUTING.md` documents the licensing grant that pull requests carry.
 

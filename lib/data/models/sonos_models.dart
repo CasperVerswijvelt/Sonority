@@ -571,8 +571,14 @@ class SonosSystem {
   /// * **stereo pair** — only the speakers LEFT BEHIND lose it; the ones taken
   ///   keep theirs (both halves ⇒ nothing lost, ×2 cycles; one half ⇒ the other
   ///   loses it, ×1).
-  /// * **zone** — only the zone's COORDINATOR keeps its tuning; every other
-  ///   member loses it, taken or not (×2 cycles, on a 2-member zone).
+  /// * **zone, taken WHOLE** — only the zone's COORDINATOR keeps its tuning;
+  ///   every other member loses it (×2 cycles, on a 2-member zone).
+  /// * **zone, taken IN PART** — **everyone** loses it, the coordinator and the
+  ///   taken speaker included (Q12, ×1 cycle). Taking one member does not
+  ///   shrink a zone, it **dissolves** the whole thing (×2 cycles) and the
+  ///   speakers left behind are ejected to standalone — and a bond that is
+  ///   destroyed around a speaker takes its tuning with it, which is THE RULE.
+  ///   So the whole-zone row is the exception, not this one.
   Set<String> tuningLostByTaking(
     ZoneGroupMember source,
     Set<String> taking, {
@@ -581,18 +587,12 @@ class SonosSystem {
     final members = bondMemberUuids(source);
     if (!destinationAbsorbs || !canAbsorbFrom(source)) return members;
     if (source.isStereoPair) return members.difference(taking);
+    // A zone. Absorbing every member keeps the bond's membership whole and the
+    // coordinator keeps its own; absorbing SOME dissolves the zone, so nothing
+    // survives it.
+    if (members.difference(taking).isNotEmpty) return members;
     return members.difference({source.uuid}); // the coordinator keeps its own
   }
-
-  /// Speakers that may not be taken from [source] on their own.
-  ///
-  /// Q10 absorbed BOTH members of a 2-member zone; taking one was never
-  /// measured, and it would leave a single-entry `ChannelMapSet` — the
-  /// orphaned-`Invisible`-survivor state that the UI hides and that needs a
-  /// targeted `SeparateStereoPair` to recover. So a 2-member zone is
-  /// all-or-nothing until someone measures the partial take.
-  bool requiresTakingWholeBond(ZoneGroupMember source) =>
-      source.isZone && bondMemberUuids(source).length == 2;
 
   /// Whether [uuid] must be freed from whatever it is bonded to before a new
   /// bond can claim it.

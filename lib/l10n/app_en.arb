@@ -805,7 +805,7 @@
   },
   "pickerSectionAvailable": "Available",
   "pickerCostPair": "Take both and they keep their Trueplay; take one and the other loses it.",
-  "pickerCostZone": "Only the first speaker keeps its Trueplay; the others lose it.",
+  "pickerCostZone": "Taking one dissolves the whole group, and every speaker in it loses its Trueplay. Take all of them and the first one keeps its.",
   "pickerCostFreedFirst": "They must be freed first, so Trueplay is cleared on all {count}.",
   "@pickerCostFreedFirst": {
     "description": "Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and the whole source bond loses its tuning.",
@@ -839,6 +839,5 @@
         "type": "int"
       }
     }
-  },
-  "pickerZoneAllOrNothing": "Take both or neither — Sonos leaves a single speaker stranded in the group."
+  }
 }
