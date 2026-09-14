@@ -151,8 +151,8 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     // Speakers bonded into ANOTHER entity are offered too, so a user need not
     // unbond by hand first. ⚠️ Unlike a home theater, every group write costs
     // the calibration of the whole source bond (EXP-23: `AddBondedZones`
-    // rebuilds a bond even on an unchanged map), which is what [stealWarning]
-    // spells out.
+    // rebuilds a bond even on an unchanged map), which is what the note under
+    // the list spells out.
     for (final d in system.stealableSpeakers(exceptPrimary: widget.editUuid)) {
       if (d.reachable && !d.isAmp && !candidates.any((x) => x.uuid == d.uuid)) {
         candidates.add(d);

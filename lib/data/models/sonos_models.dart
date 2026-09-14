@@ -658,7 +658,11 @@ class SonosSystem {
   }) {
     if (keep.contains(uuid) || isStandalone(uuid)) return false;
     final src = memberByUuid(ownerOf(uuid) ?? '');
-    return !(absorbing && src != null && canAbsorbFrom(src));
+    // Bonded but ownerless is a home theater's own PRIMARY: `ownerOf` returns
+    // null for a soundbar. There is nothing to free it FROM, and asking anyway
+    // costs a no-op write plus an 18s poll on a condition already met.
+    if (src == null) return false;
+    return !(absorbing && canAbsorbFrom(src));
   }
 
   /// Whether `AddHTSatellite` can take a speaker straight out of [source]

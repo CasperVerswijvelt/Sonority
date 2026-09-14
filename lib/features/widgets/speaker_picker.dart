@@ -91,30 +91,40 @@ Widget? _sectionHeader(
     icon: src.isHomeTheater
         ? Icons.surround_sound
         : groupKindIcon(src.groupKind),
-    helper: _cost(context, system, src, calibration, absorbing),
+    helper: sectionCost(l10n, system, src, calibration, absorbing),
   );
 }
 
 String _kindLabel(AppLocalizations l10n, ZoneGroupMember m) =>
     m.isHomeTheater ? l10n.entityKindHomeTheater : groupKindL10n(l10n, m.groupKind);
 
-/// What taking a speaker out of [src] costs, or null when nothing in that bond
-/// holds a tuning — warning about calibration that does not exist would be
-/// false. Wording tracks [SonosSystem.tuningLostByTaking] exactly, including
-/// which rows are measured and which are inferred.
-String _cost(
-  BuildContext context,
+/// What taking a speaker out of [src] costs, as the section header's helper
+/// line.
+///
+/// The branches here MIRROR [SonosSystem.tuningLostByTaking] to pick which
+/// sentence to show, and nothing in the type system holds the two together — so
+/// they are pinned by test instead (`test/steal_from_bond_test.dart`). That is
+/// not ceremony: this string is the one the user actually reads before a
+/// destructive write, and it has already been wrong once, when EXP-23 Q12
+/// disproved the retention the zone sentence was promising.
+@visibleForTesting
+String sectionCost(
+  AppLocalizations l10n,
   SonosSystem system,
   ZoneGroupMember src,
   Map<String, RoomCalibration> calibration,
   bool absorbing,
 ) {
-  final l10n = context.l10n;
   final members = system.bondMemberUuids(src);
   // Always state the consequence of picking — it is true whether or not any
   // calibration is at stake, and it is why these speakers are listed apart.
   final base = l10n.pickerSectionLeavesBond;
-  if (!members.any((u) => calibration[u]?.available ?? false)) return base;
+  // UNKNOWN is not "no tuning". A speaker whose Trueplay read failed has no
+  // entry at all, and staying quiet about the cost in that case errs in the one
+  // direction that can destroy something. Only a bond we have read in full, and
+  // read as untuned, gets the short line.
+  final known = members.every((u) => calibration.containsKey(u));
+  if (known && !members.any((u) => calibration[u]!.available)) return base;
   // Anything that cannot be absorbed has to be freed first, and then the whole
   // source bond pays. That is every source in a group flow (AddBondedZones
   // absorbs from nothing) AND a home-theater source in either flow (absorbing
@@ -247,7 +257,8 @@ String? _stealWarning(
     exceptPrimary: exceptPrimary,
     alsoLosing: ownBondMembers,
   );
-  final tuned = tunedSpeakers(l10n, system, losing, calibration);
+  final tuned = tunedSpeakers(l10n, system, losing, calibration,
+      ownBond: exceptPrimary);
   if (tuned.names.isEmpty) return null;
   // Plural on the SPEAKER count, not the name count — two identical models in
   // one bond share a label, and "its … re-tune it" would then be wrong.

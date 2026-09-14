@@ -440,4 +440,54 @@ void main() {
       expect(got.count, 0);
     });
   });
+
+  group('the section header sentence tracks the measured cost model', () {
+    late AppLocalizations l10n;
+    setUpAll(() async {
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    const tuned = RoomCalibration(available: true, enabled: true);
+    final all = {
+      for (final u in [bar, sub, rear, pairL, pairR, zoneA, zoneB]) u: tuned,
+    };
+
+    String cost(ZoneGroupMember src, {required bool absorbing}) =>
+        sectionCost(l10n, system, src, all, absorbing);
+
+    // These four assertions are the ONLY thing tying the header's prose to
+    // tuningLostByTaking. If a measured row changes and this group still
+    // passes, the sentence has gone stale.
+    test('a pair absorbed by a home theater: both free, one costs the other',
+        () {
+      expect(cost(pair, absorbing: true), contains('Take both'));
+    });
+
+    test('a zone absorbed by a home theater: a partial take dissolves it', () {
+      expect(cost(zone, absorbing: true), contains('breaks up the whole group'));
+    });
+
+    test('a home-theater source is freed first, whatever the destination', () {
+      expect(cost(ht, absorbing: true), contains('cleared'));
+      expect(cost(ht, absorbing: false), contains('cleared'));
+    });
+
+    test('a group destination absorbs nothing, so a pair pays in full too', () {
+      expect(cost(pair, absorbing: false), contains('cleared'));
+    });
+
+    test('nothing tuned in the bond ⇒ no Trueplay sentence at all', () {
+      final none = {for (final u in all.keys) u: const RoomCalibration(available: false, enabled: false)};
+      final line = sectionCost(l10n, system, pair, none, true);
+      expect(line, isNot(contains('Trueplay')));
+      expect(line, l10n.pickerSectionLeavesBond);
+    });
+
+    test('an UNREAD speaker is not the same as an untuned one', () {
+      // A Trueplay read that failed leaves no entry. Suppressing the cost then
+      // would be the one wrong direction: silence about a destructive write.
+      final partial = {pairL: const RoomCalibration(available: false, enabled: false)};
+      expect(sectionCost(l10n, system, pair, partial, true), contains('Take both'));
+    });
+  });
 }

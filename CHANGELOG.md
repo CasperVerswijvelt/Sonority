@@ -18,6 +18,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Sonority now carries a license: the code is source-available under PolyForm Perimeter 1.0.1 — read, build, modify and contribute freely, but redistributing a competing product (paid or free) isn't permitted. The "Sonority" name, icon, wordmark and marketing assets remain reserved, and `CONTRIBUTING.md` documents the licensing grant that pull requests carry.
 
 ### Changed
+- Removing a speaker from a home theater no longer opens a confirmation dialog. The same warning, naming the speakers that lose their Trueplay, is now on the review step one tap before Apply, where the selection can still be changed.
 - The home theater review step now shows a single info card that names which speakers keep their Trueplay and which lose it for the apply about to run, replacing the two general notes about bonding.
 
 ### Fixed

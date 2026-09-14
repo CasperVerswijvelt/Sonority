@@ -226,7 +226,8 @@ interpolated) then use it.
     cycles), so a group target must free the speaker first. Absorbing out of another
     home theater is **unmeasured** (one soundbar here) and treated as not possible.
     ⇒ `SonosSystem.canAbsorbFrom` / `mustFreeBeforeBonding` encode this, and all four
-    apply paths route through `SonosController._freeConflicts`.
+    apply paths route through `SonosController._freeConflicts` (five call sites; the
+    profile SINGLE-speaker path frees unconditionally and stays hand-rolled).
   - `AddBondedZones(ChannelMapSet)` — **creates** a Sonos **zone** (the 2025
     multi-speaker bond: 2–16 individual speakers play as one room, full-range
     L+R, no L/R split). **Confirmed on hardware** (`tool/zone_probe.dart`):
@@ -756,9 +757,19 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 - ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
   all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't
   expose for unofficial fronts. Measurement stays iOS-only (out of scope).
+- ✅ **Take a speaker from another bond** (`features/widgets/speaker_picker.dart`) —
+  the HT and group pickers offer speakers already bonded into another pair, zone or
+  home theater, grouped under a heading per source bond, and price the take in
+  Trueplay per selection from the measured rows above
+  (`SonosSystem.tuningLostByTaking` / `tuningLostBySelection`). An HT target
+  ABSORBS (one `AddHTSatellite`, tuning survives); a group target frees first
+  (`AddBondedZones` no-ops on a bonded speaker). The HT review step names who keeps
+  and who loses before you apply.
 - ✅ CI release pipeline.
 - Candidate next: channel-level/height trim (overlaps the app — weak). Discovery
-  now recovers topology-only speakers when a description fetch fails (done upstream).
+  recovers topology-only speakers when a description fetch fails, **including
+  bonded satellites** — a `<Satellite>` is not a member, and an SSDP-missed Sub
+  that stayed unresolved would have been silently unbonded by the next apply.
 
 ## Recurring workflows
 
@@ -873,7 +884,10 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   used by the HT fronts/surrounds AND stereo-group flows), `features/widgets/
   card_grid.dart` (`CardGrid` — the responsive 1→2–3 column card layout),
   `features/widgets/entity_glyph.dart` (`EntityGlyph` — the one rounded-square icon
-  tile) and `tool/discover_util.dart` (`resolveSpeaker` — CLI room/uuid/IP
+  tile), `features/widgets/speaker_picker.dart` (`PickerContext` +
+  `SpeakerPickerSections` — the bond-grouped candidate list both setup flows use;
+  `bondedCardTitle` / `tunedSpeakers` for naming a speaker inside a bond) and
+  `tool/discover_util.dart` (`resolveSpeaker` — CLI room/uuid/IP
   resolution). Prefer a shared widget/mixin/helper over a second copy; only keep a
   bespoke variant when forcing it into the shared shape would genuinely hurt readability.
 - **Visual grammar — one form per concept (don't blur them).** The UI deliberately
