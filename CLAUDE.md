@@ -391,9 +391,13 @@ interpolated) then use it.
     freed first instead of assumed.
     ⚠️ **"Free" means the COEFFICIENTS survive, not that Trueplay is still ON.** An
     absorbed speaker comes back `available=1 enabled=0` — measured end to end through
-    the app, 6 stable reads. So a retained tuning still needs re-enabling (which is
-    exactly what Sonority's own Trueplay toggle does, non-destructively), and any copy
-    that says "keeps Trueplay" has to say that too.
+    the app, 6 stable reads. A retained tuning therefore needs re-enabling, which
+    `_applyHtTarget` now does for you: it snapshots who had Trueplay ON before the
+    write and calls `SonosRepository.restoreRoomCalibration` after the bond settles.
+    That is gated on a FRESH `available` read (never switch one on over a tuning the
+    bond destroyed) and goes through `retryUnreachable` (a just-bonded speaker refuses
+    :1400 for ~20-30s). A speaker that was OFF stays off — capture and restore, never
+    "turn it on for them".
     ⚠️ **A set that has JUST changed refuses a tuning for minutes, silently** (HTTP 200
     on every POST, `available` stays 0), and the `available` oracle reads 0→1→0 around
     a bonding change ⇒ settle, then read repeatedly; never verdict on one read.

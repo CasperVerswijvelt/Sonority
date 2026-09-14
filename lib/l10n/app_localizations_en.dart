@@ -305,6 +305,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stepRestoreSettings => 'Restore settings';
 
   @override
+  String get stepReenableTrueplay => 'Switch Trueplay back on';
+
+  @override
   String get stepNameGroup => 'Name the group';
 
   @override
@@ -1258,7 +1261,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String frontSurroundsTrueplayKeeps(String names) {
-    return 'Keeps Trueplay: $names';
+    return 'Keeps Trueplay: $names. Bonding switches it off, so turn it back on afterwards.';
   }
 
   @override

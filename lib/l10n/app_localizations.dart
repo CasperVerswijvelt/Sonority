@@ -538,6 +538,12 @@ abstract class AppLocalizations {
   /// **'Restore settings'**
   String get stepRestoreSettings;
 
+  /// Progress step after a home-theater bond: speakers whose tuning survived come back with Trueplay switched off, so the state it had before is put back.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch Trueplay back on'**
+  String get stepReenableTrueplay;
+
   /// No description provided for @stepNameGroup.
   ///
   /// In en, this message translates to:
@@ -2074,10 +2080,10 @@ abstract class AppLocalizations {
   /// **'You can change this anytime.'**
   String get frontSurroundsReviewNote;
 
-  /// Review-step line naming the speakers in the resulting home theater that hold a tuning and survive the apply (EXP-23: AddHTSatellite mutates a bond, it does not rebuild it).
+  /// Review-step line naming the speakers in the resulting home theater that hold a tuning and survive the apply (EXP-23: AddHTSatellite mutates a bond, it does not rebuild it). Measured end to end on hardware: the tuning survives as available=1 but comes back enabled=0, so saying only 'keeps' would over-promise.
   ///
   /// In en, this message translates to:
-  /// **'Keeps Trueplay: {names}'**
+  /// **'Keeps Trueplay: {names}. Bonding switches it off, so turn it back on afterwards.'**
   String frontSurroundsTrueplayKeeps(String names);
 
   /// Review-step line naming the speakers whose stored tuning this apply clears. Worded without it/them so it needs no plural: two identical models share one label.

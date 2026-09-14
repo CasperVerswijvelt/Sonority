@@ -179,6 +179,10 @@
   "stepSpeakers": "speakers",
   "stepRestoreRoomName": "Restore room name",
   "stepRestoreSettings": "Restore settings",
+  "stepReenableTrueplay": "Switch Trueplay back on",
+  "@stepReenableTrueplay": {
+    "description": "Progress step after a home-theater bond: speakers whose tuning survived come back with Trueplay switched off, so the state it had before is put back."
+  },
   "stepNameGroup": "Name the group",
   "stepEditGroup": "Update group",
   "stepUpdateGroup": "Apply changes",
@@ -749,9 +753,9 @@
   "@frontSurroundsReviewNote": {
     "description": "Closing line of the single review-step note. The diagram above already shows the layout, so the note only carries what the diagram cannot."
   },
-  "frontSurroundsTrueplayKeeps": "Keeps Trueplay: {names}. Bonding switches it off, so turn it back on afterwards.",
+  "frontSurroundsTrueplayKeeps": "Keeps Trueplay: {names}",
   "@frontSurroundsTrueplayKeeps": {
-    "description": "Review-step line naming the speakers in the resulting home theater that hold a tuning and survive the apply (EXP-23: AddHTSatellite mutates a bond, it does not rebuild it). Measured end to end on hardware: the tuning survives as available=1 but comes back enabled=0, so saying only 'keeps' would over-promise.",
+    "description": "Review-step line naming the speakers in the resulting home theater that hold a tuning and survive the apply (EXP-23: AddHTSatellite mutates a bond, it does not rebuild it). Measured on hardware: the tuning survives as available=1 but Sonos returns it enabled=0, so the apply switches it back on (SonosController._restoreTrueplayEnabled) and this line can promise plain 'keeps'.",
     "placeholders": {
       "names": {
         "type": "String"
