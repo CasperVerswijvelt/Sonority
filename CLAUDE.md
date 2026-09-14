@@ -405,9 +405,22 @@ interpolated) then use it.
     |---|---|
     | **complete** (every member tuned) | **inert** — `1/0` stays `1/0`, nothing lost |
     | **incomplete** (any member at 0) | ☠️ **destructive** — `1/0` → `0/0`, unrecoverable |
-    ⚠️ **Activation still never happens.** No cell has reached `1/1` after any bonding
-    change; on a complete set the enable returns HTTP OK and does nothing. So the product
-    answer is unchanged (re-tune), but the failure mode is not what it was written as.
+    ⚠️ **Activation never happens after a bonding change.** No cell has reached `1/1`
+    after one; on a complete set the enable returns HTTP OK and does nothing. (It works
+    perfectly when nothing changed since the tuning was authored — Q20 phase 1, `1/1` on
+    all five — so the mechanism is fine; it is the bond's history that is not.)
+    ☠️ **Completing the set does NOT bring a lost tuning back** (Q20 phase 3), so
+    `available=0` is **destruction, not withholding**. And **any** bonding change costs
+    some members their tuning outright *with no enable written at all*: Q20 added ONE
+    satellite, removed nothing, wrote nothing, and the bar and both rears went `1/1 → 0/0`
+    while the survivors went `1/0`. Which satellites survive is **not predictable** from
+    anything measured — an earlier run adding fronts lost the bar and Sub and kept the
+    rears; this one adding a Sub lost the bar and the rears and kept the fronts. The bar
+    loses in both.
+    ⇒ **Retention is not reachable from this app by any route**, and the "additive path"
+    (tune the intact HT, then add without removing) is **falsified on a Beam Gen 2** — the
+    one community report of it working is on an Arc Ultra, which is a disclosed confound.
+    The product answer is unchanged: a bonding change clears Trueplay, re-tune.
     ⚠️ **HAZARD IN SHIPPED CODE:** `trueplay_control.dart` toggles every bonded member,
     and after a bonding change the set is normally incomplete (the new speaker has no
     tuning) — the destructive row. It should refuse to enable unless every member reads
