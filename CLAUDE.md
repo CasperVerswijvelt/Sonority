@@ -418,9 +418,25 @@ interpolated) then use it.
     rears; this one adding a Sub lost the bar and the rears and kept the fronts. The bar
     loses in both.
     ⇒ **Retention is not reachable from this app by any route**, and the "additive path"
-    (tune the intact HT, then add without removing) is **falsified on a Beam Gen 2** — the
-    one community report of it working is on an Arc Ultra, which is a disclosed confound.
+    (tune the intact HT, then add without removing) is **falsified on a Beam Gen 2**.
     The product answer is unchanged: a bonding change clears Trueplay, re-tune.
+    ⭐ **Independently corroborated, so this is no longer one household's result.** For a
+    month in early 2026 a competing app surfaced the device's raw `RoomCalibrationAvailable`
+    and its users posted what they read: **eleven dated readouts, ten reproducing this** —
+    including one on a Beam Gen 2 and six on the Arc Ultra that was supposed to be the
+    confound. The single positive report was destroyed two days later by its owner running
+    a Trueplay on/off sequence, which is the destructive-enable row above, observed by a
+    stranger seven months before we measured it.
+    ⭐ **The "but I can HEAR it" reports have an identified cause, and it is not Trueplay:**
+    three users independently found the toggle rewrites the **surround distance** setting
+    (3-10 ft ↔ more than 10 ft). Real, audible, repeatable, with no room correction behind
+    it. ⚠️ Unverified here — if true, *our* toggle does it too, silently. Probe before
+    claiming either way.
+    ⚠️ **The authored-vehicle confound is retired for storing** (leg 6, finally run by
+    replaying a genuine iOS capture): a real blob stores no better than an authored one on
+    a layout where ours fails, so provenance is not the discriminator. The enable half is
+    still unrun and now needs a FRESH iOS measurement — the 2026-08 capture is spent,
+    because the bar's channel ids have drifted away from it on the same layout.
     ⚠️ **HAZARD IN SHIPPED CODE:** `trueplay_control.dart` toggles every bonded member,
     and after a bonding change the set is normally incomplete (the new speaker has no
     tuning) — the destructive row. It should refuse to enable unless every member reads
