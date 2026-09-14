@@ -491,6 +491,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get widgetsTrueplayChecking => 'Checking…';
 
   @override
+  String get widgetsTrueplayIncompleteSet =>
+      'can\'t switch on until every speaker here is tuned, or it clears the ones that are';
+
+  @override
   String get widgetsTrueplayNotTuned =>
       'Not tuned — run Trueplay once in the Sonos app (iOS).';
 
@@ -1188,7 +1192,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get htTrueplayNote =>
-      'Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Tune the fronts as a stereo pair first and Sonority bonds them without losing it. Unbonding that pair yourself clears it.';
+      'Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Any bonding change switches Trueplay off, and it cannot be switched back on without clearing the tuning, so re-tune afterwards.';
 
   @override
   String get htAllExtraSpeakers => 'all extra speakers';

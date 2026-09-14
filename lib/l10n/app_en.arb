@@ -301,6 +301,10 @@
   "widgetsRoomNameLabel": "Room name",
   "widgetsTvSoundbar": "TV / Soundbar",
   "widgetsTrueplayChecking": "Checking…",
+  "widgetsTrueplayIncompleteSet": "can't switch on until every speaker here is tuned, or it clears the ones that are",
+  "@widgetsTrueplayIncompleteSet": {
+    "description": "Why the Trueplay switch is unavailable. Measured (EXP-23): enabling while any bonded speaker holds no stored tuning DESTROYS the stored tunings of the others, unrecoverably, because a tuning commits for the bonded set as a whole. Turning it off is safe, so only the enable is blocked."
+  },
   "widgetsTrueplayNotTuned": "Not tuned — run Trueplay once in the Sonos app (iOS).",
   "widgetsTrueplayActive": "Active",
   "widgetsTrueplayTunedOff": "Tuned · off",

@@ -838,6 +838,12 @@ abstract class AppLocalizations {
   /// **'Checking…'**
   String get widgetsTrueplayChecking;
 
+  /// Why the Trueplay switch is unavailable. Measured (EXP-23): enabling while any bonded speaker holds no stored tuning DESTROYS the stored tunings of the others, unrecoverably, because a tuning commits for the bonded set as a whole. Turning it off is safe, so only the enable is blocked.
+  ///
+  /// In en, this message translates to:
+  /// **'can\'t switch on until every speaker here is tuned, or it clears the ones that are'**
+  String get widgetsTrueplayIncompleteSet;
+
   /// No description provided for @widgetsTrueplayNotTuned.
   ///
   /// In en, this message translates to:
@@ -1957,7 +1963,7 @@ abstract class AppLocalizations {
   /// No description provided for @htTrueplayNote.
   ///
   /// In en, this message translates to:
-  /// **'Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Tune the fronts as a stereo pair first and Sonority bonds them without losing it. Unbonding that pair yourself clears it.'**
+  /// **'Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Any bonding change switches Trueplay off, and it cannot be switched back on without clearing the tuning, so re-tune afterwards.'**
   String get htTrueplayNote;
 
   /// No description provided for @htAllExtraSpeakers.

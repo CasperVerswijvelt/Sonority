@@ -95,8 +95,22 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       }
       subtitle = parts.join(' · ');
     }
+    // Say why the switch is dead rather than leaving it inert and unexplained.
+    final blocked = tunedCount > 0 && !busy && !isOn &&
+        tunedCount < withIp.length;
 
-    final canToggle = tunedCount > 0 && !busy;
+    // ☠️ Enabling a calibration while ANY bonded speaker holds no stored tuning
+    // DESTROYS the tunings that ARE there, unrecoverably — a tuning commits for
+    // the bonded set as a whole, so an incomplete set clears instead of
+    // applying (EXP-23: four cells destroyed on an incomplete set; Q19's
+    // changed-but-COMPLETE set survived the same write). This is the normal
+    // state right after bonding a speaker that was never tuned, which is
+    // exactly when a user reaches for this switch.
+    //
+    // Turning it OFF has never been destructive, so that direction stays open:
+    // block only the enable, and only while the set is short.
+    final incomplete = tunedCount < withIp.length;
+    final canToggle = tunedCount > 0 && !busy && (isOn || !incomplete);
     // Keep the Switch mounted so it never jumps; a fixed-width slot holds the
     // spinner (left of the switch) only while busy, so the layout is stable.
     final trailing = Row(
@@ -125,7 +139,9 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       context,
       icon: Icons.tune,
       iconColor: isOn ? scheme.primary : scheme.onSurfaceVariant,
-      subtitle: subtitle,
+      subtitle: blocked
+          ? '$subtitle · ${l10n.widgetsTrueplayIncompleteSet}'
+          : subtitle,
       trailing: trailing,
       // Tapping anywhere on the row toggles it, same as the switch.
       onTap: canToggle
