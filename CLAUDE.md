@@ -395,8 +395,24 @@ interpolated) then use it.
     absorbed speaker comes back `available=1 enabled=0` — measured end to end through
     the app, 6 stable reads. So a retained tuning still needs re-enabling, and any copy
     that says "keeps Trueplay" has to say that too.
-    ☠️☠️ **A "RETAINED" TUNING IS A ZOMBIE. Enabling it DESTROYS it if the speaker's
-    bond changed since the tuning was authored** (EXP-23 Q15/Q16, the write issued
+    ☠️☠️ **ENABLING A TUNING DESTROYS IT WHEN THE BONDED SET IS INCOMPLETE.** (Was
+    written as "if the bond changed since the tuning was authored" — **falsified by
+    Q19**: a bond that changed, with ids genuinely moving 5↔6, but whose set stayed
+    complete, survived the enable, and so did all five untouched members.) What the
+    destroyed cells share is that **some member of the bond held no tuning** — which is
+    `ESTABLISHED.md`'s commit-by-set-completeness rule, proven over 21 baselined attempts.
+    | set after the bonding change | `SetRoomCalibrationStatus(1)` |
+    |---|---|
+    | **complete** (every member tuned) | **inert** — `1/0` stays `1/0`, nothing lost |
+    | **incomplete** (any member at 0) | ☠️ **destructive** — `1/0` → `0/0`, unrecoverable |
+    ⚠️ **Activation still never happens.** No cell has reached `1/1` after any bonding
+    change; on a complete set the enable returns HTTP OK and does nothing. So the product
+    answer is unchanged (re-tune), but the failure mode is not what it was written as.
+    ⚠️ **HAZARD IN SHIPPED CODE:** `trueplay_control.dart` toggles every bonded member,
+    and after a bonding change the set is normally incomplete (the new speaker has no
+    tuning) — the destructive row. It should refuse to enable unless every member reads
+    `available=1`. One cycle, so provisional, but the loss is unrecoverable.
+    The superseded framing, kept because its cells are still the evidence: (EXP-23 Q15/Q16, the write issued
     directly with its HTTP response logged — observation, not inference):
     | case | ids | `SetRoomCalibrationStatus(1)` |
     |---|---|---|
