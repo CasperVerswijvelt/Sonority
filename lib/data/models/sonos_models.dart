@@ -145,11 +145,18 @@ class SonosSatellite {
   final List<SonosChannel> channels;
   final String? ip;
 
+  /// The satellite's description URL from the topology. Kept (not just the
+  /// derived [ip]) so discovery can re-fetch a satellite that SSDP missed —
+  /// see `SonosRepository.discover`, where a missing Sub silently cost the
+  /// whole HT its sub channel on the next apply.
+  final String? location;
+
   const SonosSatellite({
     required this.uuid,
     required this.zoneName,
     required this.channels,
     this.ip,
+    this.location,
   });
 
   bool get isSub => channels.contains(SonosChannel.sub);
@@ -579,6 +586,9 @@ class SonosSystem {
   ///   speakers left behind are ejected to standalone — and a bond that is
   ///   destroyed around a speaker takes its tuning with it, which is THE RULE.
   ///   So the whole-zone row is the exception, not this one.
+  ///
+  /// NB: `speaker_picker._cost` mirrors these branches to pick which sentence
+  /// the picker shows — change them together.
   Set<String> tuningLostByTaking(
     ZoneGroupMember source,
     Set<String> taking, {
@@ -592,6 +602,41 @@ class SonosSystem {
     // survives it.
     if (members.difference(taking).isNotEmpty) return members;
     return members.difference({source.uuid}); // the coordinator keeps its own
+  }
+
+  /// Which speakers lose their Trueplay tuning when [selected] is bonded into a
+  /// destination — the union over every bond the selection takes from, priced by
+  /// [tuningLostByTaking].
+  ///
+  /// [alsoLosing] is what the destination itself costs, which the sources cannot
+  /// know about: a group edit's own members (`AddBondedZones` rebuilds the bond
+  /// even on an unchanged map, EXP-23 Q8a) or, for a home theater, its whole
+  /// current membership when the apply drops a satellite (`RemoveHTSatellite`
+  /// wipes the set, not just the speaker leaving).
+  ///
+  /// Selection-dependent on purpose, so it cannot be precomputed per source:
+  /// taking BOTH halves of a stereo pair costs nothing, taking one costs the
+  /// other (EXP-23 Q7/Q9).
+  Set<String> tuningLostBySelection({
+    required Set<String> selected,
+    required bool absorbing,
+    String? exceptPrimary,
+    Set<String> alsoLosing = const {},
+  }) {
+    final byOwner = <String, Set<String>>{};
+    for (final uuid in selected) {
+      final owner = ownerOf(uuid);
+      if (owner == null || owner == exceptPrimary) continue;
+      byOwner.putIfAbsent(owner, () => {}).add(uuid);
+    }
+    final losing = <String>{...alsoLosing};
+    for (final entry in byOwner.entries) {
+      final source = memberByUuid(entry.key);
+      if (source == null) continue;
+      losing.addAll(
+          tuningLostByTaking(source, entry.value, destinationAbsorbs: absorbing));
+    }
+    return losing;
   }
 
   /// Whether [uuid] must be freed from whatever it is bonded to before a new

@@ -237,10 +237,17 @@ interpolated) then use it.
     them like pairs. **A create write is "go verify" too, not pass/fail** — same
     rule as `AddHTSatellite`: a timed-out (or 800) `AddBondedZones` very often
     still applies (hardware-seen: a user's apply reported failure on an 8s
-    timeout, and the pair was formed by the time they retried). `createGroup`
-    therefore swallows any transport failure + 800 and leaves the verdict to the
-    caller's poll-verify (every call site has one); only a non-800 fault
-    rethrows, since 401/402 never converge.
+    timeout, and the pair was formed by the time they retried). **And the
+    converse: an ACCEPTED write (200 OK) is not success either** — creating a
+    group out of a speaker freed from another bond seconds earlier was accepted
+    and silently did nothing (hardware, once), leaving the source HT stripped
+    and no group built; the identical write succeeded on retry. So a create must
+    converge like every other bond write: `SonosRepository.createGroup` is a
+    thin wrapper over `reassertGroup` with an empty `currentUuids` (same
+    write → verify-read → re-assert loop, same name snapshot), returns the
+    verified `SonosSystem`, and throws `didNotCreateGroup` only after it has
+    genuinely re-asserted. A non-800 fault still rethrows immediately, since
+    401/402 never converge.
   - **In-place group RECONFIGURE works like HT (hardware-confirmed,
     `tool/group_reassert_spike.dart` — self-restoring, 12/12 reassign + 6/6 add
     trials, all 1 attempt):** re-asserting `AddBondedZones` on a LIVE group's

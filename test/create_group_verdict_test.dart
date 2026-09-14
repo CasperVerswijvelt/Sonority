@@ -4,16 +4,56 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
 import 'package:sonority/data/sonos/device_properties.dart';
 import 'package:sonority/data/sonos/soap_client.dart';
+import 'package:sonority/data/sonos/sonority_error.dart';
 import 'package:sonority/data/sonos/sonos_repository.dart';
+import 'package:sonority/data/sonos/zone_topology.dart';
 import 'package:xml/xml.dart';
 
-/// Answers `GetZoneAttributes` and lets the test decide what `AddBondedZones`
-/// does — the two calls `createGroup` makes.
+const a = 'RINCON_A01400';
+const b = 'RINCON_B01400';
+
+// Two standalone rooms, then the same two as a stereo pair — the shape
+// GetZoneGroupState really returns (see zone_test.dart): the coordinator stays
+// visible carrying the ChannelMapSet, the other member goes Invisible.
+const _apart = '''
+<ZoneGroupState><ZoneGroups>
+  <ZoneGroup Coordinator="$a" ID="x">
+    <ZoneGroupMember UUID="$a" ZoneName="A"
+      Location="http://1.2.3.4:1400/xml/device_description.xml"/>
+  </ZoneGroup>
+  <ZoneGroup Coordinator="$b" ID="y">
+    <ZoneGroupMember UUID="$b" ZoneName="B"
+      Location="http://1.2.3.5:1400/xml/device_description.xml"/>
+  </ZoneGroup>
+</ZoneGroups></ZoneGroupState>''';
+
+const _paired = '''
+<ZoneGroupState><ZoneGroups>
+  <ZoneGroup Coordinator="$a" ID="x">
+    <ZoneGroupMember UUID="$a" ZoneName="A"
+      Location="http://1.2.3.4:1400/xml/device_description.xml"
+      ChannelMapSet="$a:LF,LF;$b:RF,RF"/>
+    <ZoneGroupMember UUID="$b" ZoneName="A" Invisible="1"
+      Location="http://1.2.3.5:1400/xml/device_description.xml"
+      ChannelMapSet="$a:LF,LF;$b:RF,RF"/>
+  </ZoneGroup>
+</ZoneGroups></ZoneGroupState>''';
+
+/// Answers `GetZoneAttributes` + `GetZoneGroupState` and lets the test decide
+/// what `AddBondedZones` does — the three calls a create makes.
 class _Soap extends SonosSoapClient {
-  final Object? Function() onBond;
+  /// Error to throw for the Nth `AddBondedZones` (null = accept it).
+  final Object? Function(int call) onBond;
+
+  /// Whether the group exists in topology after [bondCalls] writes.
+  final bool Function(int bondCalls) formed;
+
   int bondCalls = 0;
   int attrCalls = 0;
-  _Soap(this.onBond);
+  int stateCalls = 0;
+
+  _Soap(this.onBond, {bool Function(int)? formed})
+      : formed = formed ?? ((n) => n > 0);
 
   @override
   Future<XmlElement> call({
@@ -24,72 +64,107 @@ class _Soap extends SonosSoapClient {
     Map<String, String> args = const {},
     Duration timeout = const Duration(seconds: 8),
   }) async {
-    if (action == 'AddBondedZones') {
-      bondCalls++;
-      final err = onBond();
-      if (err != null) throw err;
-      return XmlDocument.parse('<Body/>').rootElement;
+    switch (action) {
+      case 'AddBondedZones':
+        final err = onBond(++bondCalls);
+        if (err != null) throw err;
+        return XmlDocument.parse('<Body/>').rootElement;
+      case 'GetZoneGroupState':
+        stateCalls++;
+        final b = XmlBuilder();
+        b.element('Body',
+            nest: () => b.element('ZoneGroupState',
+                nest: formed(bondCalls) ? _paired : _apart));
+        return b.buildDocument().rootElement;
+      default:
+        attrCalls++;
+        return XmlDocument.parse(
+                '<Body><CurrentZoneName>Living Room</CurrentZoneName></Body>')
+            .rootElement;
     }
-    attrCalls++;
-    return XmlDocument.parse(
-            '<Body><CurrentZoneName>Living Room</CurrentZoneName></Body>')
-        .rootElement;
   }
 }
 
 void main() {
-  const a = 'RINCON_A01400';
-  const b = 'RINCON_B01400';
+  const devA =
+      SonosDevice(uuid: a, roomName: 'A', modelName: 'Era 300', ip: '1.2.3.4');
+  const devB =
+      SonosDevice(uuid: b, roomName: 'B', modelName: 'Era 300', ip: '1.2.3.5');
   final members = [
-    (
-      device: const SonosDevice(
-          uuid: a, roomName: 'A', modelName: 'Era 300', ip: '1.2.3.4'),
-      channel: GroupChannel.left
-    ),
-    (
-      device: const SonosDevice(
-          uuid: b, roomName: 'B', modelName: 'Era 300', ip: '1.2.3.5'),
-      channel: GroupChannel.right
-    ),
+    (device: devA, channel: GroupChannel.left),
+    (device: devB, channel: GroupChannel.right),
   ];
+  final before = SonosSystem(
+    groups: ZoneTopologyClient.parseZoneGroupState(_apart),
+    devicesByUuid: const {a: devA, b: devB},
+  );
 
-  Future<void> create(Object? Function() onBond) {
-    final soap = _Soap(onBond);
-    return SonosRepository(deviceProps: DevicePropertiesClient(soap))
-        .createGroup(members: members);
-  }
+  Future<SonosSystem> create(_Soap soap) => SonosRepository(
+        deviceProps: DevicePropertiesClient(soap),
+        topology: ZoneTopologyClient(soap),
+        // Real cadence is 3s per verify read; the loop is what's under test,
+        // not the waiting.
+        groupVerifyInterval: Duration.zero,
+      ).createGroup(members: members, previous: before);
 
   // A bond write that times out or is refused very often still applies, so
-  // createGroup must NOT decide — every caller poll-verifies. Reporting failure
-  // here is what failed a user's apply whose write had in fact landed.
+  // createGroup must NOT decide — it verifies. Reporting failure on the write
+  // is what failed a user's apply whose write had in fact landed.
   test('a timed-out bond write is not a verdict', () async {
-    await expectLater(create(() => TimeoutException('AddBondedZones')),
-        completes);
+    final soap = _Soap((_) => TimeoutException('AddBondedZones'));
+    await expectLater(create(soap), completes);
+    expect(soap.bondCalls, 1);
   });
 
   test('a refused bond write is not a verdict', () async {
-    await expectLater(create(() => StateError('Connection refused')), completes);
+    final soap = _Soap((_) => StateError('Connection refused'));
+    await expectLater(create(soap), completes);
   });
 
   test('error 800 (mid-reshuffle) is not a verdict', () async {
-    await expectLater(
-        create(() => SonosSoapException('AddBondedZones', faultCode: '800')),
-        completes);
+    final soap =
+        _Soap((_) => SonosSoapException('AddBondedZones', faultCode: '800'));
+    await expectLater(create(soap), completes);
   });
 
   test('any other SOAP fault never converges — surface it', () async {
+    final soap =
+        _Soap((_) => SonosSoapException('AddBondedZones', faultCode: '402'));
     await expectLater(
-      create(() => SonosSoapException('AddBondedZones', faultCode: '402')),
+      create(soap),
       throwsA(isA<SonosSoapException>()
           .having((e) => e.faultCode, 'faultCode', '402')),
     );
+    expect(soap.bondCalls, 1, reason: 'a permanent fault must not be retried');
   });
 
   test('a clean write completes without retrying', () async {
-    final soap = _Soap(() => null);
-    await SonosRepository(deviceProps: DevicePropertiesClient(soap))
-        .createGroup(members: members);
+    final soap = _Soap((_) => null);
+    await create(soap);
     expect(soap.bondCalls, 1);
     expect(soap.attrCalls, 2); // one name snapshot per member, no retries
+  });
+
+  // The defect, reproduced on hardware: creating a group out of speakers that
+  // were bonded elsewhere a moment ago. Sonos accepts AddBondedZones (200 OK)
+  // and silently does nothing because the old bond is still tearing down — so a
+  // single write left the source home theater stripped and no group built. The
+  // identical write succeeded on the user's retry, so we retry it ourselves.
+  test('an accepted write that silently no-ops is re-asserted', () async {
+    final soap = _Soap((_) => null, formed: (n) => n >= 2);
+    final after = await create(soap);
+    expect(soap.bondCalls, 2);
+    expect(soap.attrCalls, 2, reason: 'names are snapshotted once, up front');
+    expect(after.memberByUuid(a)?.isStereoPair, isTrue);
+  });
+
+  test('a write that never takes reports failure, not success', () async {
+    final soap = _Soap((_) => null, formed: (_) => false);
+    await expectLater(
+      create(soap),
+      throwsA(isA<SonorityError>().having(
+          (e) => e.code, 'code', SonorityErrorCode.didNotCreateGroup)),
+    );
+    expect(soap.bondCalls, greaterThan(1), reason: 'it must re-assert first');
   });
 }

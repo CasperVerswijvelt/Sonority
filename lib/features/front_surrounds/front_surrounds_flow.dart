@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
+import '../../data/sonos/front_layout.dart';
 import '../../data/sonos/room_calibration.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
@@ -351,7 +351,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   subs: _subDevices(system),
                   calibration: picker.calibration,
                   dropped: [
-                    for (final u in _droppedUuids(member))
+                    for (final u in _diff(system, member, soundbar).toRemove)
                       if (system.device(u) case final d?) d,
                   ],
                 ),
@@ -373,25 +373,29 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   bool get _frontsValid => _fronts.isEmpty || _fronts.length == 2 || _ampMode;
   bool get _surroundsValid => _surrounds.isEmpty || _surrounds.length == 2;
 
-  /// The selection differs from what's currently bonded — the only case worth
-  /// applying (an unchanged layout is a zero-write no-op, so we disable Apply for
-  /// it). Compares fronts/surrounds channel→uuid and the sub set to the live map.
-  bool _differs(SonosSystem system, ZoneGroupMember member) {
-    final desired = {
-      for (final e in _additions(system).entries) e.key: e.value.uuid,
-    };
-    final current = {
-      for (final c in const [
-        SonosChannel.leftFront,
-        SonosChannel.rightFront,
-        SonosChannel.leftRear,
-        SonosChannel.rightRear,
-      ])
-        if (member.channelAssignments[c] case final u?) c: u,
-    };
-    if (!mapEquals(desired, current)) return true;
-    return !setEquals(_subs.toSet(), member.subUuids.toSet());
-  }
+  /// What applying this selection would do, from the engine: the very target
+  /// [SonosController.applyHomeTheaterLayout] builds (same arguments), diffed
+  /// against the live bond. `isNoOp` gates Apply — an unchanged layout writes
+  /// nothing — and `toRemove` is what leaves. Asking the engine (rather than
+  /// re-deriving it here) is what keeps the review card and the apply from
+  /// disagreeing, and gets the dual-sub / Amp-on-both-fronts shapes right.
+  HtDiff _diff(
+    SonosSystem system,
+    ZoneGroupMember member,
+    SonosDevice soundbar,
+  ) =>
+      diffHtLayout(
+        current: member,
+        target: buildLayoutMap(
+          soundbar: member,
+          soundbarDevice: soundbar,
+          desired: {
+            for (final e in _additions(system).entries) e.key: e.value.uuid,
+          },
+          subUuids: [for (final d in _subDevices(system)) d.uuid],
+          preserveExisting: false,
+        ),
+      );
 
   void _toggleFront(SonosDevice d) => setState(() {
     if (_fronts.contains(d.uuid)) {
@@ -470,8 +474,9 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       _ => true,
     };
     final isLast = _step == 3;
-    final canApply =
-        _frontsValid && _surroundsValid && _differs(system, member);
+    final canApply = _frontsValid &&
+        _surroundsValid &&
+        !_diff(system, member, soundbar).isNoOp;
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Row(
@@ -520,21 +525,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     if (outcome == BondingOutcome.success) router.pop();
   }
 
-  /// Speakers currently bonded to this HT that the selection drops. One
-  /// computation, so the review note cannot disagree with what apply does.
   /// Every speaker the user has picked across all three steps.
   Set<String> get _allSelected => {..._fronts, ..._surrounds, ..._subs};
-
-  Set<String> _droppedUuids(ZoneGroupMember member) => <String>{
-        for (final c in const [
-          SonosChannel.leftFront,
-          SonosChannel.rightFront,
-          SonosChannel.leftRear,
-          SonosChannel.rightRear,
-        ])
-          ...member.uuidsForChannel(c),
-        ...member.subUuids,
-      }.difference(_allSelected);
 }
 
 class _ChooseSpeakers extends StatelessWidget {
@@ -738,8 +730,7 @@ class _Review extends StatelessWidget {
       for (final d in additions.values) d.uuid,
       for (final d in subs) d.uuid,
     };
-    final losing = tuningLostBySelection(
-      system,
+    final losing = system.tuningLostBySelection(
       selected: resulting,
       absorbing: true, // AddHTSatellite takes a speaker out of a live bond
       exceptPrimary: member.uuid,

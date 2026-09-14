@@ -140,13 +140,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errMalformedHomeTheater => 'Stored home theater is malformed.';
 
   @override
-  String errDidNotForm(String name) {
-    return 'Sonos did not form “$name”.';
-  }
-
-  @override
   String get errDidNotCreateGroup =>
-      'Sonos did not create the group — a speaker may be incompatible.';
+      'Sonos did not create the group. Wait a moment and try again. If it keeps failing, one of the speakers may not be compatible.';
 
   @override
   String get errDidNotSeparate =>
@@ -346,9 +341,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stepWaitForConfirm => 'Wait for Sonos to confirm';
-
-  @override
-  String get stepWaitingConfirm => 'waiting for Sonos to confirm';
 
   @override
   String get stepApplyingSettle =>

@@ -65,6 +65,7 @@ class ZoneTopologyClient {
             zoneName: sat.getAttribute('ZoneName') ?? '',
             channels: channelsByUuid[satUuid] ?? const [],
             ip: _ipFromLocation(sat.getAttribute('Location')),
+            location: sat.getAttribute('Location'),
           ));
         }
 

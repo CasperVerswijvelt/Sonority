@@ -334,8 +334,7 @@ void main() {
     // bond, plus the whole current home theater when the apply drops a member
     // (`RemoveHTSatellite` wipes the set, EXP-23).
     Set<String> losing(Set<String> resulting, {bool dropping = false}) =>
-        tuningLostBySelection(
-          system,
+        system.tuningLostBySelection(
           selected: resulting,
           absorbing: true, // AddHTSatellite
           exceptPrimary: bar,
@@ -384,71 +383,49 @@ void main() {
 
     /// Two identical models in one zone share a card title, so the name list
     /// collapses to one entry while TWO speakers actually lose their tuning.
-    Future<String?> warn(WidgetTester tester,
+    Future<String?> warn(
         {required bool absorbing, required Set<String> taking}) async {
-      String? out;
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Builder(builder: (context) {
-          out = PickerContext(
-            system: twins,
-            calibration: const {
-              p1a: RoomCalibration(available: true, enabled: true),
-              p1b: RoomCalibration(available: true, enabled: true),
-            },
-            absorbing: absorbing,
-          ).warning(context, taking);
-          return const SizedBox();
-        }),
-      ));
-      return out;
+      return PickerContext(
+        system: twins,
+        calibration: const {
+          p1a: RoomCalibration(available: true, enabled: true),
+          p1b: RoomCalibration(available: true, enabled: true),
+        },
+        absorbing: absorbing,
+      ).warning(await AppLocalizations.delegate.load(const Locale('en')), taking);
     }
 
-    testWidgets('one label, two speakers ⇒ plural wording', (tester) async {
-      final w = await warn(tester, absorbing: false, taking: {p1a});
+    test('one label, two speakers ⇒ plural wording', () async {
+      final w = await warn(absorbing: false, taking: {p1a});
       expect(w, contains('Boven · Play:1'));
       expect(w, contains('their Trueplay'),
           reason: 'both Play:1s lose it even though they share a label');
     });
 
-    testWidgets('the whole zone absorbed ⇒ only the leftover pays, singular',
-        (tester) async {
-      final w = await warn(tester, absorbing: true, taking: {p1a, p1b});
+    test('the whole zone absorbed ⇒ only the leftover pays, singular', () async {
+      final w = await warn(absorbing: true, taking: {p1a, p1b});
       expect(w, contains('its Trueplay'),
           reason: 'the zone coordinator keeps its own (EXP-23 Q10)');
     });
   });
 
   group('naming the keeps/loses lists', () {
-    Future<({List<String> names, int count})> named(
-        WidgetTester tester, Set<String> uuids) async {
-      late ({List<String> names, int count}) out;
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Builder(builder: (context) {
-          out = tunedSpeakers(
-            AppLocalizations.of(context),
-            system,
-            uuids,
-            const {
-              bar: RoomCalibration(available: true, enabled: true),
-              rear: RoomCalibration(available: true, enabled: false),
-              pairR: RoomCalibration(available: true, enabled: true),
-              pairL: RoomCalibration(available: false, enabled: false),
-            },
-            ownBond: bar,
-          );
-          return const SizedBox();
-        }),
-      ));
-      return out;
-    }
+    Future<({List<String> names, int count})> named(Set<String> uuids) async =>
+        tunedSpeakers(
+          await AppLocalizations.delegate.load(const Locale('en')),
+          system,
+          uuids,
+          const {
+            bar: RoomCalibration(available: true, enabled: true),
+            rear: RoomCalibration(available: true, enabled: false),
+            pairR: RoomCalibration(available: true, enabled: true),
+            pairL: RoomCalibration(available: false, enabled: false),
+          },
+          ownBond: bar,
+        );
 
-    testWidgets('the configured home theater by type, other bonds by name',
-        (tester) async {
-      final got = await named(tester, {bar, rear, pairR});
+    test('the configured home theater by type, other bonds by name', () async {
+      final got = await named({bar, rear, pairR});
       expect(got.names, [
         'Eetkamer · One SL · R', // another bond: say whose it is
         'Play:1 · Surround L', // this HT's own satellite: type and role
@@ -457,9 +434,8 @@ void main() {
       expect(got.count, 3);
     });
 
-    testWidgets('a speaker with no stored tuning is never named',
-        (tester) async {
-      final got = await named(tester, {pairL, sub});
+    test('a speaker with no stored tuning is never named', () async {
+      final got = await named({pairL, sub});
       expect(got.names, isEmpty);
       expect(got.count, 0);
     });

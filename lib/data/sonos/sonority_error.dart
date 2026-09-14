@@ -47,10 +47,9 @@ class SonorityError implements Exception {
         return 'Stored group is malformed.';
       case SonorityErrorCode.malformedHomeTheater:
         return 'Stored home theater is malformed.';
-      case SonorityErrorCode.didNotForm:
-        return 'Sonos did not form “$a”.';
       case SonorityErrorCode.didNotCreateGroup:
-        return 'Sonos did not create the group — a speaker may be incompatible.';
+        return 'Sonos did not create the group. Wait a moment and try again. '
+            'If it keeps failing, one of the speakers may not be compatible.';
       case SonorityErrorCode.didNotSeparate:
         return 'Sonos did not separate the group — try again.';
       case SonorityErrorCode.didNotRemove:
@@ -93,7 +92,6 @@ enum SonorityErrorCode {
   entityMissingSpeakers,
   malformedGroup,
   malformedHomeTheater,
-  didNotForm,
   didNotCreateGroup,
   didNotSeparate,
   didNotRemove,

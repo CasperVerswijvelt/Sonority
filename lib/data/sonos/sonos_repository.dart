@@ -30,6 +30,10 @@ class SonosRepository {
   final AvTransportClient _avTransport;
   final KeyValueStore _store;
 
+  /// How long to wait between topology reads while verifying a group bond.
+  /// Only overridden by tests, so they don't sleep through the real cadence.
+  final Duration _groupVerifyInterval;
+
   SonosRepository({
     SsdpDiscovery? ssdp,
     DeviceDescriptionClient? descriptions,
@@ -38,7 +42,9 @@ class SonosRepository {
     RoomCalibrationClient? calibration,
     AvTransportClient? avTransport,
     KeyValueStore? store,
-  })  : _ssdp = ssdp ?? SsdpDiscovery(),
+    Duration? groupVerifyInterval,
+  })  : _groupVerifyInterval = groupVerifyInterval ?? _defaultGroupVerifyInterval,
+        _ssdp = ssdp ?? SsdpDiscovery(),
         _descriptions = descriptions ?? DeviceDescriptionClient(),
         _topology = topology ?? ZoneTopologyClient(SonosSoapClient()),
         _deviceProps = deviceProps ?? DevicePropertiesClient(SonosSoapClient()),
@@ -97,21 +103,34 @@ class SonosRepository {
         '${groups.expand((g) => g.members).length} member(s) in ${groups.length} group(s)');
 
     // Topology is authoritative; SSDP and the per-device description fetch are
-    // both lossy. Re-fetch any visible member we don't yet have a description
-    // for, straight from its topology-provided Location — this recovers a
-    // transient fetch failure and any device SSDP's multicast missed entirely.
+    // both lossy. Re-fetch anything we don't yet have a description for,
+    // straight from its topology-provided Location — this recovers a transient
+    // fetch failure and any device SSDP's multicast missed entirely.
+    //
+    // SATELLITES COUNT. They are `<Satellite>` children, not members, so a
+    // members-only sweep left an SSDP-missed Sub absent from `devicesByUuid`
+    // and every consumer resolved it to null: the HT page showed "Speaker" for
+    // it, the setup flow said "no free subwoofer found", and — the reason this
+    // is not cosmetic — the flow builds its target map from resolved devices,
+    // so an apply would have dropped the SW channel and `RemoveHTSatellite`'d
+    // the user's Sub with no warning (which per EXP-23 also wipes the bond's
+    // Trueplay). Seen live on hardware.
     final missing = [
       for (final g in groups)
-        for (final m in g.members)
+        for (final m in g.members) ...[
           if (!m.invisible &&
               m.location != null &&
               !devicesByUuid.containsKey(m.uuid))
-            m,
+            (uuid: m.uuid, name: m.zoneName, location: m.location!, ip: m.ip),
+          for (final s in m.satellites)
+            if (s.location != null && !devicesByUuid.containsKey(s.uuid))
+              (uuid: s.uuid, name: s.zoneName, location: s.location!, ip: s.ip),
+        ],
     ];
     if (missing.isNotEmpty) {
       final recovered = await Future.wait(missing.map((m) async {
         try {
-          return await _descriptions.fetch(m.location!);
+          return await _descriptions.fetch(m.location);
         } catch (_) {
           // Re-fetch failed too. Keep the device — it's in the authoritative
           // topology — but flag it unreachable (model/capabilities unknown) so
@@ -119,7 +138,7 @@ class SonosRepository {
           // silently.
           return SonosDevice(
             uuid: m.uuid,
-            roomName: m.zoneName,
+            roomName: m.name,
             modelName: '',
             ip: m.ip,
             reachable: false,
@@ -172,7 +191,7 @@ class SonosRepository {
   // a nested poll keeps the common case snappy while still retrying the flaky one.
   static const _groupBondRetries = 6;
   static const _groupVerifyReads = 6;
-  static const _groupVerifyInterval = Duration(seconds: 3);
+  static const _defaultGroupVerifyInterval = Duration(seconds: 3);
 
   /// Writes [target] to the coordinator and VERIFIES every requested channel
   /// actually landed, RE-ASSERTING up to [_bondRetries] times if Sonos silently
@@ -273,53 +292,37 @@ class SonosRepository {
   /// member is the coordinator (stays the visible room); the rest go hidden.
   /// Snapshots every member's + the sub's name first so they restore on
   /// separation — Sonos absorbs them all into the coordinator's name.
-  Future<void> createGroup({
+  ///
+  /// A create is just a [reassertGroup] with no current members, so it goes
+  /// through the same write → verify → re-assert loop: `AddBondedZones` is
+  /// eventually-consistent, and a single write is unreliable. Hardware-seen: a
+  /// create issued right after the members were freed from another bond was
+  /// accepted (200 OK) and silently did nothing, leaving the source home theater
+  /// stripped and no group built; the identical write succeeded on retry.
+  /// Returns the verified [SonosSystem]; throws
+  /// [SonorityErrorCode.didNotCreateGroup] if it never converges.
+  Future<SonosSystem> createGroup({
     required List<({SonosDevice device, GroupChannel channel})> members,
     SonosDevice? sub,
+    required SonosSystem? previous,
+    void Function(String note)? onNote,
     CancellationToken? cancel,
   }) async {
     if (members.length < 2) {
       throw const SonorityError(SonorityErrorCode.groupNeedsTwo);
     }
-    final all = [for (final m in members) m.device, if (sub != null) sub];
-    if (all.any((d) => d.ip == null)) {
+    if ([for (final m in members) m.device, if (sub != null) sub]
+        .any((d) => d.ip == null)) {
       throw const SonorityError(SonorityErrorCode.speakerIpUnknown);
     }
-    final attrs = <String, ZoneAttributes>{};
-    for (final d in all) {
-      // A member that was just unbonded elsewhere (a removed HT satellite, say)
-      // still refuses :1400 — wait for it rather than aborting the whole create
-      // before a single write, which is what a profile that rebuilds a pair out
-      // of ex-surrounds kept doing.
-      attrs[d.uuid] = await retryUnreachable(
-          () => _deviceProps.getZoneAttributes(d.ip!),
-          cancel: cancel);
-    }
-    await _saveZoneSnapshot(attrs);
-    // Built OUTSIDE the try so a map-building bug can't hide in the catch below.
-    final map = buildGroupMap(
-      [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
-      subUuid: sub?.uuid,
+    return reassertGroup(
+      members: members,
+      sub: sub,
+      currentUuids: const [], // nothing bonded yet: every member is "added"
+      previous: previous,
+      onNote: onNote,
+      cancel: cancel,
     );
-    try {
-      await _deviceProps.addBondedZones(
-          ip: members.first.device.ip!, channelMapSet: map);
-    } on SonosSoapException catch (e) {
-      // 800 = mid-reshuffle (transient). Anything else (401 invalid action, 402
-      // malformed map) never converges — the caller should see it.
-      if (e.faultCode != '800') rethrow;
-      DiagnosticsLog.add('createGroup: AddBondedZones error 800, verifying');
-    } catch (e) {
-      // NOT fatal — the same rule [bondAndVerify] and [reassertGroup] follow: a
-      // bond write that times out (or is refused mid-reshuffle) very often still
-      // applies, so it's a "go verify", never a verdict. Every caller
-      // poll-verifies the group actually formed and reports a clear error if it
-      // didn't; throwing here skipped that and failed an apply whose write had
-      // in fact landed (hardware-seen: the group was formed by the time the user
-      // retried). Cancellation is the one thing that must still stop everything.
-      if (e is OperationCancelled) rethrow;
-      DiagnosticsLog.add('createGroup: AddBondedZones failed ($e), verifying');
-    }
   }
 
   /// Reconfigures a LIVE group in place by re-asserting the [members] (+ [sub])
@@ -343,6 +346,10 @@ class SonosRepository {
   /// verified [SonosSystem]; throws [SonorityErrorCode.didNotCreateGroup] if it
   /// never converges. Treats a timeout / 800 as "go verify" and rethrows a
   /// permanent fault (e.g. 401/402) immediately.
+  ///
+  /// [createGroup] delegates here with an empty [currentUuids]: creating a group
+  /// is the same write/verify/re-assert loop with nothing bonded yet, so every
+  /// member counts as added and gets its name snapshotted.
   Future<SonosSystem> reassertGroup({
     required List<({SonosDevice device, GroupChannel channel})> members,
     SonosDevice? sub,

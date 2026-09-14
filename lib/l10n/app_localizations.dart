@@ -322,16 +322,10 @@ abstract class AppLocalizations {
   /// **'Stored home theater is malformed.'**
   String get errMalformedHomeTheater;
 
-  /// No description provided for @errDidNotForm.
-  ///
-  /// In en, this message translates to:
-  /// **'Sonos did not form “{name}”.'**
-  String errDidNotForm(String name);
-
   /// No description provided for @errDidNotCreateGroup.
   ///
   /// In en, this message translates to:
-  /// **'Sonos did not create the group — a speaker may be incompatible.'**
+  /// **'Sonos did not create the group. Wait a moment and try again. If it keeps failing, one of the speakers may not be compatible.'**
   String get errDidNotCreateGroup;
 
   /// No description provided for @errDidNotSeparate.
@@ -615,12 +609,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wait for Sonos to confirm'**
   String get stepWaitForConfirm;
-
-  /// No description provided for @stepWaitingConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'waiting for Sonos to confirm'**
-  String get stepWaitingConfirm;
 
   /// No description provided for @stepApplyingSettle.
   ///

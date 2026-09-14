@@ -80,15 +80,7 @@
   },
   "errMalformedGroup": "Stored group is malformed.",
   "errMalformedHomeTheater": "Stored home theater is malformed.",
-  "errDidNotForm": "Sonos did not form “{name}”.",
-  "@errDidNotForm": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "errDidNotCreateGroup": "Sonos did not create the group — a speaker may be incompatible.",
+  "errDidNotCreateGroup": "Sonos did not create the group. Wait a moment and try again. If it keeps failing, one of the speakers may not be compatible.",
   "errDidNotSeparate": "Sonos did not separate the group — try again.",
   "errDidNotRemove": "Sonos did not remove the {label} — try again.",
   "@errDidNotRemove": {
@@ -206,7 +198,6 @@
   "stepWaitForSettle": "Wait for Sonos to settle",
   "stepWaitingSettle": "waiting for Sonos to settle",
   "stepWaitForConfirm": "Wait for Sonos to confirm",
-  "stepWaitingConfirm": "waiting for Sonos to confirm",
   "stepApplyingSettle": "Applying — Sonos can take up to a minute to settle.",
   "stepNameUnchanged": "name unchanged — nothing to do",
   "stepAlreadyFormed": "already formed — nothing to do",

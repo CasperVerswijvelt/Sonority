@@ -585,20 +585,16 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
                 ? l10n.stepBondNSpeakersWithSub(memberEntries.length)
                 : l10n.stepBondNSpeakers(memberEntries.length));
         // createGroup can sit for ~30s waiting on a member Sonos only just
-        // unbonded, so say something rather than looking hung.
+        // unbonded, so say something rather than looking hung. It writes,
+        // verifies and re-asserts until the group is really there (or throws),
+        // so there's nothing left to poll for here.
         ph.note(l10n.stepApplyingSettle);
-        await _repo.createGroup(
-            members: memberEntries, sub: sub, cancel: _activeOp);
-        ph.note(l10n.stepWaitingConfirm);
-        sys = await _pollUntil(
-          previous: sys,
-          ip: coord.ip,
-          attempts: 8,
-          until: (s) => _isGroupFormed(s, e.primaryUuid, involved),
-        );
-        if (!_isGroupFormed(sys, e.primaryUuid, involved)) {
-          throw SonorityError(SonorityErrorCode.didNotForm, e.label);
-        }
+        sys = await _repo.createGroup(
+            members: memberEntries,
+            sub: sub,
+            previous: sys,
+            onNote: ph.log,
+            cancel: _activeOp);
         _activeOp?.throwIfCancelled();
         ph.phase('names', l10n.stepRestoreRoomName);
         if (!await _repo.setRoomName(
@@ -930,25 +926,28 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         sys = await _freeConflicts(sys, involved,
             keep: const {}, absorbing: false, ph: ph, fallbackIp: coord.ip);
         ph.phase('bond', l10n.stepBondSpeakers);
-        await _repo.createGroup(members: members, sub: sub, cancel: _activeOp);
+        // Writes, verifies and re-asserts until the bond is really there, or
+        // throws didNotCreateGroup. Seed from `sys`, not `previous` — the free
+        // loop advanced it, and the pre-free topology still shows the members
+        // bonded elsewhere.
+        var system = await _repo.createGroup(
+            members: members,
+            sub: sub,
+            previous: sys,
+            onNote: ph.log,
+            cancel: _activeOp);
+        // The bond is confirmed, but the absorbed members can linger in the
+        // room list for a few seconds (the ~15s topology lag) — wait for them
+        // to go before adopting the topology, or the overview shows the new
+        // group AND stale room cards for its members.
         ph.phase('confirm', l10n.stepWaitForConfirm);
-        // Seed from `sys`, not `previous` — the free loop advanced it, and the
-        // pre-free topology still shows the members bonded elsewhere.
-        var system = await _pollUntil(
-          previous: sys,
+        system = await _pollUntil(
+          previous: system,
           ip: coord.ip ?? _lastIp,
-          attempts: 8,
-          until: (s) =>
-              _isGroupFormed(s, coord.uuid, involved) &&
-              !members
-                  .skip(1)
-                  .any((m) => s.allMembers.any((x) => x.uuid == m.device.uuid)),
+          until: (s) => !members
+              .skip(1)
+              .any((m) => s.allMembers.any((x) => x.uuid == m.device.uuid)),
         );
-        // Sonos accepts the command (200) but silently no-ops if a speaker is
-        // incompatible — confirm the group actually formed.
-        if (!_isGroupFormed(system, coord.uuid, involved)) {
-          throw const SonorityError(SonorityErrorCode.didNotCreateGroup);
-        }
         if (wanted != null && wanted.isNotEmpty && coord.ip != null) {
           ph.phase('name', l10n.stepNameGroup);
           await _repo.setRoomName(ip: coord.ip!, name: wanted);
@@ -1122,7 +1121,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         if (needsBond && !inPlace) ('separate', l10n.stepSeparateRestore),
         if (needsBond)
           ('bond', inPlace ? l10n.stepUpdateGroup : l10n.stepBondSpeakers),
-        if (needsBond) ('confirm', l10n.stepWaitForConfirm),
         if (needsName) ('name', l10n.stepNameGroup),
       ]);
       try {
@@ -1172,41 +1170,17 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           ph.phase('separate', l10n.stepSeparateRestore);
           await _repo.separateGroup(
               members: old, channelMapSet: cms, cancel: _activeOp);
-          // Wait for the old group to dissolve AND its members to reappear as
-          // standalone rooms before re-bonding: `_repo.createGroup` writes once
-          // (it treats a transient fault as "go verify" but never re-writes), so
-          // recreating mid-reshuffle could leave the group dissolved. Mirrors
-          // separateGroup's settle wait.
-          final oldSub = existing.subUuid;
-          final reappear =
-              current.where((u) => u != existing.uuid && u != oldSub).toList();
-          system = await _pollUntil(
-            previous: system,
-            ip: existing.ip ?? _lastIp,
-            attempts: 8,
-            until: (s) =>
-                !_isGroupFormed(s, existing.uuid, current) &&
-                reappear.every((u) => s.allMembers.any((m) => m.uuid == u)),
-          );
+          // Straight into the rebuild: createGroup re-asserts until the group
+          // verifies, so a write that lands mid-dissolve is retried rather than
+          // leaving the group torn down. (This is where a settle poll used to
+          // paper over createGroup writing exactly once.)
           ph.phase('bond', l10n.stepBondSpeakers);
-          await _repo.createGroup(members: members, sub: sub, cancel: _activeOp);
-        }
-        if (needsBond) {
-          ph.phase('confirm', l10n.stepWaitForConfirm);
-          // The dissolve→recreate path ends in a single createGroup write that
-          // isn't self-verifying — poll until the full end-state settles. The
-          // in-place path already re-asserted until verified in reassertGroup.
-          if (!inPlace) {
-            system = await _pollUntil(
+          system = await _repo.createGroup(
+              members: members,
+              sub: sub,
               previous: system,
-              ip: coord.ip ?? _lastIp,
-              attempts: 8,
-              until: applied,
-            );
-          }
-          if (system == null || !applied(system)) {
-            throw const SonorityError(SonorityErrorCode.didNotCreateGroup);
-          }
+              onNote: ph.log,
+              cancel: _activeOp);
         }
         if (needsName) {
           ph.phase('name', l10n.stepNameGroup);

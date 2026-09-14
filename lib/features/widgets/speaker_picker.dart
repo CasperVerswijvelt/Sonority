@@ -193,42 +193,6 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
   return parts.isEmpty ? null : parts.join(' · ');
 }
 
-/// Which speakers lose their Trueplay tuning when [selected] is bonded into a
-/// destination — the union over every bond the selection takes from, priced by
-/// [SonosSystem.tuningLostByTaking].
-///
-/// [alsoLosing] is what the destination itself costs, which the sources cannot
-/// know about: a group edit's own members (`AddBondedZones` rebuilds the bond
-/// even on an unchanged map, EXP-23 Q8a) or, for a home theater, its whole
-/// current membership when the apply drops a satellite (`RemoveHTSatellite`
-/// wipes the set, not just the speaker leaving).
-///
-/// Selection-dependent on purpose, so it cannot be precomputed per source:
-/// taking BOTH halves of a stereo pair costs nothing, taking one costs the
-/// other (EXP-23 Q7/Q9).
-Set<String> tuningLostBySelection(
-  SonosSystem system, {
-  required Set<String> selected,
-  required bool absorbing,
-  String? exceptPrimary,
-  Set<String> alsoLosing = const {},
-}) {
-  final byOwner = <String, Set<String>>{};
-  for (final uuid in selected) {
-    final owner = system.ownerOf(uuid);
-    if (owner == null || owner == exceptPrimary) continue;
-    byOwner.putIfAbsent(owner, () => {}).add(uuid);
-  }
-  final losing = <String>{...alsoLosing};
-  for (final entry in byOwner.entries) {
-    final source = system.memberByUuid(entry.key);
-    if (source == null) continue;
-    losing.addAll(system.tuningLostByTaking(source, entry.value,
-        destinationAbsorbs: absorbing));
-  }
-  return losing;
-}
-
 /// The speakers among [uuids] that actually hold a stored tuning: their deduped
 /// display names, and how many SPEAKERS that is.
 ///
@@ -269,7 +233,7 @@ Set<String> tuningLostBySelection(
 /// The calibration cost of a selection that takes speakers out of other bonds,
 /// or null when nothing tuned is at stake.
 String? _stealWarning(
-  BuildContext context, {
+  AppLocalizations l10n, {
   required SonosSystem system,
   required Set<String> selected,
   required Map<String, RoomCalibration> calibration,
@@ -277,19 +241,17 @@ String? _stealWarning(
   String? exceptPrimary,
   Set<String> ownBondMembers = const {},
 }) {
-  final losing = tuningLostBySelection(
-    system,
+  final losing = system.tuningLostBySelection(
     selected: selected,
     absorbing: absorbing,
     exceptPrimary: exceptPrimary,
     alsoLosing: ownBondMembers,
   );
-  final tuned = tunedSpeakers(context.l10n, system, losing, calibration);
+  final tuned = tunedSpeakers(l10n, system, losing, calibration);
   if (tuned.names.isEmpty) return null;
   // Plural on the SPEAKER count, not the name count — two identical models in
   // one bond share a label, and "its … re-tune it" would then be wrong.
-  return context.l10n
-      .speakerStealTrueplayWarning(tuned.names.join(', '), tuned.count);
+  return l10n.speakerStealTrueplayWarning(tuned.names.join(', '), tuned.count);
 }
 
 
@@ -351,8 +313,10 @@ class PickerContext {
           calibration: calibration,
           absorbing: absorbing);
 
-  String? warning(BuildContext context, Set<String> selected) => _stealWarning(
-        context,
+  /// Takes the [AppLocalizations] rather than a `BuildContext`: this one is
+  /// pure text, so it stays callable (and testable) without an element tree.
+  String? warning(AppLocalizations l10n, Set<String> selected) => _stealWarning(
+        l10n,
         system: system,
         selected: selected,
         calibration: calibration,
@@ -394,7 +358,7 @@ class SpeakerPickerSections extends StatelessWidget {
           CardGrid([for (final d in s.devices) card(d)]),
           if (s != sections.last) Gap.m,
         ],
-        if (ctx.warning(context, selected) case final w?) ...[
+        if (ctx.warning(context.l10n, selected) case final w?) ...[
           Gap.m,
           InfoNote(w),
         ],

@@ -102,6 +102,20 @@ void main() {
     expect(d.isNoOp, isFalse);
   });
 
+  test('an Amp on both fronts is not masked by another entry claiming LF', () {
+    // The shape a channel-keyed walk gets wrong: `channelAssignments` is
+    // channel → uuid (last entry wins), so it reads this live map as
+    // {LF: fl, RF: amp} and forgets the Amp still holds LF — making the target
+    // below look already-applied (Apply disabled on a real change). Diffing by
+    // uuid → channels via `uuidsForChannel` keeps both claims.
+    final d = diffHtLayout(
+      current: bar('$beam:CC;$amp:LF,RF;$fl:LF'),
+      target: target('$beam:CC;$fl:LF;$amp:RF'),
+    );
+    expect(d.isNoOp, isFalse);
+    expect(d.toRemove, isEmpty, reason: 'both speakers stay, the Amp just moves');
+  });
+
   test('target is preserved on the diff for the caller to bond', () {
     final t = target(full);
     final d = diffHtLayout(current: bar('$beam:CC'), target: t);

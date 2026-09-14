@@ -8,6 +8,7 @@ import 'package:sonority/data/sonos/zone_topology.dart';
 
 const _aUrl = 'http://192.168.1.10:1400/xml/device_description.xml';
 const _bUrl = 'http://192.168.1.11:1400/xml/device_description.xml';
+const _subUrl = 'http://192.168.1.12:1400/xml/device_description.xml';
 
 // SSDP and the description fetch are lossy; topology is authoritative. The
 // repo re-fetches any topology member it's missing from its topology-provided
@@ -38,6 +39,10 @@ class _FakeDescriptions extends DeviceDescriptionClient {
       return const SonosDevice(
           uuid: 'RINCON_B01400', roomName: 'Bureau', modelName: 'Sonos One', ip: '192.168.1.11');
     }
+    if (locationUrl == _subUrl) {
+      return const SonosDevice(
+          uuid: 'RINCON_SUB01400', roomName: 'Living', modelName: 'Sonos Sub', ip: '192.168.1.12');
+    }
     throw Exception('unexpected url $locationUrl');
   }
 }
@@ -60,7 +65,67 @@ SonosRepository _repo(_FakeDescriptions descriptions) => SonosRepository(
       topology: _FakeTopology(),
     );
 
+/// A soundbar with a bonded Sub. SSDP announces only the bar, so the Sub is
+/// reachable ONLY through its `<Satellite>` Location.
+class _FakeSatelliteTopology extends ZoneTopologyClient {
+  _FakeSatelliteTopology() : super(SonosSoapClient());
+
+  @override
+  Future<List<ZoneGroup>> getZoneGroups(String ip) async => const [
+        ZoneGroup(coordinatorUuid: 'RINCON_A01400', members: [
+          ZoneGroupMember(
+            uuid: 'RINCON_A01400',
+            zoneName: 'Living',
+            location: _aUrl,
+            htSatChanMapSet: 'RINCON_A01400:CC;RINCON_SUB01400:SW',
+            satellites: [
+              SonosSatellite(
+                uuid: 'RINCON_SUB01400',
+                zoneName: 'Living',
+                channels: [SonosChannel.sub],
+                ip: '192.168.1.12',
+                location: _subUrl,
+              ),
+            ],
+          ),
+        ]),
+      ];
+}
+
 void main() {
+  // A satellite is a `<Satellite>` child, not a member, so a members-only
+  // recovery sweep left an SSDP-missed Sub absent from `devicesByUuid` — and
+  // the HT setup flow builds its target map from RESOLVED devices, so the next
+  // apply would have dropped the SW channel and unbonded the user's Sub with no
+  // warning. Seen on real hardware.
+  test('recovers a SATELLITE that SSDP missed entirely', () async {
+    final descriptions = _FakeDescriptions();
+    final system = await SonosRepository(
+      ssdp: _FakeSsdp(),
+      descriptions: descriptions,
+      topology: _FakeSatelliteTopology(),
+    ).discover();
+
+    expect(descriptions.calls[_subUrl], 1, reason: 'fetched from its topology Location');
+    final sub = system.device('RINCON_SUB01400');
+    expect(sub, isNotNull, reason: 'the Sub must resolve, or an apply silently drops it');
+    expect(sub!.modelName, 'Sonos Sub');
+    expect(sub.reachable, isTrue);
+  });
+
+  test('an undescribable satellite is kept, flagged unreachable', () async {
+    final descriptions = _FakeDescriptions(alwaysFail: {_subUrl});
+    final system = await SonosRepository(
+      ssdp: _FakeSsdp(),
+      descriptions: descriptions,
+      topology: _FakeSatelliteTopology(),
+    ).discover();
+
+    final sub = system.device('RINCON_SUB01400');
+    expect(sub, isNotNull);
+    expect(sub!.reachable, isFalse);
+  });
+
   test('recovers a topology member whose first description fetch failed', () async {
     final descriptions = _FakeDescriptions(failOnce: {_bUrl});
     final system = await _repo(descriptions).discover();
