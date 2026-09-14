@@ -2074,12 +2074,6 @@ abstract class AppLocalizations {
   /// **'You can change this anytime.'**
   String get frontSurroundsReviewNote;
 
-  /// Review-step line naming the speakers in the resulting home theater that hold a tuning and survive the apply (EXP-23: AddHTSatellite mutates a bond, it does not rebuild it). Measured end to end on hardware: the tuning survives as available=1 but comes back enabled=0, so saying only 'keeps' would over-promise.
-  ///
-  /// In en, this message translates to:
-  /// **'Keeps Trueplay: {names}. Bonding switches it off, so turn it back on afterwards.'**
-  String frontSurroundsTrueplayKeeps(String names);
-
   /// Review-step line naming the speakers whose stored tuning this apply clears. Worded without it/them so it needs no plural: two identical models share one label.
   ///
   /// In en, this message translates to:
@@ -2188,23 +2182,17 @@ abstract class AppLocalizations {
   /// **'Available'**
   String get pickerSectionAvailable;
 
-  /// No description provided for @pickerCostPair.
-  ///
-  /// In en, this message translates to:
-  /// **'Take both and they keep their Trueplay. Take just one and the other loses it.'**
-  String get pickerCostPair;
-
   /// No description provided for @pickerCostZone.
   ///
   /// In en, this message translates to:
-  /// **'Taking any of them breaks up the whole group and clears Trueplay. Take them all and the first speaker keeps its tuning.'**
+  /// **'Taking any of them breaks up the whole group.'**
   String get pickerCostZone;
 
-  /// Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and every speaker in the source bond loses its tuning.
+  /// The Trueplay cost of taking a speaker out of any bond. One sentence for every source: a tuning that survives an absorb comes back switched off and cannot be switched on without being destroyed (EXP-23 Q15/Q16, no safe delay, role-preserving included), so nothing can promise retention.
   ///
   /// In en, this message translates to:
   /// **'Trueplay is cleared on all of them.'**
-  String get pickerCostFreedFirst;
+  String get pickerCostCleared;
 
   /// Section-header helper for a bond a speaker would be taken from.
   ///

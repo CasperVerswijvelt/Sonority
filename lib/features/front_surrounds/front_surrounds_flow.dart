@@ -731,7 +731,13 @@ class _Review extends StatelessWidget {
     };
     final losing = system.tuningLostBySelection(
       selected: resulting,
-      absorbing: true, // AddHTSatellite takes a speaker out of a live bond
+      // `false` is NOT a claim that AddHTSatellite fails to absorb — it does,
+      // and the model says so. It is that an absorbed tuning is a ZOMBIE:
+      // EXP-23 Q15/Q16 measured it comes back switched off and that switching
+      // it on destroys it, with no safe delay and the role-preserving case
+      // dying too. A user cannot tell that from a lost one, so the card names
+      // every speaker that needs re-tuning and promises nothing.
+      absorbing: false,
       exceptPrimary: member.uuid,
       // Removing a member is the expensive edit: `RemoveHTSatellite` clears
       // Trueplay on EVERY speaker in the bond, not just the one leaving
@@ -740,17 +746,12 @@ class _Review extends StatelessWidget {
     );
     final loses =
         tunedSpeakers(l10n, system, losing, calibration, ownBond: member.uuid);
-    final keeps = tunedSpeakers(
-        l10n, system, resulting.difference(losing), calibration,
-        ownBond: member.uuid);
     return [
       if (dropped.isNotEmpty)
         l10n.frontSurroundsDropNote(
           dropped.map((d) => d.typeLabel).join(', '),
           dropped.length,
         ),
-      if (keeps.names.isNotEmpty)
-        l10n.frontSurroundsTrueplayKeeps(keeps.names.join(', ')),
       if (loses.names.isNotEmpty)
         l10n.frontSurroundsTrueplayLoses(loses.names.join(', ')),
       l10n.frontSurroundsReviewNote,

@@ -91,7 +91,7 @@ Widget? _sectionHeader(
     icon: src.isHomeTheater
         ? Icons.surround_sound
         : groupKindIcon(src.groupKind),
-    helper: sectionCost(l10n, system, src, calibration, absorbing),
+    helper: sectionCost(l10n, system, src, calibration),
   );
 }
 
@@ -101,40 +101,34 @@ String _kindLabel(AppLocalizations l10n, ZoneGroupMember m) =>
 /// What taking a speaker out of [src] costs, as the section header's helper
 /// line.
 ///
-/// The branches here MIRROR [SonosSystem.tuningLostByTaking] to pick which
-/// sentence to show, and nothing in the type system holds the two together — so
-/// they are pinned by test instead (`test/steal_from_bond_test.dart`). That is
-/// not ceremony: this string is the one the user actually reads before a
-/// destructive write, and it has already been wrong once, when EXP-23 Q12
-/// disproved the retention the zone sentence was promising.
+/// **Every source costs the same in Trueplay.** A stored tuning does survive an
+/// absorb ([SonosSystem.tuningLostByTaking] still models that faithfully, and it
+/// drives what gets FREED), but EXP-23 Q15/Q16 measured that it comes back
+/// switched off and that switching it on destroys it — no safe delay, and the
+/// role-preserving case died too. So there is no retention to promise a user,
+/// and the header no longer pretends otherwise. Only a zone adds a fact the
+/// screen cannot show: taking one member dissolves the whole group.
 @visibleForTesting
 String sectionCost(
   AppLocalizations l10n,
   SonosSystem system,
   ZoneGroupMember src,
   Map<String, RoomCalibration> calibration,
-  bool absorbing,
 ) {
   final members = system.bondMemberUuids(src);
   // Always state the consequence of picking — it is true whether or not any
   // calibration is at stake, and it is why these speakers are listed apart.
   final base = l10n.pickerSectionLeavesBond;
+  final dissolves = src.isZone ? ' ${l10n.pickerCostZone}' : '';
   // UNKNOWN is not "no tuning". A speaker whose Trueplay read failed has no
   // entry at all, and staying quiet about the cost in that case errs in the one
   // direction that can destroy something. Only a bond we have read in full, and
   // read as untuned, gets the short line.
   final known = members.every((u) => calibration.containsKey(u));
-  if (known && !members.any((u) => calibration[u]!.available)) return base;
-  // Anything that cannot be absorbed has to be freed first, and then the whole
-  // source bond pays. That is every source in a group flow (AddBondedZones
-  // absorbs from nothing) AND a home-theater source in either flow (absorbing
-  // out of another HT is unmeasured, so it is not assumed) — which is why both
-  // flows say the same thing about a home-theater source.
-  if (!absorbing || !system.canAbsorbFrom(src)) {
-    return '$base ${l10n.pickerCostFreedFirst}';
+  if (known && !members.any((u) => calibration[u]!.available)) {
+    return '$base$dissolves';
   }
-  if (src.isStereoPair) return '$base ${l10n.pickerCostPair}';
-  return '$base ${l10n.pickerCostZone}';
+  return '$base$dissolves ${l10n.pickerCostCleared}';
 }
 
 /// The card title for [uuid] in a bond block: the speaker TYPE, plus the

@@ -1257,11 +1257,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get frontSurroundsReviewNote => 'You can change this anytime.';
 
   @override
-  String frontSurroundsTrueplayKeeps(String names) {
-    return 'Keeps Trueplay: $names. Bonding switches it off, so turn it back on afterwards.';
-  }
-
-  @override
   String frontSurroundsTrueplayLoses(String names) {
     return 'Loses Trueplay: $names. Re-tune in the Sonos app.';
   }
@@ -1336,15 +1331,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pickerSectionAvailable => 'Available';
 
   @override
-  String get pickerCostPair =>
-      'Take both and they keep their Trueplay. Take just one and the other loses it.';
+  String get pickerCostZone => 'Taking any of them breaks up the whole group.';
 
   @override
-  String get pickerCostZone =>
-      'Taking any of them breaks up the whole group and clears Trueplay. Take them all and the first speaker keeps its tuning.';
-
-  @override
-  String get pickerCostFreedFirst => 'Trueplay is cleared on all of them.';
+  String get pickerCostCleared => 'Trueplay is cleared on all of them.';
 
   @override
   String get pickerSectionLeavesBond =>

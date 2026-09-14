@@ -749,15 +749,6 @@
   "@frontSurroundsReviewNote": {
     "description": "Closing line of the single review-step note. The diagram above already shows the layout, so the note only carries what the diagram cannot."
   },
-  "frontSurroundsTrueplayKeeps": "Trueplay stays stored on {names} but switched off. Switching it on clears it, so re-tune to use it.",
-  "@frontSurroundsTrueplayKeeps": {
-    "description": "Review-step line for speakers whose stored tuning survives the apply (EXP-23: AddHTSatellite mutates a bond, it does not rebuild it). ⚠️ Do NOT tell the user to switch Trueplay back on. Measured (EXP-23 Q15, two delays): Sonos returns an absorbed speaker enabled=0, and SetRoomCalibrationStatus(1) on it DESTROYS the stored tuning. The same write on an untouched tuned speaker is harmless, so the wording must not generalise into advice.",
-    "placeholders": {
-      "names": {
-        "type": "String"
-      }
-    }
-  },
   "frontSurroundsTrueplayLoses": "Loses Trueplay: {names}. Re-tune in the Sonos app.",
   "@frontSurroundsTrueplayLoses": {
     "description": "Review-step line naming the speakers whose stored tuning this apply clears. Worded without it/them so it needs no plural: two identical models share one label.",
@@ -816,11 +807,10 @@
     }
   },
   "pickerSectionAvailable": "Available",
-  "pickerCostPair": "Take both and they keep their Trueplay. Take just one and the other loses it.",
-  "pickerCostZone": "Taking any of them breaks up the whole group and clears Trueplay. Take them all and the first speaker keeps its tuning.",
-  "pickerCostFreedFirst": "Trueplay is cleared on all of them.",
-  "@pickerCostFreedFirst": {
-    "description": "Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and every speaker in the source bond loses its tuning."
+  "pickerCostZone": "Taking any of them breaks up the whole group.",
+  "pickerCostCleared": "Trueplay is cleared on all of them.",
+  "@pickerCostCleared": {
+    "description": "The Trueplay cost of taking a speaker out of any bond. One sentence for every source: a tuning that survives an absorb comes back switched off and cannot be switched on without being destroyed (EXP-23 Q15/Q16, no safe delay, role-preserving included), so nothing can promise retention."
   },
   "pickerSectionLeavesBond": "Picking one takes it out of this bond.",
   "@pickerSectionLeavesBond": {

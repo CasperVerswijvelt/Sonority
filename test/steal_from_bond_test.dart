@@ -448,46 +448,43 @@ void main() {
     });
 
     const tuned = RoomCalibration(available: true, enabled: true);
+    const untuned = RoomCalibration(available: false, enabled: false);
     final all = {
       for (final u in [bar, sub, rear, pairL, pairR, zoneA, zoneB]) u: tuned,
     };
 
-    String cost(ZoneGroupMember src, {required bool absorbing}) =>
-        sectionCost(l10n, system, src, all, absorbing);
+    String cost(ZoneGroupMember src, [Map<String, RoomCalibration>? cal]) =>
+        sectionCost(l10n, system, src, cal ?? all);
 
-    // These four assertions are the ONLY thing tying the header's prose to
-    // tuningLostByTaking. If a measured row changes and this group still
-    // passes, the sentence has gone stale.
-    test('a pair absorbed by a home theater: both free, one costs the other',
-        () {
-      expect(cost(pair, absorbing: true), contains('Take both'));
+    // EXP-23 Q15/Q16: a tuning that survives an absorb comes back switched off,
+    // and switching it on destroys it — no safe delay, and the role-preserving
+    // case died too. So NO source may promise retention, however faithfully
+    // tuningLostByTaking models what stays in storage. These assertions are the
+    // only thing stopping that promise creeping back into the prose.
+    test('no source promises that anything keeps its Trueplay', () {
+      for (final src in [pair, zone, ht]) {
+        expect(cost(src), contains('cleared'));
+        expect(cost(src), isNot(contains('keep')));
+      }
     });
 
-    test('a zone absorbed by a home theater: a partial take dissolves it', () {
-      expect(cost(zone, absorbing: true), contains('breaks up the whole group'));
-    });
-
-    test('a home-theater source is freed first, whatever the destination', () {
-      expect(cost(ht, absorbing: true), contains('cleared'));
-      expect(cost(ht, absorbing: false), contains('cleared'));
-    });
-
-    test('a group destination absorbs nothing, so a pair pays in full too', () {
-      expect(cost(pair, absorbing: false), contains('cleared'));
+    test('a zone still says the group breaks up, which nothing else shows', () {
+      expect(cost(zone), contains('breaks up the whole group'));
+      expect(cost(pair), isNot(contains('breaks up')));
     });
 
     test('nothing tuned in the bond ⇒ no Trueplay sentence at all', () {
-      final none = {for (final u in all.keys) u: const RoomCalibration(available: false, enabled: false)};
-      final line = sectionCost(l10n, system, pair, none, true);
-      expect(line, isNot(contains('Trueplay')));
-      expect(line, l10n.pickerSectionLeavesBond);
+      final none = {for (final u in all.keys) u: untuned};
+      expect(cost(pair, none), l10n.pickerSectionLeavesBond);
+      // ...but a zone still warns that picking dissolves it, tuning or not.
+      expect(cost(zone, none), contains('breaks up the whole group'));
+      expect(cost(zone, none), isNot(contains('Trueplay')));
     });
 
     test('an UNREAD speaker is not the same as an untuned one', () {
       // A Trueplay read that failed leaves no entry. Suppressing the cost then
       // would be the one wrong direction: silence about a destructive write.
-      final partial = {pairL: const RoomCalibration(available: false, enabled: false)};
-      expect(sectionCost(l10n, system, pair, partial, true), contains('Take both'));
+      expect(cost(pair, const {pairL: untuned}), contains('cleared'));
     });
   });
 }

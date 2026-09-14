@@ -393,26 +393,29 @@ interpolated) then use it.
     absorbed speaker comes back `available=1 enabled=0` — measured end to end through
     the app, 6 stable reads. So a retained tuning still needs re-enabling, and any copy
     that says "keeps Trueplay" has to say that too.
-    ☠️☠️ **AN ABSORBED SPEAKER'S RETAINED TUNING IS A ZOMBIE: stored, switched off, and
-    DESTROYED the moment anything switches it on.** EXP-23 Q15, the write issued
-    directly and its HTTP response logged, so this is observation and not inference:
-    | speaker | ids | `SetRoomCalibrationStatus(1)` | result |
-    |---|---|---|---|
-    | untouched tuned standalone (control, ×2 cycles) | `[13]`→`[13]` | harmless | `1/0` → **`1/1`** |
-    | absorbed zone coordinator, enable at **T+65s** | `[13]`→`[1]` | | **`0/0` destroyed** |
-    | absorbed zone coordinator, enable at **T+600s** | `[13]`→`[1]` | | **`0/0` destroyed** |
-    **There is no safe delay** — ten minutes behaves exactly like one. The write itself
-    is fine (the control proves it, so Sonority's Trueplay toggle is safe in general);
-    what is fatal is enabling a tuning whose channel role changed under it. Working
-    hypothesis, consistent with the whole corpus: enabling **validates the stored
-    tuning against the current channel id and discards it on a mismatch** — which is
-    also why Sonos hands it back `enabled=0` in the first place.
-    ⇒ **`available=1` after an absorb does NOT mean the user has a usable tuning.** An
-    auto-re-enable was built, measured, and reverted. **Never write copy that tells a
-    user to switch it back on** — following that advice destroys it. Not yet measured:
-    whether the official Sonos app can use such a tuning (it may re-key rather than
-    validate), and whether a speaker absorbed into the SAME channel role survives an
-    enable.
+    ☠️☠️ **A "RETAINED" TUNING IS A ZOMBIE. Enabling it DESTROYS it if the speaker's
+    bond changed since the tuning was authored** (EXP-23 Q15/Q16, the write issued
+    directly with its HTTP response logged — observation, not inference):
+    | case | ids | `SetRoomCalibrationStatus(1)` |
+    |---|---|---|
+    | untouched tuned standalone (control, ×2 cycles) | `13`→`13` | **harmless**, `1/0` → `1/1` |
+    | absorbed zone coordinator, at T+65s **and** T+600s | `13`→`1` | `0/0` **destroyed** |
+    | absorbed pair, role **PRESERVED** | `1`→`1`, `2`→`2` | `0/0` **destroyed** |
+    | absorbed pair, role swapped | `1`→`2`, `2`→`1` | `0/0` **destroyed** |
+    **No safe delay** (600s behaves like 65s) and **the channel role is irrelevant** —
+    the role-preserving cell was the pre-registered falsifier and it died anyway. The
+    only thing the harmless row has that the others lack is that its bond never changed
+    after the tuning was stored. The write is NOT destructive in itself, so Sonority's
+    Trueplay toggle is safe on an untouched speaker.
+    ⇒ **`available=1` after a bonding change is storage, not a usable tuning.** It is
+    off, and the only way to switch it on destroys it, so audibly it is
+    indistinguishable from a lost one. **Copy must never promise retention or tell a
+    user to switch it back on.** An auto-re-enable was built, measured, and reverted.
+    ⇒ The community "tune a pair, bond it as fronts, flip the toggle" recipe **cannot
+    work as described** — Q16A is that recipe run exactly, and the flip is what kills it.
+    ⇒ Still open, and the only routes left: whether the official **Sonos app** can use
+    such a tuning (it may re-key rather than validate — needs an iPhone), and whether
+    restoring the ORIGINAL bond makes it usable again (that is Q4, still open).
     ⚠️ **A set that has JUST changed refuses a tuning for minutes, silently** (HTTP 200
     on every POST, `available` stays 0), and the `available` oracle reads 0→1→0 around
     a bonding change ⇒ settle, then read repeatedly; never verdict on one read.

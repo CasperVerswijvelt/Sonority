@@ -13,19 +13,19 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Added
 - Speaker pickers now offer speakers that are already bonded into another stereo pair, home theater or group, so you no longer have to unbond by hand first. They're grouped under a heading per source bond that says what taking one costs, and each card shows the channel it currently holds plus whether it has a Trueplay tuning.
-- Choosing such a speaker names exactly which speakers lose their room calibration. The cost differs by case and each one is measured on real hardware: taking both halves of a tuned stereo pair into a home theater costs nothing, taking one costs the speaker left behind, taking a whole zone keeps its first speaker's tuning, and taking part of a zone dissolves the group and costs every speaker in it.
+- Choosing such a speaker names exactly which speakers lose their Trueplay, so you know what needs re-tuning before you apply. Taking a speaker from a zone also says that the whole group breaks up, which nothing else on screen shows.
 - Creating a speaker group from a speaker that's bonded elsewhere now frees it first. Sonos accepts the grouping command and silently does nothing otherwise, so the group would never have formed.
 - Sonority now carries a license: the code is source-available under PolyForm Perimeter 1.0.1 — read, build, modify and contribute freely, but redistributing a competing product (paid or free) isn't permitted. The "Sonority" name, icon, wordmark and marketing assets remain reserved, and `CONTRIBUTING.md` documents the licensing grant that pull requests carry.
 
 ### Changed
 - Removing a speaker from a home theater no longer opens a confirmation dialog. The same warning, naming the speakers that lose their Trueplay, is now on the review step one tap before Apply, where the selection can still be changed.
-- The home theater review step now shows a single info card that names which speakers keep their Trueplay and which lose it for the apply about to run, replacing the two general notes about bonding. A speaker whose tuning survives the bond comes back with Trueplay switched off, and switching it on clears the tuning, so the card says to re-tune rather than to switch it on. Bonding switches Trueplay off even on the speakers that keep their tuning, so the card says to turn it back on.
+- The home theater review step now shows a single info card naming the speakers that lose their Trueplay in the apply about to run, replacing the two general notes about bonding. Bonding switches Trueplay off even on the speakers that keep their tuning, so the card says to turn it back on.
 
 ### Fixed
 - Creating a speaker group no longer fails when Sonos was still settling: the grouping command is retried until the group really exists, instead of being sent once and given up on. Building a group out of a speaker taken from another bond could otherwise leave that bond stripped and no group in its place.
 - A home theater whose front speakers are driven by a single Amp or Port no longer refuses to apply a real change: the setup flow compared the current and target layouts with its own logic that lost one of the Amp's two front channels, so the Apply button stayed disabled. It now uses the same comparison the apply itself runs.
 - A speaker that SSDP missed and that is bonded as a satellite (typically a Sub) is now recovered from the topology like any other speaker. It previously stayed unresolved, which showed the Sub as a generic "Speaker", hid it from the subwoofer step, and would have silently unbonded it on the next apply.
-- Bonding a tuned stereo pair as dedicated fronts no longer destroys its Trueplay tuning: Sonority now lets `AddHTSatellite` absorb the live pair instead of separating it first, which was both unnecessary and the sole cause of the loss.
+- Bonding a tuned stereo pair as dedicated fronts no longer separates the pair first, which was an unnecessary extra teardown. The stored tuning survives the bond where it previously did not, though Sonos still switches Trueplay off and it cannot be switched back on without clearing it, so re-tuning is still needed either way.
 
 ## [0.7.0] - 2026-08-18
 
