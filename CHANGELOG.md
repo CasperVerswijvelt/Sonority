@@ -19,7 +19,7 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Changed
 - Removing a speaker from a home theater no longer opens a confirmation dialog. The same warning, naming the speakers that lose their Trueplay, is now on the review step one tap before Apply, where the selection can still be changed.
-- The home theater review step now shows a single info card that names which speakers keep their Trueplay and which lose it for the apply about to run, replacing the two general notes about bonding. Bonding switches Trueplay off even on the speakers that keep their tuning, so the card says to turn it back on.
+- The home theater review step now shows a single info card that names which speakers keep their Trueplay and which lose it for the apply about to run, replacing the two general notes about bonding. A speaker whose tuning survives the bond comes back with Trueplay switched off, and switching it on clears the tuning, so the card says to re-tune rather than to switch it on. Bonding switches Trueplay off even on the speakers that keep their tuning, so the card says to turn it back on.
 
 ### Fixed
 - Creating a speaker group no longer fails when Sonos was still settling: the grouping command is retried until the group really exists, instead of being sent once and given up on. Building a group out of a speaker taken from another bond could otherwise leave that bond stripped and no group in its place.

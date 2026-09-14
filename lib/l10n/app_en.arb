@@ -749,9 +749,9 @@
   "@frontSurroundsReviewNote": {
     "description": "Closing line of the single review-step note. The diagram above already shows the layout, so the note only carries what the diagram cannot."
   },
-  "frontSurroundsTrueplayKeeps": "Keeps Trueplay: {names}. Bonding switches it off, so turn it back on afterwards.",
+  "frontSurroundsTrueplayKeeps": "Trueplay stays stored on {names} but switched off. Switching it on clears it, so re-tune to use it.",
   "@frontSurroundsTrueplayKeeps": {
-    "description": "Review-step line naming the speakers in the resulting home theater that hold a tuning and survive the apply (EXP-23: AddHTSatellite mutates a bond, it does not rebuild it). Measured end to end on hardware: the tuning survives as available=1 but comes back enabled=0, so saying only 'keeps' would over-promise.",
+    "description": "Review-step line for speakers whose stored tuning survives the apply (EXP-23: AddHTSatellite mutates a bond, it does not rebuild it). ⚠️ Do NOT tell the user to switch Trueplay back on. Measured (EXP-23 Q15, two delays): Sonos returns an absorbed speaker enabled=0, and SetRoomCalibrationStatus(1) on it DESTROYS the stored tuning. The same write on an untouched tuned speaker is harmless, so the wording must not generalise into advice.",
     "placeholders": {
       "names": {
         "type": "String"
