@@ -712,7 +712,7 @@
   "htBondedSpeakers": "Bonded speakers",
   "htNoBonded": "Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure” to add some.",
   "htSpeakerFallback": "Speaker",
-  "htTrueplayNote": "Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Tune the fronts as a stereo pair first and Sonority bonds them without losing it. Unbonding that pair yourself clears it.",
+  "htTrueplayNote": "Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Any bonding change switches Trueplay off, and it cannot be switched back on without clearing the tuning, so re-tune afterwards.",
   "htAllExtraSpeakers": "all extra speakers",
   "htBonded": "Bonded",
   "frontSurroundsTitle": "Configure home theater",

@@ -371,7 +371,9 @@ interpolated) then use it.
     pair was separated; ids swapped `[5]`↔`[6]` + tuning kept on an in-place reassign).
     | operation | cost |
     |---|---|
-    | `AddHTSatellite` — re-assert, channel reassign, additive add, **absorbing a live stereo pair** | **free** |
+    | `AddHTSatellite` — re-assert, channel reassign, **absorbing a live stereo pair** | **free** |
+    | `AddHTSatellite` — **additive add**, for the speaker being ADDED | **free** |
+    | `AddHTSatellite` — **additive add**, for the speakers ALREADY in the bond | ⚠️ **not free, and not fully measured** — an earlier run (×2) found adding fronts wiped the **bar and the Sub** while both rears kept `available=1`. Q7/Q9/Q10 only ever scored the absorbed speaker. |
     | `SetZoneAttributes` (rename) | **free** |
     | `RemoveHTSatellite` | **wipes EVERY member of the set**, not just the one removed |
     | `SeparateStereoPair` | wipes the pair |
