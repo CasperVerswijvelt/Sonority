@@ -21,8 +21,9 @@ configurations the official app refuses to create — **dedicated front left/rig
 speakers** on a home theater, a **full in-app home-theater setup** (fronts + rear surrounds +
 sub), **speaker groups** — one page to bond 2–16 speakers as a stereo pair, a zone, or a
 custom per‑speaker L/R/Both layout (mismatched models + an optional Sub, no model‑list
-restriction) — and **config profiles** that snapshot a layout and re-apply it in one tap — via Sonos'
-undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr*.
+restriction) — **taking speakers straight out of a pair, zone or home theater** without
+unbonding them by hand first, and **config profiles** that snapshot a layout and re-apply it in
+one tap — via Sonos' undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr*.
 
 > [!NOTE]
 > **Built with AI-assisted programming.** I'm a software engineer, and I directed this

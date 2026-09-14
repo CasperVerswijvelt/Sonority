@@ -60,6 +60,7 @@ WHAT YOU CAN DO
 
 • Dedicated front speakers on a soundbar — add a discrete left/right pair so your bar becomes the center channel, for a true three-speaker front stage.
 • Build a complete home theater in one guided flow — fronts, rear surrounds and one or two subs, each optional.
+• Pick speakers that are already paired or grouped, without taking them apart first — they're listed under the setup they currently belong to, and Sonority tells you up front which speakers will need re-tuning.
 • Use a single amplifier to drive both passive front speakers.
 • Speaker groups the standard app won’t make — full-range zones of 2–16 speakers, stereo pairs (including mismatched models), or a custom per-speaker left/right/both layout, each with an optional sub.
 • Config profiles — snapshot your whole layout and rebuild it in one tap after moving speakers around. Each profile gets its own icon and colour, reorders with a drag, and opens a per-entity detail view showing exactly what it saved. A profile can also capture and restore per-speaker audio settings (bass, treble, loudness, night sound, speech enhancement, sub and surround levels, lip-sync) and, optionally, volume.
@@ -76,7 +77,7 @@ No account. No sign-in. No analytics, no tracking, and no data collected. Sonori
 
 REQUIREMENTS
 
-Compatible speakers on the same Wi-Fi network as your device. Room-calibration tuning, where supported, is measured in the manufacturer’s own app; Sonority only switches an existing tuning on or off.
+Compatible speakers on the same Wi-Fi network as your device. Room-calibration tuning, where supported, is measured in the manufacturer’s own app; Sonority only switches an existing tuning on or off. Changing which speakers are bonded together clears that tuning — every app has this limitation, because the speakers themselves discard it — so plan to re-run the tuning afterwards.
 
 —
 
@@ -86,11 +87,12 @@ Sonority is an independent app and is not affiliated with, authorized, maintaine
 ## What's New
 
 ```
-• Profiles now show which one your system is currently running, with an "Active" badge
-• Applying a profile is far more reliable: it waits for speakers that were just unbonded or bonded instead of giving up on them, and saved volume and audio settings now really do get restored
-• Profiles no longer save the same speaker twice (which made the apply fail); profiles already saved that way are repaired automatically
-• Creating a speaker group no longer reports a failure when the group was actually created
-• A Port or Connect can now be picked as your dedicated front speakers, the same way an Amp can — one box driving both front channels
+• Speakers already paired or grouped can now be picked straight away — no need to take the old setup apart first
+• Before you apply, Sonority names exactly which speakers will lose their room-calibration tuning, so there are no surprises
+• Room-calibration can no longer be switched on when it would wipe the tunings your other speakers still have
+• Creating a speaker group now keeps trying until it really exists, instead of giving up while the speakers were still settling
+• A home theater with an amplifier driving both front speakers now applies changes correctly
+• A subwoofer the app failed to spot is no longer left out of your setup
 ```
 
 ## Support / marketing URLs
