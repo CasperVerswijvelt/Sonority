@@ -17,6 +17,9 @@ section into the GitHub Release notes regardless of the build suffix
 - Creating a speaker group from a speaker that's bonded elsewhere now frees it first. Sonos accepts the grouping command and silently does nothing otherwise, so the group would never have formed.
 - Sonority now carries a license: the code is source-available under PolyForm Perimeter 1.0.1 — read, build, modify and contribute freely, but redistributing a competing product (paid or free) isn't permitted. The "Sonority" name, icon, wordmark and marketing assets remain reserved, and `CONTRIBUTING.md` documents the licensing grant that pull requests carry.
 
+### Changed
+- The home theater review step now shows a single info card that names which speakers keep their Trueplay and which lose it for the apply about to run, replacing the two general notes about bonding.
+
 ### Fixed
 - Bonding a tuned stereo pair as dedicated fronts no longer destroys its Trueplay tuning: Sonority now lets `AddHTSatellite` absorb the live pair instead of separating it first, which was both unnecessary and the sole cause of the loss.
 

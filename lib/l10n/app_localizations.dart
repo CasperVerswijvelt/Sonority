@@ -1969,7 +1969,7 @@ abstract class AppLocalizations {
   /// No description provided for @htTrueplayNote.
   ///
   /// In en, this message translates to:
-  /// **'Trueplay can only be measured from the Sonos app on iOS. Tune the fronts as a stereo pair first and Sonority will bond them without losing it — but don\'t unbond the pair yourself, that\'s what clears a tuning. Sonority only reads and toggles a stored tuning.'**
+  /// **'Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Tune the fronts as a stereo pair first and Sonority bonds them without losing it. Unbonding that pair yourself clears it.'**
   String get htTrueplayNote;
 
   /// No description provided for @htAllExtraSpeakers.
@@ -2005,7 +2005,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsFrontsHint.
   ///
   /// In en, this message translates to:
-  /// **'Pick two speakers (ideally an identical pair), or a single Amp or Port that feeds both, for the front left & right — then set which is which.'**
+  /// **'Pick two speakers for the front left and right, ideally identical. A single Amp or Port that feeds both works too.'**
   String get frontSurroundsFrontsHint;
 
   /// No description provided for @frontSurroundsStepSurrounds.
@@ -2017,7 +2017,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsSurroundsHint.
   ///
   /// In en, this message translates to:
-  /// **'Pick two speakers (ideally an identical pair) for the rear left & right surrounds.'**
+  /// **'Pick two speakers for the rear left and right surrounds, ideally identical.'**
   String get frontSurroundsSurroundsHint;
 
   /// No description provided for @frontSurroundsStepSub.
@@ -2080,11 +2080,23 @@ abstract class AppLocalizations {
   /// **'Nothing selected yet — choose speakers above.'**
   String get frontSurroundsNothingSelected;
 
-  /// No description provided for @frontSurroundsReviewNote.
+  /// Closing line of the single review-step note. The diagram above already shows the layout, so the note only carries what the diagram cannot.
   ///
   /// In en, this message translates to:
-  /// **'The chosen speakers become hidden satellites of the soundbar (which stays the center channel). Bonding runs in steps and can take a little while; Trueplay may need re-tuning afterward. You can change this anytime.'**
+  /// **'You can change this anytime.'**
   String get frontSurroundsReviewNote;
+
+  /// Review-step line naming the speakers in the resulting home theater that hold a tuning and survive the apply (EXP-23: AddHTSatellite mutates a bond, it does not rebuild it).
+  ///
+  /// In en, this message translates to:
+  /// **'Keeps Trueplay: {names}'**
+  String frontSurroundsTrueplayKeeps(String names);
+
+  /// Review-step line naming the speakers whose stored tuning this apply clears. Worded without it/them so it needs no plural: two identical models share one label.
+  ///
+  /// In en, this message translates to:
+  /// **'Loses Trueplay: {names}. Re-tune in the Sonos app.'**
+  String frontSurroundsTrueplayLoses(String names);
 
   /// No description provided for @diagNoSystemToCollect.
   ///
@@ -2179,7 +2191,7 @@ abstract class AppLocalizations {
   /// Warning shown when the chosen speakers must be taken out of another bond, naming only the speakers that actually hold a tuning.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one{{names} will lose its Trueplay. Re-tune it in the Sonos app afterwards.} other{{names} will lose their Trueplay. Re-tune them in the Sonos app afterwards.}}'**
+  /// **'{count, plural, one{{names} will lose its Trueplay. Re-tune it in the Sonos app.} other{{names} will lose their Trueplay. Re-tune them in the Sonos app.}}'**
   String speakerStealTrueplayWarning(String names, int count);
 
   /// No description provided for @pickerSectionAvailable.
@@ -2191,25 +2203,25 @@ abstract class AppLocalizations {
   /// No description provided for @pickerCostPair.
   ///
   /// In en, this message translates to:
-  /// **'Take both and they keep their Trueplay; take one and the other loses it.'**
+  /// **'Take both and they keep their Trueplay. Take just one and the other loses it.'**
   String get pickerCostPair;
 
   /// No description provided for @pickerCostZone.
   ///
   /// In en, this message translates to:
-  /// **'Only the first speaker keeps its Trueplay; the others lose it.'**
+  /// **'Taking any of them breaks up the whole group and clears Trueplay. Take them all and the first speaker keeps its tuning.'**
   String get pickerCostZone;
 
-  /// Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and the whole source bond loses its tuning.
+  /// Group destination: AddBondedZones cannot absorb a bonded speaker, so it is freed first and every speaker in the source bond loses its tuning.
   ///
   /// In en, this message translates to:
-  /// **'They must be freed first, so Trueplay is cleared on all {count}.'**
-  String pickerCostFreedFirst(int count);
+  /// **'Trueplay is cleared on all of them.'**
+  String get pickerCostFreedFirst;
 
   /// Section-header helper for a bond a speaker would be taken from.
   ///
   /// In en, this message translates to:
-  /// **'Choosing a speaker here removes it from its current bond.'**
+  /// **'Picking one takes it out of this bond.'**
   String get pickerSectionLeavesBond;
 
   /// Pill on a picker card: Trueplay is active on this speaker (stored and enabled).
@@ -2242,23 +2254,17 @@ abstract class AppLocalizations {
   /// **'Surround R'**
   String get pickerRoleSurroundR;
 
-  /// No description provided for @pickerRoleCentre.
+  /// No description provided for @pickerRoleCenter.
   ///
   /// In en, this message translates to:
-  /// **'Centre'**
-  String get pickerRoleCentre;
+  /// **'Center'**
+  String get pickerRoleCenter;
 
-  /// Review-step note when the selection drops current HT members. RemoveHTSatellite wipes the whole bond's calibration (EXP-23), which nothing else in the flow states.
+  /// Review-step line when the selection drops current HT members. The Trueplay cost of that (RemoveHTSatellite wipes the whole bond, EXP-23) is named speaker by speaker in frontSurroundsTrueplayLoses.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one{{types} leaves this home theater and becomes a standalone room. Removing a speaker clears Trueplay on every speaker in the home theater, not just that one.} other{{types} leave this home theater and become standalone rooms. Removing a speaker clears Trueplay on every speaker in the home theater, not just those.}}'**
+  /// **'{count, plural, one{{types} leaves this home theater and becomes a standalone room.} other{{types} leave this home theater and become standalone rooms.}}'**
   String frontSurroundsDropNote(String types, int count);
-
-  /// No description provided for @pickerZoneAllOrNothing.
-  ///
-  /// In en, this message translates to:
-  /// **'Take both or neither — Sonos leaves a single speaker stranded in the group.'**
-  String get pickerZoneAllOrNothing;
 }
 
 class _AppLocalizationsDelegate

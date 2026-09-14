@@ -121,7 +121,7 @@ String _cost(
   // out of another HT is unmeasured, so it is not assumed) — which is why both
   // flows say the same thing about a home-theater source.
   if (!absorbing || !system.canAbsorbFrom(src)) {
-    return '$base ${l10n.pickerCostFreedFirst(members.length)}';
+    return '$base ${l10n.pickerCostFreedFirst}';
   }
   if (src.isStereoPair) return '$base ${l10n.pickerCostPair}';
   return '$base ${l10n.pickerCostZone}';
@@ -181,7 +181,7 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
       .map((e) => e.key)
       .toSet();
   final parts = [
-    if (channels.contains(SonosChannel.center)) l10n.pickerRoleCentre,
+    if (channels.contains(SonosChannel.center)) l10n.pickerRoleCenter,
     if (channels.contains(SonosChannel.leftFront)) l10n.pickerRoleFrontL,
     if (channels.contains(SonosChannel.rightFront)) l10n.pickerRoleFrontR,
     if (channels.contains(SonosChannel.leftRear)) l10n.pickerRoleSurroundL,
@@ -193,18 +193,81 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
   return parts.isEmpty ? null : parts.join(' · ');
 }
 
+/// Which speakers lose their Trueplay tuning when [selected] is bonded into a
+/// destination — the union over every bond the selection takes from, priced by
+/// [SonosSystem.tuningLostByTaking].
+///
+/// [alsoLosing] is what the destination itself costs, which the sources cannot
+/// know about: a group edit's own members (`AddBondedZones` rebuilds the bond
+/// even on an unchanged map, EXP-23 Q8a) or, for a home theater, its whole
+/// current membership when the apply drops a satellite (`RemoveHTSatellite`
+/// wipes the set, not just the speaker leaving).
+///
+/// Selection-dependent on purpose, so it cannot be precomputed per source:
+/// taking BOTH halves of a stereo pair costs nothing, taking one costs the
+/// other (EXP-23 Q7/Q9).
+Set<String> tuningLostBySelection(
+  SonosSystem system, {
+  required Set<String> selected,
+  required bool absorbing,
+  String? exceptPrimary,
+  Set<String> alsoLosing = const {},
+}) {
+  final byOwner = <String, Set<String>>{};
+  for (final uuid in selected) {
+    final owner = system.ownerOf(uuid);
+    if (owner == null || owner == exceptPrimary) continue;
+    byOwner.putIfAbsent(owner, () => {}).add(uuid);
+  }
+  final losing = <String>{...alsoLosing};
+  for (final entry in byOwner.entries) {
+    final source = system.memberByUuid(entry.key);
+    if (source == null) continue;
+    losing.addAll(system.tuningLostByTaking(source, entry.value,
+        destinationAbsorbs: absorbing));
+  }
+  return losing;
+}
+
+/// The speakers among [uuids] that actually hold a stored tuning: their deduped
+/// display names, and how many SPEAKERS that is.
+///
+/// The two numbers differ, and that is the point — a bonded speaker's room name
+/// is the BOND's name, so members are named the way the cards are
+/// ([bondedCardTitle]), and two identical models in one bond still collapse to
+/// one label. Pluralise on [count], never on `names.length`.
+///
+/// [ownBond] is the entity being configured: its members drop the bond-name
+/// prefix, since repeating the name of the thing on screen is noise.
+({List<String> names, int count}) tunedSpeakers(
+  AppLocalizations l10n,
+  SonosSystem system,
+  Iterable<String> uuids,
+  Map<String, RoomCalibration> calibration, {
+  String? ownBond,
+}) {
+  final tuned =
+      uuids.where((u) => calibration[u]?.available ?? false).toList();
+  final names = tuned
+      .map((u) {
+        final d = system.device(u);
+        if (d == null) return u;
+        final owner = system.ownerOf(u);
+        final src = owner == null ? null : system.memberByUuid(owner);
+        // A soundbar has no owner of its own, so name the configured entity's
+        // primary by type like the rest of its members.
+        if (src == null) return u == ownBond ? d.typeLabel : d.roomName;
+        final title = bondedCardTitle(l10n, system, device: d);
+        return src.uuid == ownBond ? title : '${src.zoneName} · $title';
+      })
+      .toSet()
+      .toList()
+    ..sort();
+  return (names: names, count: tuned.length);
+}
+
 /// The calibration cost of a selection that takes speakers out of other bonds,
 /// or null when nothing tuned is at stake.
-///
-/// [ownBondMembers] is the destination group's CURRENT members when editing one:
-/// `AddBondedZones` rebuilds a bond even on an unchanged map (EXP-23 Q8a, 2
-/// cycles), so an edit clears its own members' Trueplay too. Nothing else in the
-/// UI says that, and without it a green "Trueplay" pill reads as "this is free".
-///
-/// This stays selection-dependent on purpose, so it cannot move into a section
-/// header: taking BOTH halves of a stereo pair costs nothing, taking one costs
-/// the other (EXP-23 Q7/Q9). Only speakers that actually hold a tuning are
-/// named.
 String? _stealWarning(
   BuildContext context, {
   required SonosSystem system,
@@ -214,42 +277,19 @@ String? _stealWarning(
   String? exceptPrimary,
   Set<String> ownBondMembers = const {},
 }) {
-  final byOwner = <String, Set<String>>{};
-  for (final uuid in selected) {
-    final owner = system.ownerOf(uuid);
-    if (owner == null || owner == exceptPrimary) continue;
-    byOwner.putIfAbsent(owner, () => {}).add(uuid);
-  }
-  final losing = <String>{...ownBondMembers};
-  for (final entry in byOwner.entries) {
-    final source = system.memberByUuid(entry.key);
-    if (source == null) continue;
-    losing.addAll(system.tuningLostByTaking(source, entry.value,
-        destinationAbsorbs: absorbing));
-  }
-  // Name them the way the cards do. A bonded speaker's room name is the BOND's
-  // name, so several losers would otherwise render as the same word — here the
-  // two members of one zone were both just "Eetkamer".
-  final tuned =
-      losing.where((u) => calibration[u]?.available ?? false).toList();
-  final names = tuned
-      .map((u) {
-        final d = system.device(u);
-        if (d == null) return u;
-        final owner = system.ownerOf(u);
-        final src = owner == null ? null : system.memberByUuid(owner);
-        return src == null
-            ? d.roomName
-            : '${src.zoneName} · ${bondedCardTitle(context.l10n, system, device: d)}';
-      })
-      .toSet()
-      .toList()
-    ..sort();
-  if (names.isEmpty) return null;
+  final losing = tuningLostBySelection(
+    system,
+    selected: selected,
+    absorbing: absorbing,
+    exceptPrimary: exceptPrimary,
+    alsoLosing: ownBondMembers,
+  );
+  final tuned = tunedSpeakers(context.l10n, system, losing, calibration);
+  if (tuned.names.isEmpty) return null;
   // Plural on the SPEAKER count, not the name count — two identical models in
   // one bond share a label, and "its … re-tune it" would then be wrong.
   return context.l10n
-      .speakerStealTrueplayWarning(names.join(', '), tuned.length);
+      .speakerStealTrueplayWarning(tuned.names.join(', '), tuned.count);
 }
 
 

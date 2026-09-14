@@ -329,6 +329,40 @@ void main() {
     });
   });
 
+  group('the HT review step prices the whole apply', () {
+    // What the review card computes: everything the apply takes out of another
+    // bond, plus the whole current home theater when the apply drops a member
+    // (`RemoveHTSatellite` wipes the set, EXP-23).
+    Set<String> losing(Set<String> resulting, {bool dropping = false}) =>
+        tuningLostBySelection(
+          system,
+          selected: resulting,
+          absorbing: true, // AddHTSatellite
+          exceptPrimary: bar,
+          alsoLosing: dropping ? system.bondMemberUuids(ht) : const {},
+        );
+
+    test('an additive apply that takes a whole pair costs nothing', () {
+      expect(losing({bar, rear, sub, pairL, pairR}), isEmpty,
+          reason: 'the HT keeps every member and both halves come along');
+    });
+
+    test('taking one half of a pair costs only the half left behind', () {
+      final lost = losing({bar, rear, sub, pairL});
+      expect(lost, {pairR});
+      expect({bar, rear, sub, pairL}.difference(lost), {bar, rear, sub, pairL},
+          reason: 'the absorbed half keeps its tuning, and so does the HT');
+    });
+
+    test('dropping a satellite costs the whole home theater', () {
+      // The rear surround is deselected AND the pair is raided for one front.
+      final lost = losing({bar, sub, pairL}, dropping: true);
+      expect(lost, {bar, rear, sub, pairR});
+      expect({bar, sub, pairL}.difference(lost), {pairL},
+          reason: 'only the newly absorbed speaker keeps a tuning');
+    });
+  });
+
   group('the steal warning names losers, and pluralises on speakers', () {
     const p1a = 'RINCON_P1A01400';
     const p1b = 'RINCON_P1B01400';
@@ -383,6 +417,51 @@ void main() {
       final w = await warn(tester, absorbing: true, taking: {p1a, p1b});
       expect(w, contains('its Trueplay'),
           reason: 'the zone coordinator keeps its own (EXP-23 Q10)');
+    });
+  });
+
+  group('naming the keeps/loses lists', () {
+    Future<({List<String> names, int count})> named(
+        WidgetTester tester, Set<String> uuids) async {
+      late ({List<String> names, int count}) out;
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(builder: (context) {
+          out = tunedSpeakers(
+            AppLocalizations.of(context),
+            system,
+            uuids,
+            const {
+              bar: RoomCalibration(available: true, enabled: true),
+              rear: RoomCalibration(available: true, enabled: false),
+              pairR: RoomCalibration(available: true, enabled: true),
+              pairL: RoomCalibration(available: false, enabled: false),
+            },
+            ownBond: bar,
+          );
+          return const SizedBox();
+        }),
+      ));
+      return out;
+    }
+
+    testWidgets('the configured home theater by type, other bonds by name',
+        (tester) async {
+      final got = await named(tester, {bar, rear, pairR});
+      expect(got.names, [
+        'Eetkamer · One SL · R', // another bond: say whose it is
+        'Play:1 · Surround L', // this HT's own satellite: type and role
+        'Beam', // the bar itself, named like its satellites
+      ]..sort());
+      expect(got.count, 3);
+    });
+
+    testWidgets('a speaker with no stored tuning is never named',
+        (tester) async {
+      final got = await named(tester, {pairL, sub});
+      expect(got.names, isEmpty);
+      expect(got.count, 0);
     });
   });
 }

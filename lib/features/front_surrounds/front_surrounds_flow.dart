@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
+import '../../data/sonos/room_calibration.dart';
 import '../../state/sonos_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
@@ -347,7 +348,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   system: system,
                   member: member,
                   additions: _additions(system),
-                  subCount: _subs.length,
+                  subs: _subDevices(system),
+                  calibration: picker.calibration,
                   dropped: [
                     for (final u in _droppedUuids(member))
                       if (system.device(u) case final d?) d,
@@ -680,22 +682,26 @@ class _Review extends StatelessWidget {
   final ZoneGroupMember member;
   final Map<SonosChannel, SonosDevice> additions;
 
-  /// Resulting Sub count (existing ∪ newly picked) — for the diagram chip.
-  final int subCount;
+  /// Resulting Subs (existing ∪ newly picked) — up to two.
+  final List<SonosDevice> subs;
 
   /// Speakers currently in this home theater that the selection drops.
   final List<SonosDevice> dropped;
+
+  final Map<String, RoomCalibration> calibration;
 
   const _Review({
     required this.system,
     required this.member,
     required this.additions,
-    required this.subCount,
+    required this.subs,
     required this.dropped,
+    required this.calibration,
   });
 
   @override
   Widget build(BuildContext context) {
+    final subCount = subs.length;
     if (additions.isEmpty && subCount == 0) {
       return Text(context.l10n.frontSurroundsNothingSelected);
     }
@@ -716,19 +722,48 @@ class _Review extends StatelessWidget {
           subCount: subCount,
         ),
         Gap.m,
-        // Removing a member is the expensive edit: `RemoveHTSatellite` clears
-        // Trueplay on EVERY speaker in the bond, not just the one leaving
-        // (EXP-23). This replaces the old confirm modal — same information, one
-        // screen earlier, where the user can still change the selection.
-        if (dropped.isNotEmpty) ...[
-          InfoNote(context.l10n.frontSurroundsDropNote(
-            dropped.map((d) => d.typeLabel).join(', '),
-            dropped.length,
-          )),
-          Gap.m,
-        ],
-        InfoNote(context.l10n.frontSurroundsReviewNote),
+        InfoNote(_note(context)),
       ],
     );
+  }
+
+  /// The one review note: what leaves, who keeps their Trueplay and who loses
+  /// it, and a closing reassurance. One card, because the pieces are one story
+  /// and the diagram above already shows the layout itself.
+  String _note(BuildContext context) {
+    final l10n = context.l10n;
+    // What the HT holds after apply — the bar plus everything still selected.
+    final resulting = {
+      member.uuid,
+      for (final d in additions.values) d.uuid,
+      for (final d in subs) d.uuid,
+    };
+    final losing = tuningLostBySelection(
+      system,
+      selected: resulting,
+      absorbing: true, // AddHTSatellite takes a speaker out of a live bond
+      exceptPrimary: member.uuid,
+      // Removing a member is the expensive edit: `RemoveHTSatellite` clears
+      // Trueplay on EVERY speaker in the bond, not just the one leaving
+      // (EXP-23), so one drop puts the whole current home theater in the list.
+      alsoLosing: dropped.isEmpty ? const {} : system.bondMemberUuids(member),
+    );
+    final loses =
+        tunedSpeakers(l10n, system, losing, calibration, ownBond: member.uuid);
+    final keeps = tunedSpeakers(
+        l10n, system, resulting.difference(losing), calibration,
+        ownBond: member.uuid);
+    return [
+      if (dropped.isNotEmpty)
+        l10n.frontSurroundsDropNote(
+          dropped.map((d) => d.typeLabel).join(', '),
+          dropped.length,
+        ),
+      if (keeps.names.isNotEmpty)
+        l10n.frontSurroundsTrueplayKeeps(keeps.names.join(', ')),
+      if (loses.names.isNotEmpty)
+        l10n.frontSurroundsTrueplayLoses(loses.names.join(', ')),
+      l10n.frontSurroundsReviewNote,
+    ].join('\n');
   }
 }
