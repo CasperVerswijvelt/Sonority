@@ -400,7 +400,7 @@ interpolated) then use it.
     Q19**: a bond that changed, with ids genuinely moving 5↔6, but whose set stayed
     complete, survived the enable, and so did all five untouched members.) What the
     destroyed cells share is that **some member of the bond held no tuning** — which is
-    `ESTABLISHED.md`'s commit-by-set-completeness rule, proven over 21 baselined attempts.
+    the commit-by-set-completeness rule already proven over 21 baselined attempts.
     | set after the bonding change | `SetRoomCalibrationStatus(1)` |
     |---|---|
     | **complete** (every member tuned) | **inert** — `1/0` stays `1/0`, nothing lost |

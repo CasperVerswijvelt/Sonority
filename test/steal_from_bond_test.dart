@@ -7,7 +7,7 @@ import 'package:sonority/l10n/app_localizations.dart';
 
 /// Taking speakers out of an existing bond, and what each case costs in room
 /// calibration. Every expectation here is a hardware-measured row of EXP-23
-/// (`docs/trueplay-re/protocols/EXP-23-…`), not a guess:
+/// of EXP-23, not a guess:
 ///
 ///  * stereo pair, both halves taken → nothing lost (the pair dissolves under
 ///    `AddHTSatellite` and both keep their tuning)
