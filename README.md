@@ -25,12 +25,13 @@ restriction) — and **config profiles** that snapshot a layout and re-apply it 
 undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr*.
 
 > [!NOTE]
-> **Built with AI-assisted programming.** I'm a software engineer, but every line
-> of code here was written by an AI coding agent under close direction — I specified
-> exactly what each change had to do rather than typing it myself. I worked to keep
-> it from becoming "AI slop": exhaustive testing against my own Sonos hardware,
-> deliberate attention to code quality and architecture, unit tests, and thorough
-> documentation throughout. Sharing this openly for transparency.
+> **Built with AI-assisted programming.** I'm a software engineer, and I directed this
+> project end to end: I decided what to build and why, specified exactly what each
+> change had to do, reviewed and revised every one of them, and validated the behaviour
+> against my own Sonos hardware — an AI coding agent did the typing. I worked to keep it
+> from becoming "AI slop": exhaustive testing against real speakers, deliberate
+> attention to code quality and architecture, unit tests, and thorough documentation
+> throughout. Sharing this openly for transparency.
 
 ## Screenshots
 
@@ -166,7 +167,30 @@ there if a different model/firmware ever needs it.
 
 ## Contributing / architecture
 
-See **[CLAUDE.md](CLAUDE.md)** — the product principle (don't duplicate Sonos-app
-features), the pure-Dart engine vs. UI split, the local UPnP API details, and the
-critical gotchas (≈15s topology lag, poll-until-settled, authoritative channel-map
-parsing, firmware-gated pairs, the macOS-sandbox chime limitation).
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** first — pull requests carry a licensing
+grant, and it explains why.
+
+For the code itself see **[CLAUDE.md](CLAUDE.md)** — the product principle (don't
+duplicate Sonos-app features), the pure-Dart engine vs. UI split, the local UPnP API
+details, and the critical gotchas (≈15s topology lag, poll-until-settled, authoritative
+channel-map parsing, firmware-gated pairs, the macOS-sandbox chime limitation).
+
+## License
+
+**The name and the marks are not licensed.** "Sonority", the app icon, the wordmark and
+the store listings are reserved, and no trademark rights are granted here. Anything you
+build on this must be renamed and rebranded.
+
+**Brand and marketing assets are excluded from the code license** and are all rights
+reserved: `assets/brand/`, `design/`, `docs/screenshots/`, `docs/badges/`.
+
+**The code** is source-available under the **[PolyForm Perimeter License 1.0.1](LICENSE)**
+— Copyright © 2026 Casper Verswijvelt. In plain terms: read it, build it, run it, modify
+it for yourself, and contribute changes back — all fine, commercial setting included.
+What you may not do is provide other people a product that competes with Sonority. Per
+the license that holds however it's built or deployed, "even if it is ported to a
+different platform or programming language, and even if it is provided free of charge".
+
+This is deliberately not an open-source license. The source is public so you can audit
+exactly what an app that reconfigures your speakers does, build it yourself, and improve
+it — not so it can be repackaged and shipped by someone else.
