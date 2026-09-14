@@ -391,13 +391,24 @@ interpolated) then use it.
     freed first instead of assumed.
     ⚠️ **"Free" means the COEFFICIENTS survive, not that Trueplay is still ON.** An
     absorbed speaker comes back `available=1 enabled=0` — measured end to end through
-    the app, 6 stable reads. A retained tuning therefore needs re-enabling, which
-    `_applyHtTarget` now does for you: it snapshots who had Trueplay ON before the
-    write and calls `SonosRepository.restoreRoomCalibration` after the bond settles.
-    That is gated on a FRESH `available` read (never switch one on over a tuning the
-    bond destroyed) and goes through `retryUnreachable` (a just-bonded speaker refuses
-    :1400 for ~20-30s). A speaker that was OFF stays off — capture and restore, never
-    "turn it on for them".
+    the app, 6 stable reads. So a retained tuning still needs re-enabling, and any copy
+    that says "keeps Trueplay" has to say that too.
+    ☠️ **DO NOT re-enable it for the user right after the bond. `SetRoomCalibrationStatus`
+    inside the settle window DESTROYS the tuning it was meant to save.** Measured
+    2026-09-14, three runs that differ in exactly one factor:
+    | tuning was enabled before | app wrote `SetRoomCalibrationStatus(1)` after the bond | result |
+    |---|---|---|
+    | yes | no | `1/0` — **retained** |
+    | yes | **yes, ~0-26s after** | **`0/0` — destroyed** |
+    | no | no (EXP-23 Q10 control, same run) | `1/0` — **retained** |
+    Nine stable reads over 7 minutes on the destroyed case, so it is not the oracle
+    decaying. This is the same window CLAUDE.md already documents as "refuses a tuning
+    for minutes, silently" — it turns out to do worse than refuse. An auto-re-enable
+    was built, measured, and **reverted**; the shipped behaviour is to TELL the user to
+    switch it back on. ⚠️ Not yet closed: the write was never captured on the wire, so
+    "the write did it" is inference from the control, not direct observation — and the
+    safe delay, if one exists, is unknown. Do not try this again without capturing the
+    SOAP traffic and a fresh baseline.
     ⚠️ **A set that has JUST changed refuses a tuning for minutes, silently** (HTTP 200
     on every POST, `available` stays 0), and the `available` oracle reads 0→1→0 around
     a bonding change ⇒ settle, then read repeatedly; never verdict on one read.

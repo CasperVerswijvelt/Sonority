@@ -724,15 +724,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       ph.skipPhase(detail: l10n.stepLayoutUnchanged);
       return sys;
     }
-    // Measured end to end on hardware: a speaker whose tuning SURVIVES the bond
-    // still comes back `available=1 enabled=0` — the coefficients are kept and
-    // Sonos switches the calibration off. Snapshot who had it on now, so it can
-    // be put back afterwards. Read-and-toggle only: a speaker that was off
-    // stays off, and one that lost its tuning reads available=0 and is skipped.
-    // Only reached past the no-op guard, so an unchanged re-apply still costs
-    // nothing at all.
-    final enabledBefore = await _trueplayEnabledNow(
-        sys, [for (final e in target.entries) e.uuid]);
     if (diff.toRemove.isNotEmpty) {
       // Only genuine leaves reach here (a dropped sub / a replaced speaker) —
       // a speaker that merely moves channel stays bonded and reassigns in place.
@@ -748,64 +739,13 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     // — a swap 800s and re-asserts several times, which reads as alarming
     // otherwise even though it's normal Sonos settling.
     ph.note(l10n.stepApplyingSettle);
-    sys = await _repo.bondAndVerify(
+    return _repo.bondAndVerify(
       coordinator: bar,
       target: target,
       previous: sys,
       onNote: ph.log,
       cancel: _activeOp,
     );
-    await _restoreTrueplayEnabled(enabledBefore, sys, ph);
-    return sys;
-  }
-
-  /// Which of [uuids] currently have Trueplay switched ON. Best-effort per
-  /// speaker: a read that fails is simply not restored later, which is the safe
-  /// direction (never switch something on we are not sure was on).
-  Future<Set<String>> _trueplayEnabledNow(
-      SonosSystem sys, Iterable<String> uuids) async {
-    final on = <String>{};
-    for (final u in uuids) {
-      final ip = sys.device(u)?.ip;
-      if (ip == null) continue;
-      try {
-        if ((await _repo.roomCalibration(ip)).enabled) on.add(u);
-      } catch (_) {
-        // Unreadable now ⇒ not restored later. See the doc comment.
-      }
-    }
-    return on;
-  }
-
-  /// Puts Trueplay back ON for the speakers in [wasEnabled] whose tuning
-  /// survived the bond, restoring the state the user had.
-  ///
-  /// The rule itself (skip a destroyed tuning, don't rewrite an already-on one,
-  /// survive the post-bond refusal window) lives in
-  /// [SonosRepository.restoreRoomCalibration]; this only loops and reports.
-  Future<void> _restoreTrueplayEnabled(
-      Set<String> wasEnabled, SonosSystem sys, Phases ph) async {
-    if (wasEnabled.isEmpty) return;
-    var announced = false;
-    for (final u in wasEnabled) {
-      _activeOp?.throwIfCancelled();
-      final ip = sys.device(u)?.ip;
-      if (ip == null) continue;
-      try {
-        if (!announced) {
-          announced = true;
-          ph.phase('trueplay', appL10n().stepReenableTrueplay);
-        }
-        await _repo.restoreRoomCalibration(ip, cancel: _activeOp);
-      } on OperationCancelled {
-        rethrow;
-      } catch (e) {
-        // Best-effort, exactly like the settings restore: the bond succeeded and
-        // the tuning is still stored, so a failed toggle is not worth failing
-        // the apply over. The user can flip it in Sonority.
-        ph.log('re-enable Trueplay on ${sys.device(u)?.roomName ?? u}: $e');
-      }
-    }
   }
 
   Future<SonosSystem> _settleRead(SonosSystem sys, String ip) async {

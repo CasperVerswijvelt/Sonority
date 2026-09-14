@@ -19,10 +19,9 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Changed
 - Removing a speaker from a home theater no longer opens a confirmation dialog. The same warning, naming the speakers that lose their Trueplay, is now on the review step one tap before Apply, where the selection can still be changed.
-- The home theater review step now shows a single info card that names which speakers keep their Trueplay and which lose it for the apply about to run, replacing the two general notes about bonding.
+- The home theater review step now shows a single info card that names which speakers keep their Trueplay and which lose it for the apply about to run, replacing the two general notes about bonding. Bonding switches Trueplay off even on the speakers that keep their tuning, so the card says to turn it back on.
 
 ### Fixed
-- Trueplay is switched back on after bonding for the speakers whose tuning survived it. Sonos keeps the tuning but turns the calibration off, so a home theater that kept its Trueplay came back with it silently disabled. Only speakers that had it on beforehand are switched back on, and only when the tuning really did survive.
 - Creating a speaker group no longer fails when Sonos was still settling: the grouping command is retried until the group really exists, instead of being sent once and given up on. Building a group out of a speaker taken from another bond could otherwise leave that bond stripped and no group in its place.
 - A home theater whose front speakers are driven by a single Amp or Port no longer refuses to apply a real change: the setup flow compared the current and target layouts with its own logic that lost one of the Amp's two front channels, so the Apply button stayed disabled. It now uses the same comparison the apply itself runs.
 - A speaker that SSDP missed and that is bonded as a satellite (typically a Sub) is now recovered from the topology like any other speaker. It previously stayed unresolved, which showed the Sub as a generic "Speaker", hid it from the subwoofer step, and would have silently unbonded it on the next apply.

@@ -177,28 +177,6 @@ class SonosRepository {
   Future<void> setRoomCalibration(String ip, bool on) =>
       _calibration.setEnabled(ip, on);
 
-  /// Switches Trueplay back ON after a bond, for a speaker that had it on
-  /// before. Returns whether it actually wrote.
-  ///
-  /// Measured end to end on hardware: a speaker whose tuning SURVIVES being
-  /// absorbed still comes back `available=1 enabled=0` — Sonos keeps the
-  /// coefficients and switches the calibration off. Without this the app's
-  /// "keeps Trueplay" would be true about storage and wrong about what the user
-  /// hears.
-  ///
-  /// Gated on a FRESH read, so it never switches something on over a tuning the
-  /// bond destroyed (`available == false`), and never writes when Sonos already
-  /// left it on. Goes through [retryUnreachable] because a just-bonded speaker
-  /// refuses :1400 for ~20-30s, which is exactly this window.
-  Future<bool> restoreRoomCalibration(String ip,
-      {CancellationToken? cancel}) async {
-    final now = await retryUnreachable(() => _calibration.getStatus(ip),
-        cancel: cancel);
-    if (!now.available || now.enabled) return false;
-    await _calibration.setEnabled(ip, true);
-    return true;
-  }
-
   // A full 5.1 rebuild from a bare bar measured a steady 6 re-asserts on
   // hardware (single-call beat staged, which needed up to 24 — see CLAUDE.md);
   // 10 leaves headroom. Incremental adds converge in 1–2.
