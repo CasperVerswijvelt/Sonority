@@ -359,10 +359,14 @@ interpolated) then use it.
     `RoomCalibrationEnabled` + `RoomCalibrationAvailable`; `SetRoomCalibrationStatus
     (InstanceID, RoomCalibrationEnabled)`. **available = a tuning is stored**
     (measured once in the **iOS** Sonos app — cloud DSP + Apple-only mic profiles,
-    **cannot** be done from Android); **enabled = applied**. We only read + toggle
-    (non-destructive, instant), which is the part the Sonos app won't expose for
-    the unofficial fronts config. Toggle ALL bonded members so the separately-tuned
-    fronts engage; **Amp-driven fronts can't be Trueplay'd** (native speakers only).
+    **cannot** be done from Android); **enabled = applied**. We only read + toggle — never
+    measure — which is the part the Sonos app won't expose for the unofficial
+    fronts config. The toggle writes to ALL bonded members so separately-tuned
+    fronts engage together, and that is also why it is **gated**: enabling
+    across an INCOMPLETE set destroys the tunings that are there (see the
+    destructive-enable rule below), so `trueplay_control.dart` allows the enable
+    only when every member reads `available=1`. Disabling is always allowed.
+    **Amp-driven fronts can't be Trueplay'd** (native speakers only).
   - ⭐ **THE RULE (EXP-23, 2026-09-13 — hardware-measured, but read the tiers below
     before quoting a row):** a speaker keeps
     its Trueplay tuning **iff it is ABSORBED by a mutating operation**; it loses it if
@@ -393,8 +397,9 @@ interpolated) then use it.
     freed first instead of assumed.
     ⚠️ **"Free" means the COEFFICIENTS survive, not that Trueplay is still ON.** An
     absorbed speaker comes back `available=1 enabled=0` — measured end to end through
-    the app, 6 stable reads. So a retained tuning still needs re-enabling, and any copy
-    that says "keeps Trueplay" has to say that too.
+    the app, 6 stable reads. And re-enabling it is exactly the destructive write
+    below, so the retention is **unusable**: copy must not promise it, and must
+    not tell the user to switch it back on.
     ☠️☠️ **ENABLING A TUNING DESTROYS IT WHEN THE BONDED SET IS INCOMPLETE.** (Was
     written as "if the bond changed since the tuning was authored" — **falsified by
     Q19**: a bond that changed, with ids genuinely moving 5↔6, but whose set stayed
@@ -417,7 +422,9 @@ interpolated) then use it.
     anything measured — an earlier run adding fronts lost the bar and Sub and kept the
     rears; this one adding a Sub lost the bar and the rears and kept the fronts. The bar
     loses in both.
-    ⇒ **Retention is not reachable from this app by any route**, and the "additive path"
+    ⇒ **USABLE retention is not reachable from this app by any route** (the
+    coefficients do survive an absorb — THE RULE above is unchanged — but they
+    come back off and cannot be switched on), and the "additive path"
     (tune the intact HT, then add without removing) is **falsified on a Beam Gen 2**.
     The product answer is unchanged: a bonding change clears Trueplay, re-tune.
     ⭐ **Independently corroborated, so this is no longer one household's result.** For a
@@ -437,10 +444,11 @@ interpolated) then use it.
     a layout where ours fails, so provenance is not the discriminator. The enable half is
     still unrun and now needs a FRESH iOS measurement — the 2026-08 capture is spent,
     because the bar's channel ids have drifted away from it on the same layout.
-    ⚠️ **HAZARD IN SHIPPED CODE:** `trueplay_control.dart` toggles every bonded member,
-    and after a bonding change the set is normally incomplete (the new speaker has no
-    tuning) — the destructive row. It should refuse to enable unless every member reads
-    `available=1`. One cycle, so provisional, but the loss is unrecoverable.
+    ✅ **Guarded in `trueplay_control.dart`:** the toggle writes to every bonded
+    member, and after a bonding change the set is normally incomplete (the new
+    speaker has no tuning) — the destructive row. Enabling is therefore refused
+    unless every member reads `available=1`; disabling stays open, and the row
+    says why. One cycle, so provisional, but the loss is unrecoverable.
     The superseded framing, kept because its cells are still the evidence: (EXP-23 Q15/Q16, the write issued
     directly with its HTTP response logged — observation, not inference):
     | case | ids | `SetRoomCalibrationStatus(1)` |
@@ -834,14 +842,23 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 - ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
   all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't
   expose for unofficial fronts. Measurement stays iOS-only (out of scope).
+  **Enabling is gated on a COMPLETE set** (see the destructive-enable rule);
+  disabling is always allowed.
 - ✅ **Take a speaker from another bond** (`features/widgets/speaker_picker.dart`) —
   the HT and group pickers offer speakers already bonded into another pair, zone or
-  home theater, grouped under a heading per source bond, and price the take in
-  Trueplay per selection from the measured rows above
-  (`SonosSystem.tuningLostByTaking` / `tuningLostBySelection`). An HT target
-  ABSORBS (one `AddHTSatellite`, tuning survives); a group target frees first
-  (`AddBondedZones` no-ops on a bonded speaker). The HT review step names who keeps
-  and who loses before you apply.
+  home theater, grouped under a heading per source bond, and name what the take
+  costs in Trueplay per selection. An HT target ABSORBS (one `AddHTSatellite`,
+  the coefficients survive, no free needed — `SonosSystem.tuningLostByTaking`
+  models that and `_freeConflicts` acts on it); a group target frees first
+  (`AddBondedZones` no-ops on a bonded speaker).
+  **The COPY never credits an absorb** (`_absorbSavesNothing` in
+  `speaker_picker.dart`): a surviving tuning comes back off and cannot be
+  switched on, so every screen prices a take as "the whole source bond pays".
+  One computation — `PickerContext.tuningCost` — feeds both the note under the
+  speaker list and the HT review card, because they gave different answers
+  three taps apart when they were two. An HT apply that writes ANYTHING also
+  prices its own current members (Q20: a pure add took the bar and both rears
+  to `available=0`); a no-op prices nothing.
 - ✅ CI release pipeline.
 - Candidate next: channel-level/height trim (overlaps the app — weak). Discovery
   recovers topology-only speakers when a description fetch fails, **including

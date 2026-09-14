@@ -159,7 +159,10 @@ there if a different model/firmware ever needs it.
   captured in profiles; not restricted to Sonos' official model list
 - ✅ Identify a speaker by blinking its status LED (default; macOS-safe) or a chime (mobile),
   from the pick-a-speaker flows and per-speaker in the room / group / home-theater detail views
-- ✅ Trueplay read + toggle on speakers / pairs / home theaters
+- ✅ Take a speaker straight out of another stereo pair, zone or home theater — the pickers
+  list it under the setup it belongs to and name exactly which speakers will need re-tuning
+- ✅ Trueplay read + toggle on speakers / pairs / home theaters (switching it *on* is blocked
+  when any speaker in the bond has no stored tuning — doing so would wipe the others')
 - ✅ Diagnostics — a hide-nothing technical system view, packaged into a shareable zip for support
 - ✅ Responsive layout for iPad and desktop — a left navigation rail and multi-column content on
   wide screens (resizable macOS window), the single-column phone layout unchanged

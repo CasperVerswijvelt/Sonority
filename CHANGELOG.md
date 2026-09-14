@@ -18,8 +18,9 @@ section into the GitHub Release notes regardless of the build suffix
 - Sonority now carries a license: the code is source-available under PolyForm Perimeter 1.0.1 — read, build, modify and contribute freely, but redistributing a competing product (paid or free) isn't permitted. The "Sonority" name, icon, wordmark and marketing assets remain reserved, and `CONTRIBUTING.md` documents the licensing grant that pull requests carry.
 
 ### Changed
-- Removing a speaker from a home theater no longer opens a confirmation dialog. The same warning, naming the speakers that lose their Trueplay, is now on the review step one tap before Apply, where the selection can still be changed.
+- Removing a speaker from a home theater no longer opens a confirmation dialog: the destructive-write gate moves to the review step, one tap before Apply, where the warning names the speakers that lose their Trueplay and the selection can still be changed.
 - The home theater review step now shows a single info card naming the speakers that lose their Trueplay in the apply about to run, replacing the two general notes about bonding.
+- Any home theater change now warns that the speakers already in it lose their tuning, not just one that removes a speaker — adding a front was measured to clear the soundbar's and the rear surrounds' tuning too.
 
 ### Fixed
 - Trueplay can no longer be switched on for a home theater or pair while any of its speakers has no stored tuning. Doing that clears the tunings the other speakers still have, permanently, because Sonos applies a tuning for the bonded set as a whole. That is the normal state right after adding a speaker, which is exactly when the switch gets reached for. Switching it off is still allowed, and the row says why when it's blocked.
@@ -27,6 +28,10 @@ section into the GitHub Release notes regardless of the build suffix
 - A home theater whose front speakers are driven by a single Amp or Port no longer refuses to apply a real change: the setup flow compared the current and target layouts with its own logic that lost one of the Amp's two front channels, so the Apply button stayed disabled. It now uses the same comparison the apply itself runs.
 - A speaker that SSDP missed and that is bonded as a satellite (typically a Sub) is now recovered from the topology like any other speaker. It previously stayed unresolved, which showed the Sub as a generic "Speaker", hid it from the subwoofer step, and would have silently unbonded it on the next apply.
 - Bonding a tuned stereo pair as dedicated fronts no longer separates the pair first, which was an unnecessary extra teardown. The stored tuning survives the bond where it previously did not, though Sonos still switches Trueplay off and it cannot be switched back on without clearing it, so re-tuning is still needed either way.
+- The speaker list and the review step no longer disagree about which speakers lose their Trueplay: both are now computed the same way, so the warning under the list can't stay silent while the heading above it says the tuning is cleared.
+- Applying a saved profile whose group has lost a member now dissolves the old group first instead of retrying a command Sonos rejects, and freeing a single saved room goes through the same path as every other bonding step.
+- A speaker taken out of a home theater and put into a group no longer stores the home theater's name as its own, which made a later separate rename it into a duplicate of the home theater's room.
+- Rebuilding a group no longer aborts when one of its speakers is slow to answer after being unbonded, which could leave the old group dissolved and nothing in its place.
 
 ## [0.7.0] - 2026-08-18
 

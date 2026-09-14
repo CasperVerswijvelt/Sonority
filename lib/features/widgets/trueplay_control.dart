@@ -95,10 +95,6 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       }
       subtitle = parts.join(' · ');
     }
-    // Say why the switch is dead rather than leaving it inert and unexplained.
-    final blocked = tunedCount > 0 && !busy && !isOn &&
-        tunedCount < withIp.length;
-
     // ☠️ Enabling a calibration while ANY bonded speaker holds no stored tuning
     // DESTROYS the tunings that ARE there, unrecoverably — a tuning commits for
     // the bonded set as a whole, so an incomplete set clears instead of
@@ -111,6 +107,9 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // block only the enable, and only while the set is short.
     final incomplete = tunedCount < withIp.length;
     final canToggle = tunedCount > 0 && !busy && (isOn || !incomplete);
+    // Say why the switch is dead rather than leaving it inert and unexplained
+    // — but only when THIS is the reason (not "nothing tuned", not "busy").
+    final blocked = tunedCount > 0 && !busy && !canToggle;
     // Keep the Switch mounted so it never jumps; a fixed-width slot holds the
     // spinner (left of the switch) only while busy, so the layout is stable.
     final trailing = Row(
