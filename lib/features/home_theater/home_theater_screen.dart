@@ -226,13 +226,17 @@ class _Content extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          ActionRow(
-            icon: Icons.equalizer,
-            title: l10n.eqEntryTitle,
-            subtitle: l10n.eqEntrySubtitle,
-            onTap: () => context.push('/theater/${member.uuid}/eq'),
-          ),
-          SettingsSection(children: [TrueplayControl(devices: bonded)]),
+          // One section: the divider leads the whole audio block rather than
+          // splitting the EQ row off from the toggle it belongs with.
+          SettingsSection(children: [
+            ActionRow(
+              icon: Icons.equalizer,
+              title: l10n.eqEntryTitle,
+              subtitle: l10n.eqEntrySubtitle,
+              onTap: () => context.push('/theater/${member.uuid}/eq'),
+            ),
+            TrueplayControl(devices: bonded),
+          ]),
           if (member.hasDedicatedFronts)
             Padding(
               padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),

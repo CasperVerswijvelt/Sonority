@@ -516,7 +516,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get widgetsTrueplayNotTuned =>
-      'Not tuned — run Trueplay once in the Sonos app (iOS).';
+      'Not tuned. Run Trueplay in the Sonos app on iOS, or set a manual EQ above.';
 
   @override
   String get widgetsTrueplayActive => 'Active';
@@ -1379,7 +1379,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eqTitle => 'EQ';
 
   @override
-  String get eqStepMeasure => 'Measure your room';
+  String get eqStepMeasure => 'Measure';
 
   @override
   String get eqStepMeasureBody =>
@@ -1392,10 +1392,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eqStepAdjust => 'Adjust';
 
   @override
-  String get eqModeAll => 'All speakers';
+  String get eqModeAll => 'Combined EQ';
 
   @override
-  String get eqModeIndividual => 'Individual';
+  String get eqModeIndividual => 'Per speaker EQ';
 
   @override
   String get eqReset => 'Reset';
@@ -1425,14 +1425,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eqApplied => 'Applied';
 
   @override
-  String get eqRetry => 'Retry';
-
-  @override
-  String get eqTuningToggle => 'Tuning';
+  String get eqTuningToggle => 'EQ active';
 
   @override
   String get eqTuningToggleUntuned =>
-      'Nothing applied yet — adjust the bands and tap Apply.';
+      'Nothing applied yet. Adjust the bands and tap Apply.';
 
   @override
   String get eqRemove => 'Remove EQ';
@@ -1461,7 +1458,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eqEntryTitle => 'EQ';
 
   @override
-  String get eqEntrySubtitle => 'Shape the sound with an 8-band equaliser';
+  String get eqEntrySubtitle => 'Shape the sound with a 10-band equaliser';
 
   @override
   String eqBandSemantics(String hz) {

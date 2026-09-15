@@ -877,7 +877,7 @@ abstract class AppLocalizations {
   /// No description provided for @widgetsTrueplayNotTuned.
   ///
   /// In en, this message translates to:
-  /// **'Not tuned — run Trueplay once in the Sonos app (iOS).'**
+  /// **'Not tuned. Run Trueplay in the Sonos app on iOS, or set a manual EQ above.'**
   String get widgetsTrueplayNotTuned;
 
   /// No description provided for @widgetsTrueplayActive.
@@ -2257,7 +2257,7 @@ abstract class AppLocalizations {
   /// No description provided for @eqStepMeasure.
   ///
   /// In en, this message translates to:
-  /// **'Measure your room'**
+  /// **'Measure'**
   String get eqStepMeasure;
 
   /// No description provided for @eqStepMeasureBody.
@@ -2281,13 +2281,13 @@ abstract class AppLocalizations {
   /// No description provided for @eqModeAll.
   ///
   /// In en, this message translates to:
-  /// **'All speakers'**
+  /// **'Combined EQ'**
   String get eqModeAll;
 
   /// No description provided for @eqModeIndividual.
   ///
   /// In en, this message translates to:
-  /// **'Individual'**
+  /// **'Per speaker EQ'**
   String get eqModeIndividual;
 
   /// No description provided for @eqReset.
@@ -2344,22 +2344,16 @@ abstract class AppLocalizations {
   /// **'Applied'**
   String get eqApplied;
 
-  /// No description provided for @eqRetry.
-  ///
-  /// In en, this message translates to:
-  /// **'Retry'**
-  String get eqRetry;
-
   /// No description provided for @eqTuningToggle.
   ///
   /// In en, this message translates to:
-  /// **'Tuning'**
+  /// **'EQ active'**
   String get eqTuningToggle;
 
   /// No description provided for @eqTuningToggleUntuned.
   ///
   /// In en, this message translates to:
-  /// **'Nothing applied yet — adjust the bands and tap Apply.'**
+  /// **'Nothing applied yet. Adjust the bands and tap Apply.'**
   String get eqTuningToggleUntuned;
 
   /// No description provided for @eqRemove.
@@ -2413,7 +2407,7 @@ abstract class AppLocalizations {
   /// No description provided for @eqEntrySubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Shape the sound with an 8-band equaliser'**
+  /// **'Shape the sound with a 10-band equaliser'**
   String get eqEntrySubtitle;
 
   /// No description provided for @eqBandSemantics.

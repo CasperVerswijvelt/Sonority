@@ -262,8 +262,9 @@ void main() {
   group('stored offsets', () {
     test('a stored curve with the wrong band count is discarded', () async {
       final store = InMemoryKeyValueStore();
+      final right = List<double>.filled(kEqBands.length, 0).join(',');
       await store.setString('eq:E',
-          '{"v":1,"offsets":{"RINCON_BAR":[1,2,3],"RINCON_REAR":[0,0,0,0,0,0,0,0]}}');
+          '{"v":1,"offsets":{"RINCON_BAR":[1,2,3],"RINCON_REAR":[$right]}}');
       final c = ProviderContainer(overrides: [
         trueplayApplyProvider.overrideWithValue(_FakeApply()),
         eqStoreProvider.overrideWithValue(store),

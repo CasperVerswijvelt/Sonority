@@ -16,12 +16,15 @@ class EqCurve {
 
 /// The EQ plot: dB against log frequency, with the correction rails drawn.
 ///
-/// Takes a *list* of curves rather than fixed slots. Today it is handed the
-/// requested correction and what the fitted cascade actually achieves — showing
-/// both is the point, since a cascade can't always deliver the drawn shape and
-/// promising otherwise would be a lie. When a room measurement exists it can be
-/// handed the measured response and the base correction as two more curves with
-/// no change here.
+/// Takes a *list* of curves rather than fixed slots, so the measurement step can
+/// later add the measured response and the base correction without changing this
+/// widget. Today it is handed one: the correction being applied.
+///
+/// It is deliberately NOT handed the fitted cascade's achieved response as a
+/// second line. The fitter reproduces this curve to well under a dB, so the two
+/// drew on top of each other — while costing a ~15 ms Levenberg-Marquardt solve
+/// per slider frame. The part that genuinely differs from the slider positions is
+/// the per-frequency clamp, and that is already in this curve.
 class EqCurveView extends StatelessWidget {
   final List<double> freqs;
   final List<EqCurve> curves;

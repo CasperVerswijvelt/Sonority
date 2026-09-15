@@ -83,15 +83,18 @@ class RoomScreen extends ConsumerWidget {
                 subtitle: context.l10n.roomAddToHomeTheaterSubtitle,
                 onTap: () => addToHomeTheater(context, soundbars, speaker: uuid),
               ),
-            ActionRow(
-              icon: Icons.equalizer,
-              title: context.l10n.eqEntryTitle,
-              subtitle: context.l10n.eqEntrySubtitle,
-              onTap: () => context.push('/room/$uuid/eq'),
-            ),
             Gap.s,
-            // Settings: a flat, sectioned Trueplay row, not another card.
-            SettingsSection(children: [TrueplayControl(devices: devices)]),
+            // One settings block: EQ then the calibration toggle, under a single
+            // leading divider.
+            SettingsSection(children: [
+              ActionRow(
+                icon: Icons.equalizer,
+                title: context.l10n.eqEntryTitle,
+                subtitle: context.l10n.eqEntrySubtitle,
+                onTap: () => context.push('/room/$uuid/eq'),
+              ),
+              TrueplayControl(devices: devices),
+            ]),
           ],
         ),
         children: [

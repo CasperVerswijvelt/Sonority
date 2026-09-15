@@ -33,7 +33,13 @@ import 'trueplay_fit.dart';
 export 'trueplay_fit.dart' show cascadeMagnitudeDb;
 
 /// The band centres (Hz) the sliders address — ISO octave centres.
-const kEqBands = <double>[63, 125, 250, 500, 1000, 2000, 4000, 8000];
+///
+/// Ten rather than eight: stopping at 63 Hz leaves the entire sub range
+/// uncontrollable on a home theater with a bonded Sub (which reproduces roughly
+/// 20–120 Hz), and stopping at 8 kHz gives up the "air" band. Both ends are
+/// where a room most often needs help. Ten peaking filters plus a shelf is still
+/// comfortably inside the 16-section ceiling every player reports.
+const kEqBands = <double>[31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
 /// Correction limits, applied to the composed curve per frequency. Sonos' own
 /// fitter lands inside +5.7 / −11.5 dB on real hardware; boost is the expensive
@@ -89,18 +95,49 @@ Float64List composeCorrection({
   return out;
 }
 
-/// Log-linear interpolation of band gains at [f]; held flat outside the band
-/// range so the curve doesn't dive to zero below 63 Hz or above 8 kHz.
+/// Monotone cubic (Fritsch-Carlson) interpolation of the band gains at [f], in
+/// LOG frequency. Held flat outside the band range so the curve doesn't dive to
+/// zero below the lowest band or above the highest.
+///
+/// Monotone rather than natural cubic on purpose: a natural spline overshoots
+/// between control points, which would invent a boost the user never asked for —
+/// and then faithfully fit and apply it. Fritsch-Carlson limits the tangents so
+/// the curve can never leave the interval its neighbouring bands define, which
+/// is the property that makes it safe to send to a speaker. Linear interpolation
+/// is also safe but reads as a set of kinks rather than a response curve.
 double _interpLog(double f, List<double> gains) {
   if (f <= kEqBands.first) return gains.first;
   if (f >= kEqBands.last) return gains.last;
+
+  final n = kEqBands.length;
   var i = 0;
-  while (i < kEqBands.length - 2 && f > kEqBands[i + 1]) {
+  while (i < n - 2 && f > kEqBands[i + 1]) {
     i++;
   }
-  final t = (math.log(f) - math.log(kEqBands[i])) /
-      (math.log(kEqBands[i + 1]) - math.log(kEqBands[i]));
-  return gains[i] + (gains[i + 1] - gains[i]) * t;
+  final x0 = math.log(kEqBands[i]), x1 = math.log(kEqBands[i + 1]);
+  final h = x1 - x0;
+  final y0 = gains[i], y1 = gains[i + 1];
+
+  // Secant slopes either side of each knot, in log-f.
+  double slope(int k) => k < 0 || k >= n - 1
+      ? 0
+      : (gains[k + 1] - gains[k]) /
+          (math.log(kEqBands[k + 1]) - math.log(kEqBands[k]));
+  final dPrev = slope(i - 1), d = slope(i), dNext = slope(i + 1);
+
+  // Fritsch-Carlson tangents: zero at a local extremum (so the curve flattens
+  // instead of overshooting), otherwise a harmonic mean of the two secants.
+  double tangent(double a, double b) =>
+      a * b <= 0 ? 0 : 2 * a * b / (a + b);
+  final m0 = i == 0 ? d : tangent(dPrev, d);
+  final m1 = i == n - 2 ? d : tangent(d, dNext);
+
+  final t = (math.log(f) - x0) / h;
+  final t2 = t * t, t3 = t2 * t;
+  return (2 * t3 - 3 * t2 + 1) * y0 +
+      (t3 - 2 * t2 + t) * h * m0 +
+      (-2 * t3 + 3 * t2) * y1 +
+      (t3 - t2) * h * m1;
 }
 
 /// A dense dB correction curve → the biquad cascade for ONE channel.

@@ -17,7 +17,10 @@ import '../widgets/entity_cards.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
+import '../widgets/action_row.dart';
 import '../widgets/scroll_footer.dart';
+import '../widgets/settings_section.dart';
+import '../widgets/trueplay_control.dart';
 import '../widgets/section_header.dart';
 
 /// A bonded speaker group (stereo pair / zone / custom) shown as a pushed page:
@@ -52,6 +55,12 @@ class GroupDetailScreen extends ConsumerWidget {
     }
 
     final device = system.device(group.uuid);
+    // Every bonded speaker in the group — what the calibration toggle acts on.
+    final members = group.bondedUuids
+        .map(system.device)
+        .whereType<SonosDevice>()
+        .where((d) => !d.drivesExternalSpeakers)
+        .toList();
     return AppScaffold(
       title: group.zoneName,
       subtitle: groupKindL10n(context.l10n, group.groupKind),
@@ -66,53 +75,74 @@ class GroupDetailScreen extends ConsumerWidget {
       // Separate is pinned to the bottom (via ScrollFooter) — always the last
       // thing on the page, whether the member list fits or has to scroll.
       body: ScrollFooter(
-        padding: const EdgeInsets.fromLTRB(kPageGutter, 20, kPageGutter, 20),
-        footer: DestructiveButton(
-          icon: Icons.link_off,
-          label: context.l10n.groupSeparate,
-          onPressed: () => _confirmSeparate(context, ref, group),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        footer: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Same block as the home-theater page: a group is tunable too
+            // (stereo pairs, zones and custom groups all accept a tuning), so
+            // the EQ entry and the calibration toggle belong here as well.
+            SettingsSection(children: [
+              ActionRow(
+                icon: Icons.equalizer,
+                title: context.l10n.eqEntryTitle,
+                subtitle: context.l10n.eqEntrySubtitle,
+                onTap: () => context.push('/group/${group.uuid}/eq'),
+              ),
+              TrueplayControl(devices: members),
+            ]),
+            Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(kPageGutter, 16, kPageGutter, 0),
+              child: DestructiveButton(
+                icon: Icons.link_off,
+                label: context.l10n.groupSeparate,
+                onPressed: () => _confirmSeparate(context, ref, group),
+              ),
+            ),
+          ],
         ),
         children: [
-          SectionHeader(context.l10n.sectionSpeakers),
-          CardGrid([
-            for (final e in group.groupChannels.entries)
-              MemberChannelCard(
-                icon: Icons.speaker,
-                type: system.device(e.key)?.typeLabel ?? context.l10n.widgetsSpeaker,
-                channel: groupChannelShort(e.value),
-                // Bonded member → LED only (chiming one plays the whole group).
-                trailing: speakerIdentifyButton(system.device(e.key)),
+          // The footer rows are full-bleed, so the page gutter lives on the
+          // scrolling content rather than on ScrollFooter's padding.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+              SectionHeader(context.l10n.sectionSpeakers),
+              CardGrid([
+                for (final e in group.groupChannels.entries)
+                  MemberChannelCard(
+                    icon: Icons.speaker,
+                    type: system.device(e.key)?.typeLabel ?? context.l10n.widgetsSpeaker,
+                    channel: groupChannelShort(e.value),
+                    // Bonded member → LED only (chiming one plays the whole group).
+                    trailing: speakerIdentifyButton(system.device(e.key)),
+                  ),
+                if (group.subUuid != null)
+                  MemberChannelCard(
+                    icon: Icons.graphic_eq,
+                    type: system.device(group.subUuid!)?.typeLabel ?? context.l10n.widgetsSub,
+                    channel: context.l10n.widgetsSub,
+                    trailing: speakerIdentifyButton(system.device(group.subUuid!)),
+                  ),
+              ]),
+              Gap.l,
+              // Reconfigure the group (add/remove speakers, change L/R/Both, sub,
+              // name) — mirrors the home-theater "Configure" action. Icons.settings
+              // (not tune, which is reserved for audio/Trueplay surfaces).
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => context.push('/group/${group.uuid}/edit'),
+                  icon: const Icon(Icons.settings),
+                  label: Text(context.l10n.groupConfigure),
+                ),
               ),
-            if (group.subUuid != null)
-              MemberChannelCard(
-                icon: Icons.graphic_eq,
-                type: system.device(group.subUuid!)?.typeLabel ?? context.l10n.widgetsSub,
-                channel: context.l10n.widgetsSub,
-                trailing: speakerIdentifyButton(system.device(group.subUuid!)),
-              ),
-          ]),
-          Gap.l,
-          // Reconfigure the group (add/remove speakers, change L/R/Both, sub,
-          // name) — mirrors the home-theater "Configure" action. Icons.settings
-          // (not tune, which is reserved for audio/Trueplay surfaces).
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () => context.push('/group/${group.uuid}/edit'),
-              icon: const Icon(Icons.settings),
-              label: Text(context.l10n.groupConfigure),
-            ),
-          ),
-          Gap.s,
-          // Entry to the EQ page. An outlined button rather than an ActionRow:
-          // this page is already gutter-padded, so a full-bleed row would
-          // double-indent. Icons.equalizer — tune stays Trueplay's.
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => context.push('/group/${group.uuid}/eq'),
-              icon: const Icon(Icons.equalizer),
-              label: Text(context.l10n.eqEntryTitle),
+              ],
             ),
           ),
         ],

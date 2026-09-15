@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,12 +11,11 @@ import '../../state/speaker_eq_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/destructive_button.dart';
-import '../widgets/pill_chip.dart';
 import '../widgets/scroll_footer.dart';
-import '../widgets/section_header.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/trueplay_control.dart';
 import 'eq_curve_view.dart';
+import 'eq_slider.dart';
 
 /// Every native speaker an EQ would be written to for [uuid].
 ///
@@ -78,13 +75,12 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
   bool _overwriteConfirmed = false;
   bool _loaded = false;
 
-  final _freqs = eqGrid();
+  /// Whether a tuning of ours is actually ON the speakers. Not "has the user
+  /// moved a slider" — before an apply there is nothing to switch on or remove,
+  /// and an on/off row reading "nothing applied yet" is just noise.
+  bool _applied = false;
 
-  /// What the fitted cascade actually does, recomputed only when the curve
-  /// settles — the fit is a Levenberg-Marquardt solve (tens of ms), so running
-  /// it per pointer move would stutter the drag. The requested curve tracks the
-  /// slider live; the achieved one catches up on release.
-  Float64List? _achieved;
+  final _freqs = eqGrid();
 
   @override
   void dispose() {
@@ -104,6 +100,7 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
     if (!mounted) return;
     setState(() {
       if (stored.isEmpty) return;
+      _applied = true;
       _perMember.addAll(stored);
       final distinct = stored.values.map((v) => v.join(',')).toSet();
       // One curve shared by everyone reopens as "all speakers"; anything else
@@ -132,32 +129,7 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
     setState(() {
       final next = List<double>.of(_current)..[i] = v;
       _individual ? _perMember[_editing!] = next : _shared = next;
-      _achieved = null; // stale until the curve settles
     });
-  }
-
-  /// The channel vocabulary the preview should be fitted against. The real
-  /// values come from each player at apply time, but a Sub runs at a far lower
-  /// rate over a much narrower band, so previewing it at 44100 would draw a
-  /// cascade the speaker will never run.
-  ({double fs, int maxSections}) _previewChannel(List<SonosDevice> members) {
-    final d = _individual
-        ? members.firstWhere((m) => m.uuid == _editing,
-            orElse: () => members.first)
-        : members.first;
-    return d.isSub
-        ? (fs: kSubSampleRate, maxSections: 8)
-        : (fs: 44100.0, maxSections: 16);
-  }
-
-  void _refreshAchieved(Float64List requested, List<SonosDevice> members) {
-    final ch = _previewChannel(members);
-    setState(() => _achieved = cascadeMagnitudeDb(
-          sectionsForCorrection(requested, _freqs,
-              fs: ch.fs, maxSections: ch.maxSections),
-          _freqs,
-          ch.fs,
-        ));
   }
 
   /// Runs the destructive-overwrite check once per visit, whichever control
@@ -193,11 +165,12 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
 
   Future<void> _apply(List<SonosDevice> members) async {
     if (!await _ensureConfirmed(members)) return;
-    await ref.read(speakerEqControllerProvider.notifier).apply(
+    final ok = await ref.read(speakerEqControllerProvider.notifier).apply(
           entityId: widget.uuid,
           members: members,
           offsets: _offsetsFor(members),
         );
+    if (ok && mounted) setState(() => _applied = true);
   }
 
   Future<void> _toggleLive(bool on, List<SonosDevice> members) async {
@@ -238,6 +211,7 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
       setState(() {
         _shared = flatCurve();
         _perMember.clear();
+        _applied = false;
       });
     }
   }
@@ -264,115 +238,177 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
     var status = ref.watch(speakerEqControllerProvider);
     // The provider is global; ignore a result that belongs to another entity.
     if (status.isIdleFor(widget.uuid)) status = const SpeakerEqStatus();
-    final requested =
-        composeCorrection(bandOffsetsDb: _current, freqs: _freqs);
-    if (_achieved == null) {
-      WidgetsBinding.instance.addPostFrameCallback(
-          (_) => mounted ? _refreshAchieved(requested, members) : null);
-    }
+    final curve = composeCorrection(bandOffsetsDb: _current, freqs: _freqs);
     final scheme = Theme.of(context).colorScheme;
 
     return AppScaffold(
       title: member.zoneName,
       subtitle: l10n.eqTitle,
-      body: ScrollFooter(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        footer: _Footer(
-          status: status,
-          live: _live,
-          onLive: (v) => _toggleLive(v, members),
-          onApply: () => _apply(members),
-          onRemove: () => _remove(members),
-          devices: members,
-        ),
+      body: Column(
         children: [
-          const _Gutter(child: SizedBox(height: 4)),
-          _Gutter(child: SectionHeader(l10n.eqStepMeasure)),
-          const _MeasureStep(),
-          Gap.m,
-          _Gutter(child: SectionHeader(l10n.eqStepAdjust)),
-          _Gutter(
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    EqCurveView(freqs: _freqs, curves: [
-                      EqCurve(requested, scheme.primary),
-                      if (_achieved != null)
-                        EqCurve(_achieved!, scheme.tertiary, dashed: true),
-                    ]),
-                    Gap.s,
-                    _Legend(
-                      requested: scheme.primary,
-                      achieved: scheme.tertiary,
-                    ),
-                    Gap.m,
-                    _Bands(
-                      gains: _current,
-                      onChanged: _setBand,
-                      onChangeEnd: () {
-                        _refreshAchieved(requested, members);
-                        if (_live) {
-                          ref
-                              .read(speakerEqControllerProvider.notifier)
-                              .requestLiveApply(
-                                entityId: widget.uuid,
-                                members: members,
-                                offsets: _offsetsFor(members),
-                              );
+          // Pinned step header, matching the group flow's mode selector: the two
+          // user-facing stages live in one segmented control rather than as two
+          // stacked sections, so the page below is just the active step.
+          _StepHeader(step: _EqStep.adjust, onStep: (_) {}),
+          Divider(height: 1, color: scheme.outlineVariant),
+          Expanded(
+            child: ScrollFooter(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              footer: _Footer(
+                status: status,
+                live: _live,
+                onLive: (v) => _toggleLive(v, members),
+                onApply: () => _apply(members),
+                onRemove: () => _remove(members),
+                devices: members,
+                hasTuning: _applied,
+              ),
+              children: [
+                // Scope first: what you are editing, before what it looks like.
+                _Gutter(
+                  child: SegmentedButton<bool>(
+                    segments: [
+                      ButtonSegment(value: false, label: Text(l10n.eqModeAll)),
+                      ButtonSegment(
+                          value: true, label: Text(l10n.eqModeIndividual)),
+                    ],
+                    selected: {_individual},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (sel) => setState(() {
+                      // "Combined" means every member IS the shared curve —
+                      // that is what an apply from it writes. So switching to
+                      // per-speaker seeds every member from it rather than
+                      // reviving stale curves the user has since overridden.
+                      if (sel.first) {
+                        for (final d in members) {
+                          _perMember[d.uuid] = List.of(_shared);
                         }
-                      },
+                      }
+                      _individual = sel.first;
+                    }),
+                  ),
+                ),
+                if (_individual) ...[
+                  Gap.s,
+                  _MemberPicker(
+                    members: members,
+                    roles: eqRoles(member),
+                    selected: _editing!,
+                    edited: {
+                      for (final e in _perMember.entries)
+                        if (!isFlat(e.value)) e.key,
+                    },
+                    onSelected: (u) => setState(() => _editing = u),
+                  ),
+                ],
+                Gap.m,
+                _Gutter(
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 16, 12, 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          EqCurveView(freqs: _freqs, curves: [
+                            EqCurve(curve, scheme.primary),
+                          ]),
+                          Gap.m,
+                          _Bands(
+                            gains: _current,
+                            onChanged: _setBand,
+                            onChangeEnd: () {
+                              if (_live) {
+                                setState(() => _applied = true);
+                                ref
+                                    .read(speakerEqControllerProvider.notifier)
+                                    .requestLiveApply(
+                                      entityId: widget.uuid,
+                                      members: members,
+                                      offsets: _offsetsFor(members),
+                                    );
+                              }
+                            },
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () => setState(() {
+                                _individual
+                                    ? _perMember[_editing!] = flatCurve()
+                                    : _shared = flatCurve();
+                              }),
+                              child: Text(l10n.eqReset),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Gap.m,
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _EqStep { measure, adjust }
+
+/// The two user-facing stages. Measure is present but disabled: it is a stage of
+/// this flow, not a separate feature, and showing it is how a user learns the
+/// flow has a second half. Same shape as the group flow's pinned mode selector.
+class _StepHeader extends StatelessWidget {
+  final _EqStep step;
+  final ValueChanged<_EqStep> onStep;
+  const _StepHeader({required this.step, required this.onStep});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.scaffoldBackgroundColor,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<_EqStep>(
+            showSelectedIcon: false,
+            style: SegmentedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              textStyle: theme.textTheme.titleSmall,
+            ),
+            segments: [
+              ButtonSegment(
+                value: _EqStep.measure,
+                enabled: false,
+                label: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(l10n.eqStepMeasure),
+                    Text(
+                      l10n.eqComingSoon,
+                      style: theme.textTheme.labelSmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
               ),
-            ),
+              ButtonSegment(
+                value: _EqStep.adjust,
+                label: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(l10n.eqStepAdjust),
+                ),
+              ),
+            ],
+            selected: {step},
+            onSelectionChanged: (s) => onStep(s.first),
           ),
-          Gap.s,
-          _Gutter(
-            child: _ModeRow(
-              individual: _individual,
-              onChanged: (v) => setState(() {
-                // "All speakers" means every member IS the shared curve —
-                // that is what an apply from this mode writes. So switching to
-                // per-speaker seeds every member from it rather than reviving
-                // stale per-member curves the user has since overridden.
-                if (v) {
-                  for (final d in members) {
-                    _perMember[d.uuid] = List.of(_shared);
-                  }
-                }
-                _individual = v;
-                _achieved = null;
-              }),
-              onReset: () => setState(() {
-                _individual
-                    ? _perMember[_editing!] =
-                        flatCurve()
-                    : _shared = flatCurve();
-              }),
-            ),
-          ),
-          if (_individual) ...[
-            Gap.s,
-            _MemberPicker(
-              members: members,
-              roles: eqRoles(member),
-              selected: _editing!,
-              edited: {
-                for (final e in _perMember.entries)
-                  if (!isFlat(e.value)) e.key,
-              },
-              onSelected: (u) => setState(() {
-                _editing = u;
-                _achieved = null;
-              }),
-            ),
-          ],
-          Gap.m,
-        ],
+        ),
       ),
     );
   }
@@ -389,74 +425,6 @@ class _Gutter extends StatelessWidget {
 
 /// Step 1, present but not yet built. Shown rather than hidden so the capability
 /// is discoverable; deliberately says nothing about how it will work or when.
-class _MeasureStep extends StatelessWidget {
-  const _MeasureStep();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final scheme = Theme.of(context).colorScheme;
-    final muted = scheme.onSurfaceVariant;
-    return _Gutter(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.mic_none, color: muted),
-              Gap.m,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    PillChip(
-                      icon: Icons.schedule,
-                      text: l10n.eqComingSoon,
-                      color: muted,
-                    ),
-                    Gap.s,
-                    Text(
-                      l10n.eqStepMeasureBody,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: muted),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Legend extends StatelessWidget {
-  final Color requested;
-  final Color achieved;
-  const _Legend({required this.requested, required this.achieved});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        PillChip(
-            icon: Icons.show_chart, text: l10n.eqLegendRequested, color: requested),
-        Gap.s,
-        PillChip(
-            icon: Icons.graphic_eq, text: l10n.eqLegendAchieved, color: achieved),
-      ],
-    );
-  }
-}
-
-/// The eight band sliders. Vertical, so they read as an equaliser rather than a
-/// settings list.
 class _Bands extends StatelessWidget {
   final List<double> gains;
   final void Function(int index, double value) onChanged;
@@ -472,7 +440,7 @@ class _Bands extends StatelessWidget {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     return SizedBox(
-      height: 200,
+      height: 210,
       child: Row(
         children: [
           for (var i = 0; i < kEqBands.length; i++)
@@ -480,26 +448,25 @@ class _Bands extends StatelessWidget {
               child: Column(
                 children: [
                   Text(
-                    gains[i] == 0 ? '—' : l10n.eqGainDb(_fmt(gains[i])),
-                    style: theme.textTheme.labelSmall,
+                    l10n.eqGainDb(_fmt(gains[i])),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: gains[i] == 0
+                          ? theme.colorScheme.onSurfaceVariant
+                          : theme.colorScheme.onSurface,
+                    ),
                   ),
                   Expanded(
-                    child: RotatedBox(
-                      quarterTurns: 3,
-                      child: Slider(
-                        value: gains[i],
-                        min: -kEqMaxCutDb,
-                        max: kEqMaxBoostDb,
-                        divisions: (kEqMaxCutDb + kEqMaxBoostDb).round() * 2,
-                        label: l10n.eqGainDb(_fmt(gains[i])),
-                        semanticFormatterCallback: (v) =>
-                            '${l10n.eqBandSemantics(eqBandLabel(kEqBands[i]))}, '
-                            '${l10n.eqGainDb(_fmt(v))}',
-                        // Writes go on release, never on drag: a live apply is N
-                        // network writes to real speakers.
-                        onChanged: (v) => onChanged(i, v),
-                        onChangeEnd: (_) => onChangeEnd(),
-                      ),
+                    child: EqSlider(
+                      value: gains[i],
+                      min: -kEqMaxCutDb,
+                      max: kEqMaxBoostDb,
+                      divisions: (kEqMaxCutDb + kEqMaxBoostDb).round() * 2,
+                      label: l10n.eqGainDb(_fmt(gains[i])),
+                      semanticFormatter: (v) =>
+                          '${l10n.eqBandSemantics(eqBandLabel(kEqBands[i]))}, '
+                          '${l10n.eqGainDb(_fmt(v))}',
+                      onChanged: (v) => onChanged(i, v),
+                      onChangeEnd: onChangeEnd,
                     ),
                   ),
                   Text(eqBandLabel(kEqBands[i]),
@@ -516,40 +483,6 @@ class _Bands extends StatelessWidget {
       '${v > 0 ? '+' : ''}${v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1)}';
 }
 
-class _ModeRow extends StatelessWidget {
-  final bool individual;
-  final ValueChanged<bool> onChanged;
-  final VoidCallback onReset;
-  const _ModeRow({
-    required this.individual,
-    required this.onChanged,
-    required this.onReset,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Row(
-      children: [
-        Expanded(
-          child: SegmentedButton<bool>(
-            segments: [
-              ButtonSegment(value: false, label: Text(l10n.eqModeAll)),
-              ButtonSegment(value: true, label: Text(l10n.eqModeIndividual)),
-            ],
-            selected: {individual},
-            showSelectedIcon: false,
-            onSelectionChanged: (s) => onChanged(s.first),
-          ),
-        ),
-        Gap.s,
-        TextButton(onPressed: onReset, child: Text(l10n.eqReset)),
-      ],
-    );
-  }
-}
-
-/// Which speaker's curve is being edited, in individual mode.
 class _MemberPicker extends StatelessWidget {
   final List<SonosDevice> members;
 
@@ -605,6 +538,11 @@ class _Footer extends StatelessWidget {
   final VoidCallback onApply;
   final VoidCallback onRemove;
   final List<SonosDevice> devices;
+
+  /// Whether there is anything to switch on or remove yet. Before the first
+  /// apply the toggle and the destructive button have nothing to act on, and a
+  /// row reading "nothing applied yet" is just noise.
+  final bool hasTuning;
   const _Footer({
     required this.status,
     required this.live,
@@ -612,6 +550,7 @@ class _Footer extends StatelessWidget {
     required this.onApply,
     required this.onRemove,
     required this.devices,
+    required this.hasTuning,
   });
 
   @override
@@ -644,28 +583,30 @@ class _Footer extends StatelessWidget {
               ),
               if (status.busy || status.error != null || status.applied) ...[
                 Gap.s,
-                _StatusLine(status: status, onRetry: onApply),
+                _StatusLine(status: status),
               ],
             ],
           ),
         ),
-        // The Trueplay switch doubles as this EQ's on/off: storing a tuning and
-        // enabling it are separate calls, so it is an instant A/B.
-        SettingsSection(children: [
-          TrueplayControl(
-            devices: devices,
-            title: l10n.eqTuningToggle,
-            untunedSubtitle: l10n.eqTuningToggleUntuned,
+        // Storing a tuning and enabling it are separate calls, so this switch is
+        // an instant A/B of the EQ you just applied — but only once there IS one.
+        if (hasTuning) ...[
+          SettingsSection(children: [
+            TrueplayControl(
+              devices: devices,
+              title: l10n.eqTuningToggle,
+              untunedSubtitle: l10n.eqTuningToggleUntuned,
+            ),
+          ]),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 8),
+            child: DestructiveButton(
+              icon: Icons.delete_outline,
+              label: l10n.eqRemove,
+              onPressed: status.busy ? null : onRemove,
+            ),
           ),
-        ]),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 8),
-          child: DestructiveButton(
-            icon: Icons.delete_outline,
-            label: l10n.eqRemove,
-            onPressed: status.busy ? null : onRemove,
-          ),
-        ),
+        ],
       ],
     );
   }
@@ -673,8 +614,7 @@ class _Footer extends StatelessWidget {
 
 class _StatusLine extends StatelessWidget {
   final SpeakerEqStatus status;
-  final VoidCallback onRetry;
-  const _StatusLine({required this.status, required this.onRetry});
+  const _StatusLine({required this.status});
 
   @override
   Widget build(BuildContext context) {
@@ -693,17 +633,11 @@ class _StatusLine extends StatelessWidget {
     }
     final error = status.error;
     if (error != null) {
-      return Row(
-        children: [
-          Expanded(
-            child: Text(
-              localizedError(l10n, error),
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.error),
-            ),
-          ),
-          TextButton(onPressed: onRetry, child: Text(l10n.eqRetry)),
-        ],
+      // No retry affordance: Apply sits directly above and is exactly that.
+      return Text(
+        localizedError(l10n, error),
+        style:
+            theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
       );
     }
     return Row(
