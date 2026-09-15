@@ -747,19 +747,30 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
    is colour/contrast-sensitive (`adb -s emulator-5554 shell cmd uimode night
    yes|no`, restore with `auto`); before/after when the change alters an
    existing screen; the wide layout too if it touches it. Hosting: GitHub has
-   no upload API, so push the PNGs to the **`pr-shots` branch** (screenshots only — never merged, never in
-   a PR diff, and outside the `docs/screenshots/*.png` LFS rule so raw URLs
-   serve real images) with plumbing that needs no checkout:
+   no upload API for a PR body (the web UI's drag-and-drop uses an undocumented
+   `user-attachments` endpoint `gh` can't reach), so the PNGs need a public URL
+   of their own. Push them to a branch **`pr-shots-<N>`, one per PR** — never
+   merged, never in a PR diff, so no throwaway binaries land in `main`, and
+   outside the `docs/screenshots/*.png` LFS rule so raw URLs serve real images
+   rather than pointer files. Plumbing, no checkout needed:
    ```
    b=$(git hash-object -w --no-filters shot.png)
    t=$(printf "100644 blob %s\tpr-<N>-<name>.png\n" "$b" | git mktree)   # add a line per shot
-   c=$(git commit-tree "$t" -m "shots: PR #<N>")   # -p $(git rev-parse origin/pr-shots) to append
-   git push origin "$c":"refs/heads/pr-shots"      # quote the colon separately (zsh eats `:r`)
+   c=$(git commit-tree "$t" -m "shots: PR #<N>")   # -p $(git rev-parse origin/pr-shots-<N>) to append
+   git push origin "$c":"refs/heads/pr-shots-<N>"  # quote the colon separately (zsh eats `:r`)
    ```
-   then embed `<img src="https://raw.githubusercontent.com/CasperVerswijvelt/Sonority/pr-shots/pr-<N>-<name>.png" width="300">`
+   then embed `<img src="https://raw.githubusercontent.com/CasperVerswijvelt/Sonority/pr-shots-<N>/pr-<N>-<name>.png" width="300">`
    (a markdown table for side-by-side). Verify each URL returns `image/png`;
    add `?v=2` when replacing a shot under a name already in a PR body (GitHub
-   caches the old one).
+   caches the old one). Delete the ref once the PR is merged (`git push origin
+   --delete pr-shots-<N>`).
+   ⚠️ **One ref PER PR, not one shared `pr-shots` branch.** The shared branch is
+   a single mutable tree with no locking: two agents/sessions that both
+   `git mktree` will silently clobber each other, because the second builds from
+   a base that predates the first's push. That happened — ten images on an open
+   PR were deleted by an unrelated PR's screenshot push, and nothing warned
+   anyone; the PR just quietly rendered broken images. Per-PR refs make the
+   collision impossible instead of merely unlikely.
 8. The **user merges the PR manually** unless they say otherwise.
 
 ### Release flow (on `main`, after merges)
