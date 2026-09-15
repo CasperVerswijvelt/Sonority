@@ -161,8 +161,8 @@ there if a different model/firmware ever needs it.
   from the pick-a-speaker flows and per-speaker in the room / group / home-theater detail views
 - ✅ Take a speaker straight out of another stereo pair, zone or home theater — the pickers
   list it under the setup it belongs to and name exactly which speakers will need re-tuning
-- ✅ Trueplay read + toggle on speakers / pairs / home theaters (switching it *on* is blocked
-  when any speaker in the bond has no stored tuning — doing so would wipe the others')
+- ✅ Trueplay read + toggle on speakers / pairs / home theaters (it warns and asks first when
+  any speaker in the bond has no stored tuning — switching it *on* there can wipe the others')
 - ✅ Diagnostics — a hide-nothing technical system view, packaged into a shareable zip for support
 - ✅ Responsive layout for iPad and desktop — a left navigation rail and multi-column content on
   wide screens (resizable macOS window), the single-column phone layout unchanged

@@ -12,7 +12,7 @@ section into the GitHub Release notes regardless of the build suffix
 ## [Unreleased]
 
 ### Added
-- Speaker pickers now offer speakers that are already bonded into another stereo pair, home theater or group, so you no longer have to unbond by hand first. They're grouped under a heading per source bond that says what taking one costs, and each card shows the channel it currently holds plus whether it has a Trueplay tuning.
+- Speaker pickers now offer speakers that are already bonded into another stereo pair, home theater or group, so you no longer have to unbond by hand first (a subwoofer bonded into another home theater is the exception — free that one first). They're grouped under a heading per source bond that says what taking one costs, and each card shows the channel it currently holds plus whether it has a Trueplay tuning.
 - Choosing such a speaker names exactly which speakers lose their Trueplay, so you know what needs re-tuning before you apply. Taking a speaker from a zone also says that the whole group breaks up, which nothing else on screen shows.
 - Creating a speaker group from a speaker that's bonded elsewhere now frees it first. Sonos accepts the grouping command and silently does nothing otherwise, so the group would never have formed.
 - Diagnostics bundles now include `trueplay.json` — each speaker's stored and enabled calibration state, with a reason recorded for any speaker that couldn't be read. Read-only, like the rest of the bundle.

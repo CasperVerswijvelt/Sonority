@@ -60,7 +60,7 @@ WHAT YOU CAN DO
 
 • Dedicated front speakers on a soundbar — add a discrete left/right pair so your bar becomes the center channel, for a true three-speaker front stage.
 • Build a complete home theater in one guided flow — fronts, rear surrounds and one or two subs, each optional.
-• Pick speakers that are already paired, grouped or part of a home theater, without unbonding them by hand first — they're listed under the setup they currently belong to, and Sonority tells you up front which speakers will need re-tuning.
+• Pick speakers that are already paired, grouped or part of a home theater, without unbonding them by hand first — they're listed under the setup they currently belong to, and Sonority tells you up front which speakers will need re-tuning. A subwoofer that belongs to another home theater is the exception: free that one first.
 • Use a single amplifier to drive both passive front speakers.
 • Speaker groups the standard app won’t make — full-range zones of 2–16 speakers, stereo pairs (including mismatched models), or a custom per-speaker left/right/both layout, each with an optional sub.
 • Config profiles — snapshot your whole layout and rebuild it in one tap after moving speakers around. Each profile gets its own icon and colour, reorders with a drag, and opens a per-entity detail view showing exactly what it saved. A profile can also capture and restore per-speaker audio settings (bass, treble, loudness, night sound, speech enhancement, sub and surround levels, lip-sync) and, optionally, volume.
@@ -77,7 +77,7 @@ No account. No sign-in. No analytics, no tracking, and no data collected. Sonori
 
 REQUIREMENTS
 
-Compatible speakers on the same Wi-Fi network as your device. Room-calibration tuning, where supported, is measured in the manufacturer’s own app; Sonority never measures one, it only reads a stored tuning and switches it on or off (and it will refuse to switch one on where that would wipe the tunings your other speakers still have). Changing which speakers are bonded together leaves any stored tuning unusable — the speakers themselves discard or deactivate it — so plan to re-run the tuning afterwards.
+Compatible speakers on the same Wi-Fi network as your device. Room-calibration tuning, where supported, is measured in the manufacturer’s own app; Sonority never measures one, it only reads a stored tuning and switches it on or off (and it warns you first when some speakers in the set aren’t tuned, because switching it on then can wipe the tunings the others still have). Changing which speakers are bonded together leaves any stored tuning unusable — the speakers themselves discard or deactivate it — so plan to re-run the tuning afterwards.
 
 —
 
@@ -87,7 +87,7 @@ Sonority is an independent app and is not affiliated with, authorized, maintaine
 ## What's New
 
 ```
-• Speakers already paired, grouped or bonded into a home theater can now be picked straight away — no need to unbond them by hand first
+• Speakers already paired, grouped or bonded into a home theater can now be picked straight away — no need to unbond them by hand first, except a subwoofer that belongs to another home theater
 • Before you apply, Sonority names exactly which speakers will lose their room-calibration tuning, so there are no surprises
 • Turning room-calibration on or off now warns you first when some speakers in the set aren't tuned, since that's when you can lose the tunings the others still have
 • Creating a speaker group now keeps trying until it really exists, instead of giving up while the speakers were still settling
