@@ -838,10 +838,10 @@ abstract class AppLocalizations {
   /// **'Checking…'**
   String get widgetsTrueplayChecking;
 
-  /// Warning on the Trueplay row when some bonded speaker has no stored tuning. Measured (EXP-23): switching on in that state clears the stored tunings of the others, unrecoverably, because a tuning commits for the bonded set as a whole. NOT blocked, only warned and confirmed: the measurement is one household and the mechanism is undetermined.
+  /// Warning on the Trueplay row when some bonded speaker has no stored tuning. Measured (EXP-23) on one household: turning it on in that state destroyed the stored tunings of the others, unrecoverably. Hedged to 'could' on purpose, because four cells on one system and an undetermined mechanism do not support stating it as certain. NOT blocked, only warned and confirmed.
   ///
   /// In en, this message translates to:
-  /// **'turning it on clears the tunings that are left'**
+  /// **'turning it on could destroy the tunings that are left'**
   String get widgetsTrueplayIncompleteSet;
 
   /// Confirm shown when switching Trueplay on while the bonded set is only partly tuned.
@@ -853,7 +853,7 @@ abstract class AppLocalizations {
   /// Body of that confirm. Names how many tunings are at stake and that the loss is permanent.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one{Only 1 speaker here is tuned, so turning it on clears that tuning for good.} other{Only {count} speakers here are tuned, so turning it on clears those tunings for good.}}'**
+  /// **'{count, plural, one{Only 1 speaker here is tuned, so turning it on could destroy that tuning.} other{Only {count} speakers here are tuned, so turning it on could destroy those tunings.}}'**
   String widgetsTrueplayConfirmBody(int count);
 
   /// Confirm action for switching Trueplay on despite the cost.

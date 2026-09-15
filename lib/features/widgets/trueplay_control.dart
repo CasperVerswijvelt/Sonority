@@ -131,11 +131,20 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // second there is nothing to prevent; and users on other hardware sit in
     // this exact state and toggle deliberately. Removing a control on
     // one-household evidence is the wrong trade in an app whose whole point is
-    // doing what the official app refuses.
+    // doing what the official app refuses. The copy hedges to "could" for the
+    // same reason — the certainty isn't earned.
     //
     // What the evidence DOES justify is not letting it happen by accident: the
     // loss is silent and there is no undo, so the enable asks first and names
-    // what it will cost. Turning it OFF is never destructive and never asks.
+    // what it costs.
+    //
+    // ⚠️ Turning it OFF does not ask, and the honest reason is narrower than
+    // "off is safe": every destructive cell we have is
+    // `SetRoomCalibrationStatus(1)`. The (0) write on an incomplete set is
+    // UNTESTED, not proven harmless. It stays unprompted because there is no
+    // evidence against it and prompting every off would be noise — but if the
+    // mechanism turns out to be "any write re-validates and discards", this
+    // needs revisiting.
     final incomplete = tunedCount < withIp.length;
     final canToggle = tunedCount > 0 && !busy;
     final warnOnEnable = incomplete && !isOn;

@@ -492,7 +492,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get widgetsTrueplayIncompleteSet =>
-      'turning it on clears the tunings that are left';
+      'turning it on could destroy the tunings that are left';
 
   @override
   String get widgetsTrueplayConfirmTitle => 'Turn on Trueplay?';
@@ -503,9 +503,9 @@ class AppLocalizationsEn extends AppLocalizations {
       count,
       locale: localeName,
       other:
-          'Only $count speakers here are tuned, so turning it on clears those tunings for good.',
+          'Only $count speakers here are tuned, so turning it on could destroy those tunings.',
       one:
-          'Only 1 speaker here is tuned, so turning it on clears that tuning for good.',
+          'Only 1 speaker here is tuned, so turning it on could destroy that tuning.',
     );
     return '$_temp0';
   }

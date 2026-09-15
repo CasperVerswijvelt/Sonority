@@ -447,8 +447,14 @@ interpolated) then use it.
     ✅ **Handled in `trueplay_control.dart`, by WARNING and not by blocking:** the
     toggle writes to every bonded member, and after a bonding change the set is
     normally incomplete (the new speaker has no tuning) — the destructive row. So
-    switching ON asks first and names how many tunings it will cost; switching OFF
-    never asks. It was briefly *blocked* and that was the wrong call: the
+    switching ON asks first and names how many tunings it could cost; switching OFF
+    does not ask. ⚠️ The honest reason for that asymmetry is narrower than "off is
+    safe": **every destructive cell we have is the `(1)` write.** `(0)` on an
+    incomplete set is **untested**, not proven harmless. It stays unprompted
+    because there is no evidence against it and prompting every off would be
+    noise — revisit if the mechanism turns out to be "any write re-validates and
+    discards". The copy also hedges to **"could destroy"**: four cells on one
+    household with an undetermined mechanism do not earn a flat assertion. It was briefly *blocked* and that was the wrong call: the
     measurement is four cells on ONE household, the mechanism is undetermined (see
     below — "the write destroyed it" and "it was already dead and the write cleared
     a stale flag" are indistinguishable), and users on other hardware sit in this

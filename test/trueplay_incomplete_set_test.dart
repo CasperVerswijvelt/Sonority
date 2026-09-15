@@ -57,7 +57,13 @@ void main() {
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.textContaining('for good'), findsOneWidget);
+    // Scoped to the dialog: the row behind it carries the same warning, which
+    // is the point — you are told before you tap, and again before it writes.
+    expect(
+        find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.textContaining('could destroy')),
+        findsOneWidget);
   });
 
   testWidgets('declining the confirm does not write', (tester) async {
@@ -81,8 +87,10 @@ void main() {
 
   testWidgets('switching OFF never asks, even on an incomplete set',
       (tester) async {
-    // Turning it off has never been measured as destructive, and making someone
-    // confirm their way out of a state they are already in would be noise.
+    // ⚠️ Not because off is proven safe — every destructive cell we have is the
+    // (1) write, and (0) on an incomplete set is UNTESTED. It stays unprompted
+    // because there is no evidence against it and prompting every off would be
+    // noise. Revisit if the mechanism turns out to be "any write re-validates".
     await pump(tester, {a.uuid: active, b.uuid: untuned});
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
@@ -92,7 +100,7 @@ void main() {
   testWidgets('the row warns about the cost before it is tapped',
       (tester) async {
     await pump(tester, {a.uuid: tuned, b.uuid: untuned});
-    expect(find.textContaining('clears the tunings that are left'), findsOneWidget);
+    expect(find.textContaining('could destroy the tunings'), findsOneWidget);
   });
 }
 
