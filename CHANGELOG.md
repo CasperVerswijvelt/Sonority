@@ -12,6 +12,7 @@ section into the GitHub Release notes regardless of the build suffix
 ## [Unreleased]
 
 ### Added
+- **EQ** — an 8-band equaliser for any home theater, speaker group or single speaker, on a page of its own from that entity's detail. Sonos offers only bass and treble, so this is genuinely new: the curve is written to the speakers as a real filter cascade, per channel, and works on the unofficial layouts Sonos refuses to tune. One curve for the whole configuration by default, or a separate curve per speaker in Individual mode. Turn it on and off with the existing room-calibration switch. "Live apply" pushes changes as you move the sliders; without it, Apply does. A room-measurement step is shown as coming soon — the sliders will become offsets on top of a measured correction, and nothing you set now is wasted. ⚠️ A speaker can only hold one tuning, so applying an EQ replaces a Trueplay calibration measured in the Sonos app, permanently — Sonority asks first.
 - Diagnostics bundles now include `trueplay.json` — each speaker's stored and enabled calibration state, with a reason recorded for any speaker that couldn't be read. Read-only, like the rest of the bundle.
 - Sonority now carries a license: the code is source-available under PolyForm Perimeter 1.0.1 — read, build, modify and contribute freely, but redistributing a competing product (paid or free) isn't permitted. The "Sonority" name, icon, wordmark and marketing assets remain reserved, and `CONTRIBUTING.md` documents the licensing grant that pull requests carry.
 
