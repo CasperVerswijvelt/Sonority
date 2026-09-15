@@ -338,6 +338,19 @@ void main() {
           reason: 'the note cannot stay silent while the header says cleared');
     });
 
+    test('an UNREAD speaker keeps the note in step with the header', () {
+      // The header errs safe on a speaker it could not read; the note has to
+      // err the same way, or the screen says "cleared" and names nobody.
+      final c = PickerContext(
+        system: system,
+        calibration: const {pairR: RoomCalibration(available: false, enabled: false)},
+        exceptPrimary: bar,
+      );
+      expect(sectionCost(l10n, system, pair, c.calibration), contains('cleared'),
+          reason: 'pairL was never read');
+      expect(c.warning(l10n, {pairL}), isNotNull);
+    });
+
     test('taking a WHOLE pair still costs it — no screen credits an absorb',
         () {
       // Storage is kinder (both halves absorbed ⇒ nothing lost), but a
@@ -438,10 +451,20 @@ void main() {
       expect(got.count, 3);
     });
 
-    test('a speaker with no stored tuning is never named', () async {
-      final got = await named({pairL, sub});
+    test('a speaker READ as untuned is never named', () async {
+      final got = await named({pairL});
       expect(got.names, isEmpty);
       expect(got.count, 0);
+    });
+
+    test('a speaker that could not be read counts as at risk', () async {
+      // No entry at all means the Trueplay read FAILED — routine inside the
+      // ~20-30s window after an unbond, or for an offline speaker. Dropping it
+      // silently shortened the at-risk list while the section header above it,
+      // reading the same map, already said the bond's tuning gets cleared.
+      final got = await named({sub});
+      expect(got.count, 1);
+      expect(got.names, ['Sub']);
     });
   });
 

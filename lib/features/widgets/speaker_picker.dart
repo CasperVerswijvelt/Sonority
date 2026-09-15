@@ -209,6 +209,13 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
 ///
 /// [ownBond] is the entity being configured: its members drop the bond-name
 /// prefix, since repeating the name of the thing on screen is noise.
+///
+/// A speaker with NO entry holds an unknown tuning, not a missing one — a read
+/// that failed leaves nothing behind, and a speaker inside the ~20-30s
+/// post-unbond window fails every time. It counts as at risk, the same
+/// direction [sectionCost] already errs in: the two are rendered one above the
+/// other, and the heading saying the tuning is cleared while the note names
+/// nobody is the disagreement this list exists to prevent.
 ({List<String> names, int count}) tunedSpeakers(
   AppLocalizations l10n,
   SonosSystem system,
@@ -217,7 +224,7 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
   String? ownBond,
 }) {
   final tuned =
-      uuids.where((u) => calibration[u]?.available ?? false).toList();
+      uuids.where((u) => calibration[u]?.available ?? true).toList();
   final names = tuned
       .map((u) {
         final d = system.device(u);
