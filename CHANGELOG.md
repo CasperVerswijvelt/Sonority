@@ -12,6 +12,7 @@ section into the GitHub Release notes regardless of the build suffix
 ## [Unreleased]
 
 ### Added
+- Diagnostics bundles now include `trueplay.json` — each speaker's stored and enabled calibration state, with a reason recorded for any speaker that couldn't be read. Read-only, like the rest of the bundle.
 - Sonority now carries a license: the code is source-available under PolyForm Perimeter 1.0.1 — read, build, modify and contribute freely, but redistributing a competing product (paid or free) isn't permitted. The "Sonority" name, icon, wordmark and marketing assets remain reserved, and `CONTRIBUTING.md` documents the licensing grant that pull requests carry.
 
 ## [0.7.0] - 2026-08-18
