@@ -838,11 +838,29 @@ abstract class AppLocalizations {
   /// **'Checking…'**
   String get widgetsTrueplayChecking;
 
-  /// Why the Trueplay switch is unavailable. Measured (EXP-23): enabling while any bonded speaker holds no stored tuning DESTROYS the stored tunings of the others, unrecoverably, because a tuning commits for the bonded set as a whole. Turning it off is safe, so only the enable is blocked.
+  /// Warning on the Trueplay row when some bonded speaker has no stored tuning. Measured (EXP-23): switching on in that state clears the stored tunings of the others, unrecoverably, because a tuning commits for the bonded set as a whole. NOT blocked, only warned and confirmed: the measurement is one household and the mechanism is undetermined.
   ///
   /// In en, this message translates to:
-  /// **'can\'t switch on until every speaker here is tuned, or it clears the ones that are'**
+  /// **'switching on will clear the tunings that are here'**
   String get widgetsTrueplayIncompleteSet;
+
+  /// Confirm shown when switching Trueplay on while the bonded set is only partly tuned.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the tunings that are left?'**
+  String get widgetsTrueplayConfirmTitle;
+
+  /// Body of that confirm. Names how many tunings are at stake and that the loss is permanent.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{One speaker here still has a room-calibration tuning. Because the others have none, switching Trueplay on clears it, and it cannot be recovered without measuring again in the Sonos app.} other{{count} speakers here still have a room-calibration tuning. Because the others have none, switching Trueplay on clears them, and they cannot be recovered without measuring again in the Sonos app.}}'**
+  String widgetsTrueplayConfirmBody(int count);
+
+  /// Confirm action for switching Trueplay on despite the cost.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch on anyway'**
+  String get widgetsTrueplayConfirmAction;
 
   /// No description provided for @widgetsTrueplayNotTuned.
   ///

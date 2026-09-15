@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/room_calibration.dart';
 import '../../state/trueplay_controller.dart';
+import 'confirm_dialog.dart';
 
 /// Trueplay (room calibration) status + on/off toggle for a set of speakers.
 ///
@@ -44,6 +45,27 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
         }
       });
     }
+  }
+
+  /// Applies the toggle, asking first when switching ON would cost the
+  /// speakers that still hold a tuning.
+  ///
+  /// Only the ON direction asks, and only while the set is short: turning it
+  /// off has never been measured as destructive, and making someone confirm
+  /// their way out of a state they are already in would be noise.
+  Future<void> _set(bool on, bool warn, List<RoomCalibration> tuned) async {
+    if (on && warn) {
+      final l10n = context.l10n;
+      final ok = await confirmDialog(
+        context,
+        title: l10n.widgetsTrueplayConfirmTitle,
+        message: l10n.widgetsTrueplayConfirmBody(tuned.length),
+        confirmLabel: l10n.widgetsTrueplayConfirmAction,
+        icon: Icons.tune,
+      );
+      if (!ok || !mounted) return;
+    }
+    ref.read(trueplayControllerProvider.notifier).setEnabled(widget.devices, on);
   }
 
   @override
@@ -95,21 +117,28 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       }
       subtitle = parts.join(' · ');
     }
-    // ☠️ Enabling a calibration while ANY bonded speaker holds no stored tuning
-    // DESTROYS the tunings that ARE there, unrecoverably — a tuning commits for
-    // the bonded set as a whole, so an incomplete set clears instead of
-    // applying (EXP-23: four cells destroyed on an incomplete set; Q19's
-    // changed-but-COMPLETE set survived the same write). This is the normal
-    // state right after bonding a speaker that was never tuned, which is
-    // exactly when a user reaches for this switch.
+    // ☠️ Switching a calibration ON while ANY bonded speaker holds no stored
+    // tuning clears the tunings that ARE there, unrecoverably (EXP-23: four
+    // cells destroyed on an incomplete set; Q19's changed-but-COMPLETE set
+    // survived the same write). This is the normal state right after bonding a
+    // speaker that was never tuned, which is exactly when a user reaches for
+    // this switch.
     //
-    // Turning it OFF has never been destructive, so that direction stays open:
-    // block only the enable, and only while the set is short.
+    // It is NOT blocked. Three reasons, and they outweigh the tidiness of a
+    // guard: the measurement is four cells on one household; the MECHANISM is
+    // undetermined, so "the write destroyed it" and "it was already dead and
+    // the write cleared a stale flag" are indistinguishable and under the
+    // second there is nothing to prevent; and users on other hardware sit in
+    // this exact state and toggle deliberately. Removing a control on
+    // one-household evidence is the wrong trade in an app whose whole point is
+    // doing what the official app refuses.
+    //
+    // What the evidence DOES justify is not letting it happen by accident: the
+    // loss is silent and there is no undo, so the enable asks first and names
+    // what it will cost. Turning it OFF is never destructive and never asks.
     final incomplete = tunedCount < withIp.length;
-    final canToggle = tunedCount > 0 && !busy && (isOn || !incomplete);
-    // Say why the switch is dead rather than leaving it inert and unexplained
-    // — but only when THIS is the reason (not "nothing tuned", not "busy").
-    final blocked = tunedCount > 0 && !busy && !canToggle;
+    final canToggle = tunedCount > 0 && !busy;
+    final warnOnEnable = incomplete && !isOn;
     // Keep the Switch mounted so it never jumps; a fixed-width slot holds the
     // spinner (left of the switch) only while busy, so the layout is stable.
     final trailing = Row(
@@ -125,11 +154,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
         const SizedBox(width: 12),
         Switch(
           value: isOn,
-          onChanged: canToggle
-              ? (v) => ref
-                  .read(trueplayControllerProvider.notifier)
-                  .setEnabled(widget.devices, v)
-              : null,
+          onChanged: canToggle ? (v) => _set(v, warnOnEnable, tuned) : null,
         ),
       ],
     );
@@ -138,16 +163,12 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       context,
       icon: Icons.tune,
       iconColor: isOn ? scheme.primary : scheme.onSurfaceVariant,
-      subtitle: blocked
+      subtitle: warnOnEnable
           ? '$subtitle · ${l10n.widgetsTrueplayIncompleteSet}'
           : subtitle,
       trailing: trailing,
       // Tapping anywhere on the row toggles it, same as the switch.
-      onTap: canToggle
-          ? () => ref
-              .read(trueplayControllerProvider.notifier)
-              .setEnabled(widget.devices, !isOn)
-          : null,
+      onTap: canToggle ? () => _set(!isOn, warnOnEnable, tuned) : null,
     );
   }
 

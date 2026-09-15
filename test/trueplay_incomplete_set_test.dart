@@ -7,14 +7,17 @@ import 'package:sonority/features/widgets/trueplay_control.dart';
 import 'package:sonority/l10n/app_localizations.dart';
 import 'package:sonority/state/trueplay_controller.dart';
 
-/// ☠️ Measured (EXP-23): `SetRoomCalibrationStatus(1)` on a bonded set where ANY
-/// member holds no stored tuning DESTROYS the tunings that are there — four
-/// cells, unrecoverably, because a tuning commits for the set as a whole. The
-/// same write on a changed-but-COMPLETE set (Q19) was harmless.
+/// ☠️ Measured (EXP-23): switching Trueplay ON while any bonded member holds no
+/// stored tuning clears the tunings that ARE there — four cells, unrecoverably,
+/// because a tuning commits for the set as a whole. The same write on a
+/// changed-but-COMPLETE set (Q19, ×2) was harmless.
 ///
-/// That incomplete state is the normal one right after bonding an untuned
-/// speaker, which is exactly when a user reaches for this switch. Turning it
-/// OFF has never been destructive, so only the enable is blocked.
+/// It is deliberately NOT blocked. The measurement is one household, the
+/// mechanism is undetermined ("the write destroyed it" and "it was already dead
+/// and the write cleared a stale flag" are indistinguishable), and users on
+/// other hardware sit in this state and toggle on purpose. What the evidence
+/// justifies is not letting it happen by ACCIDENT: the loss is silent and has
+/// no undo, so the ON direction confirms first. OFF never does.
 void main() {
   const tuned = RoomCalibration(available: true, enabled: false);
   const active = RoomCalibration(available: true, enabled: true);
@@ -41,29 +44,55 @@ void main() {
     return tester.widget<Switch>(find.byType(Switch));
   }
 
-  testWidgets('an INCOMPLETE set cannot be switched on', (tester) async {
-    final s = await pump(tester, {a.uuid: tuned, b.uuid: untuned});
-    expect(s.onChanged, isNull,
-        reason: 'enabling here would clear A\'s stored tuning for good');
-  });
-
-  testWidgets('a COMPLETE set can be switched on', (tester) async {
-    final s = await pump(tester, {a.uuid: tuned, b.uuid: tuned});
-    expect(s.onChanged, isNotNull);
-  });
-
-  testWidgets('an incomplete set that is already ON can still be switched OFF',
+  testWidgets('an INCOMPLETE set is NOT blocked — the switch still works',
       (tester) async {
-    // Turning it off has never been measured as destructive, and leaving a user
-    // unable to undo a state they are already in would be worse.
-    final s = await pump(tester, {a.uuid: active, b.uuid: untuned});
-    expect(s.onChanged, isNotNull);
-    expect(s.value, isTrue);
+    final s = await pump(tester, {a.uuid: tuned, b.uuid: untuned});
+    expect(s.onChanged, isNotNull,
+        reason: 'one household of evidence does not justify removing a control');
   });
 
-  testWidgets('the blocked case says why', (tester) async {
+  testWidgets('switching ON an incomplete set asks first, and names the cost',
+      (tester) async {
     await pump(tester, {a.uuid: tuned, b.uuid: untuned});
-    expect(find.textContaining('clears the ones that are'), findsOneWidget);
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.textContaining('cannot be recovered'), findsOneWidget);
+  });
+
+  testWidgets('declining the confirm does not write', (tester) async {
+    await pump(tester, {a.uuid: tuned, b.uuid: untuned});
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+  });
+
+  testWidgets('a COMPLETE set switches on with no confirm at all',
+      (tester) async {
+    await pump(tester, {a.uuid: tuned, b.uuid: tuned});
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing,
+        reason: 'nothing is at stake, so asking would be noise');
+  });
+
+  testWidgets('switching OFF never asks, even on an incomplete set',
+      (tester) async {
+    // Turning it off has never been measured as destructive, and making someone
+    // confirm their way out of a state they are already in would be noise.
+    await pump(tester, {a.uuid: active, b.uuid: untuned});
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('the row warns about the cost before it is tapped',
+      (tester) async {
+    await pump(tester, {a.uuid: tuned, b.uuid: untuned});
+    expect(find.textContaining('will clear the tunings'), findsOneWidget);
   });
 }
 

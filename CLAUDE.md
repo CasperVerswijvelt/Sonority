@@ -444,11 +444,17 @@ interpolated) then use it.
     a layout where ours fails, so provenance is not the discriminator. The enable half is
     still unrun and now needs a FRESH iOS measurement — the 2026-08 capture is spent,
     because the bar's channel ids have drifted away from it on the same layout.
-    ✅ **Guarded in `trueplay_control.dart`:** the toggle writes to every bonded
-    member, and after a bonding change the set is normally incomplete (the new
-    speaker has no tuning) — the destructive row. Enabling is therefore refused
-    unless every member reads `available=1`; disabling stays open, and the row
-    says why. One cycle, so provisional, but the loss is unrecoverable.
+    ✅ **Handled in `trueplay_control.dart`, by WARNING and not by blocking:** the
+    toggle writes to every bonded member, and after a bonding change the set is
+    normally incomplete (the new speaker has no tuning) — the destructive row. So
+    switching ON asks first and names how many tunings it will cost; switching OFF
+    never asks. It was briefly *blocked* and that was the wrong call: the
+    measurement is four cells on ONE household, the mechanism is undetermined (see
+    below — "the write destroyed it" and "it was already dead and the write cleared
+    a stale flag" are indistinguishable), and users on other hardware sit in this
+    state and toggle deliberately. **Don't remove a control on one-household
+    evidence in an app whose point is doing what the official app refuses** — make
+    the consequence impossible to hit by accident instead.
     The superseded framing, kept because its cells are still the evidence: (EXP-23 Q15/Q16, the write issued
     directly with its HTTP response logged — observation, not inference):
     | case | ids | `SetRoomCalibrationStatus(1)` |
