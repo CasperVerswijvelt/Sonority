@@ -75,6 +75,17 @@ void main() {
         reason: 'nothing answered, so there is no tuning fact to assert');
   });
 
+  testWidgets('a single unreadable speaker is not called "these speakers"',
+      (tester) async {
+    // What a standalone room passes: devices = [the one speaker]. Reachable
+    // right after separating it, since a just-unbonded speaker refuses :1400
+    // for ~20-30s and the room page is where the user lands.
+    await tester.pumpWidget(trueplayHarness([bar], const {}));
+    await tester.pumpAndSettle();
+    expect(find.textContaining("Couldn't read Trueplay from this speaker."),
+        findsOneWidget);
+  });
+
   testWidgets('no failure copy while the first read is still in flight',
       (tester) async {
     // The reads are scheduled post-frame, so the first build has nothing loaded

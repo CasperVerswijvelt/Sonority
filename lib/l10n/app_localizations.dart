@@ -922,11 +922,11 @@ abstract class AppLocalizations {
   /// **'Couldn\'t read'**
   String get widgetsTrueplayRowUnread;
 
-  /// Subtitle when NO speaker in the set answered its calibration read. Distinct from widgetsTrueplayNotTuned, which claims the speakers have no tuning — a claim that can't be made about speakers that were never successfully asked.
+  /// Subtitle when NO speaker in the set answered its calibration read. Distinct from widgetsTrueplayNotTuned, which claims the speakers have no tuning — a claim that can't be made about speakers that were never successfully asked. count is how many speakers the message covers; a standalone room passes exactly one.
   ///
   /// In en, this message translates to:
-  /// **'Couldn\'t read Trueplay from these speakers.'**
-  String get widgetsTrueplayUnreadable;
+  /// **'{count, plural, one{Couldn\'t read Trueplay from this speaker.} other{Couldn\'t read Trueplay from these speakers.}}'**
+  String widgetsTrueplayUnreadable(int count);
 
   /// No description provided for @widgetsTrueplayActiveCount.
   ///
