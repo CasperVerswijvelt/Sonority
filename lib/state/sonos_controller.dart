@@ -10,7 +10,7 @@ import '../data/sonos/diagnostics_log.dart';
 import '../data/sonos/front_layout.dart' as front_layout;
 import '../data/sonos/identify_service.dart';
 import '../data/sonos/led_identify.dart';
-import '../data/sonos/soap_client.dart' show retryUnreachable;
+import '../data/sonos/soap_client.dart' show SonosSoapException, retryUnreachable;
 import '../data/sonos/sonos_repository.dart';
 import '../data/sonos/sonority_error.dart';
 import '../data/sonos/speaker_settings.dart';
@@ -681,13 +681,39 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   }) async {
     final l10n = appL10n();
     final label = phaseLabel ?? l10n.stepFreeConflicting;
+    // Speakers a dissolve this pass has ALREADY freed. Freeing one member of a
+    // bonded group dissolves the whole bond, so its siblings need no write of
+    // their own — and the settle poll below returns its last read whether or not
+    // it converged, so without this a stale read (routine: `fallbackIp` can be
+    // the coordinator that just stopped answering :1400) sent a second
+    // destructive write against a map that no longer exists. Seen with a stereo
+    // pair built out of BOTH members of one zone.
+    final dissolved = <String>{};
     for (final u in uuids) {
+      if (dissolved.contains(u)) continue;
       if (!sys.mustFreeBeforeBonding(u, keep: keep, absorbing: absorbing)) continue;
       final owner = sys.ownerOf(u);
+      final src = sys.memberByUuid(owner ?? '');
       _activeOp?.throwIfCancelled();
       ph.phase('free', label);
       ph.note(l10n.stepFreeing(sys.device(u)?.roomName ?? u));
-      await _repo.freeSpeaker(sys, u, cancel: _activeOp);
+      // An unbond is a bond write, so it obeys the same rule as every other one:
+      // an 8s timeout or an 800 very often STILL APPLIES, so it means "go
+      // verify", not "failed". Aborting here left the source bond a speaker short
+      // and the destination untouched, on a write a retry would have completed.
+      // The poll below is the verdict; a permanent fault (401/402) never
+      // converges, so it still surfaces.
+      try {
+        await _repo.freeSpeaker(sys, u, cancel: _activeOp);
+      } on OperationCancelled {
+        rethrow;
+      } on SonosSoapException catch (e) {
+        if (e.faultCode != '800') rethrow;
+        ph.log('free $u: error 800 (mid-reshuffle), verifying');
+      } catch (e) {
+        ph.log('free $u: write failed ($e), verifying');
+      }
+      if (src?.isGroup ?? false) dissolved.addAll(src!.channelMapUuids);
       // Read back from the FORMER OWNER — but a bond's COORDINATOR is its own
       // owner, so in that case the "owner" is the very speaker that just
       // stopped answering :1400 for ~20-30s. Fall back then, or _settleRead
