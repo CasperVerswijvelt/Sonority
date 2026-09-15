@@ -27,6 +27,11 @@ void main() {
       ip: '192.168.1.22');
   const noIp = SonosDevice(
       uuid: 'NOIP', roomName: 'Living Room HT', modelName: 'Sonos Sub');
+  const era = SonosDevice(
+      uuid: 'ERA',
+      roomName: 'Living Room HT',
+      modelName: 'Sonos Era 100',
+      ip: '192.168.1.23');
 
   const on = RoomCalibration(available: true, enabled: true);
   const storedOff = RoomCalibration(available: true, enabled: false);
@@ -157,5 +162,58 @@ void main() {
     ));
     await tester.pumpAndSettle();
     expect(find.byType(LabelValueRow), findsNWidgets(3));
+  });
+
+  // ONE set has to drive the counter, the rows and the warning gate. A device
+  // with no IP was excluded from the counter's denominator but still given a
+  // row, so the two disagreed — and worse, it made `incomplete` read a set as
+  // complete that had a member nobody had ever asked, which silently dropped
+  // the destructive-enable warning.
+  testWidgets('a no-IP speaker is counted, not just listed', (tester) async {
+    await tester.pumpWidget(trueplayHarness(
+      [bar, left, noIp],
+      const {'BAR': on, 'LEFT': none},
+    ));
+    await tester.pumpAndSettle();
+    final rows = find.byType(LabelValueRow).evaluate().length;
+    expect(rows, 3);
+    expect(find.textContaining('1/$rows tuned · 1/$rows active'), findsOneWidget,
+        reason: 'the denominator is the number of speakers the rows list');
+  });
+
+  testWidgets('a no-IP speaker beside an untuned one is never "Tuned · off"',
+      (tester) async {
+    // The fall-through the split opened: the flat "not tuned" branch failed
+    // (one read, two devices) and the single-speaker branch fired instead,
+    // because exactly one device had an IP — printing "Tuned · off" for a
+    // speaker that answered with no stored tuning at all.
+    await tester.pumpWidget(trueplayHarness([noIp, left], const {'LEFT': none}));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Tuned · off'), findsNothing,
+        reason: 'nothing here holds a stored tuning');
+    expect(find.textContaining('0/2 tuned'), findsOneWidget);
+  });
+
+  testWidgets('no speakers at all says nothing', (tester) async {
+    // The room page renders this whenever the topology has a member it never
+    // resolved to a device, which made the plural failure line talk about zero
+    // speakers.
+    await tester.pumpWidget(trueplayHarness(const [], const {}));
+    await tester.pumpAndSettle();
+    expect(find.textContaining("Couldn't read"), findsNothing);
+    expect(find.text('Trueplay'), findsNothing);
+  });
+
+  testWidgets('a breakdown row announces its speaker and its state together',
+      (tester) async {
+    // As sibling nodes a screen reader read "Era 100" and "Couldn't read" as
+    // unrelated, six times over on a 5.1 system, so the pairing the row exists
+    // to show was sighted-only.
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(trueplayHarness([bar, era], const {'BAR': on}));
+    await tester.pumpAndSettle();
+    expect(tester.getSemantics(find.byType(LabelValueRow).last),
+        matchesSemantics(label: "Era 100\nCouldn't read"));
+    handle.dispose();
   });
 }
