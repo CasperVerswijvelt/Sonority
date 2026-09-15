@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/diagnostics_log.dart';
+import '../../data/sonos/room_calibration.dart';
 import '../../data/sonos/sonos_repository.dart';
 import '../../data/sonos/speaker_settings.dart';
 import '../widgets/version_badge.dart' show fullVersionLabel;
@@ -80,6 +81,17 @@ Future<String> buildDiagnosticsZip({
     'speaker_settings.json',
     const JsonEncoder.withIndent('  ')
         .convert(await readSpeakerSettings(system, SpeakerSettingsClient())),
+  );
+
+  // Live per-speaker Trueplay state (RoomCalibration reads only — no writes).
+  // Deliberately NOT folded into speaker_settings.json: everything in
+  // `SpeakerSettings` is written back on profile apply, and a Trueplay write is
+  // the destructive path (enabling across an incomplete bonded set clears the
+  // tunings that are there). This is read-only forever.
+  add(
+    'trueplay.json',
+    const JsonEncoder.withIndent('  ')
+        .convert(await readTrueplay(system, repo.roomCalibration)),
   );
 
   if (options.includeNetwork) {
@@ -206,6 +218,53 @@ Future<Map<String, dynamic>> readSpeakerSettings(
       'typeLabel': d.typeLabel,
       'settings': s.toJson(),
     };
+  }
+  return out;
+}
+
+/// Reads per-speaker Trueplay / room-calibration state for EVERY speaker in the
+/// system, keyed by UUID. Read-only ([getStatus] is `GetRoomCalibrationStatus`;
+/// nothing here ever writes one).
+///
+/// Every speaker, not just bonded ones: the measured rule is that a tuning
+/// commits for the bonded set as a whole, so grading a retention report needs
+/// the whole household — including the speakers a report doesn't mention.
+///
+/// A speaker that can't be read is recorded WITH ITS REASON rather than omitted,
+/// because "we couldn't ask" and "it answered no tuning" are the two readings a
+/// retention report most needs told apart, and omission silently merges them.
+///
+/// The read is attempted for any speaker with an IP, including ones discovery
+/// flagged unreachable: `reachable` is a discovery-time verdict and a bundle is
+/// built minutes later, well past the ~20-30s window in which a just-bonded
+/// speaker refuses :1400. Being wrong costs one timeout; skipping costs exactly
+/// the datapoint this file exists to capture.
+Future<Map<String, dynamic>> readTrueplay(
+  SonosSystem system,
+  Future<RoomCalibration> Function(String ip) getStatus,
+) async {
+  final out = <String, dynamic>{};
+  for (final d in system.devicesByUuid.values) {
+    final entry = <String, dynamic>{
+      'roomName': d.roomName,
+      'typeLabel': d.typeLabel,
+      'reachableAtDiscovery': d.reachable,
+    };
+    out[d.uuid] = entry;
+    final ip = d.ip;
+    if (ip == null) {
+      entry['unread'] = 'no IP address';
+      continue;
+    }
+    try {
+      final c = await getStatus(ip);
+      entry['available'] = c.available;
+      entry['enabled'] = c.enabled;
+    } catch (e) {
+      // Per-speaker best-effort: one unreachable satellite must not cost us the
+      // other eight readings, and the fault itself is evidence.
+      entry['error'] = '$e';
+    }
   }
   return out;
 }
@@ -377,6 +436,7 @@ String _readme(
     'device_descriptions/    — raw device_description.xml per speaker',
     'app_state.json          — the app\'s stored profiles + saved room names',
     'speaker_settings.json   — per-speaker EQ / volume / mute (RenderingControl, read-only)',
+    'trueplay.json           — per-speaker Trueplay stored/enabled state (read-only)',
     if (o.includeLogs)
       'logs.txt                — app diagnostics log (SOAP faults, retries, discovery, errors)',
     if (o.includeNetwork)
