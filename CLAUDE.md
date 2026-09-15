@@ -225,9 +225,13 @@ interpolated) then use it.
     accepted (HTTP 200) and silently no-ops on a speaker bonded elsewhere (Q11, 2
     cycles), so a group target must free the speaker first. Absorbing out of another
     home theater is **unmeasured** (one soundbar here) and treated as not possible.
-    ⇒ `SonosSystem.canAbsorbFrom` / `mustFreeBeforeBonding` encode this, and all four
-    apply paths route through `SonosController._freeConflicts` (five call sites; the
-    profile SINGLE-speaker path frees unconditionally and stays hand-rolled).
+    ⇒ `SonosSystem.canAbsorbFrom` / `mustFreeBeforeBonding` encode this, and every
+    apply path routes through `SonosController._freeConflicts` (six call sites —
+    including the profile SINGLE-speaker path, which used to free unconditionally by
+    hand). `_freeConflicts` treats the unbond like every other bond write (timeout /
+    800 ⇒ go verify, the poll is the verdict) and dissolves each source bond ONCE —
+    freeing one member of a group frees its siblings, and the settle poll can hand
+    back a stale read, which sent a second write against a dead map.
   - `AddBondedZones(ChannelMapSet)` — **creates** a Sonos **zone** (the 2025
     multi-speaker bond: 2–16 individual speakers play as one room, full-range
     L+R, no L/R split). **Confirmed on hardware** (`tool/zone_probe.dart`):
