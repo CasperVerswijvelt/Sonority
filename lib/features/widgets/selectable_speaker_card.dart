@@ -51,9 +51,10 @@ class SelectableSpeakerCard extends StatelessWidget {
   final String? titleOverride;
   final Widget? identify;
 
-  /// Tags shown under the row — the bond this speaker must be taken from, and
-  /// its Trueplay state. Built with [PillChip] so a picker tags a speaker the
-  /// same way a card tags a bonded role.
+  /// Tags shown under the row — currently just the speaker's Trueplay state
+  /// (the bond it would be taken from is stated once, in the section heading).
+  /// Built with [PillChip] so a picker tags a speaker the same way a card tags
+  /// a bonded role.
   final List<Widget> badges;
 
   /// The in-card channel selector to reveal when [showControl]. Kept null when

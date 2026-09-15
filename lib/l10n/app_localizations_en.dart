@@ -1243,6 +1243,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get frontSurroundsFrontsHint =>
+      'Pick two speakers for the front left and right, ideally identical.';
+
+  @override
+  String get frontSurroundsFrontsHintAmp =>
       'Pick two speakers for the front left and right, ideally identical. A single Amp or Port that feeds both works too.';
 
   @override

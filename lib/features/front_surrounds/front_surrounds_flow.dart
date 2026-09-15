@@ -160,9 +160,9 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       }
       // Speakers bonded into ANOTHER entity. `AddHTSatellite` absorbs one
       // straight out of a live stereo pair with its Trueplay tuning intact
-      // (EXP-23), so making the user unbond by hand first was unnecessary — and
-      // was itself what destroyed the tuning. What each case costs is tagged on
-      // the card and summarised by the note under the list.
+      // (EXP-23), so making the user unbond by hand first was unnecessary. What
+      // the take costs is tagged on the card and summarised by the note under
+      // the list.
       for (final d in system.stealableSpeakers(exceptPrimary: member.uuid)) {
         consider(d.uuid);
       }
@@ -262,7 +262,12 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      context.l10n.frontSurroundsFrontsHint,
+                      // Only mention the Amp/Port shortcut when the user
+                      // actually has one — otherwise it is advice about
+                      // hardware they don't own.
+                      avail(_fronts).any((d) => d.drivesExternalSpeakers)
+                          ? context.l10n.frontSurroundsFrontsHintAmp
+                          : context.l10n.frontSurroundsFrontsHint,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Gap.s,

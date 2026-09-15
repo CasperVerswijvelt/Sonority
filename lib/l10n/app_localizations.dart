@@ -2041,8 +2041,14 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsFrontsHint.
   ///
   /// In en, this message translates to:
-  /// **'Pick two speakers for the front left and right, ideally identical. A single Amp or Port that feeds both works too.'**
+  /// **'Pick two speakers for the front left and right, ideally identical.'**
   String get frontSurroundsFrontsHint;
+
+  /// No description provided for @frontSurroundsFrontsHintAmp.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick two speakers for the front left and right, ideally identical. A single Amp or Port that feeds both works too.'**
+  String get frontSurroundsFrontsHintAmp;
 
   /// No description provided for @frontSurroundsStepSurrounds.
   ///
