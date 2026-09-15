@@ -7,6 +7,7 @@ import '../../data/models/sonos_models.dart';
 import '../../data/sonos/room_calibration.dart';
 import '../../state/trueplay_controller.dart';
 import 'confirm_dialog.dart';
+import 'label_value_row.dart';
 
 /// What one speaker contributes to the aggregate Trueplay counter.
 enum TrueplayRowState {
@@ -263,7 +264,6 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     );
     if (!showRows) return tile;
 
-    final theme = Theme.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -279,15 +279,8 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
             mainAxisSize: MainAxisSize.min,
             children: [
               for (final r in rows)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      Expanded(child: Text(r.label, style: theme.mutedText)),
-                      Text(_stateLabel(l10n, r.state), style: theme.mutedText),
-                    ],
-                  ),
-                ),
+                LabelValueRow(
+                    label: r.label, value: _stateLabel(l10n, r.state)),
             ],
           ),
         ),
