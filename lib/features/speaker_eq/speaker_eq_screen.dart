@@ -11,7 +11,6 @@ import '../../state/speaker_eq_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/destructive_button.dart';
-import '../widgets/scroll_footer.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/trueplay_control.dart';
 import 'eq_curve_view.dart';
@@ -244,25 +243,34 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
     return AppScaffold(
       title: member.zoneName,
       subtitle: l10n.eqTitle,
-      body: Column(
-        children: [
-          // Pinned step header, matching the group flow's mode selector: the two
-          // user-facing stages live in one segmented control rather than as two
-          // stacked sections, so the page below is just the active step.
-          _StepHeader(step: _EqStep.adjust, onStep: (_) {}),
-          Divider(height: 1, color: scheme.outlineVariant),
-          Expanded(
-            child: ScrollFooter(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              footer: _Footer(
-                status: status,
-                live: _live,
-                onLive: (v) => _toggleLive(v, members),
-                onApply: () => _apply(members),
-                onRemove: () => _remove(members),
-                devices: members,
-                hasTuning: _applied,
-              ),
+      // A real horizontal Stepper: the two stages are steps of one flow, and
+      // Measure is a DISABLED step rather than a hidden one — that is how a user
+      // learns the flow has a second half. Its own ListView scrolls the content,
+      // so there is no ScrollFooter here; the controls sit at the end of the
+      // step instead of pinned.
+      body: Stepper(
+        type: StepperType.horizontal,
+        currentStep: 1,
+        margin: EdgeInsets.zero,
+        // Default elevation kept: it is what separates the pinned header from
+        // the scrolling step below.
+        contentPadding: const EdgeInsets.only(top: 16, bottom: 32),
+        // The built-in Continue/Cancel pair means nothing here; Apply is the
+        // commit and it lives with the thing it applies.
+        controlsBuilder: (_, __) => const SizedBox.shrink(),
+        onStepTapped: (_) {},
+        steps: [
+          Step(
+            title: Text(l10n.eqStepMeasure),
+            subtitle: Text(l10n.eqComingSoon),
+            state: StepState.disabled,
+            content: const SizedBox.shrink(),
+          ),
+          Step(
+            title: Text(l10n.eqStepAdjust),
+            isActive: true,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Scope first: what you are editing, before what it looks like.
                 _Gutter(
@@ -346,69 +354,19 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
                   ),
                 ),
                 Gap.m,
+                _Footer(
+                  status: status,
+                  live: _live,
+                  onLive: (v) => _toggleLive(v, members),
+                  onApply: () => _apply(members),
+                  onRemove: () => _remove(members),
+                  devices: members,
+                  hasTuning: _applied,
+                ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-enum _EqStep { measure, adjust }
-
-/// The two user-facing stages. Measure is present but disabled: it is a stage of
-/// this flow, not a separate feature, and showing it is how a user learns the
-/// flow has a second half. Same shape as the group flow's pinned mode selector.
-class _StepHeader extends StatelessWidget {
-  final _EqStep step;
-  final ValueChanged<_EqStep> onStep;
-  const _StepHeader({required this.step, required this.onStep});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.scaffoldBackgroundColor,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        child: SizedBox(
-          width: double.infinity,
-          child: SegmentedButton<_EqStep>(
-            showSelectedIcon: false,
-            style: SegmentedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              textStyle: theme.textTheme.titleSmall,
-            ),
-            segments: [
-              ButtonSegment(
-                value: _EqStep.measure,
-                enabled: false,
-                label: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(l10n.eqStepMeasure),
-                    Text(
-                      l10n.eqComingSoon,
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-              ButtonSegment(
-                value: _EqStep.adjust,
-                label: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(l10n.eqStepAdjust),
-                ),
-              ),
-            ],
-            selected: {step},
-            onSelectionChanged: (s) => onStep(s.first),
-          ),
-        ),
       ),
     );
   }
