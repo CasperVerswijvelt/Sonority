@@ -5,8 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/sonos/custom_eq.dart';
 import 'package:sonority/data/sonos/trueplay_fit.dart';
 
-List<double> zeros() => List<double>.filled(kEqBands.length, 0);
-
 /// dB of the composed+fitted cascade at [f], as a speaker would render it.
 double achievedAt(List<double> offsets, double f,
     {double fs = 44100, int maxSections = 16}) {
@@ -14,14 +12,14 @@ double achievedAt(List<double> offsets, double f,
   final corr = composeCorrection(bandOffsetsDb: offsets, freqs: grid);
   final sections =
       sectionsForCorrection(corr, grid, fs: fs, maxSections: maxSections);
-  return achievedDb(sections, [f], fs)[0];
+  return cascadeMagnitudeDb(sections, [f], fs)[0];
 }
 
 void main() {
   group('composeCorrection', () {
     test('a uniform slider move changes nothing', () {
       final grid = eqGrid();
-      final flat = composeCorrection(bandOffsetsDb: zeros(), freqs: grid);
+      final flat = composeCorrection(bandOffsetsDb: flatCurve(), freqs: grid);
       final lifted = composeCorrection(
           bandOffsetsDb: List.filled(kEqBands.length, 4.0), freqs: grid);
       for (var i = 0; i < grid.length; i++) {
@@ -32,7 +30,7 @@ void main() {
 
     test('band gains land at their own centre frequencies', () {
       final grid = eqGrid();
-      final o = zeros()..[4] = 6; // 1 kHz
+      final o = flatCurve()..[4] = 6; // 1 kHz
       final corr = composeCorrection(bandOffsetsDb: o, freqs: grid);
       final at1k = corr[_nearest(grid, 1000)];
       final at63 = corr[_nearest(grid, 63)];
@@ -42,7 +40,7 @@ void main() {
 
     test('held flat below the first band and above the last', () {
       final grid = eqGrid(lo: 20, hi: 20000);
-      final o = zeros()
+      final o = flatCurve()
         ..[0] = -6 // 63 Hz
         ..[7] = 2; // 8 kHz
       final corr = composeCorrection(bandOffsetsDb: o, freqs: grid);
@@ -77,7 +75,7 @@ void main() {
       final grid = eqGrid();
       final base = _syntheticBase(grid);
       final corr =
-          composeCorrection(base: base, bandOffsetsDb: zeros(), freqs: grid);
+          composeCorrection(base: base, bandOffsetsDb: flatCurve(), freqs: grid);
       for (var i = 0; i < grid.length; i++) {
         expect(corr[i], closeTo(base[i], 1e-9));
       }
@@ -86,7 +84,7 @@ void main() {
     test('offsets add on top of the base', () {
       final grid = eqGrid();
       final base = _syntheticBase(grid);
-      final o = zeros()..[4] = 3; // 1 kHz
+      final o = flatCurve()..[4] = 3; // 1 kHz
       final corr = composeCorrection(base: base, bandOffsetsDb: o, freqs: grid);
       final i = _nearest(grid, 1000);
       expect(corr[i], greaterThan(base[i] + 1));
@@ -97,7 +95,7 @@ void main() {
       // A base already pinned at the cut rail, plus a further cut.
       final base = Float64List.fromList(
           List<double>.filled(grid.length, -kEqMaxCutDb));
-      final o = zeros()..[4] = -6;
+      final o = flatCurve()..[4] = -6;
       final corr = composeCorrection(base: base, bandOffsetsDb: o, freqs: grid);
       expect(corr[_nearest(grid, 1000)], closeTo(-kEqMaxCutDb, 1e-9),
           reason: 'must stay at the rail, not reach -18 dB');
@@ -107,7 +105,7 @@ void main() {
       final grid = eqGrid();
       final base = _syntheticBase(grid);
       final a = composeCorrection(
-          base: base, bandOffsetsDb: zeros(), freqs: grid);
+          base: base, bandOffsetsDb: flatCurve(), freqs: grid);
       final b = composeCorrection(
           base: base,
           bandOffsetsDb: List.filled(kEqBands.length, -5.0),
@@ -121,16 +119,16 @@ void main() {
   group('sectionsForCorrection', () {
     test('a flat curve becomes a single passthrough section', () {
       final grid = eqGrid();
-      final corr = composeCorrection(bandOffsetsDb: zeros(), freqs: grid);
+      final corr = composeCorrection(bandOffsetsDb: flatCurve(), freqs: grid);
       final s = sectionsForCorrection(corr, grid, fs: 44100, maxSections: 16);
       expect(s, hasLength(1));
-      expect(achievedDb(s, [100, 1000, 5000], 44100).map((v) => v.abs()),
+      expect(cascadeMagnitudeDb(s, [100, 1000, 5000], 44100).map((v) => v.abs()),
           everyElement(lessThan(0.01)));
     });
 
     test('the achieved response tracks what was asked for', () {
       // A cut at 1 kHz and a lift at 125 Hz, checked where they were drawn.
-      final o = zeros()
+      final o = flatCurve()
         ..[1] = 5 // 125 Hz
         ..[4] = -8; // 1 kHz
       final grid = eqGrid();
@@ -143,7 +141,7 @@ void main() {
     test('never exceeds the player-reported section ceiling', () {
       final grid = eqGrid();
       final corr =
-          composeCorrection(bandOffsetsDb: zeros()..[3] = -9, freqs: grid);
+          composeCorrection(bandOffsetsDb: flatCurve()..[3] = -9, freqs: grid);
       for (final max in [1, 4, 8, 11, 16]) {
         final s =
             sectionsForCorrection(corr, grid, fs: 44100, maxSections: max);
@@ -155,14 +153,14 @@ void main() {
     test('a sub channel is fitted at its own rate, inside its own band', () {
       final grid = eqGrid();
       final corr =
-          composeCorrection(bandOffsetsDb: zeros()..[0] = -9, freqs: grid);
+          composeCorrection(bandOffsetsDb: flatCurve()..[0] = -9, freqs: grid);
       final sub =
           sectionsForCorrection(corr, grid, fs: kSubSampleRate, maxSections: 8);
       expect(sub, isNotEmpty);
       expect(sub.length, lessThanOrEqualTo(8));
       // The 63 Hz cut must actually be a cut when rendered at 8138 Hz. Designing
       // it at 44100 would put it ~5x off and leave 63 Hz untouched.
-      expect(achievedDb(sub, [63], kSubSampleRate)[0], lessThan(-2));
+      expect(cascadeMagnitudeDb(sub, [63], kSubSampleRate)[0], lessThan(-2));
     });
 
     test('every emitted section is stable and finite, at the rails', () {
@@ -170,7 +168,7 @@ void main() {
       for (final shape in [
         [for (var i = 0; i < kEqBands.length; i++) i.isEven ? 60.0 : -60.0],
         List.filled(kEqBands.length, -60.0)..[0] = 60,
-        zeros()..[7] = 60,
+        flatCurve()..[7] = 60,
       ]) {
         final corr = composeCorrection(bandOffsetsDb: shape, freqs: grid);
         for (final fs in [44100.0, kSubSampleRate]) {

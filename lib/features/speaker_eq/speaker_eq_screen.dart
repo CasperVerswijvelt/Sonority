@@ -51,7 +51,7 @@ class SpeakerEqScreen extends ConsumerStatefulWidget {
 class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
   /// Band offsets per member UUID. In "all speakers" mode every member shares
   /// [_shared]; individual mode edits [_perMember].
-  List<double> _shared = List<double>.filled(kEqBands.length, 0);
+  List<double> _shared = flatCurve();
   final Map<String, List<double>> _perMember = {};
   bool _individual = false;
   String? _editing; // the member whose sliders are on screen, in individual mode
@@ -93,12 +93,12 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
   Map<String, List<double>> _offsetsFor(List<SonosDevice> members) => {
         for (final d in members)
           d.uuid: _individual
-              ? (_perMember[d.uuid] ?? List<double>.filled(kEqBands.length, 0))
+              ? (_perMember[d.uuid] ?? flatCurve())
               : _shared,
       };
 
   List<double> get _current => _individual
-      ? (_perMember[_editing!] ??= List<double>.filled(kEqBands.length, 0))
+      ? (_perMember[_editing!] ??= flatCurve())
       : _shared;
 
   void _setBand(int i, double v, List<SonosDevice> members) {
@@ -184,7 +184,7 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
         .remove(entityId: widget.uuid, members: members);
     if (done && mounted) {
       setState(() {
-        _shared = List<double>.filled(kEqBands.length, 0);
+        _shared = flatCurve();
         _perMember.clear();
       });
     }
@@ -212,7 +212,7 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
     final status = ref.watch(speakerEqControllerProvider);
     final requested =
         composeCorrection(bandOffsetsDb: _current, freqs: _freqs);
-    final achieved = achievedDb(
+    final achieved = cascadeMagnitudeDb(
       sectionsForCorrection(requested, _freqs, fs: 44100, maxSections: 16),
       _freqs,
       44100,
@@ -294,8 +294,8 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
               onReset: () => setState(() {
                 _individual
                     ? _perMember[_editing!] =
-                        List<double>.filled(kEqBands.length, 0)
-                    : _shared = List<double>.filled(kEqBands.length, 0);
+                        flatCurve()
+                    : _shared = flatCurve();
               }),
             ),
           ),
@@ -437,7 +437,7 @@ class _Bands extends StatelessWidget {
                         divisions: (kEqMaxCutDb + kEqMaxBoostDb).round() * 2,
                         label: l10n.eqGainDb(_fmt(gains[i])),
                         semanticFormatterCallback: (v) =>
-                            '${l10n.eqBandSemantics(_hz(kEqBands[i]))}, '
+                            '${l10n.eqBandSemantics(eqBandLabel(kEqBands[i]))}, '
                             '${l10n.eqGainDb(_fmt(v))}',
                         // Writes go on release, never on drag: a live apply is N
                         // network writes to real speakers.
@@ -446,7 +446,8 @@ class _Bands extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Text(_hz(kEqBands[i]), style: theme.textTheme.labelSmall),
+                  Text(eqBandLabel(kEqBands[i]),
+                      style: theme.textTheme.labelSmall),
                 ],
               ),
             ),
@@ -457,9 +458,6 @@ class _Bands extends StatelessWidget {
 
   static String _fmt(double v) =>
       '${v > 0 ? '+' : ''}${v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1)}';
-
-  static String _hz(double f) =>
-      f >= 1000 ? '${(f / 1000).toStringAsFixed(0)}k' : f.toStringAsFixed(0);
 }
 
 class _ModeRow extends StatelessWidget {

@@ -95,7 +95,7 @@ class _EqPainter extends CustomPainter {
     for (final f in kEqBands) {
       final x = _x(f, size);
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
-      _text(canvas, _bandLabel(f), Offset(x, size.height - 14));
+      _text(canvas, eqBandLabel(f), Offset(x, size.height - 14));
     }
 
     for (final c in curves) {
@@ -115,9 +115,6 @@ class _EqPainter extends CustomPainter {
       );
     }
   }
-
-  static String _bandLabel(double f) =>
-      f >= 1000 ? '${(f / 1000).toStringAsFixed(0)}k' : f.toStringAsFixed(0);
 
   void _dashedLine(Canvas canvas, Offset a, Offset b, Paint paint) {
     const dash = 4.0, gap = 4.0;

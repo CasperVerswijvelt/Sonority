@@ -27,6 +27,10 @@ import 'dart:typed_data';
 import 'trueplay_codec.dart';
 import 'trueplay_fit.dart';
 
+/// Re-exported so a caller drawing the achieved response against the requested
+/// one needs a single import.
+export 'trueplay_fit.dart' show cascadeMagnitudeDb;
+
 /// The band centres (Hz) the sliders address — ISO octave centres.
 const kEqBands = <double>[63, 125, 250, 500, 1000, 2000, 4000, 8000];
 
@@ -44,6 +48,14 @@ const kSubSampleRate = 8138.0;
 /// The log-frequency grid corrections are composed and fitted on.
 List<double> eqGrid({double lo = 30, double hi = 16000, int n = 96}) =>
     geomspace(lo, hi, n);
+
+/// A curve with every band at rest.
+List<double> flatCurve() => List<double>.filled(kEqBands.length, 0);
+
+/// A band centre as the UI writes it: "63", "1k". Shared by the sliders and the
+/// plot's axis so the two can't label the same band differently.
+String eqBandLabel(double f) =>
+    f >= 1000 ? '${(f / 1000).toStringAsFixed(0)}k' : f.toStringAsFixed(0);
 
 /// Are all bands at rest? A flat curve needs no filters at all.
 bool isFlat(List<double> bandOffsetsDb) =>
@@ -107,7 +119,6 @@ List<BiquadSos> sectionsForCorrection(
   required int maxSections,
 }) {
   assert(correctionDb.length == freqs.length);
-  if (maxSections < 1) return const [];
 
   // A sub reproduces roughly 20–120 Hz, so fitting it against the full curve
   // spends every filter above its passband. Everything else fits its whole
@@ -128,6 +139,8 @@ List<BiquadSos> sectionsForCorrection(
 
   // fitBiquads emits nBands peaking sections plus one low shelf.
   final nBands = math.min(narrow ? 6 : 10, maxSections - 1);
+  // A player reporting room for fewer than a shelf + one peak gets a do-nothing
+  // entry: it still needs one, it just can't carry a curve.
   if (nBands < 1) return const [BiquadSos.passthrough];
 
   final fit = fitBiquads(
@@ -144,7 +157,8 @@ List<BiquadSos> sectionsForCorrection(
     // The player validates nothing: an unstable section is accepted, stored and
     // then run. RBJ sections are stable by construction, so this is an assertion
     // about our own maths, not about input.
-    if (!poleModulus(s).isFinite || poleModulus(s) >= 1) {
+    final pole = poleModulus(s);
+    if (!pole.isFinite || pole >= 1) {
       throw StateError('custom_eq produced an unstable section: $s');
     }
     if ([s.b0, s.b1, s.b2, s.a1, s.a2].any((c) => !c.isFinite)) {
@@ -153,10 +167,3 @@ List<BiquadSos> sectionsForCorrection(
   }
   return sections;
 }
-
-/// What the cascade actually does, for the preview — so the UI can draw the
-/// achieved response against the requested one rather than promising the
-/// sliders' shape and delivering something else.
-Float64List achievedDb(
-        List<BiquadSos> sections, List<double> freqs, double fs) =>
-    cascadeMagnitudeDb(sections, freqs, fs);
