@@ -1294,7 +1294,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nothing selected yet — choose speakers above.';
 
   @override
-  String get frontSurroundsReviewNote => 'You can change this anytime.';
+  String get frontSurroundsReviewNote => 'The layout can be changed anytime.';
 
   @override
   String frontSurroundsTrueplayLoses(String names) {

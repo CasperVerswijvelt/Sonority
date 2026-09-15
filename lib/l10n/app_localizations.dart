@@ -2122,10 +2122,10 @@ abstract class AppLocalizations {
   /// **'Nothing selected yet — choose speakers above.'**
   String get frontSurroundsNothingSelected;
 
-  /// Closing line of the single review-step note. The diagram above already shows the layout, so the note only carries what the diagram cannot.
+  /// Reassurance under the review-step warning card. Scoped to the LAYOUT on purpose: it renders directly below the lines naming the speakers that leave and the tunings this apply clears, and a cleared Trueplay tuning is exactly what cannot be changed back here (re-measuring needs the iOS Sonos app).
   ///
   /// In en, this message translates to:
-  /// **'You can change this anytime.'**
+  /// **'The layout can be changed anytime.'**
   String get frontSurroundsReviewNote;
 
   /// Review-step line naming the speakers whose stored tuning this apply clears. Worded without it/them so it needs no plural: two identical models share one label.

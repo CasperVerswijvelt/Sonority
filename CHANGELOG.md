@@ -20,7 +20,7 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Changed
 - Removing a speaker from a home theater no longer opens a confirmation dialog: the destructive-write gate moves to the review step, one tap before Apply, where the warning names the speakers that lose their Trueplay and the selection can still be changed.
-- The home theater review step now names what the apply costs — the speakers that leave and the speakers that lose their Trueplay — in one warning card, with "you can change this anytime" kept outside it so the reassurance can't read as covering the losses.
+- The home theater review step now names what the apply costs — the speakers that leave and the speakers that lose their Trueplay — in one warning card, with "the layout can be changed anytime" kept outside it and scoped to the layout so the reassurance can't read as covering the losses.
 - Any home theater change now warns that the speakers already in it lose their tuning, not just one that removes a speaker — adding a front was measured to clear the soundbar's and the rear surrounds' tuning too.
 - Emailing a diagnostics bundle now asks what went wrong first (at least 20 characters) and puts that description in the mail body and in the bundle as `user_note.txt`, so a report never arrives without an explanation. Share and save-to-disk are unchanged.
 

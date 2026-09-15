@@ -786,9 +786,9 @@
   "frontSurroundsChooseTwoFirst": "Choose two speakers first.",
   "frontSurroundsTapSwap": "Tap swap if the sides are reversed.",
   "frontSurroundsNothingSelected": "Nothing selected yet — choose speakers above.",
-  "frontSurroundsReviewNote": "You can change this anytime.",
+  "frontSurroundsReviewNote": "The layout can be changed anytime.",
   "@frontSurroundsReviewNote": {
-    "description": "Closing line of the single review-step note. The diagram above already shows the layout, so the note only carries what the diagram cannot."
+    "description": "Reassurance under the review-step warning card. Scoped to the LAYOUT on purpose: it renders directly below the lines naming the speakers that leave and the tunings this apply clears, and a cleared Trueplay tuning is exactly what cannot be changed back here (re-measuring needs the iOS Sonos app)."
   },
   "frontSurroundsTrueplayLoses": "Loses Trueplay: {names}. Re-tune in the Sonos app.",
   "@frontSurroundsTrueplayLoses": {
