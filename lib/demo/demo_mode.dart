@@ -75,20 +75,36 @@ class _DemoSonosRepository extends SonosRepository {
   Future<SonosSystem> refresh(SonosSystem previous, String ip) async =>
       demoSystem;
 
-  // Bonding dedicated fronts makes Sonos invalidate Trueplay across the whole
-  // HT set (every member drops to available=0) and we can't restore it — so the
-  // Living-Room HT honestly reads "not tuned". Standalone rooms keep a real
-  // tuning so the read/toggle feature is still demoable on the room detail.
-  static final _bondedFrontsIps = {
-    '192.0.2.10', // Arc coordinator
-    for (final s in _htSatellites) s.ip,
+  // What a home theater ACTUALLY looks like after dedicated fronts are bonded,
+  // per EXP-23: the outcome is PARTIAL, not uniform. Measured on hardware — a
+  // speaker absorbed out of a live pair keeps its stored tuning but comes back
+  // switched off (`1/0`), while the members the bond disturbed lose theirs
+  // outright (`0/0`). This demo used to model it as everything wiped, which is
+  // tidier and wrong, and it hid the one UI state the toggle's warning exists
+  // for.
+  static final _htWipedIps = {
+    '192.0.2.10', // Arc coordinator — the bar loses it in every measured case
+    for (final s in _htSatellites)
+      if (s.channels.first != SonosChannel.leftFront &&
+          s.channels.first != SonosChannel.rightFront)
+        s.ip,
+  };
+  static final _htRetainedIps = {
+    for (final s in _htSatellites)
+      if (s.channels.first == SonosChannel.leftFront ||
+          s.channels.first == SonosChannel.rightFront)
+        s.ip,
   };
 
   @override
   Future<RoomCalibration> roomCalibration(String ip) async =>
-      _bondedFrontsIps.contains(ip)
+      _htWipedIps.contains(ip)
           ? const RoomCalibration(available: false, enabled: false)
-          : const RoomCalibration(available: true, enabled: true);
+          // Stored, but switched off and not switchable back on — the state
+          // Sonos leaves an absorbed speaker in.
+          : _htRetainedIps.contains(ip)
+              ? const RoomCalibration(available: true, enabled: false)
+              : const RoomCalibration(available: true, enabled: true);
 
   @override
   Future<void> setRoomCalibration(String ip, bool on) async {}
