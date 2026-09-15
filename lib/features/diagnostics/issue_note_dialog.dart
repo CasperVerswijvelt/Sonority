@@ -16,6 +16,10 @@ const kMinIssueNoteLength = 20;
 Future<String?> showIssueNoteDialog(BuildContext context, {String? initial}) =>
     showDialog<String>(
       context: context,
+      // The only dialog in the app that blocks a scrim tap: everywhere else a
+      // dismiss costs nothing, here it silently discards several typed
+      // sentences. Back still cancels, which reads as deliberate.
+      barrierDismissible: false,
       builder: (ctx) => _IssueNoteDialog(initial: initial),
     );
 
