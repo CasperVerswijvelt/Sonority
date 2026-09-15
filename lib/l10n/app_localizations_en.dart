@@ -518,7 +518,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get widgetsTrueplayConfirmOffBody =>
-      'Not every speaker here is tuned, so turning it back on later could destroy the tunings that are left. You may not get this back.';
+      'Not every speaker here is tuned, so turning it back on later could destroy the tunings that are left.';
 
   @override
   String get widgetsTrueplayConfirmOffAction => 'Turn off anyway';

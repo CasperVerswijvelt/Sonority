@@ -871,7 +871,7 @@ abstract class AppLocalizations {
   /// Body of that confirm. Turning off is not itself known to be destructive; the point is that the only way back is the enable, which can be.
   ///
   /// In en, this message translates to:
-  /// **'Not every speaker here is tuned, so turning it back on later could destroy the tunings that are left. You may not get this back.'**
+  /// **'Not every speaker here is tuned, so turning it back on later could destroy the tunings that are left.'**
   String get widgetsTrueplayConfirmOffBody;
 
   /// Confirm action for switching Trueplay off despite not being able to switch it back on safely.

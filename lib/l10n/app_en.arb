@@ -326,7 +326,7 @@
   "@widgetsTrueplayConfirmOffTitle": {
     "description": "Confirm shown when switching Trueplay off while the bonded set is only partly tuned."
   },
-  "widgetsTrueplayConfirmOffBody": "Not every speaker here is tuned, so turning it back on later could destroy the tunings that are left. You may not get this back.",
+  "widgetsTrueplayConfirmOffBody": "Not every speaker here is tuned, so turning it back on later could destroy the tunings that are left.",
   "@widgetsTrueplayConfirmOffBody": {
     "description": "Body of that confirm. Turning off is not itself known to be destructive; the point is that the only way back is the enable, which can be."
   },
