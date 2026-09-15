@@ -944,12 +944,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       for (final m in members) m.device.uuid,
       if (sub != null) sub.uuid,
     ];
-    // Before anything destructive: the free below DISSOLVES whatever bond a
-    // member is in, and `createGroup` rejects a member with no IP — so a
-    // speaker recovered from topology alone would have cost the user a live
-    // group and then thrown without a single bond write.
-    _requireIps([for (final m in members) m.device, if (sub != null) sub]);
-
     final l10n = appL10n();
     final tracker = _newTracker([
       ApplyStep(id: 'group', label: l10n.stepCreateGroupN(members.length)),
@@ -961,6 +955,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final result = await AsyncValue.guard(() async {
       tracker.start('group');
       final ph = _phases(tracker, 'group');
+      // Before anything destructive: the free below DISSOLVES whatever bond a
+      // member is in, and `createGroup` rejects a member with no IP — so a
+      // speaker recovered from topology alone would have cost the user a live
+      // group and then thrown without a single bond write. INSIDE the guard so
+      // the failure renders: `showBondingProgress` clears the step list first,
+      // and throwing above the tracker left a bare spinner under a red Done bar
+      // with the error text never shown.
+      _requireIps([for (final m in members) m.device, if (sub != null) sub]);
       final wanted = name?.trim();
       // Speakers bonded elsewhere must be FREED first: unlike `AddHTSatellite`,
       // which absorbs a speaker straight out of a live pair or zone,
@@ -1161,17 +1163,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     // target (e.g. a name-only edit) — no needless live write, mirroring the HT
     // `_applyHtTarget` no-op case.
     final needsBond = !(previous != null && applied(previous));
-    // Before anything destructive: the free below DISSOLVES whatever bond a
-    // taken speaker is in, and the rebuild path dissolves THIS group — so a
-    // missing IP has to fail here, not after. An in-place re-assert only writes
-    // to the coordinator; a rebuild goes through `createGroup`, which needs
-    // every member's IP.
-    if (needsBond) {
-      _requireIps(inPlace
-          ? [coord]
-          : [for (final m in members) m.device, if (sub != null) sub]);
-    }
-
     final l10n = appL10n();
     final tracker =
         _newTracker([ApplyStep(id: 'edit', label: l10n.stepEditGroup)]);
@@ -1181,6 +1172,24 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final result = await AsyncValue.guard(() async {
       tracker.start('edit');
       final ph = _phases(tracker, 'edit');
+      // Before anything destructive: the free below DISSOLVES whatever bond a
+      // taken speaker is in, and the rebuild path dissolves THIS group — so a
+      // missing IP has to fail here, not after. An in-place re-assert only
+      // writes to the coordinator; a rebuild goes through `separateGroup` +
+      // `createGroup`, which need every member's IP AND the OUTGOING
+      // coordinator's (it isn't in `members` on a coordinator change, and
+      // `separateGroup` throws on its missing IP). Inside the guard so the
+      // failure renders instead of hanging the progress screen on a spinner.
+      if (needsBond) {
+        _requireIps(inPlace
+            ? [coord]
+            : [
+                for (final m in members) m.device,
+                if (sub != null) sub,
+                if (previous?.device(existing.uuid) case final outgoing?)
+                  outgoing,
+              ]);
+      }
       // A member taken from ANOTHER bond has to be freed first: `AddBondedZones`
       // is accepted and silently no-ops on a speaker bonded elsewhere (EXP-23
       // Q11), and `reassertGroup` would then re-assert — each attempt rebuilding
