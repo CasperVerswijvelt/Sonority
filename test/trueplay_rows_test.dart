@@ -73,6 +73,8 @@ void main() {
         findsOneWidget);
     expect(find.textContaining('Not tuned'), findsNothing,
         reason: 'nothing answered, so there is no tuning fact to assert');
+    expect(find.byType(LabelValueRow), findsNothing,
+        reason: 'nothing was read, so every row would say the same thing');
   });
 
   testWidgets('a single unreadable speaker is not called "these speakers"',
@@ -99,9 +101,9 @@ void main() {
 
   testWidgets('one unreadable speaker does not make the whole set "not tuned"',
       (tester) async {
-    // Five read a stored-nothing, the sixth faulted. "Not tuned" would assert a
-    // tuning fact about the one that never answered, so the counter runs
-    // instead and the breakdown names it.
+    // Two of the three answered with no stored tuning; the third never
+    // answered at all. "Not tuned" would assert a tuning fact about that one,
+    // so the counter runs instead and the breakdown names it.
     await tester.pumpWidget(trueplayHarness(
       [bar, left, right],
       const {'BAR': none, 'LEFT': none},
