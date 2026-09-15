@@ -19,6 +19,13 @@ class _FakeSsdp extends SsdpDiscovery {
       {_aUrl, _bUrl};
 }
 
+/// SSDP sees only player A — the other member exists in topology alone.
+class _FakeSsdpAOnly extends SsdpDiscovery {
+  @override
+  Future<Set<String>> discover({Duration timeout = const Duration(seconds: 4)}) async =>
+      {_aUrl};
+}
+
 class _FakeDescriptions extends DeviceDescriptionClient {
   final Set<String> alwaysFail;
   final Set<String> failOnce;
@@ -55,6 +62,32 @@ class _FakeTopology extends ZoneTopologyClient {
         ZoneGroup(coordinatorUuid: 'RINCON_A01400', members: [
           ZoneGroupMember(uuid: 'RINCON_A01400', zoneName: 'Living', location: _aUrl),
           ZoneGroupMember(uuid: 'RINCON_B01400', zoneName: 'Bureau', location: _bUrl),
+        ]),
+      ];
+}
+
+/// A stereo pair whose hidden right half SSDP missed. The pair coordinator
+/// carries the ChannelMapSet; the other half is its own `Invisible="1"` member,
+/// reachable only through that member's Location.
+class _FakeHiddenHalfTopology extends ZoneTopologyClient {
+  _FakeHiddenHalfTopology() : super(SonosSoapClient());
+
+  @override
+  Future<List<ZoneGroup>> getZoneGroups(String ip) async => const [
+        ZoneGroup(coordinatorUuid: 'RINCON_A01400', members: [
+          ZoneGroupMember(
+            uuid: 'RINCON_A01400',
+            zoneName: 'Living',
+            location: _aUrl,
+            channelMapSet: 'RINCON_A01400:LF,LF;RINCON_B01400:RF,RF',
+          ),
+          ZoneGroupMember(
+            uuid: 'RINCON_B01400',
+            zoneName: 'Living',
+            location: _bUrl,
+            invisible: true,
+            channelMapSet: 'RINCON_A01400:LF,LF;RINCON_B01400:RF,RF',
+          ),
         ]),
       ];
 }
@@ -124,6 +157,30 @@ void main() {
     final sub = system.device('RINCON_SUB01400');
     expect(sub, isNotNull);
     expect(sub!.reachable, isFalse);
+  });
+
+  // A hidden pair half / zone member is an `Invisible="1"` MEMBER, and the
+  // sweep used to skip those. A group edit builds its target from RESOLVED
+  // devices and silently drops what it can't resolve, so a rename would have
+  // dissolved the pair and rebuilt it WITHOUT the missing half.
+  test('recovers an INVISIBLE member that SSDP missed', () async {
+    final descriptions = _FakeDescriptions();
+    final system = await SonosRepository(
+      ssdp: _FakeSsdpAOnly(),
+      descriptions: descriptions,
+      topology: _FakeHiddenHalfTopology(),
+    ).discover();
+
+    expect(descriptions.calls[_bUrl], 1, reason: 'fetched from its Location');
+    final half = system.device('RINCON_B01400');
+    expect(half, isNotNull,
+        reason: 'unresolved, a group edit would have left it behind');
+    expect(half!.modelName, 'Sonos One');
+    // Still hidden where hiding belongs — the room list, not the device map.
+    expect(system.allMembers.map((m) => m.uuid), ['RINCON_A01400']);
+    // And a resolved hidden half must not become a bond candidate.
+    expect(system.bondableSpeakers.map((d) => d.uuid),
+        isNot(contains('RINCON_B01400')));
   });
 
   test('recovers a topology member whose first description fetch failed', () async {

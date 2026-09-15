@@ -115,12 +115,18 @@ class SonosRepository {
     // so an apply would have dropped the SW channel and `RemoveHTSatellite`'d
     // the user's Sub with no warning (which per EXP-23 also wipes the bond's
     // Trueplay). Seen live on hardware.
+    //
+    // INVISIBLE MEMBERS COUNT for the same reason. A stereo-pair half and every
+    // non-coordinator zone member is its own `Invisible="1"` member, and a
+    // group edit builds its target from resolved devices too — an SSDP-missed
+    // one silently left the group on a rename. Re-fetching is by `Location`, so
+    // hidden or not makes no difference; `allMembers` filters Invisible where it
+    // belongs, at the topology, not by leaving the device unresolvable. It also
+    // gets a standalone Sub (Invisible as well) a real description.
     final missing = [
       for (final g in groups)
         for (final m in g.members) ...[
-          if (!m.invisible &&
-              m.location != null &&
-              !devicesByUuid.containsKey(m.uuid))
+          if (m.location != null && !devicesByUuid.containsKey(m.uuid))
             (uuid: m.uuid, name: m.zoneName, location: m.location!, ip: m.ip),
           for (final s in m.satellites)
             if (s.location != null && !devicesByUuid.containsKey(s.uuid))
