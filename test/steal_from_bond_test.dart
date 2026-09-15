@@ -514,4 +514,106 @@ void main() {
       expect(cost(pair, const {pairL: untuned}), contains('cleared'));
     });
   });
+
+  group('a bonded speaker is never titled by the bond\'s name', () {
+    // Sonos absorbs a bonded speaker's room name into the bond's, so BOTH
+    // halves report the same name. Titling a picker card by room name there
+    // printed that one name on every member: two adjacent cards reading
+    // "Woonkamer", told apart only by their Left/Right toggle. The card falls
+    // back to the room name whenever `titleOverride` is null, so null IS the
+    // bug — it is not an absence of opinion.
+    Future<String?> title(
+      WidgetTester tester,
+      PickerContext ctx,
+      SonosDevice d,
+    ) async {
+      String? got;
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(builder: (context) {
+          got = ctx.titleOverride(context, d);
+          return const SizedBox.shrink();
+        }),
+      ));
+      return got;
+    }
+
+    testWidgets("the CONFIGURED entity's own members title by type", (t) async {
+      // `rear` is already a satellite of the home theater being configured, so
+      // it is listed as available (keeping it costs nothing) — but its name is
+      // still the bar's.
+      final ctx = PickerContext(
+        system: system,
+        calibration: const {},
+        exceptPrimary: bar,
+      );
+      expect(await title(t, ctx, devices[rear]!), 'Play:1',
+          reason: 'null would fall back to the home theater\'s room name');
+    });
+
+    testWidgets('a group edit titles its own members by type too', (t) async {
+      // The same path via `exceptPrimary: editUuid`: two Play:1s in one zone,
+      // both carrying the zone's name, are the observed duplicate-title case.
+      const a = 'RINCON_TWINA01400';
+      const b = 'RINCON_TWINB01400';
+      SonosDevice twin(String uuid) => SonosDevice(
+          uuid: uuid,
+          roomName: 'Boven',
+          modelName: 'Sonos Play:1',
+          ip: '1.2.3.4');
+      final twins = SonosSystem(
+        groups: [
+          ZoneGroup(coordinatorUuid: a, members: const [
+            ZoneGroupMember(
+              uuid: a,
+              zoneName: 'Boven',
+              channelMapSet: '$a:LF,RF;$b:LF,RF',
+            ),
+          ]),
+        ],
+        devicesByUuid: {a: twin(a), b: twin(b)},
+      );
+      final ctx =
+          PickerContext(system: twins, calibration: const {}, exceptPrimary: a);
+      for (final u in [a, b]) {
+        expect(await title(t, ctx, twins.device(u)!), 'Play:1',
+            reason: 'both would otherwise read "Boven"');
+      }
+    });
+
+    testWidgets('another bond still says which channel it holds', (t) async {
+      // Regression guard: under a heading that names the source bond, the
+      // channel is what tells two same-model cards apart.
+      final ctx = PickerContext(
+        system: system,
+        calibration: const {},
+        exceptPrimary: bar,
+      );
+      expect(await title(t, ctx, devices[pairR]!), 'One SL · R');
+      expect(await title(t, ctx, devices[rear]!), isNot(contains('·')),
+          reason: "no heading names this speaker's bond, and the live channel "
+              'would contradict the L/R toggle the user is editing with');
+    });
+
+    testWidgets('a free speaker keeps its own room name', (t) async {
+      const free = 'RINCON_FREE01400';
+      final d = SonosDevice(
+          uuid: free,
+          roomName: 'Kitchen',
+          modelName: 'Sonos One',
+          ip: '1.2.3.9');
+      final sys = SonosSystem(
+        groups: [
+          ZoneGroup(coordinatorUuid: free, members: const [
+            ZoneGroupMember(uuid: free, zoneName: 'Kitchen'),
+          ]),
+        ],
+        devicesByUuid: {free: d},
+      );
+      final ctx = PickerContext(system: sys, calibration: const {});
+      expect(await title(t, ctx, d), isNull,
+          reason: 'it has a name of its own — the card shows it');
+    });
+  });
 }

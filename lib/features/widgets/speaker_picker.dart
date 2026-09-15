@@ -281,17 +281,19 @@ class PickerContext {
         exceptPrimary: exceptPrimary,
       );
 
-  /// Whether this speaker is shown under a bond heading (and so titles by type).
-  bool isBonded(String uuid) {
-    final owner = system.ownerOf(uuid);
-    return owner != null && owner != exceptPrimary;
-  }
-
-  /// The card title: room name normally, `Type · Channel` under a bond heading.
-  String? titleOverride(BuildContext context, SonosDevice d) => isBonded(d.uuid)
-      ? bondedCardTitle(context.l10n, system,
-          device: d, exceptPrimary: exceptPrimary)
-      : null;
+  /// The card title: the room name for a free speaker, the TYPE for a bonded
+  /// one (plus its channel when a heading names the bond it comes from).
+  ///
+  /// The question is "does this speaker have a name of its own", NOT "is it
+  /// listed under a bond heading". A member of the entity being CONFIGURED is
+  /// listed as available — keeping it costs nothing — but Sonos absorbed its
+  /// name into the bond's just the same, so titling it by room name printed the
+  /// bond's name on every member: two adjacent fronts both reading "Woonkamer".
+  String? titleOverride(BuildContext context, SonosDevice d) =>
+      system.ownerOf(d.uuid) == null
+          ? null
+          : bondedCardTitle(context.l10n, system,
+              device: d, exceptPrimary: exceptPrimary);
 
   Widget? header(BuildContext context, PickerSection s, int count) =>
       _sectionHeader(context,
