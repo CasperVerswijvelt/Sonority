@@ -1425,13 +1425,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eqApplied => 'Applied';
 
   @override
-  String get eqTuningToggle => 'EQ active';
-
-  @override
-  String get eqTuningToggleUntuned =>
-      'Nothing applied yet. Adjust the bands and tap Apply.';
-
-  @override
   String get eqRemove => 'Remove EQ';
 
   @override
@@ -1439,7 +1432,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get eqRemoveBody =>
-      'This clears the stored tuning from every speaker in this configuration. To switch the EQ off without losing it, use the Tuning toggle above instead.';
+      'This clears the stored tuning from every speaker in this configuration. To switch it off without losing it, use the Trueplay toggle on the previous screen instead.';
 
   @override
   String get eqRemoveConfirm => 'Remove';

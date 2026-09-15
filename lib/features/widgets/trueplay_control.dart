@@ -23,20 +23,10 @@ class TrueplayControl extends ConsumerStatefulWidget {
   /// tunes native speakers). Shows an explanation instead of a toggle.
   final String? unsupportedReason;
 
-  /// Overrides for the EQ page, where this same switch is the EQ's on/off.
-  ///
-  /// A speaker holds ONE tuning, so the row is the right control there — but its
-  /// default copy ("Trueplay … run Trueplay once in the Sonos app") would tell a
-  /// user to go elsewhere on the very page that authors the tuning.
-  final String? title;
-  final String? untunedSubtitle;
-
   const TrueplayControl({
     super.key,
     required this.devices,
     this.unsupportedReason,
-    this.title,
-    this.untunedSubtitle,
   });
 
   @override
@@ -90,7 +80,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     if (busy && known.isEmpty) {
       subtitle = l10n.widgetsTrueplayChecking;
     } else if (tunedCount == 0) {
-      subtitle = widget.untunedSubtitle ?? l10n.widgetsTrueplayNotTuned;
+      subtitle = l10n.widgetsTrueplayNotTuned;
     } else if (withIp.length == 1) {
       // Single speaker — the x/y counter adds nothing.
       subtitle = isOn ? l10n.widgetsTrueplayActive : l10n.widgetsTrueplayTunedOff;
@@ -160,7 +150,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       contentPadding:
           const EdgeInsets.symmetric(horizontal: kPageGutter, vertical: 4),
       leading: Icon(icon, color: iconColor),
-      title: Text(widget.title ?? 'Trueplay'),
+      title: const Text('Trueplay'),
       subtitle: Text(subtitle),
       trailing: trailing,
       onTap: onTap,

@@ -2344,18 +2344,6 @@ abstract class AppLocalizations {
   /// **'Applied'**
   String get eqApplied;
 
-  /// No description provided for @eqTuningToggle.
-  ///
-  /// In en, this message translates to:
-  /// **'EQ active'**
-  String get eqTuningToggle;
-
-  /// No description provided for @eqTuningToggleUntuned.
-  ///
-  /// In en, this message translates to:
-  /// **'Nothing applied yet. Adjust the bands and tap Apply.'**
-  String get eqTuningToggleUntuned;
-
   /// No description provided for @eqRemove.
   ///
   /// In en, this message translates to:
@@ -2371,7 +2359,7 @@ abstract class AppLocalizations {
   /// No description provided for @eqRemoveBody.
   ///
   /// In en, this message translates to:
-  /// **'This clears the stored tuning from every speaker in this configuration. To switch the EQ off without losing it, use the Tuning toggle above instead.'**
+  /// **'This clears the stored tuning from every speaker in this configuration. To switch it off without losing it, use the Trueplay toggle on the previous screen instead.'**
   String get eqRemoveBody;
 
   /// No description provided for @eqRemoveConfirm.

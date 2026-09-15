@@ -11,8 +11,7 @@ import '../../state/speaker_eq_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/destructive_button.dart';
-import '../widgets/settings_section.dart';
-import '../widgets/trueplay_control.dart';
+import '../widgets/scroll_footer.dart';
 import 'eq_curve_view.dart';
 import 'eq_slider.dart';
 
@@ -243,34 +242,25 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
     return AppScaffold(
       title: member.zoneName,
       subtitle: l10n.eqTitle,
-      // A real horizontal Stepper: the two stages are steps of one flow, and
-      // Measure is a DISABLED step rather than a hidden one — that is how a user
-      // learns the flow has a second half. Its own ListView scrolls the content,
-      // so there is no ScrollFooter here; the controls sit at the end of the
-      // step instead of pinned.
-      body: Stepper(
-        type: StepperType.horizontal,
-        currentStep: 1,
-        margin: EdgeInsets.zero,
-        // Default elevation kept: it is what separates the pinned header from
-        // the scrolling step below.
-        contentPadding: const EdgeInsets.only(top: 16, bottom: 32),
-        // The built-in Continue/Cancel pair means nothing here; Apply is the
-        // commit and it lives with the thing it applies.
-        controlsBuilder: (_, __) => const SizedBox.shrink(),
-        onStepTapped: (_) {},
-        steps: [
-          Step(
-            title: Text(l10n.eqStepMeasure),
-            subtitle: Text(l10n.eqComingSoon),
-            state: StepState.disabled,
-            content: const SizedBox.shrink(),
-          ),
-          Step(
-            title: Text(l10n.eqStepAdjust),
-            isActive: true,
-            content: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: Column(
+        children: [
+          // The two stages of one flow. Hand-rolled rather than Flutter's
+          // Stepper: that one puts the label beside the number and separates its
+          // header with elevation, and it owns a ListView that would fight the
+          // pinned footer below.
+          const _StepHeader(),
+          Divider(height: 1, color: scheme.outlineVariant),
+          Expanded(
+            child: ScrollFooter(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              footer: _Footer(
+                status: status,
+                live: _live,
+                onLive: (v) => _toggleLive(v, members),
+                onApply: () => _apply(members),
+                onRemove: () => _remove(members),
+                hasTuning: _applied,
+              ),
               children: [
                 // Scope first: what you are editing, before what it looks like.
                 _Gutter(
@@ -353,21 +343,107 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
                     ),
                   ),
                 ),
-                Gap.m,
-                _Footer(
-                  status: status,
-                  live: _live,
-                  onLive: (v) => _toggleLive(v, members),
-                  onApply: () => _apply(members),
-                  onRemove: () => _remove(members),
-                  devices: members,
-                  hasTuning: _applied,
-                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The flow's two stages: a numbered marker with its label underneath, joined by
+/// a connector. Measure is disabled and subtitled — it is a stage of this flow
+/// that isn't built, not a separate feature, and showing it is how a user learns
+/// the flow has a second half.
+class _StepHeader extends StatelessWidget {
+  const _StepHeader();
+
+  static const _markerSize = 28.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(kPageGutter, 12, kPageGutter, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Step(
+            number: 1,
+            title: l10n.eqStepMeasure,
+            subtitle: l10n.eqComingSoon,
+            active: false,
+          ),
+          // Spans the gap between the markers, on their centre line rather than
+          // the row's — the steps size to their labels, the connector takes the
+          // rest.
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12)
+                  .add(const EdgeInsets.only(top: _markerSize / 2)),
+              child: SizedBox(
+                height: 1,
+                child: ColoredBox(
+                    color: Theme.of(context).colorScheme.outlineVariant),
+              ),
+            ),
+          ),
+          _Step(number: 2, title: l10n.eqStepAdjust, active: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _Step extends StatelessWidget {
+  final int number;
+  final String title;
+  final String? subtitle;
+  final bool active;
+  const _Step({
+    required this.number,
+    required this.title,
+    required this.active,
+    this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final fg = active ? scheme.onSurface : scheme.onSurfaceVariant;
+    return Column(
+      children: [
+        Container(
+          width: _StepHeader._markerSize,
+          height: _StepHeader._markerSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: active ? scheme.primary : Colors.transparent,
+            border: active ? null : Border.all(color: scheme.outlineVariant),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            '$number',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: active ? scheme.onPrimary : scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(title,
+            style: theme.textTheme.titleSmall?.copyWith(color: fg),
+            textAlign: TextAlign.center),
+        if (subtitle != null)
+          Text(
+            subtitle!,
+            style: theme.textTheme.labelSmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
+      ],
     );
   }
 }
@@ -495,11 +571,9 @@ class _Footer extends StatelessWidget {
   final ValueChanged<bool> onLive;
   final VoidCallback onApply;
   final VoidCallback onRemove;
-  final List<SonosDevice> devices;
 
-  /// Whether there is anything to switch on or remove yet. Before the first
-  /// apply the toggle and the destructive button have nothing to act on, and a
-  /// row reading "nothing applied yet" is just noise.
+  /// Whether a tuning of ours is on the speakers yet — before the first apply
+  /// there is nothing to remove.
   final bool hasTuning;
   const _Footer({
     required this.status,
@@ -507,7 +581,6 @@ class _Footer extends StatelessWidget {
     required this.onLive,
     required this.onApply,
     required this.onRemove,
-    required this.devices,
     required this.hasTuning,
   });
 
@@ -546,16 +619,11 @@ class _Footer extends StatelessWidget {
             ],
           ),
         ),
-        // Storing a tuning and enabling it are separate calls, so this switch is
-        // an instant A/B of the EQ you just applied — but only once there IS one.
-        if (hasTuning) ...[
-          SettingsSection(children: [
-            TrueplayControl(
-              devices: devices,
-              title: l10n.eqTuningToggle,
-              untunedSubtitle: l10n.eqTuningToggleUntuned,
-            ),
-          ]),
+        // No on/off switch here: it is the same Trueplay toggle that already
+        // sits on the entity's detail page one level up, and a second copy under
+        // a second name is just confusing. This page authors the tuning; the
+        // detail page switches it.
+        if (hasTuning)
           Padding(
             padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 8),
             child: DestructiveButton(
@@ -564,7 +632,6 @@ class _Footer extends StatelessWidget {
               onPressed: status.busy ? null : onRemove,
             ),
           ),
-        ],
       ],
     );
   }
