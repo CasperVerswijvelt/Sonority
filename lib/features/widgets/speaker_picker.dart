@@ -15,7 +15,7 @@ import 'section_header.dart';
 ///
 /// [source] IS the discriminator — null means "free to use", set means "bonded
 /// into that entity, and choosing one takes it from there" at a cost given by
-/// [SonosSystem.tuningLostByTaking]. A separate kind enum would let
+/// [SonosSystem.tuningLostBySelection]. A separate kind enum would let
 /// `{bond, source: null}` exist, which rendered as a headerless block.
 @immutable
 class PickerSection {
@@ -101,8 +101,8 @@ String _kindLabel(AppLocalizations l10n, ZoneGroupMember m) =>
 /// line.
 ///
 /// **Every source costs the same in Trueplay.** A stored tuning does survive an
-/// absorb ([SonosSystem.tuningLostByTaking] still models that faithfully, and it
-/// drives what gets FREED), but EXP-23 Q15/Q16 measured that it comes back
+/// absorb (which is why an HT target still skips the free — see
+/// [SonosSystem.canAbsorbFrom]), but EXP-23 Q15/Q16 measured that it comes back
 /// switched off and that switching it on destroys it — no safe delay, and the
 /// role-preserving case died too. So there is no retention to promise a user,
 /// and the header no longer pretends otherwise. Only a zone adds a fact the
@@ -236,21 +236,6 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
   return (names: names, count: tuned.length);
 }
 
-/// User-facing cost copy never credits an absorb with saving a tuning.
-///
-/// [SonosSystem.tuningLostByTaking] models faithfully what survives in
-/// STORAGE, and the engine still relies on that — `_freeConflicts` really does
-/// skip the free for an HT target. But a surviving tuning comes back switched
-/// OFF and cannot be switched on again without being destroyed (CLAUDE.md, the
-/// destructive-enable rule), so there is nothing a screen can promise. Every
-/// screen therefore prices a take the same way the section headers already
-/// word it: the whole source bond pays.
-///
-/// This was two different answers three taps apart — the picker note credited
-/// the absorb and the review card did not — which is why it is one named
-/// constant now instead of a flag each caller passes.
-const _absorbSavesNothing = false;
-
 /// Everything a bond-aware picker needs, gathered once per build so the
 /// home-theater and group flows configure it instead of each re-deriving it.
 ///
@@ -321,7 +306,6 @@ class PickerContext {
       AppLocalizations l10n, Set<String> selected) {
     final losing = system.tuningLostBySelection(
       selected: selected,
-      absorbing: _absorbSavesNothing,
       exceptPrimary: exceptPrimary,
       alsoLosing: ownBondMembers,
     );
@@ -348,9 +332,8 @@ class SpeakerPickerSections extends StatelessWidget {
   final List<SonosDevice> candidates;
   final Widget Function(SonosDevice device) card;
 
-  /// The current selection — the calibration cost depends on it (taking BOTH
-  /// halves of a pair is free, taking one is not), so it cannot be precomputed
-  /// per section.
+  /// The current selection — the calibration cost is the union over every bond
+  /// it takes from, so it cannot be precomputed per section.
   final Set<String> selected;
 
   const SpeakerPickerSections({

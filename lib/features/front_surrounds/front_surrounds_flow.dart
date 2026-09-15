@@ -530,9 +530,9 @@ class _ChooseSpeakers extends StatelessWidget {
 
   final PickerContext picker;
 
-  /// Every speaker chosen across ALL steps — the Trueplay cost depends on the
-  /// whole selection (taking both halves of a pair is free), so pricing one
-  /// step in isolation reported the opposite of the truth.
+  /// Every speaker chosen across ALL steps — the Trueplay cost is the union
+  /// over every bond the selection touches, so pricing one step in isolation
+  /// named the wrong speakers.
   final Set<String> allSelected;
 
   final bool allowAmp;

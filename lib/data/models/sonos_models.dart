@@ -537,10 +537,11 @@ class SonosSystem {
   /// take them from it rather than making the user unbond by hand first.
   ///
   /// Hardware-measured (EXP-23): `AddHTSatellite` absorbs a speaker straight out
-  /// of a live stereo pair — the pair dissolves implicitly and the speaker KEEPS
-  /// its Trueplay tuning — so the unbond-first step Sonority used to require was
-  /// both unnecessary and the sole cause of the tuning loss. What each case costs
-  /// is [tuningLostByTaking].
+  /// of a live stereo pair — the pair dissolves implicitly and the speaker's
+  /// Trueplay COEFFICIENTS survive — so the unbond-first step Sonority used to
+  /// require was unnecessary. It was not the only thing costing a tuning: a
+  /// bonding change clears members with no removal and no enable written at all
+  /// (CLAUDE.md, Q20). What a take costs is [tuningLostBySelection].
   ///
   /// Excludes soundbars and Subs (neither is offered anywhere as a stealable
   /// speaker — the Sub pickers list standalone Subs only) and the bond
@@ -557,84 +558,34 @@ class SonosSystem {
                 if (device(id) case final d? when !d.isSoundbar && !d.isSub) d,
       ];
 
-  /// Which speakers LOSE their Trueplay tuning when [taking] is taken out of the
-  /// bond [source].
-  ///
-  /// [destinationAbsorbs] is the destination's capability, and [source]'s kind
-  /// decides whether that capability applies:
-  /// `AddHTSatellite` **absorbs** a speaker straight out of a live
-  /// `AddBondedZones`-style bond — a stereo pair (Q7/Q9) or a zone (Q10) — so a
-  /// home-theater destination passes true. `AddBondedZones` absorbs from
-  /// nothing: it is accepted and silently no-ops on a speaker bonded elsewhere
-  /// (Q11, 2 cycles), so a group destination must free the speaker first.
-  ///
-  /// ⚠️ Absorbing out of ANOTHER HOME THEATER is **not** measured and is not
-  /// assumed — this system has one soundbar, so it could not be performed. An
-  /// HT source is therefore treated like a group destination: free it first,
-  /// and the whole source home theater pays. Conservative in the direction that
-  /// cannot silently corrupt a bond.
-  ///
-  /// When the source IS absorbable, measured per kind (EXP-23):
-  /// * **stereo pair** — only the speakers LEFT BEHIND lose it; the ones taken
-  ///   keep theirs (both halves ⇒ nothing lost, ×2 cycles; one half ⇒ the other
-  ///   loses it, ×1).
-  /// * **zone, taken WHOLE** — only the zone's COORDINATOR keeps its tuning;
-  ///   every other member loses it (×2 cycles, on a 2-member zone).
-  /// * **zone, taken IN PART** — **everyone** loses it, the coordinator and the
-  ///   taken speaker included (Q12, ×1 cycle). Taking one member does not
-  ///   shrink a zone, it **dissolves** the whole thing (×2 cycles) and the
-  ///   speakers left behind are ejected to standalone — and a bond that is
-  ///   destroyed around a speaker takes its tuning with it, which is THE RULE.
-  ///   So the whole-zone row is the exception, not this one.
-  ///
-  /// NB: `speaker_picker._cost` mirrors these branches to pick which sentence
-  /// the picker shows — change them together.
-  Set<String> tuningLostByTaking(
-    ZoneGroupMember source,
-    Set<String> taking, {
-    bool destinationAbsorbs = true,
-  }) {
-    final members = bondMemberUuids(source);
-    if (!destinationAbsorbs || !canAbsorbFrom(source)) return members;
-    if (source.isStereoPair) return members.difference(taking);
-    // A zone. Absorbing every member keeps the bond's membership whole and the
-    // coordinator keeps its own; absorbing SOME dissolves the zone, so nothing
-    // survives it.
-    if (members.difference(taking).isNotEmpty) return members;
-    return members.difference({source.uuid}); // the coordinator keeps its own
-  }
-
   /// Which speakers lose their Trueplay tuning when [selected] is bonded into a
-  /// destination — the union over every bond the selection takes from, priced by
-  /// [tuningLostByTaking].
+  /// destination: the WHOLE of every bond the selection takes from, plus
+  /// [alsoLosing].
+  ///
+  /// The whole bond, every time, even though storage is kinder than that —
+  /// `AddHTSatellite` absorbs a speaker out of a live pair or zone (Q7/Q9/Q10)
+  /// and its coefficients survive. They come back switched OFF, and the only
+  /// write that switches them on destroys them (CLAUDE.md, the
+  /// destructive-enable rule), so there is no retention any screen may promise.
+  /// What the absorb IS still worth — skipping the free — is [canAbsorbFrom],
+  /// and that is what `_freeConflicts` acts on.
   ///
   /// [alsoLosing] is what the destination itself costs, which the sources cannot
   /// know about: a group edit's own members (`AddBondedZones` rebuilds the bond
   /// even on an unchanged map, EXP-23 Q8a) or, for a home theater, its whole
-  /// current membership when the apply drops a satellite (`RemoveHTSatellite`
-  /// wipes the set, not just the speaker leaving).
-  ///
-  /// Selection-dependent on purpose, so it cannot be precomputed per source:
-  /// taking BOTH halves of a stereo pair costs nothing, taking one costs the
-  /// other (EXP-23 Q7/Q9).
+  /// current membership whenever the apply writes anything at all (Q20: a purely
+  /// additive bond took the bar and both rears to `available=0`).
   Set<String> tuningLostBySelection({
     required Set<String> selected,
-    required bool absorbing,
     String? exceptPrimary,
     Set<String> alsoLosing = const {},
   }) {
-    final byOwner = <String, Set<String>>{};
+    final losing = <String>{...alsoLosing};
     for (final uuid in selected) {
       final owner = ownerOf(uuid);
       if (owner == null || owner == exceptPrimary) continue;
-      byOwner.putIfAbsent(owner, () => {}).add(uuid);
-    }
-    final losing = <String>{...alsoLosing};
-    for (final entry in byOwner.entries) {
-      final source = memberByUuid(entry.key);
-      if (source == null) continue;
-      losing.addAll(
-          tuningLostByTaking(source, entry.value, destinationAbsorbs: absorbing));
+      final source = memberByUuid(owner);
+      if (source != null) losing.addAll(bondMemberUuids(source));
     }
     return losing;
   }
@@ -671,8 +622,8 @@ class SonosSystem {
 
   /// Whether `AddHTSatellite` can take a speaker straight out of [source]
   /// without freeing it first — true for an `AddBondedZones`-style bond (pair,
-  /// zone, custom group), false for a home theater (never measured; see
-  /// [tuningLostByTaking]). A false here means the caller must free the speaker
-  /// before bonding, or the write fails.
+  /// zone, custom group), false for a home theater (never measured — one
+  /// soundbar on the test system). A false here means the caller must free the
+  /// speaker before bonding, or the write fails.
   bool canAbsorbFrom(ZoneGroupMember source) => source.isGroup;
 }

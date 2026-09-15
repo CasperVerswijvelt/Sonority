@@ -5,14 +5,14 @@ import 'package:sonority/data/sonos/room_calibration.dart';
 import 'package:sonority/features/widgets/speaker_picker.dart';
 import 'package:sonority/l10n/app_localizations.dart';
 
-/// Taking speakers out of an existing bond, and what each case costs in room
-/// calibration. Every expectation here is a hardware-measured row of EXP-23,
-/// not a guess:
+/// Taking speakers out of an existing bond: who is offered, and what the take
+/// costs in room calibration.
 ///
-///  * stereo pair, both halves taken → nothing lost (the pair dissolves under
-///    `AddHTSatellite` and both keep their tuning)
-///  * stereo pair, one half taken    → only the speaker LEFT BEHIND loses it
-///  * home theater / group, anything → EVERY member loses it, taken ones too
+/// The cost is the WHOLE source bond, every time. Storage is kinder — EXP-23
+/// measured that an absorbed speaker keeps its coefficients — but they come
+/// back switched off and the write that switches them on destroys them, so no
+/// screen credits an absorb. What the absorb is still worth is skipping the
+/// free, which is `canAbsorbFrom`.
 void main() {
   const bar = 'RINCON_BEAM01400';
   const sub = 'RINCON_SUB01400';
@@ -88,68 +88,43 @@ void main() {
     });
   });
 
-  group('tuningLostByTaking — EXP-23 measured rows', () {
-    test('pair, BOTH halves taken → nothing loses its tuning', () {
-      expect(system.tuningLostByTaking(pair, {pairL, pairR}), isEmpty);
+  group('what taking a speaker costs, and what an absorb is still worth', () {
+    // Storage is kinder than this: an absorbed speaker keeps its coefficients
+    // (Q7/Q9/Q10). They come back switched OFF and the only write that switches
+    // them on destroys them, so no screen credits an absorb — the whole source
+    // bond pays, whatever the source's kind.
+    test('a pair pays in full, however many halves are taken', () {
+      expect(system.tuningLostBySelection(selected: {pairL, pairR}),
+          {pairL, pairR});
+      expect(system.tuningLostBySelection(selected: {pairL}), {pairL, pairR});
     });
 
-    test('pair, ONE half taken → only the leftover loses it', () {
-      expect(system.tuningLostByTaking(pair, {pairL}), {pairR});
-      expect(system.tuningLostByTaking(pair, {pairR}), {pairL});
+    test('a zone pays in full — taking one member dissolves it (Q12)', () {
+      expect(system.tuningLostBySelection(selected: {zoneB}), {zoneA, zoneB});
+      expect(system.tuningLostBySelection(selected: {zoneA, zoneB}),
+          {zoneA, zoneB});
     });
 
-    test('home theater → every member loses it, including the one taken', () {
-      expect(system.tuningLostByTaking(ht, {rear}), {bar, rear, sub});
+    test('a home theater pays in full, the speaker taken included', () {
+      expect(system.tuningLostBySelection(selected: {rear}), {bar, rear, sub});
     });
 
-    test('a home-theater source is never absorbed, so the whole HT pays', () {
-      // Absorbing out of another home theater was never measured (one soundbar
-      // on the test system), so it is not assumed: the speaker gets freed
-      // first, exactly as in a group flow. This is why BOTH pickers say the
-      // same thing about a home-theater source.
-      expect(system.canAbsorbFrom(ht), isFalse);
-      expect(system.tuningLostByTaking(ht, {rear}), {bar, rear, sub});
-      expect(system.tuningLostByTaking(ht, {rear}, destinationAbsorbs: false),
-          {bar, rear, sub},
-          reason: 'same either way — the destination cannot rescue it');
+    test('every source touched is charged, plus what the destination costs',
+        () {
+      expect(
+        system
+            .tuningLostBySelection(selected: {pairL, zoneB}, alsoLosing: {bar}),
+        {pairL, pairR, zoneA, zoneB, bar},
+      );
     });
 
-    test('pair and zone ARE absorbable', () {
+    // What an absorb IS still worth: skipping the free. This is the part
+    // `_freeConflicts` acts on, and it is measured per source kind.
+    test('a pair and a zone can be absorbed from, a home theater cannot', () {
       expect(system.canAbsorbFrom(pair), isTrue);
       expect(system.canAbsorbFrom(zone), isTrue);
-    });
-
-    test('zone, BOTH members → only the COORDINATOR keeps it (Q10, 2 cycles)',
-        () {
-      // Measured: absorbing both members of a live zone into a home theater
-      // kept the zone coordinator's tuning and lost the other member's, with
-      // the same decay series on both cycles.
-      expect(system.tuningLostByTaking(zone, {zoneA, zoneB}), {zoneB});
-    });
-
-    test('zone, taken IN PART → EVERYONE loses it, coordinator included', () {
-      // Q12: absorbing one member does not shrink a zone, it dissolves the
-      // whole thing, and a bond destroyed around a speaker takes its tuning
-      // with it. The coordinator is only spared when the zone is taken whole.
-      expect(system.tuningLostByTaking(zone, {zoneB}), {zoneA, zoneB});
-      expect(system.tuningLostByTaking(zone, {zoneA}), {zoneA, zoneB},
-          reason: 'taking the coordinator itself is still a partial take');
-    });
-
-    test('a GROUP destination cannot absorb, so the whole source bond pays', () {
-      // AddBondedZones is accepted and silently no-ops on a speaker bonded
-      // elsewhere (Q11, 2 cycles), so the speaker is freed first — which
-      // dissolves the source bond and costs every member, pair or not.
-      expect(
-        system.tuningLostByTaking(pair, {pairL, pairR},
-            destinationAbsorbs: false),
-        {pairL, pairR},
-        reason: 'the pair is dissolved, not absorbed',
-      );
-      expect(
-        system.tuningLostByTaking(zone, {zoneA}, destinationAbsorbs: false),
-        {zoneA, zoneB},
-      );
+      expect(system.canAbsorbFrom(ht), isFalse,
+          reason: 'never measured — one soundbar on the test system');
     });
   });
 
@@ -365,11 +340,9 @@ void main() {
 
     test('taking a WHOLE pair still costs it — no screen credits an absorb',
         () {
-      // tuningLostByTaking models storage faithfully (both halves absorbed ⇒
-      // nothing lost), but a surviving tuning comes back off and cannot be
-      // switched on again, so the copy promises nothing. Q15/Q16.
-      expect(system.tuningLostByTaking(pair, {pairL, pairR}), isEmpty,
-          reason: 'the storage model is unchanged');
+      // Storage is kinder (both halves absorbed ⇒ nothing lost), but a
+      // surviving tuning comes back off and cannot be switched on again, so the
+      // copy promises nothing. Q15/Q16.
       expect(ctx(writes: true).tuningCost(l10n, {bar, pairL, pairR}).count, 5,
           reason: 'both pair halves plus the whole home theater');
     });
@@ -489,9 +462,9 @@ void main() {
 
     // EXP-23 Q15/Q16: a tuning that survives an absorb comes back switched off,
     // and switching it on destroys it — no safe delay, and the role-preserving
-    // case died too. So NO source may promise retention, however faithfully
-    // tuningLostByTaking models what stays in storage. These assertions are the
-    // only thing stopping that promise creeping back into the prose.
+    // case died too. So NO source may promise retention, however much of it
+    // survives in storage. These assertions are the only thing stopping that
+    // promise creeping back into the prose.
     test('no source promises that anything keeps its Trueplay', () {
       for (final src in [pair, zone, ht]) {
         expect(cost(src), contains('cleared'));

@@ -362,10 +362,9 @@ interpolated) then use it.
     **cannot** be done from Android); **enabled = applied**. We only read + toggle — never
     measure — which is the part the Sonos app won't expose for the unofficial
     fronts config. The toggle writes to ALL bonded members so separately-tuned
-    fronts engage together, and that is also why it is **gated**: enabling
-    across an INCOMPLETE set destroys the tunings that are there (see the
-    destructive-enable rule below), so `trueplay_control.dart` allows the enable
-    only when every member reads `available=1`. Disabling is always allowed.
+    fronts engage together, which is why an INCOMPLETE set is dangerous — both
+    directions **warn and ask** there, and neither is blocked (see the
+    destructive-enable rule below, which is the real record).
     **Amp-driven fronts can't be Trueplay'd** (native speakers only).
   - ⭐ **THE RULE (EXP-23, 2026-09-13 — hardware-measured, but read the tiers below
     before quoting a row):** a speaker keeps
@@ -385,8 +384,10 @@ interpolated) then use it.
     ⇒ **`AddHTSatellite` mutates a bond; `AddBondedZones` rebuilds one.** So an HT edit
     has a free path and a group edit does not — `editGroup`'s in-place `reassertGroup`
     is **not** gentler than its dissolve path.
-    ⇒ **Taking speakers from another bond costs** (`SonosSystem.tuningLostByTaking`,
-    which the pickers price per selection): a **stereo pair** — only the speakers
+    ⇒ **Taking speakers from another bond costs**, measured per source kind —
+    kept as the measurement record, NOT as what the app prices (see below:
+    `tuningLostBySelection` charges the whole source bond every time, because a
+    surviving tuning is unusable): a **stereo pair** — only the speakers
     *left behind* (both halves ⇒ nothing lost, one half ⇒ the other loses it); a
     **zone taken WHOLE** — every member except the **coordinator**, which keeps its
     own (Q10, 2 cycles); a **zone taken IN PART** — **everyone**, coordinator and
@@ -864,18 +865,19 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 - ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
   all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't
   expose for unofficial fronts. Measurement stays iOS-only (out of scope).
-  **Enabling is gated on a COMPLETE set** (see the destructive-enable rule);
-  disabling is always allowed.
+  **Both directions warn and ask while the bonded set is INCOMPLETE** (see the
+  destructive-enable rule); a complete set never asks, and nothing is blocked.
 - ✅ **Take a speaker from another bond** (`features/widgets/speaker_picker.dart`) —
   the HT and group pickers offer speakers already bonded into another pair, zone or
   home theater, grouped under a heading per source bond, and name what the take
   costs in Trueplay per selection. An HT target ABSORBS (one `AddHTSatellite`,
-  the coefficients survive, no free needed — `SonosSystem.tuningLostByTaking`
-  models that and `_freeConflicts` acts on it); a group target frees first
-  (`AddBondedZones` no-ops on a bonded speaker).
-  **The COPY never credits an absorb** (`_absorbSavesNothing` in
-  `speaker_picker.dart`): a surviving tuning comes back off and cannot be
-  switched on, so every screen prices a take as "the whole source bond pays".
+  the coefficients survive, no free needed — `SonosSystem.canAbsorbFrom` /
+  `mustFreeBeforeBonding` model that and `_freeConflicts` acts on it); a group
+  target frees first (`AddBondedZones` no-ops on a bonded speaker).
+  **The COPY never credits an absorb**: a surviving tuning comes back off and
+  cannot be switched on, so `SonosSystem.tuningLostBySelection` prices a take as
+  "the whole source bond pays" on every screen — the per-kind rows above are the
+  measurement record only, and there is no absorb flag left to pass.
   One computation — `PickerContext.tuningCost` — feeds both the note under the
   speaker list and the HT review card, because they gave different answers
   three taps apart when they were two. An HT apply that writes ANYTHING also
