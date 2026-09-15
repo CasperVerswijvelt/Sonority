@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
 import 'package:sonority/data/sonos/diagnostics_log.dart';
+import 'package:sonority/data/sonos/room_calibration.dart';
 import 'package:sonority/features/diagnostics/diagnostics_bundle.dart';
 
 void main() {
@@ -334,4 +335,91 @@ void main() {
     expect(lines.last, contains('line 599'));
     DiagnosticsLog.clear();
   });
+
+  group('readTrueplay', () {
+    // A soundbar with two bonded fronts, one of which never answered its
+    // description fetch (topology-recovered, `reachable: false`), plus a Sub
+    // with no IP at all — the two ways a speaker ends up with no reading.
+    final htSystem = SonosSystem(
+      groups: const [
+        ZoneGroup(coordinatorUuid: 'BAR', members: [
+          ZoneGroupMember(
+            uuid: 'BAR',
+            zoneName: 'Living Room HT',
+            location: 'http://192.168.1.20:1400/xml/device_description.xml',
+            htSatChanMapSet: 'BAR:CC;LEFT:LF;RIGHT:RF',
+          ),
+        ]),
+      ],
+      devicesByUuid: {
+        'BAR': const SonosDevice(
+            uuid: 'BAR',
+            roomName: 'Living Room HT',
+            modelName: 'Sonos Arc Ultra',
+            ip: '192.168.1.20'),
+        'LEFT': const SonosDevice(
+            uuid: 'LEFT',
+            roomName: 'Living Room HT',
+            modelName: 'Sonos Five',
+            ip: '192.168.1.21'),
+        'RIGHT': const SonosDevice(
+            uuid: 'RIGHT',
+            roomName: 'Living Room HT',
+            modelName: 'Sonos Five',
+            ip: '192.168.1.22',
+            reachable: false),
+        'NOIP': const SonosDevice(
+            uuid: 'NOIP', roomName: 'Living Room HT', modelName: 'Sonos Sub'),
+      },
+    );
+
+    test('records available/enabled per speaker with a readable label', () async {
+      final out = await readTrueplay(htSystem, _fakeCalibration());
+      expect(out['BAR'], {
+        'roomName': 'Living Room HT',
+        'typeLabel': 'Arc Ultra',
+        'reachableAtDiscovery': true,
+        'available': true,
+        'enabled': true,
+      });
+      expect(out['LEFT']!['available'], true);
+      expect(out['LEFT']!['enabled'], false);
+    });
+
+    test('a faulting speaker is recorded, not dropped, and never sinks the rest',
+        () async {
+      final out =
+          await readTrueplay(htSystem, _fakeCalibration(fail: {'192.168.1.21'}));
+      expect(out['LEFT']!['error'], contains('boom'));
+      expect(out['LEFT']!.containsKey('available'), isFalse);
+      // The speakers either side of the fault still read.
+      expect(out['BAR']!['available'], true);
+    });
+
+    test('an IP-less speaker is named as unread, not omitted', () async {
+      final out = await readTrueplay(htSystem, _fakeCalibration());
+      expect(out.keys, containsAll(['BAR', 'LEFT', 'RIGHT', 'NOIP']));
+      expect(out['NOIP']!['unread'], 'no IP address');
+      expect(out['NOIP']!.containsKey('available'), isFalse);
+    });
+
+    test('a speaker discovery flagged unreachable is still read', () async {
+      // `reachable` is a discovery-time verdict and the bundle is built minutes
+      // later — well past the ~20-30s window where a just-bonded speaker
+      // refuses :1400. Skipping it would record "no tuning" for a speaker that
+      // answers fine, which is the one mistake this file must not make.
+      final out = await readTrueplay(htSystem, _fakeCalibration());
+      expect(out['RIGHT']!['available'], true);
+      expect(out['RIGHT']!['reachableAtDiscovery'], false);
+    });
+  });
 }
+
+/// Fake calibration reader: every speaker is tuned, only .20 has it switched on,
+/// and any IP in [fail] throws.
+Future<RoomCalibration> Function(String) _fakeCalibration(
+        {Set<String> fail = const {}}) =>
+    (ip) async {
+      if (fail.contains(ip)) throw Exception('boom');
+      return RoomCalibration(available: true, enabled: ip == '192.168.1.20');
+    };

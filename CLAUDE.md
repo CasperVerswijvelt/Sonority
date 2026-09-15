@@ -681,7 +681,18 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   raw `device_descriptions/*.xml` (`DeviceDescriptionClient.fetchRaw`),
   `app_state.json` (all app SharedPreferences), `speaker_settings.json`
   (read-only per-speaker EQ/volume/mute reads, role-gated by `settingsReadPlan` /
-  `SonosSystem.extendedEqUuids`), plus optional `logs.txt` +
+  `SonosSystem.extendedEqUuids`), `trueplay.json` (read-only per-speaker
+  `available`/`enabled` for EVERY speaker in the household — not just bonded
+  ones, since a tuning commits for the bonded set as a whole — via `readTrueplay`,
+  which takes the injected `repo.roomCalibration` so a demo build still emits no
+  network I/O. Kept OUT of `speaker_settings.json` on purpose: everything in
+  `SpeakerSettings` is written back on profile apply and a Trueplay write is the
+  destructive path. A speaker that can't be read is recorded with its reason,
+  never omitted — "we couldn't ask" and "it has no tuning" are the two readings a
+  retention report most needs told apart. The read is attempted for any speaker
+  with an IP INCLUDING `reachable: false` ones, since that flag is a
+  discovery-time verdict and a bundle is built long after the ~20-30s
+  port-refused window), plus optional `logs.txt` +
   `network.txt` toggles (both default on). Shares via `share_plus`, a prefilled
   developer email (`flutter_email_sender`, iOS/Android/macOS), or save-to-disk
   via a native save dialog on every platform (`file_saver`; macOS needs the
