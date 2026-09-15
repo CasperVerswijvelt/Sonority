@@ -2241,6 +2241,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'At least {min} characters'**
   String diagNoteHelper(int min);
+
+  /// No description provided for @eqTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'EQ'**
+  String get eqTitle;
+
+  /// No description provided for @eqStepMeasure.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure your room'**
+  String get eqStepMeasure;
+
+  /// No description provided for @eqStepMeasureBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure your room and tune towards a target curve. Until then, your adjustments apply to the speaker’s flat response.'**
+  String get eqStepMeasureBody;
+
+  /// No description provided for @eqComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon'**
+  String get eqComingSoon;
+
+  /// No description provided for @eqStepAdjust.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust'**
+  String get eqStepAdjust;
+
+  /// No description provided for @eqStepApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get eqStepApply;
+
+  /// No description provided for @eqModeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All speakers'**
+  String get eqModeAll;
+
+  /// No description provided for @eqModeIndividual.
+  ///
+  /// In en, this message translates to:
+  /// **'Individual'**
+  String get eqModeIndividual;
+
+  /// No description provided for @eqReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get eqReset;
+
+  /// No description provided for @eqEdited.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited'**
+  String get eqEdited;
+
+  /// No description provided for @eqLegendRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested'**
+  String get eqLegendRequested;
+
+  /// No description provided for @eqLegendAchieved.
+  ///
+  /// In en, this message translates to:
+  /// **'Actual'**
+  String get eqLegendAchieved;
+
+  /// No description provided for @eqLiveApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Live apply'**
+  String get eqLiveApply;
+
+  /// No description provided for @eqLiveApplySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hear changes as you move the sliders.'**
+  String get eqLiveApplySubtitle;
+
+  /// No description provided for @eqApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get eqApply;
+
+  /// No description provided for @eqApplying.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating…'**
+  String get eqApplying;
+
+  /// No description provided for @eqApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied'**
+  String get eqApplied;
+
+  /// No description provided for @eqRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get eqRetry;
+
+  /// No description provided for @eqRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove EQ'**
+  String get eqRemove;
+
+  /// No description provided for @eqRemoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the EQ?'**
+  String get eqRemoveTitle;
+
+  /// No description provided for @eqRemoveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This clears the stored tuning from every speaker in this configuration. To switch the EQ off without losing it, use the Room calibration toggle instead.'**
+  String get eqRemoveBody;
+
+  /// No description provided for @eqRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get eqRemoveConfirm;
+
+  /// No description provided for @eqOverwriteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace the existing calibration?'**
+  String get eqOverwriteTitle;
+
+  /// No description provided for @eqOverwriteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'These speakers already hold a room calibration made in the Sonos app. Applying an EQ replaces it permanently — a speaker never hands its calibration back, so the only way to get it again is to measure it again in the Sonos app.'**
+  String get eqOverwriteBody;
+
+  /// No description provided for @eqOverwriteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get eqOverwriteConfirm;
+
+  /// No description provided for @eqEntryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'EQ'**
+  String get eqEntryTitle;
+
+  /// No description provided for @eqEntrySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shape the sound with an 8-band equaliser'**
+  String get eqEntrySubtitle;
+
+  /// No description provided for @eqBandSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'{hz} hertz'**
+  String eqBandSemantics(String hz);
+
+  /// No description provided for @eqGainDb.
+  ///
+  /// In en, this message translates to:
+  /// **'{gain} dB'**
+  String eqGainDb(String gain);
 }
 
 class _AppLocalizationsDelegate

@@ -103,6 +103,18 @@ class GroupDetailScreen extends ConsumerWidget {
               label: Text(context.l10n.groupConfigure),
             ),
           ),
+          Gap.s,
+          // Entry to the EQ page. An outlined button rather than an ActionRow:
+          // this page is already gutter-padded, so a full-bleed row would
+          // double-indent. Icons.equalizer — tune stays Trueplay's.
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => context.push('/group/${group.uuid}/eq'),
+              icon: const Icon(Icons.equalizer),
+              label: Text(context.l10n.eqEntryTitle),
+            ),
+          ),
         ],
       ),
     );

@@ -17,6 +17,7 @@ import 'features/profiles/profile_controller.dart';
 import 'features/profiles/profile_shortcuts.dart';
 import 'features/profiles/profile_widget.dart';
 import 'features/profiles/profiles_screen.dart';
+import 'features/speaker_eq/speaker_eq_screen.dart';
 import 'features/profiles/profile_create_screen.dart';
 import 'features/profiles/profile_detail_screen.dart';
 import 'features/group/group_detail_screen.dart';
@@ -66,6 +67,11 @@ final _router = GoRouter(
                     preselectSub: s.uri.queryParameters['sub'],
                   ),
                 ),
+                GoRoute(
+                  path: 'eq',
+                  builder: (_, s) =>
+                      SpeakerEqScreen(uuid: s.pathParameters['uuid']!),
+                ),
               ],
             ),
             GoRoute(
@@ -81,11 +87,23 @@ final _router = GoRouter(
                   builder: (_, s) =>
                       GroupFlow(editUuid: s.pathParameters['uuid']),
                 ),
+                GoRoute(
+                  path: 'eq',
+                  builder: (_, s) =>
+                      SpeakerEqScreen(uuid: s.pathParameters['uuid']!),
+                ),
               ],
             ),
             GoRoute(
               path: '/room/:uuid',
               builder: (_, s) => RoomScreen(uuid: s.pathParameters['uuid']!),
+              routes: [
+                GoRoute(
+                  path: 'eq',
+                  builder: (_, s) =>
+                      SpeakerEqScreen(uuid: s.pathParameters['uuid']!),
+                ),
+              ],
             ),
             GoRoute(
               path: '/sub/:uuid',

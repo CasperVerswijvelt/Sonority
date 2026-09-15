@@ -12,6 +12,7 @@ import '../widgets/bonding_progress_screen.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/card_grid.dart';
 import '../widgets/confirm_dialog.dart';
+import '../widgets/action_row.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/destructive_button.dart';
 import '../widgets/diagram_labels.dart';
@@ -225,6 +226,12 @@ class _Content extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          ActionRow(
+            icon: Icons.equalizer,
+            title: l10n.eqEntryTitle,
+            subtitle: l10n.eqEntrySubtitle,
+            onTap: () => context.push('/theater/\${member.uuid}/eq'),
+          ),
           SettingsSection(children: [TrueplayControl(devices: bonded)]),
           if (member.hasDedicatedFronts)
             Padding(

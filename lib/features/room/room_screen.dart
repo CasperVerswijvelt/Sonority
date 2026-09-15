@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/action_row.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/identify_controls.dart';
@@ -81,6 +83,12 @@ class RoomScreen extends ConsumerWidget {
                 subtitle: context.l10n.roomAddToHomeTheaterSubtitle,
                 onTap: () => addToHomeTheater(context, soundbars, speaker: uuid),
               ),
+            ActionRow(
+              icon: Icons.equalizer,
+              title: context.l10n.eqEntryTitle,
+              subtitle: context.l10n.eqEntrySubtitle,
+              onTap: () => context.push('/room/$uuid/eq'),
+            ),
             Gap.s,
             // Settings: a flat, sectioned Trueplay row, not another card.
             SettingsSection(children: [TrueplayControl(devices: devices)]),

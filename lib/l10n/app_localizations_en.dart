@@ -1370,4 +1370,98 @@ class AppLocalizationsEn extends AppLocalizations {
   String diagNoteHelper(int min) {
     return 'At least $min characters';
   }
+
+  @override
+  String get eqTitle => 'EQ';
+
+  @override
+  String get eqStepMeasure => 'Measure your room';
+
+  @override
+  String get eqStepMeasureBody =>
+      'Measure your room and tune towards a target curve. Until then, your adjustments apply to the speaker’s flat response.';
+
+  @override
+  String get eqComingSoon => 'Coming soon';
+
+  @override
+  String get eqStepAdjust => 'Adjust';
+
+  @override
+  String get eqStepApply => 'Apply';
+
+  @override
+  String get eqModeAll => 'All speakers';
+
+  @override
+  String get eqModeIndividual => 'Individual';
+
+  @override
+  String get eqReset => 'Reset';
+
+  @override
+  String get eqEdited => 'Edited';
+
+  @override
+  String get eqLegendRequested => 'Requested';
+
+  @override
+  String get eqLegendAchieved => 'Actual';
+
+  @override
+  String get eqLiveApply => 'Live apply';
+
+  @override
+  String get eqLiveApplySubtitle => 'Hear changes as you move the sliders.';
+
+  @override
+  String get eqApply => 'Apply';
+
+  @override
+  String get eqApplying => 'Updating…';
+
+  @override
+  String get eqApplied => 'Applied';
+
+  @override
+  String get eqRetry => 'Retry';
+
+  @override
+  String get eqRemove => 'Remove EQ';
+
+  @override
+  String get eqRemoveTitle => 'Remove the EQ?';
+
+  @override
+  String get eqRemoveBody =>
+      'This clears the stored tuning from every speaker in this configuration. To switch the EQ off without losing it, use the Room calibration toggle instead.';
+
+  @override
+  String get eqRemoveConfirm => 'Remove';
+
+  @override
+  String get eqOverwriteTitle => 'Replace the existing calibration?';
+
+  @override
+  String get eqOverwriteBody =>
+      'These speakers already hold a room calibration made in the Sonos app. Applying an EQ replaces it permanently — a speaker never hands its calibration back, so the only way to get it again is to measure it again in the Sonos app.';
+
+  @override
+  String get eqOverwriteConfirm => 'Replace';
+
+  @override
+  String get eqEntryTitle => 'EQ';
+
+  @override
+  String get eqEntrySubtitle => 'Shape the sound with an 8-band equaliser';
+
+  @override
+  String eqBandSemantics(String hz) {
+    return '$hz hertz';
+  }
+
+  @override
+  String eqGainDb(String gain) {
+    return '$gain dB';
+  }
 }

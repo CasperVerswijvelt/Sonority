@@ -821,4 +821,40 @@
       "min": { "type": "int" }
     }
   }
+  ,
+  "eqTitle": "EQ",
+  "eqStepMeasure": "Measure your room",
+  "eqStepMeasureBody": "Measure your room and tune towards a target curve. Until then, your adjustments apply to the speaker\u2019s flat response.",
+  "eqComingSoon": "Coming soon",
+  "eqStepAdjust": "Adjust",
+  "eqStepApply": "Apply",
+  "eqModeAll": "All speakers",
+  "eqModeIndividual": "Individual",
+  "eqReset": "Reset",
+  "eqEdited": "Edited",
+  "eqLegendRequested": "Requested",
+  "eqLegendAchieved": "Actual",
+  "eqLiveApply": "Live apply",
+  "eqLiveApplySubtitle": "Hear changes as you move the sliders.",
+  "eqApply": "Apply",
+  "eqApplying": "Updating\u2026",
+  "eqApplied": "Applied",
+  "eqRetry": "Retry",
+  "eqRemove": "Remove EQ",
+  "eqRemoveTitle": "Remove the EQ?",
+  "eqRemoveBody": "This clears the stored tuning from every speaker in this configuration. To switch the EQ off without losing it, use the Room calibration toggle instead.",
+  "eqRemoveConfirm": "Remove",
+  "eqOverwriteTitle": "Replace the existing calibration?",
+  "eqOverwriteBody": "These speakers already hold a room calibration made in the Sonos app. Applying an EQ replaces it permanently \u2014 a speaker never hands its calibration back, so the only way to get it again is to measure it again in the Sonos app.",
+  "eqOverwriteConfirm": "Replace",
+  "eqEntryTitle": "EQ",
+  "eqEntrySubtitle": "Shape the sound with an 8-band equaliser",
+  "eqBandSemantics": "{hz} hertz",
+  "@eqBandSemantics": {
+    "placeholders": { "hz": { "type": "String" } }
+  },
+  "eqGainDb": "{gain} dB",
+  "@eqGainDb": {
+    "placeholders": { "gain": { "type": "String" } }
+  }
 }
