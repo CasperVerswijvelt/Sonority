@@ -36,10 +36,11 @@ enum TrueplayRowState {
 /// identifies it.
 ///
 /// Every device is kept, including ones with no reading at all — and those are
-/// the whole point. A speaker whose calibration read FAILED still has an IP, so
-/// it stays in the counter's denominator while dropping out of its numerator:
-/// that, not omission, is what turns six speakers into "5/6". Before this it
-/// had no row, so the missing sixth was unattributable.
+/// the whole point. A speaker whose calibration could not be read stays in the
+/// counter's denominator (which is simply every device passed in) while
+/// dropping out of its numerator: that, not omission, is what turns six
+/// speakers into "5/6". Before this it had no row, so the missing sixth was
+/// unattributable.
 ///
 // ponytail: two speakers of the same model produce two identical labels, so a
 // mixed pair narrows the culprit to a model, not to a unit. Disambiguating
@@ -135,6 +136,12 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
 
   @override
   Widget build(BuildContext context) {
+    // Nothing to report on, and every message below would be about zero
+    // speakers — the room page renders this whenever the topology has a member
+    // it never resolved to a device, which used to read "Couldn't read
+    // Trueplay from these speakers."
+    if (widget.devices.isEmpty) return const SizedBox.shrink();
+
     final scheme = Theme.of(context).colorScheme;
     final reason = widget.unsupportedReason;
     if (reason != null) {
@@ -149,9 +156,22 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     }
 
     final tp = ref.watch(trueplayControllerProvider);
-    final withIp = widget.devices.where((d) => d.ip != null).toList();
-    final known =
-        withIp.map((d) => tp.byUuid[d.uuid]).whereType<RoomCalibration>().toList();
+    // ONE set drives the counter, the breakdown rows and the warning gate:
+    // every speaker passed in. A device with no IP is never read (the
+    // controller only fetches `_withIp`), so it lands here exactly like a read
+    // that FAILED — in the denominator, out of both numerators, rendered
+    // "Couldn't read" and keeping the set incomplete so the destructive-enable
+    // warning stays on. Splitting the no-IP case out of the counter while
+    // still giving it a row made the two disagree, and let `incomplete` read a
+    // set as complete that had a member nobody ever asked — including a
+    // fall-through that printed "Tuned · off" for a speaker with no tuning.
+    // Whether a null IP is even reachable in production is unknown; treating
+    // "we could not ask" as one state makes the question moot.
+    final known = widget.devices
+        .map((d) => tp.byUuid[d.uuid])
+        .whereType<RoomCalibration>()
+        .toList();
+    final total = widget.devices.length;
     final busy = widget.devices.any((d) => tp.busy.contains(d.uuid));
 
     final tuned = known.where((c) => c.available).toList();
@@ -171,15 +191,15 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       // managed to ask — the same over-reach the breakdown below exists to stop.
       // Plural-keyed on the speakers the message covers — the ones the
       // breakdown lists — because a standalone room passes exactly one.
-      subtitle = l10n.widgetsTrueplayUnreadable(widget.devices.length);
-    } else if (tunedCount == 0 && known.length == widget.devices.length) {
+      subtitle = l10n.widgetsTrueplayUnreadable(total);
+    } else if (tunedCount == 0 && known.length == total) {
       // Flat "not tuned" only when EVERY speaker shown answered. With one
       // missing from the reads this would assert a tuning fact about one we
       // never asked — including a speaker with no IP, which is never read yet
       // still gets a row; the counter below says "0/6 tuned" instead, and the
       // breakdown names the one that didn't answer.
       subtitle = l10n.widgetsTrueplayNotTuned;
-    } else if (withIp.length == 1) {
+    } else if (total == 1) {
       // Single speaker — the x/y counter adds nothing.
       subtitle = isOn ? l10n.widgetsTrueplayActive : l10n.widgetsTrueplayTunedOff;
     } else {
@@ -198,9 +218,9 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       // off: every speaker holds a tuning, the breakdown stays hidden because
       // they all agree, and nothing on screen says the tunings exist.
       final parts = <String>[
-        if (tunedCount < withIp.length || enabledCount == 0)
-          l10n.widgetsTrueplayTunedCount(tunedCount, withIp.length),
-        l10n.widgetsTrueplayActiveCount(enabledCount, withIp.length),
+        if (tunedCount < total || enabledCount == 0)
+          l10n.widgetsTrueplayTunedCount(tunedCount, total),
+        l10n.widgetsTrueplayActiveCount(enabledCount, total),
       ];
       subtitle = parts.join(' · ');
     }
@@ -231,7 +251,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // but because it is a TRAP DOOR: the only way back is the (1) write, which
     // is the destructive one. So switching off here is effectively
     // irreversible, and that is worth knowing before rather than after.
-    final incomplete = tunedCount < withIp.length;
+    final incomplete = tunedCount < total;
     final canToggle = tunedCount > 0 && !busy;
     // Only warn about a write the user can actually issue. `incomplete` is also
     // true with NOTHING tuned (and while the reads are still in flight), where
