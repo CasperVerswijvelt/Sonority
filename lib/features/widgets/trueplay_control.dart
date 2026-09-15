@@ -89,14 +89,19 @@ class TrueplayControl extends ConsumerStatefulWidget {
 }
 
 class _TrueplayControlState extends ConsumerState<TrueplayControl> {
+  /// Whether the first read has finished. The reads are scheduled post-frame,
+  /// so without this the first build has nothing loaded and nothing busy, and
+  /// would paint "Couldn't read" for a frame before "Checking…" replaces it.
+  bool _attempted = false;
+
   @override
   void initState() {
     super.initState();
     if (widget.unsupportedReason == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ref.read(trueplayControllerProvider.notifier).load(widget.devices);
-        }
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await ref.read(trueplayControllerProvider.notifier).load(widget.devices);
+        if (mounted) setState(() => _attempted = true);
       });
     }
   }
@@ -159,13 +164,17 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
 
     final l10n = context.l10n;
     final String subtitle;
-    if (busy && known.isEmpty) {
+    if (known.isEmpty && (busy || !_attempted)) {
       subtitle = l10n.widgetsTrueplayChecking;
     } else if (known.isEmpty) {
       // Nothing answered. "Not tuned" would be a claim about speakers we never
       // managed to ask — the same over-reach the breakdown below exists to stop.
       subtitle = l10n.widgetsTrueplayUnreadable;
-    } else if (tunedCount == 0) {
+    } else if (tunedCount == 0 && known.length == withIp.length) {
+      // Flat "not tuned" only when the WHOLE set answered. With a speaker
+      // missing from the reads this would assert a tuning fact about one we
+      // never asked; the counter below says "0/6 tuned" instead, and the
+      // breakdown names the one that didn't answer.
       subtitle = l10n.widgetsTrueplayNotTuned;
     } else if (withIp.length == 1) {
       // Single speaker — the x/y counter adds nothing.

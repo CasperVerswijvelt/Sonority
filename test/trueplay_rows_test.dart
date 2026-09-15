@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
 import 'package:sonority/data/sonos/room_calibration.dart';
+import 'package:sonority/features/widgets/label_value_row.dart';
 import 'package:sonority/features/widgets/trueplay_control.dart';
+
+import 'trueplay_harness.dart';
 
 // The per-speaker breakdown behind an aggregate like "5/6 tuned · 0/6 active".
 // A user's Arc Ultra report ("not sure why it's 5/6") is the case it answers:
@@ -20,7 +23,7 @@ void main() {
   const right = SonosDevice(
       uuid: 'RIGHT',
       roomName: 'Living Room HT',
-      modelName: 'Sonos Five',
+      modelName: 'Sonos One',
       ip: '192.168.1.22');
   const noIp = SonosDevice(
       uuid: 'NOIP', roomName: 'Living Room HT', modelName: 'Sonos Sub');
@@ -34,7 +37,7 @@ void main() {
       [bar, left, right],
       const {'BAR': on, 'LEFT': storedOff, 'RIGHT': none},
     );
-    expect(rows.map((r) => r.label), ['Arc Ultra', 'Five', 'Five']);
+    expect(rows.map((r) => r.label), ['Arc Ultra', 'Five', 'One']);
     expect(rows.map((r) => r.state), [
       TrueplayRowState.active,
       TrueplayRowState.tunedOff,
@@ -53,26 +56,79 @@ void main() {
     expect(rows[2].state, TrueplayRowState.unknown);
   });
 
-  test('a uniform set collapses to one state, so the breakdown can stay hidden',
-      () {
-    // The widget only shows rows when the states differ — an all-active home
-    // theater already says everything in its one-line subtitle.
-    final uniform = trueplayRows(
-      [bar, left, right],
-      const {'BAR': on, 'LEFT': on, 'RIGHT': on},
-    );
-    expect(uniform.map((r) => r.state).toSet(), hasLength(1));
-
-    final mixed = trueplayRows(
-      [bar, left, right],
-      const {'BAR': on, 'LEFT': on, 'RIGHT': storedOff},
-    );
-    expect(mixed.map((r) => r.state).toSet(), hasLength(greaterThan(1)));
+  testWidgets('the breakdown names the speaker that could not be read',
+      (tester) async {
+    await tester
+        .pumpWidget(trueplayHarness([bar, left], const {'BAR': on}));
+    await tester.pumpAndSettle();
+    expect(find.text('Five'), findsOneWidget);
+    expect(find.text("Couldn't read"), findsOneWidget);
   });
 
-  test('nothing loaded yet is uniformly unknown, so it never flashes mid-load',
-      () {
-    final rows = trueplayRows([bar, left], const {});
-    expect(rows.map((r) => r.state).toSet(), {TrueplayRowState.unknown});
+  testWidgets('a set where NOTHING could be read is not called untuned',
+      (tester) async {
+    await tester.pumpWidget(trueplayHarness([bar, left], const {}));
+    await tester.pumpAndSettle();
+    expect(find.textContaining("Couldn't read Trueplay from these speakers."),
+        findsOneWidget);
+    expect(find.textContaining('Not tuned'), findsNothing,
+        reason: 'nothing answered, so there is no tuning fact to assert');
+  });
+
+  testWidgets('no failure copy while the first read is still in flight',
+      (tester) async {
+    // The reads are scheduled post-frame, so the first build has nothing loaded
+    // AND nothing busy — which used to paint the failure line for one frame.
+    await tester.pumpWidget(trueplayHarness([bar, left], const {}));
+    expect(find.textContaining('Checking…'), findsOneWidget);
+    expect(find.textContaining("Couldn't read Trueplay from these speakers."),
+        findsNothing);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('one unreadable speaker does not make the whole set "not tuned"',
+      (tester) async {
+    // Five read a stored-nothing, the sixth faulted. "Not tuned" would assert a
+    // tuning fact about the one that never answered, so the counter runs
+    // instead and the breakdown names it.
+    await tester.pumpWidget(trueplayHarness(
+      [bar, left, right],
+      const {'BAR': none, 'LEFT': none},
+    ));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('run Trueplay once'), findsNothing);
+    expect(find.textContaining('0/3 tuned'), findsOneWidget);
+    expect(find.text("Couldn't read"), findsOneWidget);
+  });
+
+  testWidgets('the counter reads tuned before active', (tester) async {
+    // A stored tuning is the precondition for an active one: leading with
+    // "0/3 active" read as though nothing were tuned at all.
+    await tester.pumpWidget(trueplayHarness(
+      [bar, left, right],
+      const {'BAR': storedOff, 'LEFT': storedOff, 'RIGHT': none},
+    ));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('2/3 tuned · 0/3 active'), findsOneWidget);
+  });
+
+  testWidgets('the breakdown stays hidden for a uniform set', (tester) async {
+    await tester.pumpWidget(trueplayHarness(
+      [bar, left, right],
+      const {'BAR': on, 'LEFT': on, 'RIGHT': on},
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byType(LabelValueRow), findsNothing,
+        reason: 'an all-active set says everything in its one-line subtitle');
+  });
+
+  testWidgets('the breakdown appears when the speakers disagree',
+      (tester) async {
+    await tester.pumpWidget(trueplayHarness(
+      [bar, left, right],
+      const {'BAR': on, 'LEFT': on, 'RIGHT': storedOff},
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byType(LabelValueRow), findsNWidgets(3));
   });
 }
