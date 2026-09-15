@@ -511,6 +511,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get widgetsTrueplayOneWay => 'turning it off may be permanent';
+
+  @override
+  String get widgetsTrueplayConfirmOffTitle => 'Turn off Trueplay?';
+
+  @override
+  String get widgetsTrueplayConfirmOffBody =>
+      'Not every speaker here is tuned, so turning it back on later could destroy the tunings that are left. You may not get this back.';
+
+  @override
+  String get widgetsTrueplayConfirmOffAction => 'Turn off anyway';
+
+  @override
   String get widgetsTrueplayConfirmAction => 'Turn on anyway';
 
   @override

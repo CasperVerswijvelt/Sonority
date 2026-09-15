@@ -856,6 +856,30 @@ abstract class AppLocalizations {
   /// **'{count, plural, one{Only 1 speaker here is tuned, so turning it on could destroy that tuning.} other{Only {count} speakers here are tuned, so turning it on could destroy those tunings.}}'**
   String widgetsTrueplayConfirmBody(int count);
 
+  /// Row warning when the set is short and Trueplay is currently ON. Turning off is not known to be destructive, but the only way back is the enable write, which is, so it is a one-way door.
+  ///
+  /// In en, this message translates to:
+  /// **'turning it off may be permanent'**
+  String get widgetsTrueplayOneWay;
+
+  /// Confirm shown when switching Trueplay off while the bonded set is only partly tuned.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off Trueplay?'**
+  String get widgetsTrueplayConfirmOffTitle;
+
+  /// Body of that confirm. Turning off is not itself known to be destructive; the point is that the only way back is the enable, which can be.
+  ///
+  /// In en, this message translates to:
+  /// **'Not every speaker here is tuned, so turning it back on later could destroy the tunings that are left. You may not get this back.'**
+  String get widgetsTrueplayConfirmOffBody;
+
+  /// Confirm action for switching Trueplay off despite not being able to switch it back on safely.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off anyway'**
+  String get widgetsTrueplayConfirmOffAction;
+
   /// Confirm action for switching Trueplay on despite the cost.
   ///
   /// In en, this message translates to:

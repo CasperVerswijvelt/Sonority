@@ -47,20 +47,26 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     }
   }
 
-  /// Applies the toggle, asking first when switching ON would cost the
-  /// speakers that still hold a tuning.
+  /// Applies the toggle, asking first while the bonded set is short.
   ///
-  /// Only the ON direction asks, and only while the set is short: turning it
-  /// off has never been measured as destructive, and making someone confirm
-  /// their way out of a state they are already in would be noise.
+  /// BOTH directions ask, for different reasons. Switching ON can destroy the
+  /// tunings that are left. Switching OFF is not known to destroy anything, but
+  /// the only way back is the ON write, so it is a one-way door — and being
+  /// told that afterwards is no use.
   Future<void> _set(bool on, bool warn, List<RoomCalibration> tuned) async {
-    if (on && warn) {
+    if (warn) {
       final l10n = context.l10n;
       final ok = await confirmDialog(
         context,
-        title: l10n.widgetsTrueplayConfirmTitle,
-        message: l10n.widgetsTrueplayConfirmBody(tuned.length),
-        confirmLabel: l10n.widgetsTrueplayConfirmAction,
+        title: on
+            ? l10n.widgetsTrueplayConfirmTitle
+            : l10n.widgetsTrueplayConfirmOffTitle,
+        message: on
+            ? l10n.widgetsTrueplayConfirmBody(tuned.length)
+            : l10n.widgetsTrueplayConfirmOffBody,
+        confirmLabel: on
+            ? l10n.widgetsTrueplayConfirmAction
+            : l10n.widgetsTrueplayConfirmOffAction,
         icon: Icons.tune,
       );
       if (!ok || !mounted) return;
@@ -138,16 +144,15 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // loss is silent and there is no undo, so the enable asks first and names
     // what it costs.
     //
-    // ⚠️ Turning it OFF does not ask, and the honest reason is narrower than
-    // "off is safe": every destructive cell we have is
-    // `SetRoomCalibrationStatus(1)`. The (0) write on an incomplete set is
-    // UNTESTED, not proven harmless. It stays unprompted because there is no
-    // evidence against it and prompting every off would be noise — but if the
-    // mechanism turns out to be "any write re-validates and discards", this
-    // needs revisiting.
+    // ⚠️ Turning it OFF asks too, while the set is short — not because the (0)
+    // write is known to destroy anything (it isn't; every destructive cell we
+    // have is the (1) write, and (0) on an incomplete set is simply UNTESTED)
+    // but because it is a TRAP DOOR: the only way back is the (1) write, which
+    // is the destructive one. So switching off here is effectively
+    // irreversible, and that is worth knowing before rather than after.
     final incomplete = tunedCount < withIp.length;
     final canToggle = tunedCount > 0 && !busy;
-    final warnOnEnable = incomplete && !isOn;
+    final warn = incomplete;
     // Keep the Switch mounted so it never jumps; a fixed-width slot holds the
     // spinner (left of the switch) only while busy, so the layout is stable.
     final trailing = Row(
@@ -163,7 +168,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
         const SizedBox(width: 12),
         Switch(
           value: isOn,
-          onChanged: canToggle ? (v) => _set(v, warnOnEnable, tuned) : null,
+          onChanged: canToggle ? (v) => _set(v, warn, tuned) : null,
         ),
       ],
     );
@@ -172,12 +177,13 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       context,
       icon: Icons.tune,
       iconColor: isOn ? scheme.primary : scheme.onSurfaceVariant,
-      subtitle: warnOnEnable
-          ? '$subtitle · ${l10n.widgetsTrueplayIncompleteSet}'
-          : subtitle,
+      subtitle: !warn
+          ? subtitle
+          : '$subtitle · '
+              '${isOn ? l10n.widgetsTrueplayOneWay : l10n.widgetsTrueplayIncompleteSet}',
       trailing: trailing,
       // Tapping anywhere on the row toggles it, same as the switch.
-      onTap: canToggle ? () => _set(!isOn, warnOnEnable, tuned) : null,
+      onTap: canToggle ? () => _set(!isOn, warn, tuned) : null,
     );
   }
 

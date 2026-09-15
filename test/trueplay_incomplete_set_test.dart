@@ -85,22 +85,38 @@ void main() {
         reason: 'nothing is at stake, so asking would be noise');
   });
 
-  testWidgets('switching OFF never asks, even on an incomplete set',
+  testWidgets('switching OFF on an incomplete set ALSO asks — it is a one-way door',
       (tester) async {
-    // ⚠️ Not because off is proven safe — every destructive cell we have is the
-    // (1) write, and (0) on an incomplete set is UNTESTED. It stays unprompted
-    // because there is no evidence against it and prompting every off would be
-    // noise. Revisit if the mechanism turns out to be "any write re-validates".
+    // Not because the (0) write is known to destroy anything; it is not, and on
+    // an incomplete set it is untested. But the only way back is the (1) write,
+    // which IS destructive here — so turning it off is effectively
+    // irreversible, and being told that afterwards is no use.
     await pump(tester, {a.uuid: active, b.uuid: untuned});
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Turn off Trueplay?'), findsOneWidget);
+    expect(find.textContaining('turning it back on later'), findsOneWidget);
+  });
+
+  testWidgets('switching OFF a COMPLETE set never asks', (tester) async {
+    await pump(tester, {a.uuid: active, b.uuid: active});
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing,
+        reason: 'it can be turned straight back on, so nothing is at stake');
   });
 
   testWidgets('the row warns about the cost before it is tapped',
       (tester) async {
     await pump(tester, {a.uuid: tuned, b.uuid: untuned});
     expect(find.textContaining('could destroy the tunings'), findsOneWidget);
+  });
+
+  testWidgets('the row warns that OFF is one-way when it is currently on',
+      (tester) async {
+    await pump(tester, {a.uuid: active, b.uuid: untuned});
+    expect(find.textContaining('may be permanent'), findsOneWidget);
   });
 }
 

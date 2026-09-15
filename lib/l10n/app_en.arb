@@ -318,6 +318,22 @@
       }
     }
   },
+  "widgetsTrueplayOneWay": "turning it off may be permanent",
+  "@widgetsTrueplayOneWay": {
+    "description": "Row warning when the set is short and Trueplay is currently ON. Turning off is not known to be destructive, but the only way back is the enable write, which is, so it is a one-way door."
+  },
+  "widgetsTrueplayConfirmOffTitle": "Turn off Trueplay?",
+  "@widgetsTrueplayConfirmOffTitle": {
+    "description": "Confirm shown when switching Trueplay off while the bonded set is only partly tuned."
+  },
+  "widgetsTrueplayConfirmOffBody": "Not every speaker here is tuned, so turning it back on later could destroy the tunings that are left. You may not get this back.",
+  "@widgetsTrueplayConfirmOffBody": {
+    "description": "Body of that confirm. Turning off is not itself known to be destructive; the point is that the only way back is the enable, which can be."
+  },
+  "widgetsTrueplayConfirmOffAction": "Turn off anyway",
+  "@widgetsTrueplayConfirmOffAction": {
+    "description": "Confirm action for switching Trueplay off despite not being able to switch it back on safely."
+  },
   "widgetsTrueplayConfirmAction": "Turn on anyway",
   "@widgetsTrueplayConfirmAction": {
     "description": "Confirm action for switching Trueplay on despite the cost."

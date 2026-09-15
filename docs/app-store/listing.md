@@ -89,7 +89,7 @@ Sonority is an independent app and is not affiliated with, authorized, maintaine
 ```
 • Speakers already paired, grouped or bonded into a home theater can now be picked straight away — no need to unbond them by hand first
 • Before you apply, Sonority names exactly which speakers will lose their room-calibration tuning, so there are no surprises
-• Switching room-calibration back on now warns you first when it could wipe the tunings your other speakers still have
+• Turning room-calibration on or off now warns you first when some speakers in the set aren't tuned, since that's when you can lose the tunings the others still have
 • Creating a speaker group now keeps trying until it really exists, instead of giving up while the speakers were still settling
 • A home theater with an amplifier driving both front speakers now applies changes correctly
 • A subwoofer the app failed to spot is no longer left out of your setup
