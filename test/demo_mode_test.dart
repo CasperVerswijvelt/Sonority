@@ -1,6 +1,8 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
 import 'package:sonority/demo/demo_mode.dart';
+import 'package:sonority/state/sonos_controller.dart';
 
 /// The demo channel-map strings are hand-written and typo-prone; assert the
 /// fake system classifies exactly as the screenshots need it to.
@@ -50,6 +52,38 @@ void main() {
         }
       }
     }
+  });
+
+  // Demo mode must not emit real network I/O: the demo IPs are unrouteable
+  // TEST-NET, so any client that isn't stubbed silently waits out its full
+  // timeout (this leaked twice — SpeakerSettingsClient, then
+  // DeviceDescriptionClient — and made a diagnostics bundle take >15min).
+  // Every speaker-facing client reached through the overrides must fail fast.
+  group('demo mode emits no network I/O', () {
+    late ProviderContainer container;
+    setUp(() => container = ProviderContainer(overrides: demoOverrides()));
+    tearDown(() => container.dispose());
+
+    test('speaker settings reads resolve instantly and empty', () async {
+      final settings = await container
+          .read(speakerSettingsProvider)
+          .read('192.0.2.10', volume: true)
+          .timeout(const Duration(seconds: 1));
+      expect(settings.bass, isNull);
+      expect(settings.volume, isNull);
+      expect(settings.eq, isEmpty);
+    });
+
+    test('raw device descriptions fail fast instead of hanging', () {
+      // The bundle wraps this in _tryFetch, so throwing is the correct outcome.
+      expect(
+        container
+            .read(sonosRepositoryProvider)
+            .rawDeviceDescription('192.0.2.10')
+            .timeout(const Duration(seconds: 1)),
+        throwsA(isA<StateError>()),
+      );
+    });
   });
 
   test('demo profiles resolve cleanly against the demo system', () {

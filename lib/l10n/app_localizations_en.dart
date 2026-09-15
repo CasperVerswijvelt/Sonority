@@ -1345,6 +1345,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diagShareDiagnostics => 'Share diagnostics';
 
   @override
-  String get diagEmailBody =>
-      'Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———';
+  String get diagEmailAttached =>
+      '——— the diagnostics bundle is attached below ———';
+
+  @override
+  String get diagNoteTitle => 'What went wrong?';
+
+  @override
+  String get diagNoteHint => 'What you tried, what you expected, what happened';
+
+  @override
+  String diagNoteHelper(int min) {
+    return 'At least $min characters';
+  }
 }
