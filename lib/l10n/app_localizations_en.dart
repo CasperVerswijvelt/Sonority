@@ -140,13 +140,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errMalformedHomeTheater => 'Stored home theater is malformed.';
 
   @override
-  String errDidNotForm(String name) {
-    return 'Sonos did not form “$name”.';
-  }
-
-  @override
   String get errDidNotCreateGroup =>
-      'Sonos did not create the group — a speaker may be incompatible.';
+      'Sonos did not create the group. Wait a moment and try again. If it keeps failing, one of the speakers may not be compatible.';
 
   @override
   String get errDidNotSeparate =>
@@ -348,9 +343,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stepWaitForConfirm => 'Wait for Sonos to confirm';
 
   @override
-  String get stepWaitingConfirm => 'waiting for Sonos to confirm';
-
-  @override
   String get stepApplyingSettle =>
       'Applying — Sonos can take up to a minute to settle.';
 
@@ -497,6 +489,42 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get widgetsTrueplayChecking => 'Checking…';
+
+  @override
+  String get widgetsTrueplayIncompleteSet =>
+      'turning it on could destroy the tunings that are left';
+
+  @override
+  String get widgetsTrueplayConfirmTitle => 'Turn on Trueplay?';
+
+  @override
+  String widgetsTrueplayConfirmBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Only $count speakers here are tuned, so turning it on could destroy those tunings.',
+      one:
+          'Only 1 speaker here is tuned, so turning it on could destroy that tuning.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get widgetsTrueplayOneWay => 'turning it off may be permanent';
+
+  @override
+  String get widgetsTrueplayConfirmOffTitle => 'Turn off Trueplay?';
+
+  @override
+  String get widgetsTrueplayConfirmOffBody =>
+      'Not every speaker here is tuned, so turning it back on later could destroy the tunings that are left.';
+
+  @override
+  String get widgetsTrueplayConfirmOffAction => 'Turn off anyway';
+
+  @override
+  String get widgetsTrueplayConfirmAction => 'Turn on anyway';
 
   @override
   String get widgetsTrueplayNotTuned =>
@@ -1196,7 +1224,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get htTrueplayNote =>
-      'Trueplay can only be measured from the Sonos app on iOS — tune the home theater, and the fronts separately as a stereo pair. Heads-up: Sonos often clears a tuning when speakers are bonded/unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.';
+      'Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Any bonding change switches Trueplay off, and switching it back on may clear the tuning, so re-tune afterwards.';
 
   @override
   String get htAllExtraSpeakers => 'all extra speakers';
@@ -1215,14 +1243,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get frontSurroundsFrontsHint =>
-      'Pick two speakers (or a single Amp or Port) for the front left & right, then set which is which.';
+      'Pick two speakers for the front left and right, ideally identical.';
+
+  @override
+  String get frontSurroundsFrontsHintAmp =>
+      'Pick two speakers for the front left and right, ideally identical. A single Amp or Port that feeds both works too.';
 
   @override
   String get frontSurroundsStepSurrounds => 'Rear surrounds';
 
   @override
   String get frontSurroundsSurroundsHint =>
-      'Pick two speakers for the rear left & right surrounds.';
+      'Pick two speakers for the rear left and right surrounds, ideally identical.';
 
   @override
   String get frontSurroundsStepSub => 'Subwoofer';
@@ -1231,35 +1263,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get frontSurroundsStepReview => 'Review & apply';
 
   @override
-  String frontSurroundsUnbondTitle(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Unbond $count speakers?',
-      one: 'Unbond $count speaker?',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String frontSurroundsUnbondMessage(String types) {
-    return '$types will be removed from this home theater and become standalone rooms again. The rest of your layout stays as it is.';
-  }
-
-  @override
-  String get frontSurroundsUnbond => 'Unbond';
-
-  @override
-  String get frontSurroundsNoFreeSpeakers =>
-      'No free speakers available. They must be standalone (not already part of a home theater or stereo pair).';
-
-  @override
-  String get frontSurroundsPickWithAmp =>
-      'Pick two speakers (ideally identical), or a single Sonos Amp or Port that feeds both front speakers.';
-
-  @override
-  String get frontSurroundsPickExactlyTwo =>
-      'Pick exactly two — ideally an identical pair.';
+  String get frontSurroundsNoFreeSpeakers => 'No speakers available to bond.';
 
   @override
   String frontSurroundsAmpSubtitle(String type) {
@@ -1290,8 +1294,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nothing selected yet — choose speakers above.';
 
   @override
-  String get frontSurroundsReviewNote =>
-      'The chosen speakers become hidden satellites of the soundbar (which stays the center channel). Bonding runs in steps and can take a little while; Trueplay may need re-tuning afterward. You can change this anytime.';
+  String get frontSurroundsReviewNote => 'The layout can be changed anytime.';
+
+  @override
+  String frontSurroundsTrueplayLoses(String names) {
+    return 'Loses Trueplay: $names. Re-tune in the Sonos app.';
+  }
 
   @override
   String get diagNoSystemToCollect => 'No system to collect — scan first.';
@@ -1357,5 +1365,58 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String diagNoteHelper(int min) {
     return 'At least $min characters';
+  }
+
+  @override
+  String speakerStealTrueplayWarning(String names, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$names will lose their Trueplay. Re-tune them in the Sonos app.',
+      one: '$names will lose its Trueplay. Re-tune it in the Sonos app.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get pickerSectionAvailable => 'Available';
+
+  @override
+  String get pickerCostZone => 'Taking any of them breaks up the whole group.';
+
+  @override
+  String get pickerCostCleared => 'Trueplay is cleared on all of them.';
+
+  @override
+  String get pickerSectionLeavesBond =>
+      'Picking one takes it out of this bond.';
+
+  @override
+  String get speakerBadgeTrueplay => 'Trueplay';
+
+  @override
+  String get pickerRoleFrontL => 'Front L';
+
+  @override
+  String get pickerRoleFrontR => 'Front R';
+
+  @override
+  String get pickerRoleSurroundL => 'Surround L';
+
+  @override
+  String get pickerRoleSurroundR => 'Surround R';
+
+  @override
+  String get pickerRoleCenter => 'Center';
+
+  @override
+  String frontSurroundsDropNote(String types, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$types leave this home theater and become standalone rooms.',
+      one: '$types leaves this home theater and becomes a standalone room.',
+    );
+    return '$_temp0';
   }
 }

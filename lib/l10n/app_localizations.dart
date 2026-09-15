@@ -322,16 +322,10 @@ abstract class AppLocalizations {
   /// **'Stored home theater is malformed.'**
   String get errMalformedHomeTheater;
 
-  /// No description provided for @errDidNotForm.
-  ///
-  /// In en, this message translates to:
-  /// **'Sonos did not form “{name}”.'**
-  String errDidNotForm(String name);
-
   /// No description provided for @errDidNotCreateGroup.
   ///
   /// In en, this message translates to:
-  /// **'Sonos did not create the group — a speaker may be incompatible.'**
+  /// **'Sonos did not create the group. Wait a moment and try again. If it keeps failing, one of the speakers may not be compatible.'**
   String get errDidNotCreateGroup;
 
   /// No description provided for @errDidNotSeparate.
@@ -616,12 +610,6 @@ abstract class AppLocalizations {
   /// **'Wait for Sonos to confirm'**
   String get stepWaitForConfirm;
 
-  /// No description provided for @stepWaitingConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'waiting for Sonos to confirm'**
-  String get stepWaitingConfirm;
-
   /// No description provided for @stepApplyingSettle.
   ///
   /// In en, this message translates to:
@@ -849,6 +837,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Checking…'**
   String get widgetsTrueplayChecking;
+
+  /// Warning on the Trueplay row when some bonded speaker has no stored tuning. Measured (EXP-23) on one household: turning it on in that state destroyed the stored tunings of the others, unrecoverably. Hedged to 'could' on purpose, because four cells on one system and an undetermined mechanism do not support stating it as certain. NOT blocked, only warned and confirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'turning it on could destroy the tunings that are left'**
+  String get widgetsTrueplayIncompleteSet;
+
+  /// Confirm shown when switching Trueplay on while the bonded set is only partly tuned.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on Trueplay?'**
+  String get widgetsTrueplayConfirmTitle;
+
+  /// Body of that confirm. Names how many tunings are at stake and that the loss is permanent.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Only 1 speaker here is tuned, so turning it on could destroy that tuning.} other{Only {count} speakers here are tuned, so turning it on could destroy those tunings.}}'**
+  String widgetsTrueplayConfirmBody(int count);
+
+  /// Row warning when the set is short and Trueplay is currently ON. Turning off is not known to be destructive, but the only way back is the enable write, which is, so it is a one-way door.
+  ///
+  /// In en, this message translates to:
+  /// **'turning it off may be permanent'**
+  String get widgetsTrueplayOneWay;
+
+  /// Confirm shown when switching Trueplay off while the bonded set is only partly tuned.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off Trueplay?'**
+  String get widgetsTrueplayConfirmOffTitle;
+
+  /// Body of that confirm. Turning off is not itself known to be destructive; the point is that the only way back is the enable, which can be.
+  ///
+  /// In en, this message translates to:
+  /// **'Not every speaker here is tuned, so turning it back on later could destroy the tunings that are left.'**
+  String get widgetsTrueplayConfirmOffBody;
+
+  /// Confirm action for switching Trueplay off despite not being able to switch it back on safely.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off anyway'**
+  String get widgetsTrueplayConfirmOffAction;
+
+  /// Confirm action for switching Trueplay on despite the cost.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on anyway'**
+  String get widgetsTrueplayConfirmAction;
 
   /// No description provided for @widgetsTrueplayNotTuned.
   ///
@@ -1969,7 +2005,7 @@ abstract class AppLocalizations {
   /// No description provided for @htTrueplayNote.
   ///
   /// In en, this message translates to:
-  /// **'Trueplay can only be measured from the Sonos app on iOS — tune the home theater, and the fronts separately as a stereo pair. Heads-up: Sonos often clears a tuning when speakers are bonded/unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.'**
+  /// **'Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Any bonding change switches Trueplay off, and switching it back on may clear the tuning, so re-tune afterwards.'**
   String get htTrueplayNote;
 
   /// No description provided for @htAllExtraSpeakers.
@@ -2005,8 +2041,14 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsFrontsHint.
   ///
   /// In en, this message translates to:
-  /// **'Pick two speakers (or a single Amp or Port) for the front left & right, then set which is which.'**
+  /// **'Pick two speakers for the front left and right, ideally identical.'**
   String get frontSurroundsFrontsHint;
+
+  /// Variant of frontSurroundsFrontsHint, shown only when an Amp or Port is actually on the network. Identical but for the last sentence, which offers that shortcut.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick two speakers for the front left and right, ideally identical. A single Amp or Port that feeds both works too.'**
+  String get frontSurroundsFrontsHintAmp;
 
   /// No description provided for @frontSurroundsStepSurrounds.
   ///
@@ -2017,7 +2059,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsSurroundsHint.
   ///
   /// In en, this message translates to:
-  /// **'Pick two speakers for the rear left & right surrounds.'**
+  /// **'Pick two speakers for the rear left and right surrounds, ideally identical.'**
   String get frontSurroundsSurroundsHint;
 
   /// No description provided for @frontSurroundsStepSub.
@@ -2032,41 +2074,11 @@ abstract class AppLocalizations {
   /// **'Review & apply'**
   String get frontSurroundsStepReview;
 
-  /// No description provided for @frontSurroundsUnbondTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, one{Unbond {count} speaker?} other{Unbond {count} speakers?}}'**
-  String frontSurroundsUnbondTitle(int count);
-
-  /// No description provided for @frontSurroundsUnbondMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'{types} will be removed from this home theater and become standalone rooms again. The rest of your layout stays as it is.'**
-  String frontSurroundsUnbondMessage(String types);
-
-  /// No description provided for @frontSurroundsUnbond.
-  ///
-  /// In en, this message translates to:
-  /// **'Unbond'**
-  String get frontSurroundsUnbond;
-
   /// No description provided for @frontSurroundsNoFreeSpeakers.
   ///
   /// In en, this message translates to:
-  /// **'No free speakers available. They must be standalone (not already part of a home theater or stereo pair).'**
+  /// **'No speakers available to bond.'**
   String get frontSurroundsNoFreeSpeakers;
-
-  /// No description provided for @frontSurroundsPickWithAmp.
-  ///
-  /// In en, this message translates to:
-  /// **'Pick two speakers (ideally identical), or a single Sonos Amp or Port that feeds both front speakers.'**
-  String get frontSurroundsPickWithAmp;
-
-  /// No description provided for @frontSurroundsPickExactlyTwo.
-  ///
-  /// In en, this message translates to:
-  /// **'Pick exactly two — ideally an identical pair.'**
-  String get frontSurroundsPickExactlyTwo;
 
   /// No description provided for @frontSurroundsAmpSubtitle.
   ///
@@ -2110,11 +2122,17 @@ abstract class AppLocalizations {
   /// **'Nothing selected yet — choose speakers above.'**
   String get frontSurroundsNothingSelected;
 
-  /// No description provided for @frontSurroundsReviewNote.
+  /// Reassurance under the review-step warning card. Scoped to the LAYOUT on purpose: it renders directly below the lines naming the speakers that leave and the tunings this apply clears, and a cleared Trueplay tuning is exactly what cannot be changed back here (re-measuring needs the iOS Sonos app).
   ///
   /// In en, this message translates to:
-  /// **'The chosen speakers become hidden satellites of the soundbar (which stays the center channel). Bonding runs in steps and can take a little while; Trueplay may need re-tuning afterward. You can change this anytime.'**
+  /// **'The layout can be changed anytime.'**
   String get frontSurroundsReviewNote;
+
+  /// Review-step line naming the speakers whose stored tuning this apply clears. Worded without it/them so it needs no plural: two identical models share one label.
+  ///
+  /// In en, this message translates to:
+  /// **'Loses Trueplay: {names}. Re-tune in the Sonos app.'**
+  String frontSurroundsTrueplayLoses(String names);
 
   /// No description provided for @diagNoSystemToCollect.
   ///
@@ -2223,6 +2241,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'At least {min} characters'**
   String diagNoteHelper(int min);
+
+  /// Warning shown when the chosen speakers must be taken out of another bond, naming the speakers whose tuning is at risk — those that hold a stored tuning, plus any whose tuning could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{names} will lose its Trueplay. Re-tune it in the Sonos app.} other{{names} will lose their Trueplay. Re-tune them in the Sonos app.}}'**
+  String speakerStealTrueplayWarning(String names, int count);
+
+  /// No description provided for @pickerSectionAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available'**
+  String get pickerSectionAvailable;
+
+  /// No description provided for @pickerCostZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Taking any of them breaks up the whole group.'**
+  String get pickerCostZone;
+
+  /// The Trueplay cost of taking a speaker out of any bond. One sentence for every source: a tuning that survives an absorb comes back switched off and cannot be switched on without being destroyed (EXP-23 Q15/Q16, no safe delay, role-preserving included), so nothing can promise retention.
+  ///
+  /// In en, this message translates to:
+  /// **'Trueplay is cleared on all of them.'**
+  String get pickerCostCleared;
+
+  /// Section-header helper for a bond a speaker would be taken from.
+  ///
+  /// In en, this message translates to:
+  /// **'Picking one takes it out of this bond.'**
+  String get pickerSectionLeavesBond;
+
+  /// Pill on a picker card: Trueplay is active on this speaker (stored and enabled).
+  ///
+  /// In en, this message translates to:
+  /// **'Trueplay'**
+  String get speakerBadgeTrueplay;
+
+  /// No description provided for @pickerRoleFrontL.
+  ///
+  /// In en, this message translates to:
+  /// **'Front L'**
+  String get pickerRoleFrontL;
+
+  /// No description provided for @pickerRoleFrontR.
+  ///
+  /// In en, this message translates to:
+  /// **'Front R'**
+  String get pickerRoleFrontR;
+
+  /// No description provided for @pickerRoleSurroundL.
+  ///
+  /// In en, this message translates to:
+  /// **'Surround L'**
+  String get pickerRoleSurroundL;
+
+  /// No description provided for @pickerRoleSurroundR.
+  ///
+  /// In en, this message translates to:
+  /// **'Surround R'**
+  String get pickerRoleSurroundR;
+
+  /// No description provided for @pickerRoleCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get pickerRoleCenter;
+
+  /// Review-step line when the selection drops current HT members. The Trueplay cost of that (RemoveHTSatellite wipes the whole bond, EXP-23) is named speaker by speaker in frontSurroundsTrueplayLoses.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{types} leaves this home theater and becomes a standalone room.} other{{types} leave this home theater and become standalone rooms.}}'**
+  String frontSurroundsDropNote(String types, int count);
 }
 
 class _AppLocalizationsDelegate

@@ -34,7 +34,6 @@ String localizedError(AppLocalizations l10n, Object e) {
       SonorityErrorCode.entityMissingSpeakers => l10n.errEntityMissingSpeakers(a),
       SonorityErrorCode.malformedGroup => l10n.errMalformedGroup,
       SonorityErrorCode.malformedHomeTheater => l10n.errMalformedHomeTheater,
-      SonorityErrorCode.didNotForm => l10n.errDidNotForm(a),
       SonorityErrorCode.didNotCreateGroup => l10n.errDidNotCreateGroup,
       SonorityErrorCode.didNotSeparate => l10n.errDidNotSeparate,
       SonorityErrorCode.didNotRemove => l10n.errDidNotRemove(a),

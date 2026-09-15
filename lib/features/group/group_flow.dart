@@ -6,16 +6,19 @@ import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
+import '../../state/trueplay_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
-import '../widgets/card_grid.dart';
 import '../widgets/identify_controls.dart';
+import '../widgets/info_note.dart';
 import '../widgets/max_width_body.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/selectable_speaker_card.dart';
+import '../widgets/speaker_picker.dart';
 
 /// How the segmented control frames the bond. All three build a `ChannelMapSet`
-/// and go through the same `AddBondedZones` engine path.
-enum _Mode { stereo, zone, custom }
+/// and go through the same `AddBondedZones` engine path. Public because the
+/// review step is (see [GroupReviewStep]).
+enum GroupMode { stereo, zone, custom }
 
 /// Unified "Group speakers" flow: bond 2–16 speakers as a **Stereo** pair, a
 /// full-range **Zone**, or a **Custom** per-speaker L/R/Both layout — each with
@@ -44,7 +47,7 @@ class GroupFlow extends ConsumerStatefulWidget {
 }
 
 class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
-  _Mode _mode = _Mode.stereo;
+  GroupMode _mode = GroupMode.stereo;
   int _step = 0;
   final List<String> _selected = []; // ordered; for stereo [left, right]
   final Map<String, GroupChannel> _channels = {}; // custom: uuid → channel
@@ -58,12 +61,14 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
   static const _stepReview = 3;
 
   bool get _editing => widget.editUuid != null;
-  int get _cap => _mode == _Mode.stereo ? 2 : _maxSpeakers;
+  int get _cap => _mode == GroupMode.stereo ? 2 : _maxSpeakers;
 
   @override
   void initState() {
     super.initState();
     final sys = ref.read(sonosControllerProvider).value;
+    // Before the seeding branches below, which each return early.
+    loadTrueplayForPickers(ref);
     // Edit mode: seed the whole selection from the live group (mirrors
     // FrontSurroundsFlow). Preselects are create-only and ignored here.
     final uuid = widget.editUuid;
@@ -71,9 +76,9 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
       final g = sys?.memberByUuid(uuid);
       if (g == null || !g.isGroup) return;
       _mode = switch (g.groupKind) {
-        GroupKind.stereoPair => _Mode.stereo,
-        GroupKind.zone => _Mode.zone,
-        _ => _Mode.custom,
+        GroupKind.stereoPair => GroupMode.stereo,
+        GroupKind.zone => GroupMode.zone,
+        _ => GroupMode.custom,
       };
       final gc = g.groupChannels; // coordinator-first, Sub excluded
       _selected.addAll(gc.keys);
@@ -110,9 +115,9 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     }
   });
 
-  void _onModeChanged(_Mode m) => setState(() {
+  void _onModeChanged(GroupMode m) => setState(() {
     _mode = m;
-    if (m == _Mode.stereo && _selected.length > 2) {
+    if (m == GroupMode.stereo && _selected.length > 2) {
       for (final u in _selected.sublist(2)) {
         _channels.remove(u);
       }
@@ -134,6 +139,16 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     final candidates = system.zoneableSpeakers
         .where((d) => d.reachable)
         .toList();
+    // Speakers bonded into ANOTHER entity are offered too, so a user need not
+    // unbond by hand first. ⚠️ Unlike a home theater, every group write costs
+    // the calibration of the whole source bond (EXP-23: `AddBondedZones`
+    // rebuilds a bond even on an unchanged map), which is what the note under
+    // the list spells out.
+    for (final d in system.stealableSpeakers(exceptPrimary: widget.editUuid)) {
+      if (d.reachable && !d.isAmp && !candidates.any((x) => x.uuid == d.uuid)) {
+        candidates.add(d);
+      }
+    }
     final subs = system.bondableSubs.where((d) => d.reachable).toList();
     if (existing != null) {
       for (final u in existing.groupChannels.keys) {
@@ -144,6 +159,20 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
       final subD = subU == null ? null : system.device(subU);
       if (subD != null && !subs.any((x) => x.uuid == subU)) subs.add(subD);
     }
+    // Trueplay per candidate, so a speaker holding a tuning is tagged before it
+    // is moved out of whatever it is bonded into.
+    final picker = PickerContext(
+      system: system,
+      calibration: ref.watch(trueplayControllerProvider).byUuid,
+      exceptPrimary: widget.editUuid,
+      // Editing a group REBUILDS it, clearing its own members' Trueplay too —
+      // but only if the bond actually changes. Gating on that is what keeps
+      // the flow from warning the moment it opens on an untouched group.
+      ownBondMembers: existing == null || !_bondDiffers(system, existing)
+          ? const {}
+          : system.bondMemberUuids(existing),
+    );
+
     final scheme = Theme.of(context).colorScheme;
     // Candidates here are all standalone, so chime applies; gate per-device
     // anyway so the rule stays consistent with the HT flow.
@@ -194,7 +223,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       child: SizedBox(
                         width: double.infinity,
-                        child: SegmentedButton<_Mode>(
+                        child: SegmentedButton<GroupMode>(
                           showSelectedIcon: false,
                           style: SegmentedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -202,15 +231,15 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                           ),
                           segments: [
                             ButtonSegment(
-                              value: _Mode.stereo,
+                              value: GroupMode.stereo,
                               label: Text(context.l10n.groupModeStereo),
                             ),
                             ButtonSegment(
-                              value: _Mode.zone,
+                              value: GroupMode.zone,
                               label: Text(context.l10n.groupModeZone),
                             ),
                             ButtonSegment(
-                              value: _Mode.custom,
+                              value: GroupMode.custom,
                               label: Text(context.l10n.groupModeCustom),
                             ),
                           ],
@@ -242,6 +271,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                               mode: _mode,
                               candidates: candidates,
                               selected: _selected,
+                              picker: picker,
                               channels: _channels,
                               onToggle: _toggle,
                               onChannel: (u, c) =>
@@ -292,9 +322,10 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                           Step(
                             title: Text(context.l10n.groupStepReview),
                             isActive: _step >= _stepReview,
-                            content: _ReviewStep(
+                            content: GroupReviewStep(
                               mode: _mode,
                               system: system,
+                              picker: picker,
                               selected: _selected,
                               channels: _channels,
                               subUuid: _subUuid,
@@ -320,18 +351,19 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
       final d = system.device(_selected[i]);
       if (d == null) continue;
       final channel = switch (_mode) {
-        _Mode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
-        _Mode.zone => GroupChannel.both,
-        _Mode.custom => _channels[_selected[i]] ?? GroupChannel.both,
+        GroupMode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
+        GroupMode.zone => GroupChannel.both,
+        GroupMode.custom => _channels[_selected[i]] ?? GroupChannel.both,
       };
       members.add((device: d, channel: channel));
     }
     return members;
   }
 
-  /// True when the current selection would actually change [existing] — so an
-  /// unchanged edit disables Apply (no needless re-assert / dissolve).
-  bool _differs(SonosSystem system, ZoneGroupMember existing) {
+  /// True when the current selection would rewrite [existing]'s BOND — the
+  /// part that costs Trueplay, since `AddBondedZones` rebuilds the bond even on
+  /// an unchanged map. A rename alone doesn't, which is why it isn't in here.
+  bool _bondDiffers(SonosSystem system, ZoneGroupMember existing) {
     // Ordered uuid:channel signature captures membership, channels, and (for
     // stereo) the L/R order in one compare.
     final want = [
@@ -340,10 +372,14 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     final have = [
       for (final e in existing.groupChannels.entries) '${e.key}:${e.value.name}',
     ].join(';');
-    return want != have ||
-        _subUuid != existing.subUuid ||
-        _nameController.text.trim() != existing.zoneName;
+    return want != have || _subUuid != existing.subUuid;
   }
+
+  /// True when the current selection would actually change [existing] — so an
+  /// unchanged edit disables Apply (no needless re-assert / dissolve).
+  bool _differs(SonosSystem system, ZoneGroupMember existing) =>
+      _bondDiffers(system, existing) ||
+      _nameController.text.trim() != existing.zoneName;
 
   Widget _controls(SonosSystem system) {
     final isLast = _step == _stepReview;
@@ -355,9 +391,9 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
         ? (_editing
             ? context.l10n.groupSaveChanges
             : switch (_mode) {
-                _Mode.stereo => context.l10n.groupCreateStereo,
-                _Mode.zone => context.l10n.groupCreateZone,
-                _Mode.custom => context.l10n.groupCreateCustom,
+                GroupMode.stereo => context.l10n.groupCreateStereo,
+                GroupMode.zone => context.l10n.groupCreateZone,
+                GroupMode.custom => context.l10n.groupCreateCustom,
               })
         : context.l10n.actionContinue;
     return Padding(
@@ -428,7 +464,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
 
 /// Step 1 — pick speakers, with per-mode assignment.
 class _SelectStep extends StatelessWidget {
-  final _Mode mode;
+  final GroupMode mode;
   final List<SonosDevice> candidates;
   final List<String> selected;
   final Map<String, GroupChannel> channels;
@@ -436,6 +472,8 @@ class _SelectStep extends StatelessWidget {
   final void Function(String uuid, GroupChannel channel) onChannel;
   final VoidCallback onSwap;
   final Widget Function(SonosDevice device) identifyControls;
+
+  final PickerContext picker;
 
   const _SelectStep({
     required this.mode,
@@ -446,23 +484,29 @@ class _SelectStep extends StatelessWidget {
     required this.onChannel,
     required this.onSwap,
     required this.identifyControls,
+    required this.picker,
   });
 
   String _hint(BuildContext context) => switch (mode) {
-    _Mode.stereo => context.l10n.groupHintStereo,
-    _Mode.zone => context.l10n.groupHintZone,
-    _Mode.custom => context.l10n.groupHintCustom,
+    GroupMode.stereo => context.l10n.groupHintStereo,
+    GroupMode.zone => context.l10n.groupHintZone,
+    GroupMode.custom => context.l10n.groupHintCustom,
   };
 
   @override
   Widget build(BuildContext context) {
-    final cap = mode == _Mode.stereo ? 2 : 16;
+    final cap = mode == GroupMode.stereo ? 2 : 16;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(_hint(context), style: Theme.of(context).textTheme.bodySmall),
         Gap.s,
-        CardGrid([for (final d in candidates) _card(context, d, cap)]),
+        SpeakerPickerSections(
+          ctx: picker,
+          candidates: candidates,
+          selected: selected.toSet(),
+          card: (d) => _card(context, d, cap),
+        ),
       ],
     );
   }
@@ -476,7 +520,7 @@ class _SelectStep extends StatelessWidget {
     final disabled = !isSel && selected.length >= cap;
     Widget? control;
     var showControl = false;
-    if (mode == _Mode.custom && isSel) {
+    if (mode == GroupMode.custom && isSel) {
       showControl = true;
       control = SegmentedButton<GroupChannel>(
         showSelectedIcon: false,
@@ -494,7 +538,7 @@ class _SelectStep extends StatelessWidget {
         selected: {channels[d.uuid] ?? GroupChannel.both},
         onSelectionChanged: (s) => onChannel(d.uuid, s.first),
       );
-    } else if (mode == _Mode.stereo && isSel && selected.length == 2) {
+    } else if (mode == GroupMode.stereo && isSel && selected.length == 2) {
       showControl = true;
       control = SideSelector(
         isRight: selected.indexOf(d.uuid) == 1,
@@ -506,8 +550,9 @@ class _SelectStep extends StatelessWidget {
       selected: isSel,
       enabled: !disabled,
       onToggle: () => onToggle(d.uuid),
-      subtitle: d.typeLabel,
+      titleOverride: picker.titleOverride(context, d),
       identify: identifyControls(d),
+      badges: [?trueplayBadge(context, picker.calibration[d.uuid])],
       showControl: showControl,
       control: control,
     );
@@ -557,18 +602,32 @@ class _SubStep extends StatelessWidget {
   }
 }
 
-/// Step 4 — summary + the "large groups can be flaky" nudge.
-class _ReviewStep extends StatelessWidget {
-  final _Mode mode;
+/// Step 4 — summary, the destructive-write gate, and the "large groups can be
+/// flaky" nudge. Public only so the gate can be widget-tested.
+///
+/// The cost has to be restated HERE and not only under the speaker list: a
+/// group write is the more destructive of the two flows (`AddBondedZones`
+/// absorbs nothing, so every source bond is genuinely dissolved) and the
+/// speaker step is three taps behind the button that writes.
+@visibleForTesting
+class GroupReviewStep extends StatelessWidget {
+  final GroupMode mode;
   final SonosSystem system;
+
+  /// The same context the picker used, so the note under the speaker list and
+  /// this card can't price one selection two ways.
+  final PickerContext picker;
+
   final List<String> selected;
   final Map<String, GroupChannel> channels;
   final String? subUuid;
   final String name;
 
-  const _ReviewStep({
+  const GroupReviewStep({
+    super.key,
     required this.mode,
     required this.system,
+    required this.picker,
     required this.selected,
     required this.channels,
     required this.subUuid,
@@ -579,9 +638,9 @@ class _ReviewStep extends StatelessWidget {
       system.device(uuid)?.typeLabel ?? context.l10n.widgetsSpeaker;
 
   GroupChannel _channelFor(int i) => switch (mode) {
-    _Mode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
-    _Mode.zone => GroupChannel.both,
-    _Mode.custom => channels[selected[i]] ?? GroupChannel.both,
+    GroupMode.stereo => i == 0 ? GroupChannel.left : GroupChannel.right,
+    GroupMode.zone => GroupChannel.both,
+    GroupMode.custom => channels[selected[i]] ?? GroupChannel.both,
   };
 
   @override
@@ -590,9 +649,9 @@ class _ReviewStep extends StatelessWidget {
     final muted = theme.mutedText;
     final l10n = context.l10n;
     final kind = switch (mode) {
-      _Mode.stereo => l10n.groupKindStereo,
-      _Mode.zone => l10n.groupKindZone(selected.length),
-      _Mode.custom => l10n.groupKindCustom(selected.length),
+      GroupMode.stereo => l10n.groupKindStereo,
+      GroupMode.zone => l10n.groupKindZone(selected.length),
+      GroupMode.custom => l10n.groupKindCustom(selected.length),
     };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -622,6 +681,12 @@ class _ReviewStep extends StatelessWidget {
           Gap.s,
         ],
         Gap.s,
+        // Same renderer as the picker note and the HT review card — one cost
+        // model, three screens.
+        if (picker.warning(l10n, selected.toSet()) case final w?) ...[
+          InfoNote(w),
+          Gap.s,
+        ],
         Text(l10n.groupReviewNote, style: muted),
       ],
     );

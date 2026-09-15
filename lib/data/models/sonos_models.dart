@@ -145,11 +145,18 @@ class SonosSatellite {
   final List<SonosChannel> channels;
   final String? ip;
 
+  /// The satellite's description URL from the topology. Kept (not just the
+  /// derived [ip]) so discovery can re-fetch a satellite that SSDP missed —
+  /// see `SonosRepository.discover`, where a missing Sub silently cost the
+  /// whole HT its sub channel on the next apply.
+  final String? location;
+
   const SonosSatellite({
     required this.uuid,
     required this.zoneName,
     required this.channels,
     this.ip,
+    this.location,
   });
 
   bool get isSub => channels.contains(SonosChannel.sub);
@@ -428,6 +435,13 @@ class SonosSystem {
         for (final g in groups)
           for (final m in g.members) ...[
             if (m.isHomeTheater) m.uuid,
+            // The AUTHORITATIVE channel map first — `<Satellite>` elements
+            // briefly vanish for ~15s after any bonding change (gotcha #1), and
+            // this set decides whether a speaker gets freed before a bond
+            // write. Reading only the satellite list would let a satellite of
+            // ANOTHER home theater look standalone mid-settle, skip its free,
+            // and target a speaker that bar still claims.
+            ...m.channelAssignments.values,
             ...m.satellites.map((s) => s.uuid),
             // Covers both stereo-pair halves and all zone members.
             ...m.channelMapUuids,
@@ -506,4 +520,110 @@ class SonosSystem {
     }
     return null;
   }
+
+  /// Every speaker belonging to the bond [m] — its primary plus satellites and
+  /// channel-map members. This is the unit a bonding change acts on: Sonos
+  /// invalidates room calibration per BOND, not per speaker (EXP-23).
+  Set<String> bondMemberUuids(ZoneGroupMember m) => {
+        m.uuid,
+        // Authoritative map first — see [_bondedUuids] on why the `<Satellite>`
+        // list alone is not safe to decide bonding on.
+        ...m.channelAssignments.values,
+        ...m.satellites.map((s) => s.uuid),
+        ...m.channelMapUuids,
+      };
+
+  /// Speakers already bonded into some OTHER entity, offered so a picker can
+  /// take them from it rather than making the user unbond by hand first.
+  ///
+  /// Hardware-measured (EXP-23): `AddHTSatellite` absorbs a speaker straight out
+  /// of a live stereo pair — the pair dissolves implicitly and the speaker's
+  /// Trueplay COEFFICIENTS survive — so the unbond-first step Sonority used to
+  /// require was unnecessary. It was not the only thing costing a tuning: a
+  /// bonding change clears members with no removal and no enable written at all
+  /// (CLAUDE.md, Q20). What a take costs is [tuningLostBySelection].
+  ///
+  /// Excludes soundbars and Subs (neither is offered anywhere as a stealable
+  /// speaker — the Sub pickers list standalone Subs only) and the bond
+  /// [exceptPrimary], whose own members the caller lists separately.
+  List<SonosDevice> stealableSpeakers({String? exceptPrimary}) => [
+        for (final m in allMembers)
+          if ((m.isHomeTheater || m.isGroup) && m.uuid != exceptPrimary)
+            for (final id in bondMemberUuids(m))
+              // A home theater's PRIMARY is the bar itself — never a candidate,
+              // and `ownerOf` returns null for it, so offering one would land it
+              // in the "available" block and skip freeing. (A group's primary IS
+              // a normal member and stays.)
+              if (id != m.uuid || m.isGroup)
+                if (device(id) case final d? when !d.isSoundbar && !d.isSub) d,
+      ];
+
+  /// Which speakers lose their Trueplay tuning when [selected] is bonded into a
+  /// destination: the WHOLE of every bond the selection takes from, plus
+  /// [alsoLosing].
+  ///
+  /// The whole bond, every time, even though storage is kinder than that —
+  /// `AddHTSatellite` absorbs a speaker out of a live pair or zone (Q7/Q9/Q10)
+  /// and its coefficients survive. They come back switched OFF, and the only
+  /// write that switches them on destroys them (CLAUDE.md, the
+  /// destructive-enable rule), so there is no retention any screen may promise.
+  /// What the absorb IS still worth — skipping the free — is [canAbsorbFrom],
+  /// and that is what `_freeConflicts` acts on.
+  ///
+  /// [alsoLosing] is what the destination itself costs, which the sources cannot
+  /// know about: a group edit's own members (`AddBondedZones` rebuilds the bond
+  /// even on an unchanged map, EXP-23 Q8a) or, for a home theater, its whole
+  /// current membership whenever the apply writes anything at all (Q20: a purely
+  /// additive bond took the bar and both rears to `available=0`).
+  Set<String> tuningLostBySelection({
+    required Set<String> selected,
+    String? exceptPrimary,
+    Set<String> alsoLosing = const {},
+  }) {
+    final losing = <String>{...alsoLosing};
+    for (final uuid in selected) {
+      final owner = ownerOf(uuid);
+      if (owner == null || owner == exceptPrimary) continue;
+      final source = memberByUuid(owner);
+      if (source != null) losing.addAll(bondMemberUuids(source));
+    }
+    return losing;
+  }
+
+  /// Whether [uuid] must be freed from whatever it is bonded to before a new
+  /// bond can claim it.
+  ///
+  /// The question is [isStandalone], NOT `ownerOf(uuid) != target` — for a
+  /// group's COORDINATOR `ownerOf` returns that speaker's own uuid, so an
+  /// owner-based test reads it as unbonded, skips the free, and the bond write
+  /// then silently no-ops. Hardware-caught: it dissolved a live zone without
+  /// forming the new group.
+  ///
+  /// [keep] is the target's own current members (freeing those would undo the
+  /// thing being built). [absorbing] is true for a home-theater target, which
+  /// takes a speaker straight out of a pair or zone with its tuning intact.
+  bool mustFreeBeforeBonding(
+    String uuid, {
+    required Set<String> keep,
+    required bool absorbing,
+  }) {
+    if (keep.contains(uuid) || isStandalone(uuid)) return false;
+    final src = memberByUuid(ownerOf(uuid) ?? '');
+    // No resolvable source. Normally that means a home theater's own PRIMARY —
+    // `ownerOf` returns null for a soundbar — where there is nothing to free it
+    // FROM, and asking anyway costs a no-op write plus an 18s poll on a
+    // condition already met. It also covers the `ZoneGroup ID="…:orphan"` case
+    // (an Invisible survivor whose coordinator is gone), where `freeSpeaker`
+    // would find nothing to act on either; the caller's poll-verify is the
+    // backstop there.
+    if (src == null) return false;
+    return !(absorbing && canAbsorbFrom(src));
+  }
+
+  /// Whether `AddHTSatellite` can take a speaker straight out of [source]
+  /// without freeing it first — true for an `AddBondedZones`-style bond (pair,
+  /// zone, custom group), false for a home theater (never measured — one
+  /// soundbar on the test system). A false here means the caller must free the
+  /// speaker before bonding, or the write fails.
+  bool canAbsorbFrom(ZoneGroupMember source) => source.isGroup;
 }

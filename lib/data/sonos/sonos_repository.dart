@@ -30,6 +30,10 @@ class SonosRepository {
   final AvTransportClient _avTransport;
   final KeyValueStore _store;
 
+  /// How long to wait between topology reads while verifying a group bond.
+  /// Only overridden by tests, so they don't sleep through the real cadence.
+  final Duration _groupVerifyInterval;
+
   SonosRepository({
     SsdpDiscovery? ssdp,
     DeviceDescriptionClient? descriptions,
@@ -38,7 +42,9 @@ class SonosRepository {
     RoomCalibrationClient? calibration,
     AvTransportClient? avTransport,
     KeyValueStore? store,
-  })  : _ssdp = ssdp ?? SsdpDiscovery(),
+    Duration? groupVerifyInterval,
+  })  : _groupVerifyInterval = groupVerifyInterval ?? _defaultGroupVerifyInterval,
+        _ssdp = ssdp ?? SsdpDiscovery(),
         _descriptions = descriptions ?? DeviceDescriptionClient(),
         _topology = topology ?? ZoneTopologyClient(SonosSoapClient()),
         _deviceProps = deviceProps ?? DevicePropertiesClient(SonosSoapClient()),
@@ -97,21 +103,40 @@ class SonosRepository {
         '${groups.expand((g) => g.members).length} member(s) in ${groups.length} group(s)');
 
     // Topology is authoritative; SSDP and the per-device description fetch are
-    // both lossy. Re-fetch any visible member we don't yet have a description
-    // for, straight from its topology-provided Location — this recovers a
-    // transient fetch failure and any device SSDP's multicast missed entirely.
+    // both lossy. Re-fetch anything we don't yet have a description for,
+    // straight from its topology-provided Location — this recovers a transient
+    // fetch failure and any device SSDP's multicast missed entirely.
+    //
+    // SATELLITES COUNT. They are `<Satellite>` children, not members, so a
+    // members-only sweep left an SSDP-missed Sub absent from `devicesByUuid`
+    // and every consumer resolved it to null: the HT page showed "Speaker" for
+    // it, the setup flow said "no free subwoofer found", and — the reason this
+    // is not cosmetic — the flow builds its target map from resolved devices,
+    // so an apply would have dropped the SW channel and `RemoveHTSatellite`'d
+    // the user's Sub with no warning (which per EXP-23 also wipes the bond's
+    // Trueplay). Seen live on hardware.
+    //
+    // INVISIBLE MEMBERS COUNT for the same reason. A stereo-pair half and every
+    // non-coordinator zone member is its own `Invisible="1"` member, and a
+    // group edit builds its target from resolved devices too — an SSDP-missed
+    // one silently left the group on a rename. Re-fetching is by `Location`, so
+    // hidden or not makes no difference; `allMembers` filters Invisible where it
+    // belongs, at the topology, not by leaving the device unresolvable. It also
+    // gets a standalone Sub (Invisible as well) a real description.
     final missing = [
       for (final g in groups)
-        for (final m in g.members)
-          if (!m.invisible &&
-              m.location != null &&
-              !devicesByUuid.containsKey(m.uuid))
-            m,
+        for (final m in g.members) ...[
+          if (m.location != null && !devicesByUuid.containsKey(m.uuid))
+            (uuid: m.uuid, name: m.zoneName, location: m.location!, ip: m.ip),
+          for (final s in m.satellites)
+            if (s.location != null && !devicesByUuid.containsKey(s.uuid))
+              (uuid: s.uuid, name: s.zoneName, location: s.location!, ip: s.ip),
+        ],
     ];
     if (missing.isNotEmpty) {
       final recovered = await Future.wait(missing.map((m) async {
         try {
-          return await _descriptions.fetch(m.location!);
+          return await _descriptions.fetch(m.location);
         } catch (_) {
           // Re-fetch failed too. Keep the device — it's in the authoritative
           // topology — but flag it unreachable (model/capabilities unknown) so
@@ -119,7 +144,7 @@ class SonosRepository {
           // silently.
           return SonosDevice(
             uuid: m.uuid,
-            roomName: m.zoneName,
+            roomName: m.name,
             modelName: '',
             ip: m.ip,
             reachable: false,
@@ -172,7 +197,7 @@ class SonosRepository {
   // a nested poll keeps the common case snappy while still retrying the flaky one.
   static const _groupBondRetries = 6;
   static const _groupVerifyReads = 6;
-  static const _groupVerifyInterval = Duration(seconds: 3);
+  static const _defaultGroupVerifyInterval = Duration(seconds: 3);
 
   /// Writes [target] to the coordinator and VERIFIES every requested channel
   /// actually landed, RE-ASSERTING up to [_bondRetries] times if Sonos silently
@@ -273,53 +298,39 @@ class SonosRepository {
   /// member is the coordinator (stays the visible room); the rest go hidden.
   /// Snapshots every member's + the sub's name first so they restore on
   /// separation — Sonos absorbs them all into the coordinator's name.
-  Future<void> createGroup({
+  ///
+  /// A create is just a [reassertGroup] with no current members, so it goes
+  /// through the same write → verify → re-assert loop: `AddBondedZones` is
+  /// eventually-consistent, and a single write is unreliable. Hardware-seen: a
+  /// create issued right after the members were freed from another bond was
+  /// accepted (200 OK) and silently did nothing, leaving the source home theater
+  /// stripped and no group built; the identical write succeeded on retry.
+  /// Returns the verified [SonosSystem]; throws
+  /// [SonorityErrorCode.didNotCreateGroup] if it never converges.
+  Future<SonosSystem> createGroup({
     required List<({SonosDevice device, GroupChannel channel})> members,
     SonosDevice? sub,
+    required SonosSystem? previous,
+    Set<String> skipNameSnapshot = const {},
+    void Function(String note)? onNote,
     CancellationToken? cancel,
   }) async {
     if (members.length < 2) {
       throw const SonorityError(SonorityErrorCode.groupNeedsTwo);
     }
-    final all = [for (final m in members) m.device, if (sub != null) sub];
-    if (all.any((d) => d.ip == null)) {
+    if ([for (final m in members) m.device, if (sub != null) sub]
+        .any((d) => d.ip == null)) {
       throw const SonorityError(SonorityErrorCode.speakerIpUnknown);
     }
-    final attrs = <String, ZoneAttributes>{};
-    for (final d in all) {
-      // A member that was just unbonded elsewhere (a removed HT satellite, say)
-      // still refuses :1400 — wait for it rather than aborting the whole create
-      // before a single write, which is what a profile that rebuilds a pair out
-      // of ex-surrounds kept doing.
-      attrs[d.uuid] = await retryUnreachable(
-          () => _deviceProps.getZoneAttributes(d.ip!),
-          cancel: cancel);
-    }
-    await _saveZoneSnapshot(attrs);
-    // Built OUTSIDE the try so a map-building bug can't hide in the catch below.
-    final map = buildGroupMap(
-      [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
-      subUuid: sub?.uuid,
+    return reassertGroup(
+      members: members,
+      sub: sub,
+      currentUuids: const [], // nothing bonded yet: every member is "added"
+      previous: previous,
+      skipNameSnapshot: skipNameSnapshot,
+      onNote: onNote,
+      cancel: cancel,
     );
-    try {
-      await _deviceProps.addBondedZones(
-          ip: members.first.device.ip!, channelMapSet: map);
-    } on SonosSoapException catch (e) {
-      // 800 = mid-reshuffle (transient). Anything else (401 invalid action, 402
-      // malformed map) never converges — the caller should see it.
-      if (e.faultCode != '800') rethrow;
-      DiagnosticsLog.add('createGroup: AddBondedZones error 800, verifying');
-    } catch (e) {
-      // NOT fatal — the same rule [bondAndVerify] and [reassertGroup] follow: a
-      // bond write that times out (or is refused mid-reshuffle) very often still
-      // applies, so it's a "go verify", never a verdict. Every caller
-      // poll-verifies the group actually formed and reports a clear error if it
-      // didn't; throwing here skipped that and failed an apply whose write had
-      // in fact landed (hardware-seen: the group was formed by the time the user
-      // retried). Cancellation is the one thing that must still stop everything.
-      if (e is OperationCancelled) rethrow;
-      DiagnosticsLog.add('createGroup: AddBondedZones failed ($e), verifying');
-    }
   }
 
   /// Reconfigures a LIVE group in place by re-asserting the [members] (+ [sub])
@@ -343,11 +354,23 @@ class SonosRepository {
   /// verified [SonosSystem]; throws [SonorityErrorCode.didNotCreateGroup] if it
   /// never converges. Treats a timeout / 800 as "go verify" and rethrows a
   /// permanent fault (e.g. 401/402) immediately.
+  ///
+  /// [createGroup] delegates here with an empty [currentUuids]: creating a group
+  /// is the same write/verify/re-assert loop with nothing bonded yet, so every
+  /// member counts as added and gets its name snapshotted.
+  ///
+  /// [skipNameSnapshot] names members whose CURRENT room name is not their own
+  /// and must not be stored: a speaker just freed out of a home theater still
+  /// carries the bar's name, because `RemoveHTSatellite` does not restore names
+  /// and nothing ever captured the original. Snapshotting it would make a later
+  /// separate rename the speaker to the live home theater's name and collide
+  /// (`Woonkamer` → `Woonkamer 2`). No snapshot ⇒ Sonos picks the default.
   Future<SonosSystem> reassertGroup({
     required List<({SonosDevice device, GroupChannel channel})> members,
     SonosDevice? sub,
     required List<String> currentUuids,
     required SonosSystem? previous,
+    Set<String> skipNameSnapshot = const {},
     void Function(String note)? onNote,
     CancellationToken? cancel,
   }) async {
@@ -367,15 +390,29 @@ class SonosRepository {
       if (sub != null && !currentUuids.contains(sub.uuid)) sub,
     ];
     for (final d in added) {
-      // Same as [createGroup]: a newly-added member may have just been unbonded
-      // and still be refusing :1400.
-      if (d.ip != null) {
+      if (d.ip == null || skipNameSnapshot.contains(d.uuid)) continue;
+      // A newly-added member may have just been unbonded and still be refusing
+      // :1400. BEST-EFFORT: this runs before the first write, and on the
+      // dissolve→recreate path the group is already torn down by now — losing
+      // one member's name snapshot is far cheaper than aborting the rebuild.
+      try {
         merged[d.uuid] = await retryUnreachable(
             () => _deviceProps.getZoneAttributes(d.ip!),
             cancel: cancel);
+      } on OperationCancelled {
+        rethrow;
+      } catch (e) {
+        DiagnosticsLog.add('name snapshot for ${d.uuid} failed, skipping: $e');
       }
     }
-    if (merged.isNotEmpty) await _saveZoneSnapshot(merged);
+    if (merged.isNotEmpty) {
+      // Keyed by the FULL target membership, never by what was captured — see
+      // [_saveZoneSnapshot].
+      await _saveZoneSnapshot(
+        [for (final m in members) m.device.uuid, if (sub != null) sub.uuid],
+        merged,
+      );
+    }
 
     final map = buildGroupMap(
       [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
@@ -445,9 +482,14 @@ class SonosRepository {
   /// through a recipe). [members] are all bonded speakers (incl. any Sub),
   /// coordinator first, resolved by the caller for name restore + IPs. The group
   /// must already be its own coordinator — call [detachFromGroup] + settle first.
+  /// [snapshotUuids] is the group's FULL membership — the key the snapshot was
+  /// stored under. It is deliberately NOT derived from [members]: those are the
+  /// RESOLVED devices, and one unresolvable member shortened the key, missed the
+  /// stored entry entirely and restored NOBODY's name (see [_restoreZoneNames]).
   Future<void> separateGroup({
     required List<SonosDevice> members,
     required String channelMapSet,
+    required List<String> snapshotUuids,
     CancellationToken? cancel,
   }) async {
     if (members.isEmpty) return;
@@ -457,7 +499,7 @@ class SonosRepository {
     }
     await _deviceProps.separateBondedZones(
         ip: coordIp, channelMapSet: channelMapSet);
-    await _restoreZoneNames(members, cancel: cancel);
+    await _restoreZoneNames(snapshotUuids, members, cancel: cancel);
   }
 
   /// Restores each member's saved room name after a group is dissolved (Sonos
@@ -465,18 +507,26 @@ class SonosRepository {
   /// them back). No-op when no snapshot was persisted — e.g. the group was
   /// created outside the app or prefs were cleared.
   ///
+  /// **[keyUuids] is the group's full membership, [targets] the resolved devices
+  /// to write to.** They are separate on purpose: the snapshot is keyed by the
+  /// FULL intended membership (see [_saveZoneSnapshot]), so deriving the key
+  /// from the resolved devices made one unresolvable member shorten the key,
+  /// miss the stored entry entirely, and cost EVERY speaker in the group its
+  /// name — not just the unresolved one. Mirrors the write-side rule.
+  ///
   /// **Best-effort, per member.** These are the speakers Sonos just detached, so
   /// they're squarely inside the ~20-30s window where :1400 refuses connections
   /// — hence [retryUnreachable]. And a name that still won't restore must not
   /// take the whole operation down with it: the bond is already dissolved, so
   /// throwing here left `editGroup` with a group it never rebuilt. A cosmetic
   /// name loss beats that (the transport error is in the diagnostics log).
-  Future<void> _restoreZoneNames(List<SonosDevice> members,
+  Future<void> _restoreZoneNames(
+      Iterable<String> keyUuids, List<SonosDevice> targets,
       {CancellationToken? cancel}) async {
-    final snap = await _loadZoneSnapshot([for (final m in members) m.uuid]);
+    final snap = await _loadZoneSnapshot(keyUuids.toList());
     if (snap == null) return;
     await interruptibleDelay(const Duration(seconds: 2), cancel);
-    for (final m in members) {
+    for (final m in targets) {
       final want = snap[m.uuid];
       final ip = m.ip;
       if (want == null || ip == null) continue;
@@ -529,7 +579,7 @@ class SonosRepository {
               m.uuid,
               ...m.channelMapUuids.where((u) => u != m.uuid),
             ].map(system.device).whereType<SonosDevice>().toList();
-            await _restoreZoneNames(members, cancel: cancel);
+            await _restoreZoneNames(m.channelMapUuids, members, cancel: cancel);
           }
           return;
         }
@@ -556,9 +606,18 @@ class SonosRepository {
     return 'zone_snapshot_${s.join('_')}';
   }
 
-  Future<void> _saveZoneSnapshot(Map<String, ZoneAttributes> attrs) async {
+  /// Stores [attrs] under the key for [members] — the group's FULL intended
+  /// membership, deliberately NOT `attrs.keys`.
+  ///
+  /// A snapshot is legitimately a SUBSET of the group: a member whose current
+  /// name isn't its own is skipped, and a member that won't answer :1400 is
+  /// best-effort. Keying by what was captured made the read — which asks by the
+  /// LIVE member list — miss the key entirely, so a later separate restored
+  /// NOBODY's name, not just the skipped one's.
+  Future<void> _saveZoneSnapshot(
+      Iterable<String> members, Map<String, ZoneAttributes> attrs) async {
     await _store.setString(
-      _zoneKey(attrs.keys),
+      _zoneKey(members),
       jsonEncode({
         for (final e in attrs.entries)
           e.key: {

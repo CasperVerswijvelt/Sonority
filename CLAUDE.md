@@ -219,6 +219,19 @@ interpolated) then use it.
     now a no-op apply). **Sub-on-a-stereo-pair is NOT supported** —
     `AddHTSatellite` on a pair coordinator returns UPnPError 401.
   - `CreateStereoPair` / `SeparateStereoPair` — stereo pairs.
+  - ⭐ **`AddHTSatellite` ABSORBS a speaker straight out of a live stereo pair or
+    zone** — no separate/dissolve first, one write, and the speaker keeps its
+    Trueplay (EXP-23 Q7/Q9/Q10). **`AddBondedZones` absorbs from NOTHING**: it is
+    accepted (HTTP 200) and silently no-ops on a speaker bonded elsewhere (Q11, 2
+    cycles), so a group target must free the speaker first. Absorbing out of another
+    home theater is **unmeasured** (one soundbar here) and treated as not possible.
+    ⇒ `SonosSystem.canAbsorbFrom` / `mustFreeBeforeBonding` encode this, and every
+    apply path routes through `SonosController._freeConflicts` (six call sites —
+    including the profile SINGLE-speaker path, which used to free unconditionally by
+    hand). `_freeConflicts` treats the unbond like every other bond write (timeout /
+    800 ⇒ go verify, the poll is the verdict) and dissolves each source bond ONCE —
+    freeing one member of a group frees its siblings, and the settle poll can hand
+    back a stale read, which sent a second write against a dead map.
   - `AddBondedZones(ChannelMapSet)` — **creates** a Sonos **zone** (the 2025
     multi-speaker bond: 2–16 individual speakers play as one room, full-range
     L+R, no L/R split). **Confirmed on hardware** (`tool/zone_probe.dart`):
@@ -229,10 +242,17 @@ interpolated) then use it.
     them like pairs. **A create write is "go verify" too, not pass/fail** — same
     rule as `AddHTSatellite`: a timed-out (or 800) `AddBondedZones` very often
     still applies (hardware-seen: a user's apply reported failure on an 8s
-    timeout, and the pair was formed by the time they retried). `createGroup`
-    therefore swallows any transport failure + 800 and leaves the verdict to the
-    caller's poll-verify (every call site has one); only a non-800 fault
-    rethrows, since 401/402 never converge.
+    timeout, and the pair was formed by the time they retried). **And the
+    converse: an ACCEPTED write (200 OK) is not success either** — creating a
+    group out of a speaker freed from another bond seconds earlier was accepted
+    and silently did nothing (hardware, once), leaving the source HT stripped
+    and no group built; the identical write succeeded on retry. So a create must
+    converge like every other bond write: `SonosRepository.createGroup` is a
+    thin wrapper over `reassertGroup` with an empty `currentUuids` (same
+    write → verify-read → re-assert loop, same name snapshot), returns the
+    verified `SonosSystem`, and throws `didNotCreateGroup` only after it has
+    genuinely re-asserted. A non-800 fault still rethrows immediately, since
+    401/402 never converge.
   - **In-place group RECONFIGURE works like HT (hardware-confirmed,
     `tool/group_reassert_spike.dart` — self-restoring, 12/12 reassign + 6/6 add
     trials, all 1 attempt):** re-asserting `AddBondedZones` on a LIVE group's
@@ -343,19 +363,160 @@ interpolated) then use it.
     `RoomCalibrationEnabled` + `RoomCalibrationAvailable`; `SetRoomCalibrationStatus
     (InstanceID, RoomCalibrationEnabled)`. **available = a tuning is stored**
     (measured once in the **iOS** Sonos app — cloud DSP + Apple-only mic profiles,
-    **cannot** be done from Android); **enabled = applied**. We only read + toggle
-    (non-destructive, instant), which is the part the Sonos app won't expose for
-    the unofficial fronts config. Toggle ALL bonded members so the separately-tuned
-    fronts engage; **Amp-driven fronts can't be Trueplay'd** (native speakers only).
-  - **Gotcha (A/B-tested on hardware):** Sonos **invalidates** Trueplay across the
-    WHOLE bonded set when that set changes. Measured: a freshly-tuned Beam HT
-    (bar `CC`, rears `LR`/`RR`, sub `SW` all `available=1`) → `AddHTSatellite`
-    fronts → **every** member, coordinator included, dropped to `available=0`; an
-    untouched standalone (Eetkamer) kept `available=1` throughout. So the
-    "tune-then-bond" workaround **failed outright on Beam-gen gear** — and it's a
-    catch-22 (the official app refuses to tune the very fronts config you want).
-    Reddit reports of it working are firmware/model-specific. Sonority reads and
-    reports this honestly but cannot restore a tuning Sonos has cleared.
+    **cannot** be done from Android); **enabled = applied**. We only read + toggle — never
+    measure — which is the part the Sonos app won't expose for the unofficial
+    fronts config. The toggle writes to ALL bonded members so separately-tuned
+    fronts engage together, which is why an INCOMPLETE set is dangerous — both
+    directions **warn and ask** there, and neither is blocked (see the
+    destructive-enable rule below, which is the real record).
+    **Amp-driven fronts can't be Trueplay'd** (native speakers only).
+  - ⭐ **THE RULE (EXP-23, 2026-09-13 — hardware-measured, but read the tiers below
+    before quoting a row):** a speaker keeps
+    its Trueplay tuning **iff it is ABSORBED by a mutating operation**; it loses it if
+    it is removed, or if its bond is dissolved or rebuilt around it. Channel ids and
+    roles are **irrelevant** — falsified both ways (ids identical + tuning lost when a
+    pair was separated; ids swapped `[5]`↔`[6]` + tuning kept on an in-place reassign).
+    | operation | cost |
+    |---|---|
+    | `AddHTSatellite` — re-assert, channel reassign, **absorbing a live stereo pair** | **free** |
+    | `AddHTSatellite` — **additive add**, for the speaker being ADDED | **free** |
+    | `AddHTSatellite` — **additive add**, for the speakers ALREADY in the bond | ⚠️ **not free, and not fully measured** — an earlier run (×2) found adding fronts wiped the **bar and the Sub** while both rears kept `available=1`. Q7/Q9/Q10 only ever scored the absorbed speaker. |
+    | `SetZoneAttributes` (rename) | **free** |
+    | `RemoveHTSatellite` | **wipes EVERY member of the set**, not just the one removed |
+    | `SeparateStereoPair` | wipes the pair |
+    | `AddBondedZones` — **even with an identical map** | wipes every member (it REBUILDS the bond) |
+    ⇒ **`AddHTSatellite` mutates a bond; `AddBondedZones` rebuilds one.** So an HT edit
+    has a free path and a group edit does not — `editGroup`'s in-place `reassertGroup`
+    is **not** gentler than its dissolve path.
+    ⇒ **Taking speakers from another bond costs**, measured per source kind —
+    kept as the measurement record, NOT as what the app prices (see below:
+    `tuningLostBySelection` charges the whole source bond every time, because a
+    surviving tuning is unusable): a **stereo pair** — only the speakers
+    *left behind* (both halves ⇒ nothing lost, one half ⇒ the other loses it); a
+    **zone taken WHOLE** — every member except the **coordinator**, which keeps its
+    own (Q10, 2 cycles); a **zone taken IN PART** — **everyone**, coordinator and
+    taken speaker alike, because absorbing one member **dissolves the entire zone**
+    rather than shrinking it (Q12: dissolve ×2 cycles, the all-lose sweep ×1) and a
+    bond destroyed around a speaker takes its tuning with it; a **home theater** —
+    every member, because absorbing out of one was never measured so the speaker is
+    freed first instead of assumed.
+    ⚠️ **"Free" means the COEFFICIENTS survive, not that Trueplay is still ON.** An
+    absorbed speaker comes back `available=1 enabled=0` — measured end to end through
+    the app, 6 stable reads. And re-enabling it is exactly the destructive write
+    below, so the retention is **unusable**: copy must not promise it, and must
+    not tell the user to switch it back on.
+    ☠️☠️ **ENABLING A TUNING DESTROYS IT WHEN THE BONDED SET IS INCOMPLETE.** (Was
+    written as "if the bond changed since the tuning was authored" — **falsified by
+    Q19**: a bond that changed, with ids genuinely moving 5↔6, but whose set stayed
+    complete, survived the enable, and so did all five untouched members.) What the
+    destroyed cells share is that **some member of the bond held no tuning** — which is
+    the commit-by-set-completeness rule already proven over 21 baselined attempts.
+    | set after the bonding change | `SetRoomCalibrationStatus(1)` |
+    |---|---|
+    | **complete** (every member tuned) | **inert** — `1/0` stays `1/0`, nothing lost |
+    | **incomplete** (any member at 0) | ☠️ **destructive** — `1/0` → `0/0`, unrecoverable |
+    ⚠️ **Activation never happens after a bonding change.** No cell has reached `1/1`
+    after one; on a complete set the enable returns HTTP OK and does nothing. (It works
+    perfectly when nothing changed since the tuning was authored — Q20 phase 1, `1/1` on
+    all five — so the mechanism is fine; it is the bond's history that is not.)
+    ☠️ **Completing the set does NOT bring a lost tuning back** (Q20 phase 3), so
+    `available=0` is **destruction, not withholding**. And **any** bonding change costs
+    some members their tuning outright *with no enable written at all*: Q20 added ONE
+    satellite, removed nothing, wrote nothing, and the bar and both rears went `1/1 → 0/0`
+    while the survivors went `1/0`. Which satellites survive is **not predictable** from
+    anything measured — an earlier run adding fronts lost the bar and Sub and kept the
+    rears; this one adding a Sub lost the bar and the rears and kept the fronts. The bar
+    loses in both.
+    ⇒ **USABLE retention is not reachable from this app by any route** (the
+    coefficients do survive an absorb — THE RULE above is unchanged — but they
+    come back off and cannot be switched on), and the "additive path"
+    (tune the intact HT, then add without removing) is **falsified on a Beam Gen 2**.
+    The product answer is unchanged: a bonding change clears Trueplay, re-tune.
+    ⭐ **Independently corroborated, so this is no longer one household's result.** For a
+    month in early 2026 a competing app surfaced the device's raw `RoomCalibrationAvailable`
+    and its users posted what they read: **eleven dated readouts, ten reproducing this** —
+    including one on a Beam Gen 2 and six on the Arc Ultra that was supposed to be the
+    confound. The single positive report was destroyed two days later by its owner running
+    a Trueplay on/off sequence, which is the destructive-enable row above, observed by a
+    stranger seven months before we measured it.
+    ⭐ **The "but I can HEAR it" reports have an identified cause, and it is not Trueplay:**
+    three users independently found the toggle rewrites the **surround distance** setting
+    (3-10 ft ↔ more than 10 ft). Real, audible, repeatable, with no room correction behind
+    it. ⚠️ Unverified here — if true, *our* toggle does it too, silently. Probe before
+    claiming either way.
+    ⚠️ **The authored-vehicle confound is retired for storing** (leg 6, finally run by
+    replaying a genuine iOS capture): a real blob stores no better than an authored one on
+    a layout where ours fails, so provenance is not the discriminator. The enable half is
+    still unrun and now needs a FRESH iOS measurement — the 2026-08 capture is spent,
+    because the bar's channel ids have drifted away from it on the same layout.
+    ✅ **Handled in `trueplay_control.dart`, by WARNING and not by blocking:** the
+    toggle writes to every bonded member, and after a bonding change the set is
+    normally incomplete (the new speaker has no tuning) — the destructive row. So
+    **both directions ask while the set is short**, for different reasons. ON can
+    destroy the tunings that are left. OFF is not known to destroy anything — every
+    destructive cell we have is the `(1)` write, and `(0)` on an incomplete set is
+    **untested** — but it is a **one-way door**: the only way back is the `(1)`
+    write, so switching off here is effectively irreversible. A complete set never
+    asks in either direction. The copy hedges to **"could destroy"**: four cells on
+    one household with an undetermined mechanism do not earn a flat assertion. It was briefly *blocked* and that was the wrong call: the
+    measurement is four cells on ONE household, the mechanism is undetermined (see
+    below — "the write destroyed it" and "it was already dead and the write cleared
+    a stale flag" are indistinguishable), and users on other hardware sit in this
+    state and toggle deliberately. **Don't remove a control on one-household
+    evidence in an app whose point is doing what the official app refuses** — make
+    the consequence impossible to hit by accident instead.
+    The superseded framing, kept because its cells are still the evidence: (EXP-23 Q15/Q16, the write issued
+    directly with its HTTP response logged — observation, not inference):
+    | case | ids | `SetRoomCalibrationStatus(1)` |
+    |---|---|---|
+    | untouched tuned standalone (control, ×2 cycles) | `13`→`13` | **harmless**, `1/0` → `1/1` |
+    | absorbed zone coordinator, at T+65s **and** T+600s | `13`→`1` | `0/0` **destroyed** |
+    | absorbed pair, role **PRESERVED** | `1`→`1`, `2`→`2` | `0/0` **destroyed** |
+    | absorbed pair, role swapped | `1`→`2`, `2`→`1` | `0/0` **destroyed** |
+    **No safe delay** (600s behaves like 65s) and **the channel role is irrelevant** —
+    the role-preserving cell was the pre-registered falsifier and it died anyway. The
+    only thing the harmless row has that the others lack is that its bond never changed
+    after the tuning was stored. The write is NOT destructive in itself, so Sonority's
+    Trueplay toggle is safe on an untouched speaker.
+    ⇒ **`available=1` after a bonding change is storage, not a usable tuning.** It is
+    off, and the only way to switch it on destroys it, so audibly it is
+    indistinguishable from a lost one. **Copy must never promise retention or tell a
+    user to switch it back on.** An auto-re-enable was built, measured, and reverted.
+    ⇒ The community "tune a pair, bond it as fronts, flip the toggle" recipe **cannot
+    work as described** — Q16A is that recipe run exactly, and the flip is what kills it.
+    ⇒ Still open, and the only routes left: whether the official **Sonos app** can use
+    such a tuning (it may re-key rather than validate — needs an iPhone), and whether
+    restoring the ORIGINAL bond makes it usable again (that is Q4, still open).
+    ⚠️ **A set that has JUST changed refuses a tuning for minutes, silently** (HTTP 200
+    on every POST, `available` stays 0), and the `available` oracle reads 0→1→0 around
+    a bonding change ⇒ settle, then read repeatedly; never verdict on one read.
+    An untouched standalone elsewhere keeps its tuning throughout.
+    ⚠️ `available=1` means **stored**, never *correct*: a role-swapped satellite keeps
+    `available=1` while holding coefficients authored for the other channel.
+    The bar remains the hard case — its channel-id list is **path-dependent** (four
+    distinct values observed on one Beam in a single session), so the official app's
+    refusal to tune the fronts config is still a catch-22 for the soundbar itself.
+    Sonority reads and reports all of this honestly.
+    ⚠️ **TIERS — not every row is equally established.** Two independently-baselined
+    cycles: absorbing a **whole** tuned stereo pair into an HT (retained), an
+    `AddBondedZones` re-assert wiping a group, **`RemoveHTSatellite` wiping the whole
+    set**, and **a whole zone absorbed into an HT (coordinator keeps, the rest lose)** —
+    the last two promoted 2026-09-14 by an app-driven end-to-end run that predicted all
+    8 tuned speakers correctly. **One cycle only** (provisional by this
+    project's own rule): taking **one** half of a pair (stolen keeps / leftover loses),
+    a group dissolve, and the Q12 partial
+    zone take wiping all three (its first cycle read `1/0 → 0/0 → 0/0` and scored
+    UNKNOWN — a set that has just changed keeps moving for **minutes**; wait ≥120 s
+    and read 4×30 s, not the 25 s + 3×20 s the other cells use).
+    ⚠️ **Sonos restores room names on an IMPLICIT dissolve too** (Q12/Q13, 2 cycles):
+    a speaker ejected when `AddHTSatellite` absorbs a bond member out from under it
+    comes back under its own pre-bond name, with no separate call and nothing for
+    Sonority to restore. A returning name that collides with a live room is
+    disambiguated by Sonos (`Woonkamer` → `Woonkamer 2`) — that is a collision, not a
+    lost name, and it is what made the first cycle look like a failure.
+    ⚠️⚠️ **NOT measured: taking a speaker out of a HOME THEATER into another bond.**
+    One soundbar on the test system, so it cannot be performed — the code therefore
+    frees an HT source rather than assuming it can be absorbed (`canAbsorbFrom`).
 
 ### Terminology (the same thing has three names — don't get lost)
 - **zone group** = Sonos' API/topology term (`ZoneGroupTopology`, `ZoneGroupMember`)
@@ -728,9 +889,29 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 - ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
   all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't
   expose for unofficial fronts. Measurement stays iOS-only (out of scope).
+  **Both directions warn and ask while the bonded set is INCOMPLETE** (see the
+  destructive-enable rule); a complete set never asks, and nothing is blocked.
+- ✅ **Take a speaker from another bond** (`features/widgets/speaker_picker.dart`) —
+  the HT and group pickers offer speakers already bonded into another pair, zone or
+  home theater, grouped under a heading per source bond, and name what the take
+  costs in Trueplay per selection. An HT target ABSORBS (one `AddHTSatellite`,
+  the coefficients survive, no free needed — `SonosSystem.canAbsorbFrom` /
+  `mustFreeBeforeBonding` model that and `_freeConflicts` acts on it); a group
+  target frees first (`AddBondedZones` no-ops on a bonded speaker).
+  **The COPY never credits an absorb**: a surviving tuning comes back off and
+  cannot be switched on, so `SonosSystem.tuningLostBySelection` prices a take as
+  "the whole source bond pays" on every screen — the per-kind rows above are the
+  measurement record only, and there is no absorb flag left to pass.
+  One computation — `PickerContext.tuningCost` — feeds both the note under the
+  speaker list and the HT review card, because they gave different answers
+  three taps apart when they were two. An HT apply that writes ANYTHING also
+  prices its own current members (Q20: a pure add took the bar and both rears
+  to `available=0`); a no-op prices nothing.
 - ✅ CI release pipeline.
 - Candidate next: channel-level/height trim (overlaps the app — weak). Discovery
-  now recovers topology-only speakers when a description fetch fails (done upstream).
+  recovers topology-only speakers when a description fetch fails, **including
+  bonded satellites** — a `<Satellite>` is not a member, and an SSDP-missed Sub
+  that stayed unresolved would have been silently unbonded by the next apply.
 
 ## Recurring workflows
 
@@ -869,7 +1050,10 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   used by the HT fronts/surrounds AND stereo-group flows), `features/widgets/
   card_grid.dart` (`CardGrid` — the responsive 1→2–3 column card layout),
   `features/widgets/entity_glyph.dart` (`EntityGlyph` — the one rounded-square icon
-  tile) and `tool/discover_util.dart` (`resolveSpeaker` — CLI room/uuid/IP
+  tile), `features/widgets/speaker_picker.dart` (`PickerContext` +
+  `SpeakerPickerSections` — the bond-grouped candidate list both setup flows use;
+  `bondedCardTitle` / `tunedSpeakers` for naming a speaker inside a bond) and
+  `tool/discover_util.dart` (`resolveSpeaker` — CLI room/uuid/IP
   resolution). Prefer a shared widget/mixin/helper over a second copy; only keep a
   bespoke variant when forcing it into the shared shape would genuinely hurt readability.
 - **Visual grammar — one form per concept (don't blur them).** The UI deliberately

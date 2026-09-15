@@ -40,7 +40,22 @@ class SelectableSpeakerCard extends StatelessWidget {
   final bool enabled;
   final VoidCallback onToggle;
   final String? subtitle;
+
+  /// Replaces the speaker's room name as the card title. Used inside a bond
+  /// block, where the heading already names the bond and the speaker's own name
+  /// was absorbed into it by Sonos — so the TYPE is what identifies it.
+  ///
+  /// It suppresses the type-label DEFAULT subtitle (which would repeat the
+  /// title), but not an explicit [subtitle] — the Amp note still has to say
+  /// that one box drives both fronts, wherever the card is listed.
+  final String? titleOverride;
   final Widget? identify;
+
+  /// Tags shown under the row — currently just the speaker's Trueplay state
+  /// (the bond it would be taken from is stated once, in the section heading).
+  /// Built with [PillChip] so a picker tags a speaker the same way a card tags
+  /// a bonded role.
+  final List<Widget> badges;
 
   /// The in-card channel selector to reveal when [showControl]. Kept null when
   /// this speaker has no side to assign (unselected, or an Amp on both fronts).
@@ -54,9 +69,11 @@ class SelectableSpeakerCard extends StatelessWidget {
     required this.onToggle,
     this.enabled = true,
     this.subtitle,
+    this.titleOverride,
     this.identify,
     this.control,
     this.showControl = false,
+    this.badges = const [],
   });
 
   @override
@@ -72,9 +89,18 @@ class SelectableSpeakerCard extends StatelessWidget {
             device: device,
             selected: selected,
             onChanged: enabled ? (_) => onToggle() : null,
-            subtitle: subtitle ?? device.typeLabel,
+            titleOverride: titleOverride,
+            subtitle: subtitle ?? (titleOverride == null ? device.typeLabel : null),
             secondary: identify,
           ),
+          if (badges.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: Wrap(spacing: 6, runSpacing: 6, children: badges),
+              ),
+            ),
           // CrossFade (not just AnimatedSize) so the control fades out WHILE the
           // height collapses on deselect, instead of vanishing instantly.
           AnimatedCrossFade(
