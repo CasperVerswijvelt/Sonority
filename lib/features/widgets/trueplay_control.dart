@@ -7,6 +7,61 @@ import '../../data/models/sonos_models.dart';
 import '../../data/sonos/room_calibration.dart';
 import '../../state/trueplay_controller.dart';
 import 'confirm_dialog.dart';
+import 'label_value_row.dart';
+
+/// What one speaker contributes to the aggregate Trueplay counter.
+enum TrueplayRowState {
+  /// Tuned and switched on — the only state that is audibly doing anything.
+  active,
+
+  /// A tuning is stored but switched off. Normal right after a bonding change.
+  tunedOff,
+
+  /// No tuning stored. This is the state that makes the set incomplete, and so
+  /// the state the enable warning is about.
+  notTuned,
+
+  /// Not read: no IP, the speaker never answered discovery, or the read faulted.
+  unknown,
+}
+
+/// Breaks an aggregate like "5/6 tuned · 0/6 active" down per speaker.
+///
+/// The counter says how many, never which — and a user looking at a home
+/// theater has no way to tell which speaker is the one holding the set short.
+/// Pure so the state mapping is testable without a widget.
+///
+/// `label` is the speaker TYPE, not its room name: inside a bonded entity Sonos
+/// absorbs the individual name into the entity's, so the type is what
+/// identifies it.
+///
+/// Every device is kept, including ones with no reading at all — and those are
+/// the whole point. A speaker whose calibration could not be read stays in the
+/// counter's denominator (which is simply every device passed in) while
+/// dropping out of its numerator: that, not omission, is what turns six
+/// speakers into "5/6". Before this it had no row, so the missing sixth was
+/// unattributable.
+///
+// ponytail: two speakers of the same model produce two identical labels, so a
+// mixed pair narrows the culprit to a model, not to a unit. Disambiguating
+// needs the channel, which means threading the bond's channel map in; Identify
+// already answers "which physical speaker" and costs nothing to reach.
+List<({String label, TrueplayRowState state})> trueplayRows(
+  List<SonosDevice> devices,
+  Map<String, RoomCalibration> byUuid,
+) =>
+    [
+      for (final d in devices)
+        (
+          label: d.typeLabel,
+          state: switch (byUuid[d.uuid]) {
+            null => TrueplayRowState.unknown,
+            final c when c.active => TrueplayRowState.active,
+            final c when c.available => TrueplayRowState.tunedOff,
+            _ => TrueplayRowState.notTuned,
+          },
+        ),
+    ];
 
 /// Trueplay (room calibration) status + on/off toggle for a set of speakers.
 ///
@@ -35,14 +90,19 @@ class TrueplayControl extends ConsumerStatefulWidget {
 }
 
 class _TrueplayControlState extends ConsumerState<TrueplayControl> {
+  /// Whether the first read has finished. The reads are scheduled post-frame,
+  /// so without this the first build has nothing loaded and nothing busy, and
+  /// would paint "Couldn't read" for a frame before "Checking…" replaces it.
+  bool _attempted = false;
+
   @override
   void initState() {
     super.initState();
     if (widget.unsupportedReason == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ref.read(trueplayControllerProvider.notifier).load(widget.devices);
-        }
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await ref.read(trueplayControllerProvider.notifier).load(widget.devices);
+        if (mounted) setState(() => _attempted = true);
       });
     }
   }
@@ -76,6 +136,12 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
 
   @override
   Widget build(BuildContext context) {
+    // Nothing to report on, and every message below would be about zero
+    // speakers — the room page renders this whenever the topology has a member
+    // it never resolved to a device, which used to read "Couldn't read
+    // Trueplay from these speakers."
+    if (widget.devices.isEmpty) return const SizedBox.shrink();
+
     final scheme = Theme.of(context).colorScheme;
     final reason = widget.unsupportedReason;
     if (reason != null) {
@@ -90,9 +156,22 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     }
 
     final tp = ref.watch(trueplayControllerProvider);
-    final withIp = widget.devices.where((d) => d.ip != null).toList();
-    final known =
-        withIp.map((d) => tp.byUuid[d.uuid]).whereType<RoomCalibration>().toList();
+    // ONE set drives the counter, the breakdown rows and the warning gate:
+    // every speaker passed in. A device with no IP is never read (the
+    // controller only fetches `_withIp`), so it lands here exactly like a read
+    // that FAILED — in the denominator, out of both numerators, rendered
+    // "Couldn't read" and keeping the set incomplete so the destructive-enable
+    // warning stays on. Splitting the no-IP case out of the counter while
+    // still giving it a row made the two disagree, and let `incomplete` read a
+    // set as complete that had a member nobody ever asked — including a
+    // fall-through that printed "Tuned · off" for a speaker with no tuning.
+    // Whether a null IP is even reachable in production is unknown; treating
+    // "we could not ask" as one state makes the question moot.
+    final known = widget.devices
+        .map((d) => tp.byUuid[d.uuid])
+        .whereType<RoomCalibration>()
+        .toList();
+    final total = widget.devices.length;
     final busy = widget.devices.any((d) => tp.busy.contains(d.uuid));
 
     final tuned = known.where((c) => c.available).toList();
@@ -105,22 +184,44 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
 
     final l10n = context.l10n;
     final String subtitle;
-    if (busy && known.isEmpty) {
+    if (known.isEmpty && (busy || !_attempted)) {
       subtitle = l10n.widgetsTrueplayChecking;
-    } else if (tunedCount == 0) {
+    } else if (known.isEmpty) {
+      // Nothing answered. "Not tuned" would be a claim about speakers we never
+      // managed to ask — the same over-reach the breakdown below exists to stop.
+      // Plural-keyed on the speakers the message covers — the ones the
+      // breakdown lists — because a standalone room passes exactly one.
+      subtitle = l10n.widgetsTrueplayUnreadable(total);
+    } else if (tunedCount == 0 && known.length == total) {
+      // Flat "not tuned" only when EVERY speaker shown answered. With one
+      // missing from the reads this would assert a tuning fact about one we
+      // never asked — including a speaker with no IP, which is never read yet
+      // still gets a row; the counter below says "0/6 tuned" instead, and the
+      // breakdown names the one that didn't answer.
       subtitle = l10n.widgetsTrueplayNotTuned;
-    } else if (withIp.length == 1) {
+    } else if (total == 1) {
       // Single speaker — the x/y counter adds nothing.
       subtitle = isOn ? l10n.widgetsTrueplayActive : l10n.widgetsTrueplayTunedOff;
     } else {
-      // Multi-speaker (HT / pair): always show the active counter, plus tuned
-      // coverage when some bonded speakers have no stored tuning at all.
+      // Multi-speaker (HT / pair): tuned coverage first, then the active
+      // counter. The tuned half is dropped only when it would say nothing the
+      // active half doesn't — a complete set with something switched on.
+      //
+      // Tuned BEFORE active, because a stored tuning is the precondition for an
+      // active one and the breakdown rows below read the same way ("Tuned ·
+      // off"). Leading with the active count put the consequence before its
+      // cause: a set with two stored tunings, none switched on, opened with
+      // "0/6 active" and read as though nothing were tuned at all. It also puts
+      // the tuned count next to the warning, which is about being short one.
+      //
+      // "0/6 active" alone is the same bug for a COMPLETE set that is switched
+      // off: every speaker holds a tuning, the breakdown stays hidden because
+      // they all agree, and nothing on screen says the tunings exist.
       final parts = <String>[
-        l10n.widgetsTrueplayActiveCount(enabledCount, withIp.length)
+        if (tunedCount < total || enabledCount == 0)
+          l10n.widgetsTrueplayTunedCount(tunedCount, total),
+        l10n.widgetsTrueplayActiveCount(enabledCount, total),
       ];
-      if (tunedCount < withIp.length) {
-        parts.add(l10n.widgetsTrueplayTunedCount(tunedCount, withIp.length));
-      }
       subtitle = parts.join(' · ');
     }
     // ☠️ Switching a calibration ON while ANY bonded speaker holds no stored
@@ -150,7 +251,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // but because it is a TRAP DOOR: the only way back is the (1) write, which
     // is the destructive one. So switching off here is effectively
     // irreversible, and that is worth knowing before rather than after.
-    final incomplete = tunedCount < withIp.length;
+    final incomplete = tunedCount < total;
     final canToggle = tunedCount > 0 && !busy;
     // Only warn about a write the user can actually issue. `incomplete` is also
     // true with NOTHING tuned (and while the reads are still in flight), where
@@ -177,7 +278,16 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       ],
     );
 
-    return _frame(
+    // Per-speaker breakdown, shown ONLY when the speakers disagree — which is
+    // exactly when the "5/6" counter raises a question it can't answer. A
+    // uniform set (all active, none tuned, nothing read yet) says everything in
+    // the subtitle already, so it stays a single row and never flashes a list
+    // in while the reads land.
+    final rows = trueplayRows(widget.devices, tp.byUuid);
+    final showRows =
+        rows.length > 1 && rows.map((r) => r.state).toSet().length > 1;
+
+    final tile = _frame(
       context,
       icon: Icons.tune,
       iconColor: isOn ? scheme.primary : scheme.onSurfaceVariant,
@@ -189,7 +299,39 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       // Tapping anywhere on the row toggles it, same as the switch.
       onTap: canToggle ? () => _set(!isOn, warn, tuned) : null,
     );
+    if (!showRows) return tile;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        tile,
+        Padding(
+          // Indented to the tile's title (gutter + a 24pt icon + the ListTile's
+          // 16pt title gap) so the breakdown reads as belonging to the row above
+          // rather than as more settings.
+          padding:
+              const EdgeInsets.fromLTRB(kPageGutter + 40, 0, kPageGutter, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final r in rows)
+                LabelValueRow(
+                    label: r.label, value: _stateLabel(l10n, r.state)),
+            ],
+          ),
+        ),
+      ],
+    );
   }
+
+  String _stateLabel(AppLocalizations l10n, TrueplayRowState state) =>
+      switch (state) {
+        TrueplayRowState.active => l10n.widgetsTrueplayActive,
+        TrueplayRowState.tunedOff => l10n.widgetsTrueplayTunedOff,
+        TrueplayRowState.notTuned => l10n.widgetsTrueplayRowNotTuned,
+        TrueplayRowState.unknown => l10n.widgetsTrueplayRowUnread,
+      };
 
   // A flat, full-width tile (no card) — it's a setting, so it reads distinctly
   // from the content cards above it (paired with a SettingsSection divider).

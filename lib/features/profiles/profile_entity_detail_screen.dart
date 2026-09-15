@@ -6,6 +6,7 @@ import '../../data/models/sonos_models.dart';
 import '../../data/sonos/channel_map.dart';
 import '../../data/sonos/speaker_settings.dart';
 import '../widgets/diagram_labels.dart';
+import '../widgets/label_value_row.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/sheet_scaffold.dart';
@@ -216,7 +217,6 @@ class _SettingsBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(kPageGutter, 12, kPageGutter, 12),
       child: Column(
@@ -225,21 +225,7 @@ class _SettingsBlock extends StatelessWidget {
           Text(title, style: theme.textTheme.titleMedium),
           if (role != null) Text(role!, style: theme.mutedText),
           Gap.s,
-          for (final r in rows)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(r.label,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: scheme.onSurfaceVariant)),
-                  Text(r.value,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
+          for (final r in rows) LabelValueRow(label: r.label, value: r.value),
         ],
       ),
     );

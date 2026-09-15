@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
 import 'package:sonority/data/sonos/room_calibration.dart';
-import 'package:sonority/features/widgets/trueplay_control.dart';
-import 'package:sonority/l10n/app_localizations.dart';
-import 'package:sonority/state/trueplay_controller.dart';
+
+import 'trueplay_harness.dart';
 
 /// ☠️ Measured (EXP-23): switching Trueplay ON while any bonded member holds no
 /// stored tuning clears the tunings that ARE there — four cells, unrecoverably,
@@ -31,16 +29,7 @@ void main() {
 
   Future<Switch> pump(
       WidgetTester tester, Map<String, RoomCalibration> cal) async {
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        trueplayControllerProvider.overrideWith(() => _FakeTrueplay(cal)),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: TrueplayControl(devices: [a, b])),
-      ),
-    ));
+    await tester.pumpWidget(trueplayHarness([a, b], cal));
     await tester.pump();
     return tester.widget<Switch>(find.byType(Switch));
   }
@@ -138,31 +127,10 @@ void main() {
   // set that may turn out to be complete.
   testWidgets('a set still being read warns about nothing either',
       (tester) async {
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        trueplayControllerProvider
-            .overrideWith(() => _FakeTrueplay(const {}, busy: {a.uuid, b.uuid})),
-      ],
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: TrueplayControl(devices: [a, b])),
-      ),
-    ));
+    await tester.pumpWidget(
+        trueplayHarness([a, b], const {}, busy: {a.uuid, b.uuid}));
     await tester.pump();
     expect(find.textContaining('could destroy'), findsNothing);
     expect(find.textContaining('Checking'), findsOneWidget);
   });
-}
-
-class _FakeTrueplay extends TrueplayController {
-  final Map<String, RoomCalibration> cal;
-  final Set<String> busy;
-  _FakeTrueplay(this.cal, {this.busy = const {}});
-
-  @override
-  TrueplayState build() => TrueplayState(byUuid: cal, busy: busy);
-
-  @override
-  Future<void> load(Iterable<SonosDevice> devices) async {}
 }
