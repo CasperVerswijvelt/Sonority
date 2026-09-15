@@ -771,9 +771,14 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
    git push origin "$c":"refs/heads/pr-shots-<N>"  # quote the colon separately (zsh eats `:r`)
    ```
    then embed `<img src="https://raw.githubusercontent.com/CasperVerswijvelt/Sonority/pr-shots-<N>/pr-<N>-<name>.png" width="300">`
-   (a markdown table for side-by-side). Verify each URL returns `image/png`;
-   add `?v=2` when replacing a shot under a name already in a PR body (GitHub
-   caches the old one). Delete the ref once the PR is merged (`git push origin
+   (a markdown table for side-by-side). Verify each URL returns `image/png`.
+   **Replacing a shot under a name already in a PR body: `?v=2` does NOT bust
+   the cache** (measured twice) — raw.githubusercontent doesn't key its edge
+   cache on the query string, so the old bytes serve for ~2 min after the push
+   either way, then expire on their own. Add `?v=2` to *document* the swap if
+   you like, but confirm freshness by comparing the served
+   `curl -w '%{size_download}'` against the new local file, not by the query
+   string. Delete the ref once the PR is merged (`git push origin
    --delete pr-shots-<N>`).
    ⚠️ **One ref PER PR, not one shared `pr-shots` branch.** The shared branch is
    a single mutable tree with no locking: two agents/sessions that both
