@@ -4,6 +4,7 @@ import 'package:sonority/data/models/sonos_models.dart';
 import 'package:sonority/data/sonos/front_layout.dart';
 import 'package:sonority/data/sonos/room_calibration.dart';
 import 'package:sonority/features/front_surrounds/front_surrounds_flow.dart';
+import 'package:sonority/features/group/group_flow.dart';
 import 'package:sonority/features/widgets/info_note.dart';
 import 'package:sonority/features/widgets/speaker_diagram.dart';
 import 'package:sonority/features/widgets/speaker_picker.dart';
@@ -13,14 +14,18 @@ import 'package:sonority/l10n/app_localizations.dart';
 /// confirm dialog), so whatever the apply costs has to be on the same screen as
 /// the Apply button — named, not implied.
 ///
-/// The regression guarded here shipped as a silent screen: the card returned
-/// "Nothing selected yet" for a deselect-everything, which removes every
-/// satellite and wipes the whole set's Trueplay.
+/// Both regressions guarded here shipped as a silent screen: the HT card
+/// returned "Nothing selected yet" for a deselect-everything (which removes
+/// every satellite and wipes the whole set's Trueplay), and the group card
+/// never mentioned Trueplay at all — three taps behind the note that does.
 void main() {
   const bar = 'RINCON_BEAM01400';
   const rearL = 'RINCON_REARL01400';
   const rearR = 'RINCON_REARR01400';
   const sub = 'RINCON_SUB01400';
+  const pairL = 'RINCON_ONESL_L01400';
+  const pairR = 'RINCON_ONESL_R01400';
+  const free = 'RINCON_FREE01400';
 
   SonosDevice dev(String uuid, String model, [String room = 'Room']) =>
       SonosDevice(uuid: uuid, roomName: room, modelName: model, ip: '1.2.3.4');
@@ -30,6 +35,9 @@ void main() {
     rearL: dev(rearL, 'Sonos Play:1'),
     rearR: dev(rearR, 'Sonos Play:1'),
     sub: dev(sub, 'Sonos Sub'),
+    pairL: dev(pairL, 'Sonos One SL', 'Eetkamer'),
+    pairR: dev(pairR, 'Sonos One SL', 'Eetkamer'),
+    free: dev(free, 'Sonos One', 'Keuken'),
   };
 
   final ht = ZoneGroupMember(
@@ -45,15 +53,24 @@ void main() {
           uuid: sub, zoneName: 'Woonkamer', channels: [SonosChannel.sub]),
     ],
   );
+  const pair = ZoneGroupMember(
+    uuid: pairL,
+    zoneName: 'Eetkamer',
+    channelMapSet: '$pairL:LF,LF;$pairR:RF,RF',
+  );
+  const freeRoom = ZoneGroupMember(uuid: free, zoneName: 'Keuken');
 
   final system = SonosSystem(
     groups: [
       ZoneGroup(coordinatorUuid: bar, members: [ht]),
+      ZoneGroup(coordinatorUuid: pairL, members: [pair]),
+      ZoneGroup(coordinatorUuid: free, members: [freeRoom]),
     ],
     devicesByUuid: devices,
   );
 
   const tuned = RoomCalibration(available: true, enabled: true);
+  const untuned = RoomCalibration(available: false, enabled: false);
 
   Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
         MaterialApp(
@@ -133,6 +150,52 @@ void main() {
       await pump(tester, card(member: bareBar));
       expect(find.text('Nothing selected yet — choose speakers above.'),
           findsOneWidget);
+      expect(find.byType(InfoNote), findsNothing);
+    });
+  });
+
+  group('the group review card', () {
+    GroupReviewStep card(List<String> selected,
+            {Map<String, RoomCalibration> calibration = const {}}) =>
+        GroupReviewStep(
+          mode: GroupMode.zone,
+          system: system,
+          picker: PickerContext(system: system, calibration: calibration),
+          selected: selected,
+          channels: const {},
+          subUuid: null,
+          name: '',
+        );
+
+    testWidgets('names the speakers a take costs their Trueplay',
+        (tester) async {
+      // One half of a tuned stereo pair into a new zone: AddBondedZones cannot
+      // absorb, so the pair is genuinely dissolved and BOTH halves pay.
+      await pump(
+        tester,
+        card([pairL, free],
+            calibration: const {
+              pairL: tuned,
+              pairR: tuned,
+              free: untuned,
+            }),
+      );
+      expect(find.byType(InfoNote), findsOneWidget);
+      expect(find.textContaining('Eetkamer · One SL · L'), findsOneWidget);
+      expect(find.textContaining('Eetkamer · One SL · R'), findsOneWidget);
+      expect(find.textContaining('will lose their Trueplay'), findsOneWidget);
+    });
+
+    testWidgets('stays quiet when nothing tuned is at stake', (tester) async {
+      await pump(
+        tester,
+        card([pairL, free],
+            calibration: const {
+              pairL: untuned,
+              pairR: untuned,
+              free: untuned,
+            }),
+      );
       expect(find.byType(InfoNote), findsNothing);
     });
   });
