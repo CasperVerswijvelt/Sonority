@@ -1379,19 +1379,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eqTitle => 'EQ';
 
   @override
-  String get eqStepMeasure => 'Measure';
-
-  @override
-  String get eqStepMeasureBody =>
-      'Measure your room and tune towards a target curve. Until then, your adjustments apply to the speaker’s flat response.';
-
-  @override
-  String get eqComingSoon => 'Coming soon';
-
-  @override
-  String get eqStepAdjust => 'Adjust';
-
-  @override
   String get eqModeAll => 'Combined EQ';
 
   @override

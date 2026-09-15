@@ -2254,30 +2254,6 @@ abstract class AppLocalizations {
   /// **'EQ'**
   String get eqTitle;
 
-  /// No description provided for @eqStepMeasure.
-  ///
-  /// In en, this message translates to:
-  /// **'Measure'**
-  String get eqStepMeasure;
-
-  /// No description provided for @eqStepMeasureBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Measure your room and tune towards a target curve. Until then, your adjustments apply to the speaker’s flat response.'**
-  String get eqStepMeasureBody;
-
-  /// No description provided for @eqComingSoon.
-  ///
-  /// In en, this message translates to:
-  /// **'Coming soon'**
-  String get eqComingSoon;
-
-  /// No description provided for @eqStepAdjust.
-  ///
-  /// In en, this message translates to:
-  /// **'Adjust'**
-  String get eqStepAdjust;
-
   /// No description provided for @eqModeAll.
   ///
   /// In en, this message translates to:

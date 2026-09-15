@@ -242,207 +242,103 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
     return AppScaffold(
       title: member.zoneName,
       subtitle: l10n.eqTitle,
-      body: Column(
-        children: [
-          // The two stages of one flow. Hand-rolled rather than Flutter's
-          // Stepper: that one puts the label beside the number and separates its
-          // header with elevation, and it owns a ListView that would fight the
-          // pinned footer below.
-          const _StepHeader(),
-          Divider(height: 1, color: scheme.outlineVariant),
-          Expanded(
-            child: ScrollFooter(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              footer: _Footer(
-                status: status,
-                live: _live,
-                onLive: (v) => _toggleLive(v, members),
-                onApply: () => _apply(members),
-                onRemove: () => _remove(members),
-                hasTuning: _applied || status.applied,
-              ),
-              children: [
-                // Scope first: what you are editing, before what it looks like.
-                _Gutter(
-                  child: SegmentedButton<bool>(
-                    segments: [
-                      ButtonSegment(value: false, label: Text(l10n.eqModeAll)),
-                      ButtonSegment(
-                          value: true, label: Text(l10n.eqModeIndividual)),
-                    ],
-                    selected: {_individual},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (sel) => setState(() {
-                      // "Combined" means every member IS the shared curve —
-                      // that is what an apply from it writes. So switching to
-                      // per-speaker seeds every member from it rather than
-                      // reviving stale curves the user has since overridden.
-                      if (sel.first) {
-                        for (final d in members) {
-                          _perMember[d.uuid] = List.of(_shared);
-                        }
-                      }
-                      _individual = sel.first;
-                    }),
-                  ),
-                ),
-                if (_individual) ...[
-                  Gap.s,
-                  _MemberPicker(
-                    members: members,
-                    roles: eqRoles(member),
-                    selected: _editing!,
-                    edited: {
-                      for (final e in _perMember.entries)
-                        if (!isFlat(e.value)) e.key,
-                    },
-                    onSelected: (u) => setState(() => _editing = u),
-                  ),
+      // No step header until the room-measurement stage actually ships: an
+      // always-disabled step advertises a feature that doesn't exist yet. When
+      // it lands, this becomes the second of two steps — the data model already
+      // treats the sliders as offsets on a (currently null) measured base.
+      body: ScrollFooter(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          footer: _Footer(
+            status: status,
+            live: _live,
+            onLive: (v) => _toggleLive(v, members),
+            onApply: () => _apply(members),
+            onRemove: () => _remove(members),
+            hasTuning: _applied || status.applied,
+          ),
+          children: [
+            // Scope first: what you are editing, before what it looks like.
+            _Gutter(
+              child: SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(value: false, label: Text(l10n.eqModeAll)),
+                  ButtonSegment(
+                      value: true, label: Text(l10n.eqModeIndividual)),
                 ],
-                Gap.m,
-                _Gutter(
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 16, 12, 4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          EqCurveView(freqs: _freqs, curves: [
-                            EqCurve(curve, scheme.primary),
-                          ]),
-                          Gap.m,
-                          _Bands(
-                            gains: _current,
-                            onChanged: _setBand,
-                            onChangeEnd: () {
-                              if (_live) {
-                                ref
-                                    .read(speakerEqControllerProvider.notifier)
-                                    .requestLiveApply(
-                                      entityId: widget.uuid,
-                                      members: members,
-                                      offsets: _offsetsFor(members),
-                                    );
-                              }
-                            },
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () => setState(() {
-                                _individual
-                                    ? _perMember[_editing!] = flatCurve()
-                                    : _shared = flatCurve();
-                              }),
-                              child: Text(l10n.eqReset),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The flow's two stages: a numbered marker with its label underneath, joined by
-/// a connector. Measure is disabled and subtitled — it is a stage of this flow
-/// that isn't built, not a separate feature, and showing it is how a user learns
-/// the flow has a second half.
-class _StepHeader extends StatelessWidget {
-  const _StepHeader();
-
-  static const _markerSize = 28.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(kPageGutter, 12, kPageGutter, 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _Step(
-            number: 1,
-            title: l10n.eqStepMeasure,
-            subtitle: l10n.eqComingSoon,
-            active: false,
-          ),
-          // Spans the gap between the markers, on their centre line rather than
-          // the row's — the steps size to their labels, the connector takes the
-          // rest.
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12)
-                  .add(const EdgeInsets.only(top: _markerSize / 2)),
-              child: SizedBox(
-                height: 1,
-                child: ColoredBox(
-                    color: Theme.of(context).colorScheme.outlineVariant),
+                selected: {_individual},
+                showSelectedIcon: false,
+                onSelectionChanged: (sel) => setState(() {
+                  // "Combined" means every member IS the shared curve —
+                  // that is what an apply from it writes. So switching to
+                  // per-speaker seeds every member from it rather than
+                  // reviving stale curves the user has since overridden.
+                  if (sel.first) {
+                    for (final d in members) {
+                      _perMember[d.uuid] = List.of(_shared);
+                    }
+                  }
+                  _individual = sel.first;
+                }),
               ),
             ),
-          ),
-          _Step(number: 2, title: l10n.eqStepAdjust, active: true),
+            if (_individual) ...[
+              Gap.s,
+              _MemberPicker(
+                members: members,
+                roles: eqRoles(member),
+                selected: _editing!,
+                edited: {
+                  for (final e in _perMember.entries)
+                    if (!isFlat(e.value)) e.key,
+                },
+                onSelected: (u) => setState(() => _editing = u),
+              ),
+            ],
+            Gap.m,
+            _Gutter(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      EqCurveView(freqs: _freqs, curves: [
+                        EqCurve(curve, scheme.primary),
+                      ]),
+                      Gap.m,
+                      _Bands(
+                        gains: _current,
+                        onChanged: _setBand,
+                        onChangeEnd: () {
+                          if (_live) {
+                            ref
+                                .read(speakerEqControllerProvider.notifier)
+                                .requestLiveApply(
+                                  entityId: widget.uuid,
+                                  members: members,
+                                  offsets: _offsetsFor(members),
+                                );
+                          }
+                        },
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => setState(() {
+                            _individual
+                                ? _perMember[_editing!] = flatCurve()
+                                : _shared = flatCurve();
+                          }),
+                          child: Text(l10n.eqReset),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
-    );
-  }
-}
-
-class _Step extends StatelessWidget {
-  final int number;
-  final String title;
-  final String? subtitle;
-  final bool active;
-  const _Step({
-    required this.number,
-    required this.title,
-    required this.active,
-    this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final fg = active ? scheme.onSurface : scheme.onSurfaceVariant;
-    return Column(
-      children: [
-        Container(
-          width: _StepHeader._markerSize,
-          height: _StepHeader._markerSize,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: active ? scheme.primary : Colors.transparent,
-            border: active ? null : Border.all(color: scheme.outlineVariant),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            '$number',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: active ? scheme.onPrimary : scheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(title,
-            style: theme.textTheme.titleSmall?.copyWith(color: fg),
-            textAlign: TextAlign.center),
-        if (subtitle != null)
-          Text(
-            subtitle!,
-            style: theme.textTheme.labelSmall
-                ?.copyWith(color: scheme.onSurfaceVariant),
-            textAlign: TextAlign.center,
-          ),
-      ],
     );
   }
 }

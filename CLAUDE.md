@@ -798,9 +798,10 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   spectral-tuning section below for the rules it must obey. Shares the storage
   slot with Trueplay (so the existing toggle is its on/off, and applying replaces
   a Sonos-app calibration **irreversibly** — gated behind a confirm). The
-  measure-your-room step is shown disabled: the sliders are already **offsets on
-  a base curve** that is null today, so a measured correction drops in without
-  the slider maths changing.
+  measure-your-room step is **not shown at all** until it ships (an
+  always-disabled step advertises a feature that doesn't exist) — but the seam is
+  in place: the sliders are already **offsets on a base curve** that is null
+  today, so a measured correction drops in without the slider maths changing.
 - ✅ CI release pipeline.
 - Candidate next: channel-level/height trim (overlaps the app — weak). Discovery
   now recovers topology-only speakers when a description fetch fails (done upstream).
