@@ -34,6 +34,7 @@ section into the GitHub Release notes regardless of the build suffix
 - A speaker taken out of a home theater and put into a group no longer stores the home theater's name as its own, which made a later separate rename it into a duplicate of the home theater's room.
 - Rebuilding a group no longer aborts when one of its speakers is slow to answer after being unbonded, which could leave the old group dissolved and nothing in its place.
 - Separating a speaker group now restores the names of the speakers whose names were saved, even when one member's name could not be captured — previously a single skipped member cost every speaker in the group its name, and they came back as duplicates ("Living Room 2").
+- Creating or editing a speaker group now checks every speaker's address before it frees anything, so a speaker whose address is unknown can no longer leave a live group dissolved with nothing built in its place.
 
 ## [0.7.0] - 2026-08-18
 

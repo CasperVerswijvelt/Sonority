@@ -721,6 +721,15 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       if (sys.memberByUuid(sys.ownerOf(u) ?? '')?.isHomeTheater ?? false) u,
   };
 
+  /// Fails fast when any of [devices] has no IP, so the engine's own guard
+  /// (which throws the same error) can't fire AFTER a free has already
+  /// dissolved a live bond. Cheap preconditions run before destructive ones.
+  void _requireIps(Iterable<SonosDevice> devices) {
+    if (devices.any((d) => d.ip == null)) {
+      throw const SonorityError(SonorityErrorCode.speakerIpUnknown);
+    }
+  }
+
   /// Brings the coordinator [bar]'s live layout to [target] with the minimum
   /// writes: skip entirely when unchanged, `RemoveHTSatellite` only the
   /// satellites that move/leave (AddHTSatellite 800s on a map that would drop
@@ -909,6 +918,11 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       for (final m in members) m.device.uuid,
       if (sub != null) sub.uuid,
     ];
+    // Before anything destructive: the free below DISSOLVES whatever bond a
+    // member is in, and `createGroup` rejects a member with no IP — so a
+    // speaker recovered from topology alone would have cost the user a live
+    // group and then thrown without a single bond write.
+    _requireIps([for (final m in members) m.device, if (sub != null) sub]);
 
     final l10n = appL10n();
     final tracker = _newTracker([
@@ -1111,16 +1125,27 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final wanted = name?.trim();
     final needsName = wanted != null && wanted.isNotEmpty && coord.ip != null;
 
-    final l10n = appL10n();
-    final tracker =
-        _newTracker([ApplyStep(id: 'edit', label: l10n.stepEditGroup)]);
-    _activeOp = CancellationToken();
-
     final previous = state.value;
     // Skip the bond phase entirely when the live layout already matches the
     // target (e.g. a name-only edit) — no needless live write, mirroring the HT
     // `_applyHtTarget` no-op case.
     final needsBond = !(previous != null && applied(previous));
+    // Before anything destructive: the free below DISSOLVES whatever bond a
+    // taken speaker is in, and the rebuild path dissolves THIS group — so a
+    // missing IP has to fail here, not after. An in-place re-assert only writes
+    // to the coordinator; a rebuild goes through `createGroup`, which needs
+    // every member's IP.
+    if (needsBond) {
+      _requireIps(inPlace
+          ? [coord]
+          : [for (final m in members) m.device, if (sub != null) sub]);
+    }
+
+    final l10n = appL10n();
+    final tracker =
+        _newTracker([ApplyStep(id: 'edit', label: l10n.stepEditGroup)]);
+    _activeOp = CancellationToken();
+
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(() async {
       tracker.start('edit');
