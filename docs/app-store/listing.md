@@ -65,7 +65,7 @@ WHAT YOU CAN DO
 • Config profiles — snapshot your whole layout and rebuild it in one tap after moving speakers around. Each profile gets its own icon and colour, reorders with a drag, and opens a per-entity detail view showing exactly what it saved. A profile can also capture and restore per-speaker audio settings (bass, treble, loudness, night sound, speech enhancement, sub and surround levels, lip-sync) and, optionally, volume.
 • Apply a profile without opening the app — from a home-screen widget (small, medium or large) or a long-press on the app icon.
 • A 10-band equaliser for any home theater, group or single speaker — something the standard app doesn’t offer at all. Tune the whole configuration at once, or each speaker separately, and hear changes as you move the sliders.
-• Rename rooms, identify which physical speaker is which by blinking its status light (or a short chime on iPhone/iPad) — right from a room or a bonded speaker — and toggle a speaker’s room-calibration tuning.
+• Rename rooms, identify which physical speaker is which by blinking its status light (or a short chime on phones and tablets), and switch a speaker’s room-calibration tuning on or off.
 • Diagnostics — a technical, hide-nothing view of your system when something isn’t working, which you can share with support or email to the developer to get help.
 • Works on phones, tablets and desktops, with a layout that adapts to the screen — a roomy side navigation and multi-column view on big screens, the familiar single column on phones.
 
@@ -77,7 +77,7 @@ No account. No sign-in. No analytics, no tracking, and no data collected. Sonori
 
 REQUIREMENTS
 
-Compatible speakers on the same Wi-Fi network as your device. Room-calibration tuning, where supported, is measured in the manufacturer’s own app; Sonority only switches an existing tuning on or off.
+Compatible speakers on the same Wi-Fi network as your device. A speaker holds one tuning: either one measured in the manufacturer’s own app, or the EQ you set in Sonority.
 
 —
 

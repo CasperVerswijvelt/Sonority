@@ -409,7 +409,7 @@ abstract class AppLocalizations {
   /// No description provided for @errTuningUnstable.
   ///
   /// In en, this message translates to:
-  /// **'That EQ curve couldn’t be turned into a safe filter. Nothing was sent to the speakers — try a gentler curve.'**
+  /// **'That EQ curve couldn’t be turned into a safe filter. Nothing was sent to the speakers. Try a gentler curve.'**
   String get errTuningUnstable;
 
   /// No description provided for @errTimeout.
@@ -877,7 +877,7 @@ abstract class AppLocalizations {
   /// No description provided for @widgetsTrueplayNotTuned.
   ///
   /// In en, this message translates to:
-  /// **'Not tuned. Run Trueplay in the Sonos app on iOS, or set a manual EQ above.'**
+  /// **'Not tuned. Set an EQ above, or run Trueplay in the Sonos app on iOS.'**
   String get widgetsTrueplayNotTuned;
 
   /// No description provided for @widgetsTrueplayActive.
@@ -979,7 +979,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileApplyConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle). Trueplay may need re-tuning afterward.'**
+  /// **'This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle). Any tuning will need redoing afterward.'**
   String get profileApplyConfirmBody;
 
   /// No description provided for @profileIssueMissing.
@@ -1993,7 +1993,7 @@ abstract class AppLocalizations {
   /// No description provided for @htTrueplayNote.
   ///
   /// In en, this message translates to:
-  /// **'Trueplay can only be measured from the Sonos app on iOS — tune the home theater, and the fronts separately as a stereo pair. Heads-up: Sonos often clears a tuning when speakers are bonded/unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.'**
+  /// **'A speaker holds one tuning: either a Trueplay measurement or your EQ. Sonos clears it whenever speakers are bonded or unbonded, so expect to redo it after a layout change.'**
   String get htTrueplayNote;
 
   /// No description provided for @htAllExtraSpeakers.
@@ -2137,7 +2137,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsReviewNote.
   ///
   /// In en, this message translates to:
-  /// **'The chosen speakers become hidden satellites of the soundbar (which stays the center channel). Bonding runs in steps and can take a little while; Trueplay may need re-tuning afterward. You can change this anytime.'**
+  /// **'The chosen speakers become hidden satellites of the soundbar, which stays the center channel. Bonding runs in steps and can take a little while. Any tuning will need redoing afterward. You can change this anytime.'**
   String get frontSurroundsReviewNote;
 
   /// No description provided for @diagNoSystemToCollect.
@@ -2377,7 +2377,7 @@ abstract class AppLocalizations {
   /// No description provided for @eqOverwriteBody.
   ///
   /// In en, this message translates to:
-  /// **'These speakers already hold a room calibration made in the Sonos app. Applying an EQ replaces it permanently — a speaker never hands its calibration back, so the only way to get it again is to measure it again in the Sonos app.'**
+  /// **'These speakers already hold a Trueplay calibration. Applying an EQ replaces it permanently: a speaker never gives its calibration back, so the only way to get it again is to measure it again in the Sonos app.'**
   String get eqOverwriteBody;
 
   /// No description provided for @eqOverwriteConfirm.

@@ -259,7 +259,7 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
                 onLive: (v) => _toggleLive(v, members),
                 onApply: () => _apply(members),
                 onRemove: () => _remove(members),
-                hasTuning: _applied,
+                hasTuning: _applied || status.applied,
               ),
               children: [
                 // Scope first: what you are editing, before what it looks like.
@@ -316,7 +316,6 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
                             onChanged: _setBand,
                             onChangeEnd: () {
                               if (_live) {
-                                setState(() => _applied = true);
                                 ref
                                     .read(speakerEqControllerProvider.notifier)
                                     .requestLiveApply(
