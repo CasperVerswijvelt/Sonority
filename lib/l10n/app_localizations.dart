@@ -2218,11 +2218,29 @@ abstract class AppLocalizations {
   /// **'Share diagnostics'**
   String get diagShareDiagnostics;
 
-  /// No description provided for @diagEmailBody.
+  /// No description provided for @diagEmailAttached.
   ///
   /// In en, this message translates to:
-  /// **'Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———'**
-  String get diagEmailBody;
+  /// **'——— the diagnostics bundle is attached below ———'**
+  String get diagEmailAttached;
+
+  /// No description provided for @diagNoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What went wrong?'**
+  String get diagNoteTitle;
+
+  /// No description provided for @diagNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What you tried, what you expected, what happened'**
+  String get diagNoteHint;
+
+  /// No description provided for @diagNoteHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'At least {min} characters'**
+  String diagNoteHelper(int min);
 
   /// Warning shown when the chosen speakers must be taken out of another bond, naming the speakers whose tuning is at risk — those that hold a stored tuning, plus any whose tuning could not be read.
   ///

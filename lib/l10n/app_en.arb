@@ -834,7 +834,15 @@
   "diagCollecting": "Collecting…",
   "diagEmailToDeveloper": "Email to developer",
   "diagShareDiagnostics": "Share diagnostics",
-  "diagEmailBody": "Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———",
+  "diagEmailAttached": "——— the diagnostics bundle is attached below ———",
+  "diagNoteTitle": "What went wrong?",
+  "diagNoteHint": "What you tried, what you expected, what happened",
+  "diagNoteHelper": "At least {min} characters",
+  "@diagNoteHelper": {
+    "placeholders": {
+      "min": { "type": "int" }
+    }
+  },
   "speakerStealTrueplayWarning": "{count, plural, one{{names} will lose its Trueplay. Re-tune it in the Sonos app.} other{{names} will lose their Trueplay. Re-tune them in the Sonos app.}}",
   "@speakerStealTrueplayWarning": {
     "description": "Warning shown when the chosen speakers must be taken out of another bond, naming the speakers whose tuning is at risk — those that hold a stored tuning, plus any whose tuning could not be read.",

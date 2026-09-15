@@ -103,6 +103,12 @@ final ledIdentifyProvider = Provider<LedIdentifyClient>((ref) {
   });
 });
 
+/// Reads/writes per-speaker EQ + volume (profile capture/restore, and the
+/// diagnostics bundle's read-only snapshot). A provider so demo mode can swap in
+/// a client that can't touch the network.
+final speakerSettingsProvider =
+    Provider<SpeakerSettingsClient>((ref) => SpeakerSettingsClient());
+
 final sonosControllerProvider =
     AsyncNotifierProvider<SonosController, SonosSystem?>(SonosController.new);
 
@@ -127,7 +133,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
 
   SonosRepository get _repo => ref.read(sonosRepositoryProvider);
 
-  final _settings = SpeakerSettingsClient();
+  SpeakerSettingsClient get _settings => ref.read(speakerSettingsProvider);
 
   /// Reads each entity's per-speaker settings ([audio] bundle and/or [volume])
   /// and returns copies enriched with a `settings` map. Called by
