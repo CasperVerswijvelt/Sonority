@@ -11,6 +11,7 @@ import '../../state/speaker_eq_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/destructive_button.dart';
+import '../widgets/diagram_labels.dart';
 import '../widgets/pill_chip.dart';
 import '../widgets/scroll_footer.dart';
 import '../widgets/section_header.dart';
@@ -278,7 +279,18 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
           _Gutter(
             child: _ModeRow(
               individual: _individual,
-              onChanged: (v) => setState(() => _individual = v),
+              onChanged: (v) => setState(() {
+                // "All speakers" means every member IS the shared curve —
+                // that is what an apply from this mode writes. So switching to
+                // per-speaker seeds every member from it rather than reviving
+                // stale per-member curves the user has since overridden.
+                if (v) {
+                  for (final d in members) {
+                    _perMember[d.uuid] = List.of(_shared);
+                  }
+                }
+                _individual = v;
+              }),
               onReset: () => setState(() {
                 _individual
                     ? _perMember[_editing!] =
@@ -291,6 +303,10 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
             Gap.s,
             _MemberPicker(
               members: members,
+              roles: {
+                for (final e in member.channelAssignments.entries)
+                  e.value: htChannelShort(e.key),
+              },
               selected: _editing!,
               edited: {
                 for (final e in _perMember.entries)
@@ -482,11 +498,16 @@ class _ModeRow extends StatelessWidget {
 /// Which speaker's curve is being edited, in individual mode.
 class _MemberPicker extends StatelessWidget {
   final List<SonosDevice> members;
+
+  /// UUID → its channel role in this bond, when it has one. Two dedicated
+  /// fronts are both "Era 100", so the type alone cannot identify a speaker.
+  final Map<String, String> roles;
   final String selected;
   final Set<String> edited;
   final ValueChanged<String> onSelected;
   const _MemberPicker({
     required this.members,
+    required this.roles,
     required this.selected,
     required this.edited,
     required this.onSelected,
@@ -503,11 +524,16 @@ class _MemberPicker extends StatelessWidget {
           for (final d in members) ...[
             ChoiceChip(
               selected: d.uuid == selected,
+              // The filled background already says "selected"; the default
+              // checkmark would collide with the edited pencil.
+              showCheckmark: false,
               onSelected: (_) => onSelected(d.uuid),
               avatar: edited.contains(d.uuid)
                   ? const Icon(Icons.edit, size: 16)
                   : null,
-              label: Text(d.typeLabel),
+              label: Text(roles[d.uuid] == null
+                  ? d.typeLabel
+                  : '${d.typeLabel} · ${roles[d.uuid]}'),
               tooltip: edited.contains(d.uuid) ? l10n.eqEdited : null,
             ),
             Gap.s,

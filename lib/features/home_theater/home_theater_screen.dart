@@ -230,7 +230,7 @@ class _Content extends StatelessWidget {
             icon: Icons.equalizer,
             title: l10n.eqEntryTitle,
             subtitle: l10n.eqEntrySubtitle,
-            onTap: () => context.push('/theater/\${member.uuid}/eq'),
+            onTap: () => context.push('/theater/${member.uuid}/eq'),
           ),
           SettingsSection(children: [TrueplayControl(devices: bonded)]),
           if (member.hasDedicatedFronts)

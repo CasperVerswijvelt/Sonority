@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n.dart';
 import '../../core/theme.dart';
+import '../../data/models/sonos_models.dart';
+import 'diagram_labels.dart';
 import 'pill_chip.dart';
 
 /// A simple top-down room diagram showing the soundbar and the currently
@@ -68,8 +70,8 @@ class SpeakerDiagram extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _dot(context, 'L', frontLeftLabel, scheme.primary),
-                  _dot(context, 'R', frontRightLabel, scheme.primary),
+                  _dot(context, htChannelShort(SonosChannel.leftFront), frontLeftLabel, scheme.primary),
+                  _dot(context, htChannelShort(SonosChannel.rightFront), frontRightLabel, scheme.primary),
                 ],
               ),
             ),
@@ -78,7 +80,9 @@ class SpeakerDiagram extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: PillChip(
                   icon: Icons.graphic_eq,
-                  text: subCount > 1 ? 'SUB ×$subCount' : 'SUB',
+                  text: subCount > 1
+                      ? '${htChannelShort(SonosChannel.sub)} ×$subCount'
+                      : htChannelShort(SonosChannel.sub),
                   color: scheme.tertiary,
                 ),
               ),
@@ -87,13 +91,13 @@ class SpeakerDiagram extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _dot(context, 'LS', rearLeftLabel, scheme.secondary),
+                  _dot(context, htChannelShort(SonosChannel.leftRear), rearLeftLabel, scheme.secondary),
                   Icon(
                     Icons.weekend_outlined,
                     color: scheme.onSurfaceVariant,
                     size: 28,
                   ),
-                  _dot(context, 'RS', rearRightLabel, scheme.secondary),
+                  _dot(context, htChannelShort(SonosChannel.rightRear), rearRightLabel, scheme.secondary),
                 ],
               ),
             ),
