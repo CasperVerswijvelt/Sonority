@@ -209,9 +209,37 @@ void main() {
     // What Sonos leaves behind on a separate: both members under the group name.
     soap.zoneName = 'Group';
     await repo.separateGroup(
-        members: const [devA, devB], channelMapSet: '$a:LF,LF;$b:RF,RF');
+        members: const [devA, devB],
+        channelMapSet: '$a:LF,LF;$b:RF,RF',
+        snapshotUuids: const [a, b]);
     expect(soap.renamed, {'1.2.3.4': 'Living Room'},
         reason: 'A was captured, so A is restored; B was skipped on purpose');
+  });
+
+  // The snapshot is keyed by the group's FULL membership, so the RESTORE has to
+  // ask by the full membership too. It used to key the read off the resolved
+  // devices, so one member the app couldn't resolve (an SSDP-missed hidden half,
+  // or one whose description fetch failed) shortened the key, missed the stored
+  // entry outright, and cost EVERY speaker in the group its name — not just the
+  // unresolved one.
+  test('an unresolvable member does not cost everyone else their name',
+      () async {
+    final soap = _Soap((_) => null);
+    final repo = SonosRepository(
+      deviceProps: DevicePropertiesClient(soap),
+      topology: ZoneTopologyClient(soap),
+      groupVerifyInterval: Duration.zero,
+    );
+    await repo.createGroup(members: members, previous: before);
+    soap.zoneName = 'Group';
+    // B never resolved to a device, so it isn't a write target — but it IS part
+    // of the group, and so part of the key.
+    await repo.separateGroup(
+        members: const [devA],
+        channelMapSet: '$a:LF,LF;$b:RF,RF',
+        snapshotUuids: const [a, b]);
+    expect(soap.renamed, {'1.2.3.4': 'Living Room'},
+        reason: 'A is resolved and stored, so A gets its name back');
   });
 
   // The snapshot runs BEFORE the first write, and on the dissolve→recreate path

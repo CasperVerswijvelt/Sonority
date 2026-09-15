@@ -1059,7 +1059,12 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // 2. Dissolve (SeparateStereoPair on the live map) + restore names.
         ph.phase('separate', l10n.stepSeparateRestore);
         await _repo.separateGroup(
-            members: members, channelMapSet: cms, cancel: _activeOp);
+            members: members,
+            channelMapSet: cms,
+            // The FULL membership keys the name snapshot; `members` is only the
+            // resolved subset to write to.
+            snapshotUuids: group.channelMapUuids,
+            cancel: _activeOp);
         ph.phase('settle', l10n.stepWaitForSettle);
         final system = await _pollUntil(
           previous: previous,
@@ -1216,7 +1221,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           }
           ph.phase('separate', l10n.stepSeparateRestore);
           await _repo.separateGroup(
-              members: old, channelMapSet: cms, cancel: _activeOp);
+              members: old,
+              channelMapSet: cms,
+              snapshotUuids: current,
+              cancel: _activeOp);
           // Straight into the rebuild: createGroup re-asserts until the group
           // verifies, so a write that lands mid-dissolve is retried rather than
           // leaving the group torn down. (This is where a settle poll used to

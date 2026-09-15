@@ -482,9 +482,14 @@ class SonosRepository {
   /// through a recipe). [members] are all bonded speakers (incl. any Sub),
   /// coordinator first, resolved by the caller for name restore + IPs. The group
   /// must already be its own coordinator — call [detachFromGroup] + settle first.
+  /// [snapshotUuids] is the group's FULL membership — the key the snapshot was
+  /// stored under. It is deliberately NOT derived from [members]: those are the
+  /// RESOLVED devices, and one unresolvable member shortened the key, missed the
+  /// stored entry entirely and restored NOBODY's name (see [_restoreZoneNames]).
   Future<void> separateGroup({
     required List<SonosDevice> members,
     required String channelMapSet,
+    required List<String> snapshotUuids,
     CancellationToken? cancel,
   }) async {
     if (members.isEmpty) return;
@@ -494,7 +499,7 @@ class SonosRepository {
     }
     await _deviceProps.separateBondedZones(
         ip: coordIp, channelMapSet: channelMapSet);
-    await _restoreZoneNames(members, cancel: cancel);
+    await _restoreZoneNames(snapshotUuids, members, cancel: cancel);
   }
 
   /// Restores each member's saved room name after a group is dissolved (Sonos
@@ -502,18 +507,26 @@ class SonosRepository {
   /// them back). No-op when no snapshot was persisted — e.g. the group was
   /// created outside the app or prefs were cleared.
   ///
+  /// **[keyUuids] is the group's full membership, [targets] the resolved devices
+  /// to write to.** They are separate on purpose: the snapshot is keyed by the
+  /// FULL intended membership (see [_saveZoneSnapshot]), so deriving the key
+  /// from the resolved devices made one unresolvable member shorten the key,
+  /// miss the stored entry entirely, and cost EVERY speaker in the group its
+  /// name — not just the unresolved one. Mirrors the write-side rule.
+  ///
   /// **Best-effort, per member.** These are the speakers Sonos just detached, so
   /// they're squarely inside the ~20-30s window where :1400 refuses connections
   /// — hence [retryUnreachable]. And a name that still won't restore must not
   /// take the whole operation down with it: the bond is already dissolved, so
   /// throwing here left `editGroup` with a group it never rebuilt. A cosmetic
   /// name loss beats that (the transport error is in the diagnostics log).
-  Future<void> _restoreZoneNames(List<SonosDevice> members,
+  Future<void> _restoreZoneNames(
+      Iterable<String> keyUuids, List<SonosDevice> targets,
       {CancellationToken? cancel}) async {
-    final snap = await _loadZoneSnapshot([for (final m in members) m.uuid]);
+    final snap = await _loadZoneSnapshot(keyUuids.toList());
     if (snap == null) return;
     await interruptibleDelay(const Duration(seconds: 2), cancel);
-    for (final m in members) {
+    for (final m in targets) {
       final want = snap[m.uuid];
       final ip = m.ip;
       if (want == null || ip == null) continue;
@@ -566,7 +579,7 @@ class SonosRepository {
               m.uuid,
               ...m.channelMapUuids.where((u) => u != m.uuid),
             ].map(system.device).whereType<SonosDevice>().toList();
-            await _restoreZoneNames(members, cancel: cancel);
+            await _restoreZoneNames(m.channelMapUuids, members, cancel: cancel);
           }
           return;
         }
