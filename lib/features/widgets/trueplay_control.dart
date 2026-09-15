@@ -183,8 +183,9 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       // Single speaker — the x/y counter adds nothing.
       subtitle = isOn ? l10n.widgetsTrueplayActive : l10n.widgetsTrueplayTunedOff;
     } else {
-      // Multi-speaker (HT / pair): tuned coverage first when some bonded
-      // speakers have no stored tuning at all, then the active counter.
+      // Multi-speaker (HT / pair): tuned coverage first, then the active
+      // counter. The tuned half is dropped only when it would say nothing the
+      // active half doesn't — a complete set with something switched on.
       //
       // Tuned BEFORE active, because a stored tuning is the precondition for an
       // active one and the breakdown rows below read the same way ("Tuned ·
@@ -192,8 +193,12 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       // cause: a set with two stored tunings, none switched on, opened with
       // "0/6 active" and read as though nothing were tuned at all. It also puts
       // the tuned count next to the warning, which is about being short one.
+      //
+      // "0/6 active" alone is the same bug for a COMPLETE set that is switched
+      // off: every speaker holds a tuning, the breakdown stays hidden because
+      // they all agree, and nothing on screen says the tunings exist.
       final parts = <String>[
-        if (tunedCount < withIp.length)
+        if (tunedCount < withIp.length || enabledCount == 0)
           l10n.widgetsTrueplayTunedCount(tunedCount, withIp.length),
         l10n.widgetsTrueplayActiveCount(enabledCount, withIp.length),
       ];

@@ -123,6 +123,20 @@ void main() {
     expect(find.textContaining('2/3 tuned · 0/3 active'), findsOneWidget);
   });
 
+  testWidgets('a fully tuned set that is switched OFF still says it is tuned',
+      (tester) async {
+    // Every speaker holds a stored tuning and nothing is switched on, so the
+    // breakdown stays hidden (they all agree) — "0/3 active" on its own then
+    // reads as though nothing were tuned at all.
+    await tester.pumpWidget(trueplayHarness(
+      [bar, left, right],
+      const {'BAR': storedOff, 'LEFT': storedOff, 'RIGHT': storedOff},
+    ));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('3/3 tuned · 0/3 active'), findsOneWidget);
+    expect(find.byType(LabelValueRow), findsNothing);
+  });
+
   testWidgets('the breakdown stays hidden for a uniform set', (tester) async {
     await tester.pumpWidget(trueplayHarness(
       [bar, left, right],
