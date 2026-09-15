@@ -12,13 +12,17 @@ import '../data/sonos/led_identify.dart';
 import '../data/sonos/room_calibration.dart';
 import '../data/sonos/soap_client.dart';
 import '../data/sonos/sonos_repository.dart';
+import '../data/sonos/key_value_store.dart';
 import '../data/sonos/speaker_settings.dart';
+import '../data/sonos/trueplay_apply.dart';
+import '../data/sonos/trueplay_codec.dart';
 import '../data/sonos/zone_layout.dart' show buildGroupMap;
 import '../data/sonos/zone_topology.dart';
 import '../features/profiles/profile.dart';
 import '../features/profiles/profile_controller.dart';
 import '../features/profiles/profile_store.dart';
 import '../state/sonos_controller.dart';
+import '../state/speaker_eq_controller.dart';
 
 /// Demo mode feeds the UI a hand-crafted fake Sonos system + profiles so
 /// marketing screenshots need no LAN, no real hardware, and no staging/revert
@@ -43,7 +47,36 @@ List<Override> demoOverrides() => [
       // throwing client just yields empty settings, instantly.
       speakerSettingsProvider
           .overrideWithValue(SpeakerSettingsClient(_demoSoap)),
+      // The EQ screen writes over :1443 (not SOAP, so _demoSoap can't cover it)
+      // and persists to shared_preferences. Both are swapped out so a demo build
+      // emits no I/O and leaves nothing behind on the device.
+      trueplayApplyProvider.overrideWithValue(_DemoTrueplayApplyClient()),
+      eqStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
     ];
+
+/// Throws on any :1443 call, so a demo build can never write a tuning — and
+/// never waits out an 8s timeout against the unrouteable demo IPs.
+class _DemoTrueplayApplyClient extends TrueplayApplyClient {
+  @override
+  Future<int> postConfig({
+    required String ip,
+    required String rincon,
+    required String configId,
+    required String encodedBase64,
+    String apiKey = kSonosGuestApiKey,
+    bool live = false,
+  }) async =>
+      throw StateError('demo mode: no network I/O (trueplay $configId)');
+
+  @override
+  Future<({int status, TrueplayDeviceConfig? config, String raw})>
+      readDeviceConfig({
+    required String ip,
+    required String rincon,
+    String apiKey = kSonosGuestApiKey,
+  }) async =>
+          throw StateError('demo mode: no network I/O (GetDeviceConfig)');
+}
 
 final _demoSoap = _DemoSoapClient();
 

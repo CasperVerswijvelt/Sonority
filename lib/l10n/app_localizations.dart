@@ -388,6 +388,24 @@ abstract class AppLocalizations {
   /// **'Could not reach the speaker to blink its light.'**
   String get errCannotBlinkLight;
 
+  /// No description provided for @errTuningNotStored.
+  ///
+  /// In en, this message translates to:
+  /// **'The speakers accepted the EQ but didn’t store it. Try again; if it keeps failing, check every speaker is reachable.'**
+  String get errTuningNotStored;
+
+  /// No description provided for @errTuningNotCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'The EQ could not be removed from these speakers.'**
+  String get errTuningNotCleared;
+
+  /// No description provided for @errNothingTunable.
+  ///
+  /// In en, this message translates to:
+  /// **'These speakers don’t report any tunable channels.'**
+  String get errNothingTunable;
+
   /// No description provided for @errTimeout.
   ///
   /// In en, this message translates to:

@@ -183,6 +183,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not reach the speaker to blink its light.';
 
   @override
+  String get errTuningNotStored =>
+      'The speakers accepted the EQ but didn’t store it. Try again; if it keeps failing, check every speaker is reachable.';
+
+  @override
+  String get errTuningNotCleared =>
+      'The EQ could not be removed from these speakers.';
+
+  @override
+  String get errNothingTunable =>
+      'These speakers don’t report any tunable channels.';
+
+  @override
   String get errTimeout =>
       'The speaker didn’t respond in time. It may still be settling — try again in a moment.';
 
