@@ -57,7 +57,7 @@ void main() {
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.textContaining('cannot be recovered'), findsOneWidget);
+    expect(find.textContaining('for good'), findsOneWidget);
   });
 
   testWidgets('declining the confirm does not write', (tester) async {
@@ -92,7 +92,7 @@ void main() {
   testWidgets('the row warns about the cost before it is tapped',
       (tester) async {
     await pump(tester, {a.uuid: tuned, b.uuid: untuned});
-    expect(find.textContaining('will clear the tunings'), findsOneWidget);
+    expect(find.textContaining('clears the tunings that are left'), findsOneWidget);
   });
 }
 

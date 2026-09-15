@@ -492,10 +492,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get widgetsTrueplayIncompleteSet =>
-      'switching on will clear the tunings that are here';
+      'turning it on clears the tunings that are left';
 
   @override
-  String get widgetsTrueplayConfirmTitle => 'Clear the tunings that are left?';
+  String get widgetsTrueplayConfirmTitle => 'Turn on Trueplay?';
 
   @override
   String widgetsTrueplayConfirmBody(int count) {
@@ -503,15 +503,15 @@ class AppLocalizationsEn extends AppLocalizations {
       count,
       locale: localeName,
       other:
-          '$count speakers here still have a room-calibration tuning. Because the others have none, switching Trueplay on clears them, and they cannot be recovered without measuring again in the Sonos app.',
+          'Only $count speakers here are tuned, so turning it on clears those tunings for good.',
       one:
-          'One speaker here still has a room-calibration tuning. Because the others have none, switching Trueplay on clears it, and it cannot be recovered without measuring again in the Sonos app.',
+          'Only 1 speaker here is tuned, so turning it on clears that tuning for good.',
     );
     return '$_temp0';
   }
 
   @override
-  String get widgetsTrueplayConfirmAction => 'Switch on anyway';
+  String get widgetsTrueplayConfirmAction => 'Turn on anyway';
 
   @override
   String get widgetsTrueplayNotTuned =>

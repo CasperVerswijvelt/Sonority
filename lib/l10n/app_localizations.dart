@@ -841,25 +841,25 @@ abstract class AppLocalizations {
   /// Warning on the Trueplay row when some bonded speaker has no stored tuning. Measured (EXP-23): switching on in that state clears the stored tunings of the others, unrecoverably, because a tuning commits for the bonded set as a whole. NOT blocked, only warned and confirmed: the measurement is one household and the mechanism is undetermined.
   ///
   /// In en, this message translates to:
-  /// **'switching on will clear the tunings that are here'**
+  /// **'turning it on clears the tunings that are left'**
   String get widgetsTrueplayIncompleteSet;
 
   /// Confirm shown when switching Trueplay on while the bonded set is only partly tuned.
   ///
   /// In en, this message translates to:
-  /// **'Clear the tunings that are left?'**
+  /// **'Turn on Trueplay?'**
   String get widgetsTrueplayConfirmTitle;
 
   /// Body of that confirm. Names how many tunings are at stake and that the loss is permanent.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one{One speaker here still has a room-calibration tuning. Because the others have none, switching Trueplay on clears it, and it cannot be recovered without measuring again in the Sonos app.} other{{count} speakers here still have a room-calibration tuning. Because the others have none, switching Trueplay on clears them, and they cannot be recovered without measuring again in the Sonos app.}}'**
+  /// **'{count, plural, one{Only 1 speaker here is tuned, so turning it on clears that tuning for good.} other{Only {count} speakers here are tuned, so turning it on clears those tunings for good.}}'**
   String widgetsTrueplayConfirmBody(int count);
 
   /// Confirm action for switching Trueplay on despite the cost.
   ///
   /// In en, this message translates to:
-  /// **'Switch on anyway'**
+  /// **'Turn on anyway'**
   String get widgetsTrueplayConfirmAction;
 
   /// No description provided for @widgetsTrueplayNotTuned.
