@@ -759,7 +759,15 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
    status bar leaks personal data (notification icons, contact avatars) into a
    public PR. `emulator -list-avds` → `emulator -avd Sonority_API36
    -no-snapshot-save -no-audio -no-boot-anim &`, then target it explicitly with
-   `adb -s emulator-5554 …` (the phone is usually also attached). Demo mode
+   `adb -s emulator-5554 …` (the phone is usually also attached).
+   **Two emulator traps, each hit twice:** (1) this AVD intermittently renders
+   **all-white** — the tell is a ~10KB `screencap` PNG with the app running and
+   focused, which looks exactly like an app crash. Add `-gpu swiftshader_indirect`
+   and it renders immediately. (2) `-no-snapshot-save` does NOT stop it *loading*
+   a stale snapshot: after an emulator restart the AVD can come back holding an
+   **old installed build** (seen reverting to 0.6.0 and nearly shipping pre-PR UI
+   into a PR body). Always re-install after any restart and check the version
+   pill in the app bar before capturing. Demo mode
    covers the app data (`flutter build apk --debug --dart-define=DEMO=true` →
    `adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-debug.apk`,
    launch with `am start -n be.casperverswijvelt.sonority/.MainActivity` —
