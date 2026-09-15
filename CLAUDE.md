@@ -587,6 +587,12 @@ Run on the same Wi-Fi as the Sonos system:
   else). iOS/macOS additionally get a layered **glass-pane `.icon`** authored in
   Icon Composer (manual; PNG `AppIcon.appiconset` kept as the pre-26 fallback). See
   `docs/MARKETING-ASSETS.md`.
+- `tool/spectral_probe.dart` — **read-only** dump of the `:1443` spectral-tuning
+  vocabulary per speaker (channel ids, per-channel sample rate, model,
+  `maxSections`) plus its stored/enabled calibration state. Run this **before**
+  trusting an EQ apply on unfamiliar hardware: six of the ten rules above fail
+  with an HTTP 200 and nothing stored, and the two that vary per model and per
+  layout are exactly what this prints. Writes nothing.
 - `tool/trueplay_probe.dart` — read-only Trueplay/room-calibration status per
   speaker (+ SCPD dump); `--enable/--disable <room|uuid>` to toggle (reversible).
 - `tool/eq_probe.dart` — read-only per-speaker EQ/audio settings dump
