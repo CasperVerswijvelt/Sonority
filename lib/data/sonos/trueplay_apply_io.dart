@@ -61,9 +61,8 @@ class TrueplayApplyClient {
 
   /// Dispatch a **`GetDeviceConfig`** RPC: the player's own channel vocabulary
   /// (channel ids, sample rate, model, section count) for its CURRENT layout —
-  /// what an `ApplySpectralTuning` has to match. This is a READ (the same RPC the
-  /// iOS app fires before it applies anything), so it is deliberately NOT
-  /// `live`-gated: it changes nothing. Note a plain `GET` on this path only ever
+  /// what an `ApplySpectralTuning` has to match. This is a READ, so it is
+  /// deliberately NOT `live`-gated: it changes nothing. Note a plain `GET` on this path only ever
   /// returns a 14-byte stub — the config comes back in the *response* to this POST.
   ///
   /// [config] is null when the reply isn't the expected JSON+protobuf (then read

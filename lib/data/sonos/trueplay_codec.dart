@@ -101,9 +101,6 @@ class TrueplayRequest {
         method: method,
         payload: payload);
   }
-
-  static TrueplayRequest decodeBase64(String b64) =>
-      decode(base64.decode(b64));
 }
 
 /// Encode an `ApplySpectralTuning` payload (the inner message, not the envelope).
@@ -211,11 +208,13 @@ class TrueplayDeviceConfig {
   /// Tunable channel ids, in the order the player lists them.
   final List<int> channels;
 
-  /// Sample rate per channel (44100 on every model seen).
+  /// Sample rate per channel. 44100 for every audio channel, but the `SW`
+  /// (sub) role reports **8138** — never assume, always use the reported value,
+  /// or a filter lands several times off its design frequency.
   final List<double> sampleRates;
 
-  /// Sonos internal model code (`S22` One SL, `S31` Beam, `S1` Play:1) — the key
-  /// of the per-model `params-S*.json` (gain limits) and tuning-model assets.
+  /// Sonos internal model code (`S22` One SL, `S31` Beam, `S1` Play:1). Reported
+  /// but not currently used — the correction limits we apply are model-neutral.
   final String model;
 
   /// Biquad sections per channel the player advertises (16 everywhere so far; the

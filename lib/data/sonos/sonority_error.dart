@@ -77,6 +77,9 @@ class SonorityError implements Exception {
         return 'The EQ could not be removed from these speakers.';
       case SonorityErrorCode.nothingTunable:
         return 'These speakers do not report any tunable channels.';
+      case SonorityErrorCode.tuningUnstable:
+        return 'That EQ curve could not be turned into a safe filter. '
+            'Nothing was sent to the speakers — try a gentler curve.';
     }
   }
 
@@ -114,4 +117,5 @@ enum SonorityErrorCode {
   tuningNotStored,
   tuningNotCleared,
   nothingTunable,
+  tuningUnstable,
 }

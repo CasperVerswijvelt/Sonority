@@ -24,6 +24,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'sonority_error.dart';
 import 'trueplay_codec.dart';
 import 'trueplay_fit.dart';
 
@@ -158,11 +159,10 @@ List<BiquadSos> sectionsForCorrection(
     // then run. RBJ sections are stable by construction, so this is an assertion
     // about our own maths, not about input.
     final pole = poleModulus(s);
-    if (!pole.isFinite || pole >= 1) {
-      throw StateError('custom_eq produced an unstable section: $s');
-    }
-    if ([s.b0, s.b1, s.b2, s.a1, s.a2].any((c) => !c.isFinite)) {
-      throw StateError('custom_eq produced a non-finite section: $s');
+    if (!pole.isFinite ||
+        pole >= 1 ||
+        [s.b0, s.b1, s.b2, s.a1, s.a2].any((c) => !c.isFinite)) {
+      throw const SonorityError(SonorityErrorCode.tuningUnstable);
     }
   }
   return sections;

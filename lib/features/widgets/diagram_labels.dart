@@ -76,15 +76,3 @@ List<Widget> groupMemberCards(
           trailing: trailing?.call(member.subUuid!),
         ),
     ];
-
-/// The short channel token shown on the diagram dots, reused wherever a speaker
-/// has to be identified by its role rather than its type — two dedicated fronts
-/// are both "Era 100", so the type alone can't tell them apart.
-String htChannelShort(SonosChannel c) => switch (c) {
-      SonosChannel.leftFront => 'L',
-      SonosChannel.rightFront => 'R',
-      SonosChannel.center => 'C',
-      SonosChannel.leftRear => 'LS',
-      SonosChannel.rightRear => 'RS',
-      SonosChannel.sub => 'SUB',
-    };

@@ -42,6 +42,10 @@ enum EqPreflight {
 
 @immutable
 class SpeakerEqStatus {
+  /// Which entity this status is about. The provider is global but the screen is
+  /// per-entity, so without this a stale "Applied" or error from one home
+  /// theater renders on the next entity's EQ page.
+  final String? entityId;
   final bool busy;
   final Object? error;
 
@@ -49,10 +53,14 @@ class SpeakerEqStatus {
   final bool applied;
 
   const SpeakerEqStatus({
+    this.entityId,
     this.busy = false,
     this.error,
     this.applied = false,
   });
+
+  /// Nothing to show for [id] — either idle, or reporting on another entity.
+  bool isIdleFor(String id) => entityId != id;
 }
 
 final speakerEqControllerProvider =
@@ -104,7 +112,11 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
       final offsets = (m['offsets'] as Map<String, dynamic>?) ?? const {};
       return {
         for (final e in offsets.entries)
-          e.key: [for (final v in e.value as List) (v as num).toDouble()],
+          if ((e.value as List).length == kEqBands.length)
+            // Drop anything that isn't the current band count rather than
+            // handing a short list to the sliders — composeCorrection's length
+            // check is an assert, so in release it would be a RangeError.
+            e.key: [for (final v in e.value as List) (v as num).toDouble()],
       };
     } catch (_) {
       return const {};
@@ -206,14 +218,14 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
   }) async {
     if (_inFlight) return false;
     _inFlight = true;
-    state = const SpeakerEqStatus(busy: true);
+    state = SpeakerEqStatus(entityId: entityId, busy: true);
     try {
       final ok = await _applyInner(entityId, members, offsets);
-      state = SpeakerEqStatus(applied: ok);
+      state = SpeakerEqStatus(entityId: entityId, applied: ok);
       return ok;
     } catch (e) {
       DiagnosticsLog.add('[eq] apply failed: $e');
-      state = SpeakerEqStatus(error: e);
+      state = SpeakerEqStatus(entityId: entityId, error: e);
       return false;
     } finally {
       _inFlight = false;
@@ -245,7 +257,24 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
       // ids mean HTTP 200 with nothing stored and no error.
       final cfg = (await _apply.readDeviceConfig(ip: d.ip!, rincon: d.uuid))
           .config;
-      if (cfg == null || cfg.channels.isEmpty) continue;
+      // ABORT, never skip. A batch missing one bonded member is exactly the
+      // incomplete set that stores nothing — and if the rest happened to commit,
+      // enabling a partial set is the documented way to destroy the tunings on
+      // the members that were left out.
+      if (cfg == null || cfg.channels.isEmpty) {
+        DiagnosticsLog.add(
+            '[eq] ${d.roomName} (${d.ip}) reported no tunable channels; '
+            'aborting before any write');
+        throw const SonorityError(SonorityErrorCode.nothingTunable);
+      }
+      // A degenerate config would fit to a do-nothing cascade, and the oracle
+      // would still flip — reporting "Applied" for an EQ that does nothing.
+      if (cfg.maxSections < 2 ||
+          cfg.sampleRates.take(cfg.channels.length).any((r) => r <= 0)) {
+        DiagnosticsLog.add('[eq] ${d.roomName} reported an unusable config '
+            '(maxSections ${cfg.maxSections}, rates ${cfg.sampleRates})');
+        throw const SonorityError(SonorityErrorCode.nothingTunable);
+      }
 
       final correction = composeCorrection(
         bandOffsetsDb: offsets[d.uuid] ?? List.filled(kEqBands.length, 0),
@@ -272,16 +301,31 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     }
 
     for (final e in tunings.entries) {
-      await _apply.applySpectral(
+      final status = await _apply.applySpectral(
         ip: e.key.ip!,
         rincon: e.key.uuid,
         tuning: e.value,
         live: true,
       );
+      // A 200 is not success — but a non-200 IS failure, and it is the only
+      // failure the transport can tell us about at all, so don't discard it.
+      if (status != 200) {
+        DiagnosticsLog.add(
+            '[eq] ${e.key.roomName} (${e.key.ip}) rejected the tuning: '
+            'HTTP $status');
+        throw const SonorityError(SonorityErrorCode.tuningNotStored);
+      }
     }
 
-    if (!await _pollAvailable(tunings.keys.first.ip!, want: true)) {
-      throw const SonorityError(SonorityErrorCode.tuningNotStored);
+    // ⚠️ The oracle can only observe "a tuning exists", so it genuinely proves a
+    // FIRST apply and cannot distinguish a re-apply that stored from one that
+    // silently didn't — `available` is already 1 either way. Poll every member
+    // regardless: on a first apply that catches a satellite that failed to
+    // commit while the coordinator did, which one-member polling misses.
+    for (final d in tunings.keys) {
+      if (!await _pollAvailable(d.ip!, want: true)) {
+        throw const SonorityError(SonorityErrorCode.tuningNotStored);
+      }
     }
 
     // Storing is not enabling — that is a separate call, which is also what
@@ -306,7 +350,7 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     cancelPending();
     if (_inFlight) return false;
     _inFlight = true;
-    state = const SpeakerEqStatus(busy: true);
+    state = SpeakerEqStatus(entityId: entityId, busy: true);
     try {
       final targets = members.where((d) => d.ip != null).toList();
       for (final d in targets) {
@@ -322,7 +366,7 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
       return true;
     } catch (e) {
       DiagnosticsLog.add('[eq] remove failed: $e');
-      state = SpeakerEqStatus(error: e);
+      state = SpeakerEqStatus(entityId: entityId, error: e);
       return false;
     } finally {
       _inFlight = false;

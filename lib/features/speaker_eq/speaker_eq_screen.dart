@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,7 +13,6 @@ import '../../state/speaker_eq_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/destructive_button.dart';
-import '../widgets/diagram_labels.dart';
 import '../widgets/pill_chip.dart';
 import '../widgets/scroll_footer.dart';
 import '../widgets/section_header.dart';
@@ -19,19 +20,36 @@ import '../widgets/settings_section.dart';
 import '../widgets/trueplay_control.dart';
 import 'eq_curve_view.dart';
 
-/// Every native speaker an EQ would be written to for [uuid] — the entity's
-/// coordinator plus whatever its channel map bonds to it. A standalone speaker
-/// has an empty map, so this is just itself. Line-out boxes are excluded: they
-/// have no drivers of their own to tune.
+/// Every native speaker an EQ would be written to for [uuid].
+///
+/// Reads [ZoneGroupMember.bondedUuids], which unions BOTH bond representations —
+/// a home theater's `HTSatChanMapSet` and a group's `ChannelMapSet`. Using only
+/// the HT map would silently reduce every stereo pair / zone / custom group to
+/// its coordinator, and a spectral-tuning apply that omits a bonded member
+/// stores nothing at all (with an HTTP 200 and no error).
+///
+/// Line-out boxes are excluded: they have no drivers of their own to tune.
 List<SonosDevice> eqMembers(SonosSystem system, String uuid) {
   final member = system.memberByUuid(uuid);
   if (member == null) return const [];
-  return <String>{member.uuid, ...member.channelAssignments.values}
+  return member.bondedUuids
       .map(system.device)
       .whereType<SonosDevice>()
       .where((d) => !d.drivesExternalSpeakers)
       .toList();
 }
+
+/// UUID → the speaker's role in this bond, for labelling. Two dedicated fronts
+/// are both "Era 100", so the type alone cannot identify a speaker. Covers both
+/// bond kinds; empty for a standalone speaker, which needs no role.
+Map<String, String> eqRoles(ZoneGroupMember member) => {
+      for (final c in SonosChannel.values)
+        for (final u in member.uuidsForChannel(c)) u: c.shortLabel,
+      for (final e in member.groupChannels.entries)
+        e.key: groupChannelShort(e.value),
+      for (final u in member.channelMapUuids)
+        if (member.groupChannels[u] == null) u: SonosChannel.sub.shortLabel,
+    };
 
 /// The tuning flow for one entity: measure (not built yet), adjust, apply.
 ///
@@ -62,6 +80,12 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
 
   final _freqs = eqGrid();
 
+  /// What the fitted cascade actually does, recomputed only when the curve
+  /// settles — the fit is a Levenberg-Marquardt solve (tens of ms), so running
+  /// it per pointer move would stutter the drag. The requested curve tracks the
+  /// slider live; the achieved one catches up on release.
+  Float64List? _achieved;
+
   @override
   void dispose() {
     ref.read(speakerEqControllerProvider.notifier).cancelPending();
@@ -70,12 +94,15 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
 
   /// Seed the sliders from whatever was last applied to this entity.
   Future<void> _load(List<SonosDevice> members) async {
+    // Claim the load before awaiting: a rebuild while it is in flight would
+    // otherwise schedule a second one, whose late addAll could stomp slider
+    // moves the user has already made.
+    _loaded = true;
     final stored = await ref
         .read(speakerEqControllerProvider.notifier)
         .loadStored(widget.uuid);
     if (!mounted) return;
     setState(() {
-      _loaded = true;
       if (stored.isEmpty) return;
       _perMember.addAll(stored);
       final distinct = stored.values.map((v) => v.join(',')).toSet();
@@ -101,11 +128,36 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
       ? (_perMember[_editing!] ??= flatCurve())
       : _shared;
 
-  void _setBand(int i, double v, List<SonosDevice> members) {
+  void _setBand(int i, double v) {
     setState(() {
       final next = List<double>.of(_current)..[i] = v;
       _individual ? _perMember[_editing!] = next : _shared = next;
+      _achieved = null; // stale until the curve settles
     });
+  }
+
+  /// The channel vocabulary the preview should be fitted against. The real
+  /// values come from each player at apply time, but a Sub runs at a far lower
+  /// rate over a much narrower band, so previewing it at 44100 would draw a
+  /// cascade the speaker will never run.
+  ({double fs, int maxSections}) _previewChannel(List<SonosDevice> members) {
+    final d = _individual
+        ? members.firstWhere((m) => m.uuid == _editing,
+            orElse: () => members.first)
+        : members.first;
+    return d.isSub
+        ? (fs: kSubSampleRate, maxSections: 8)
+        : (fs: 44100.0, maxSections: 16);
+  }
+
+  void _refreshAchieved(Float64List requested, List<SonosDevice> members) {
+    final ch = _previewChannel(members);
+    setState(() => _achieved = cascadeMagnitudeDb(
+          sectionsForCorrection(requested, _freqs,
+              fs: ch.fs, maxSections: ch.maxSections),
+          _freqs,
+          ch.fs,
+        ));
   }
 
   /// Runs the destructive-overwrite check once per visit, whichever control
@@ -209,14 +261,15 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
     }
     _editing ??= members.first.uuid;
 
-    final status = ref.watch(speakerEqControllerProvider);
+    var status = ref.watch(speakerEqControllerProvider);
+    // The provider is global; ignore a result that belongs to another entity.
+    if (status.isIdleFor(widget.uuid)) status = const SpeakerEqStatus();
     final requested =
         composeCorrection(bandOffsetsDb: _current, freqs: _freqs);
-    final achieved = cascadeMagnitudeDb(
-      sectionsForCorrection(requested, _freqs, fs: 44100, maxSections: 16),
-      _freqs,
-      44100,
-    );
+    if (_achieved == null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => mounted ? _refreshAchieved(requested, members) : null);
+    }
     final scheme = Theme.of(context).colorScheme;
 
     return AppScaffold(
@@ -247,7 +300,8 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
                   children: [
                     EqCurveView(freqs: _freqs, curves: [
                       EqCurve(requested, scheme.primary),
-                      EqCurve(achieved, scheme.tertiary, dashed: true),
+                      if (_achieved != null)
+                        EqCurve(_achieved!, scheme.tertiary, dashed: true),
                     ]),
                     Gap.s,
                     _Legend(
@@ -257,8 +311,9 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
                     Gap.m,
                     _Bands(
                       gains: _current,
-                      onChanged: (i, v) => _setBand(i, v, members),
+                      onChanged: _setBand,
                       onChangeEnd: () {
+                        _refreshAchieved(requested, members);
                         if (_live) {
                           ref
                               .read(speakerEqControllerProvider.notifier)
@@ -290,6 +345,7 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
                   }
                 }
                 _individual = v;
+                _achieved = null;
               }),
               onReset: () => setState(() {
                 _individual
@@ -303,16 +359,16 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
             Gap.s,
             _MemberPicker(
               members: members,
-              roles: {
-                for (final e in member.channelAssignments.entries)
-                  e.value: htChannelShort(e.key),
-              },
+              roles: eqRoles(member),
               selected: _editing!,
               edited: {
                 for (final e in _perMember.entries)
                   if (!isFlat(e.value)) e.key,
               },
-              onSelected: (u) => setState(() => _editing = u),
+              onSelected: (u) => setState(() {
+                _editing = u;
+                _achieved = null;
+              }),
             ),
           ],
           Gap.m,
@@ -595,7 +651,13 @@ class _Footer extends StatelessWidget {
         ),
         // The Trueplay switch doubles as this EQ's on/off: storing a tuning and
         // enabling it are separate calls, so it is an instant A/B.
-        SettingsSection(children: [TrueplayControl(devices: devices)]),
+        SettingsSection(children: [
+          TrueplayControl(
+            devices: devices,
+            title: l10n.eqTuningToggle,
+            untunedSubtitle: l10n.eqTuningToggleUntuned,
+          ),
+        ]),
         Padding(
           padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 8),
           child: DestructiveButton(

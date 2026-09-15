@@ -406,6 +406,12 @@ abstract class AppLocalizations {
   /// **'These speakers don’t report any tunable channels.'**
   String get errNothingTunable;
 
+  /// No description provided for @errTuningUnstable.
+  ///
+  /// In en, this message translates to:
+  /// **'That EQ curve couldn’t be turned into a safe filter. Nothing was sent to the speakers — try a gentler curve.'**
+  String get errTuningUnstable;
+
   /// No description provided for @errTimeout.
   ///
   /// In en, this message translates to:
@@ -2272,12 +2278,6 @@ abstract class AppLocalizations {
   /// **'Adjust'**
   String get eqStepAdjust;
 
-  /// No description provided for @eqStepApply.
-  ///
-  /// In en, this message translates to:
-  /// **'Apply'**
-  String get eqStepApply;
-
   /// No description provided for @eqModeAll.
   ///
   /// In en, this message translates to:
@@ -2350,6 +2350,18 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get eqRetry;
 
+  /// No description provided for @eqTuningToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tuning'**
+  String get eqTuningToggle;
+
+  /// No description provided for @eqTuningToggleUntuned.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing applied yet — adjust the bands and tap Apply.'**
+  String get eqTuningToggleUntuned;
+
   /// No description provided for @eqRemove.
   ///
   /// In en, this message translates to:
@@ -2365,7 +2377,7 @@ abstract class AppLocalizations {
   /// No description provided for @eqRemoveBody.
   ///
   /// In en, this message translates to:
-  /// **'This clears the stored tuning from every speaker in this configuration. To switch the EQ off without losing it, use the Room calibration toggle instead.'**
+  /// **'This clears the stored tuning from every speaker in this configuration. To switch the EQ off without losing it, use the Tuning toggle above instead.'**
   String get eqRemoveBody;
 
   /// No description provided for @eqRemoveConfirm.

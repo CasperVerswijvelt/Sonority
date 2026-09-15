@@ -195,6 +195,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'These speakers don’t report any tunable channels.';
 
   @override
+  String get errTuningUnstable =>
+      'That EQ curve couldn’t be turned into a safe filter. Nothing was sent to the speakers — try a gentler curve.';
+
+  @override
   String get errTimeout =>
       'The speaker didn’t respond in time. It may still be settling — try again in a moment.';
 
@@ -1388,9 +1392,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eqStepAdjust => 'Adjust';
 
   @override
-  String get eqStepApply => 'Apply';
-
-  @override
   String get eqModeAll => 'All speakers';
 
   @override
@@ -1427,6 +1428,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eqRetry => 'Retry';
 
   @override
+  String get eqTuningToggle => 'Tuning';
+
+  @override
+  String get eqTuningToggleUntuned =>
+      'Nothing applied yet — adjust the bands and tap Apply.';
+
+  @override
   String get eqRemove => 'Remove EQ';
 
   @override
@@ -1434,7 +1442,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get eqRemoveBody =>
-      'This clears the stored tuning from every speaker in this configuration. To switch the EQ off without losing it, use the Room calibration toggle instead.';
+      'This clears the stored tuning from every speaker in this configuration. To switch the EQ off without losing it, use the Tuning toggle above instead.';
 
   @override
   String get eqRemoveConfirm => 'Remove';

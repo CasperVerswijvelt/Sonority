@@ -24,6 +24,13 @@ class _FakeApply extends TrueplayApplyClient {
   final cleared = <String>[];
   int posts = 0;
 
+  /// Per-RINCON override, so a test can make one member unreadable or
+  /// degenerate. `null` means "GetDeviceConfig returns no config".
+  final Map<String, TrueplayDeviceConfig?> configs = {};
+
+  /// HTTP status applySpectral returns.
+  int status = 200;
+
   @override
   Future<({int status, TrueplayDeviceConfig? config, String raw})>
       readDeviceConfig({
@@ -31,6 +38,9 @@ class _FakeApply extends TrueplayApplyClient {
     required String rincon,
     String apiKey = kSonosGuestApiKey,
   }) async {
+    if (configs.containsKey(rincon)) {
+      return (status: 200, config: configs[rincon], raw: '');
+    }
     // The sub reports its own single channel at its own (much lower) rate.
     final cfg = rincon == 'RINCON_SUB'
         ? const TrueplayDeviceConfig(
@@ -55,7 +65,7 @@ class _FakeApply extends TrueplayApplyClient {
   }) async {
     posts++;
     applied[rincon] = tuning;
-    return 200;
+    return status;
   }
 
   @override
@@ -183,6 +193,88 @@ void main() {
       );
       expect(ok, isFalse);
       expect(c.read(speakerEqControllerProvider).error, isNotNull);
+    });
+  });
+
+  // Each of these failed SILENTLY before: the speakers answer HTTP 200 and
+  // store nothing, so a half-written batch looks exactly like a successful one.
+  group('batch integrity', () {
+    test('a member that reports no channels aborts before ANY write', () async {
+      final apply = _FakeApply()..configs['RINCON_REAR'] = null;
+      final c = _container(apply);
+      final ok = await c.read(speakerEqControllerProvider.notifier).apply(
+            entityId: 'RINCON_BAR',
+            members: const [_bar, _rear],
+            offsets: {'RINCON_BAR': _cut(4)},
+          );
+      expect(ok, isFalse);
+      expect(apply.posts, 0,
+          reason: 'a partial batch stores nothing, and enabling one '
+              'destroys the tunings on the members left out');
+    });
+
+    test('a degenerate device config aborts rather than applying nothing',
+        () async {
+      // maxSections 0 would fit to a single passthrough — the oracle still
+      // flips, so the user would be told "Applied" for a silent no-op.
+      final apply = _FakeApply()
+        ..configs['RINCON_BAR'] = const TrueplayDeviceConfig(
+            channels: [1], sampleRates: [44100], model: 'S31', maxSections: 0);
+      final c = _container(apply);
+      final ok = await c.read(speakerEqControllerProvider.notifier).apply(
+            entityId: 'RINCON_BAR',
+            members: const [_bar],
+            offsets: {'RINCON_BAR': _cut(4)},
+          );
+      expect(ok, isFalse);
+      expect(apply.posts, 0);
+    });
+
+    test('a zero sample rate aborts', () async {
+      final apply = _FakeApply()
+        ..configs['RINCON_BAR'] = const TrueplayDeviceConfig(
+            channels: [1], sampleRates: [0], model: 'S31', maxSections: 16);
+      final c = _container(apply);
+      expect(
+        await c.read(speakerEqControllerProvider.notifier).apply(
+            entityId: 'RINCON_BAR',
+            members: const [_bar],
+            offsets: {'RINCON_BAR': _cut(4)}),
+        isFalse,
+      );
+      expect(apply.posts, 0);
+    });
+
+    test('a non-200 from the write is a failure, not a silent success',
+        () async {
+      final apply = _FakeApply()..status = 499;
+      final c = _container(apply);
+      expect(
+        await c.read(speakerEqControllerProvider.notifier).apply(
+            entityId: 'RINCON_BAR',
+            members: const [_bar],
+            offsets: {'RINCON_BAR': _cut(4)}),
+        isFalse,
+      );
+    });
+  });
+
+  group('stored offsets', () {
+    test('a stored curve with the wrong band count is discarded', () async {
+      final store = InMemoryKeyValueStore();
+      await store.setString('eq:E',
+          '{"v":1,"offsets":{"RINCON_BAR":[1,2,3],"RINCON_REAR":[0,0,0,0,0,0,0,0]}}');
+      final c = ProviderContainer(overrides: [
+        trueplayApplyProvider.overrideWithValue(_FakeApply()),
+        eqStoreProvider.overrideWithValue(store),
+        sonosRepositoryProvider.overrideWithValue(_FakeRepo()),
+      ]);
+      addTearDown(c.dispose);
+      final loaded =
+          await c.read(speakerEqControllerProvider.notifier).loadStored('E');
+      expect(loaded.keys, ['RINCON_REAR'],
+          reason: 'a short list would RangeError in release, where the '
+              'length check is only an assert');
     });
   });
 

@@ -47,9 +47,9 @@ keep it that way." That is now scoped to the **path**, not to the word "EQ":
   Sonos app exposes in **no** form — it offers two shelving knobs and no graphic
   or parametric EQ at all — and it works on the unofficial layouts Sonos refuses
   to tune. Sonority ships it as a user-editable **EQ** (`features/speaker_eq/`).
-The private corpus' `PER-CHANNEL-AUTHORING.md` §4 argues the other way (a
-user-drawn curve is "a tone control"); that is **superseded** by this ruling.
-Don't re-litigate it, and don't widen it back to the RenderingControl knobs.
+An earlier design note argued the other way (a user-drawn curve is "a tone
+control"); that is **superseded** by this ruling. Don't re-litigate it, and don't
+widen it back to the RenderingControl knobs.
 
 **Same reasoning extends to profiles capturing EQ/volume (deliberate, narrow):**
 a profile can *snapshot each speaker's current EQ (bass/treble/loudness/night/

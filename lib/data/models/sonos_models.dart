@@ -34,6 +34,19 @@ enum SonosChannel {
   const SonosChannel(this.token);
   final String token;
 
+  /// The short token the UI labels this channel with ("L", "LS", "SUB").
+  /// English like [groupChannelShort] — the UI maps it for display if it ever
+  /// needs to. Single-sourced so the diagram dots and the EQ's speaker picker
+  /// can't name the same channel differently.
+  String get shortLabel => switch (this) {
+        SonosChannel.leftFront => 'L',
+        SonosChannel.rightFront => 'R',
+        SonosChannel.center => 'C',
+        SonosChannel.leftRear => 'LS',
+        SonosChannel.rightRear => 'RS',
+        SonosChannel.sub => 'SUB',
+      };
+
   static SonosChannel? fromToken(String token) {
     for (final c in SonosChannel.values) {
       if (c.token == token.trim().toUpperCase()) return c;
@@ -347,6 +360,24 @@ class ZoneGroupMember {
   /// All satellite UUIDs assigned to [channel] — more than one for dual subs.
   List<String> uuidsForChannel(SonosChannel channel) =>
       _uuidsWhere((tokens) => tokens.contains(channel.token));
+
+  /// Every satellite in the HT map, deduped by UUID and in map order.
+  ///
+  /// Unlike `channelAssignments.values` this is keyed by UUID rather than by
+  /// channel, so a **dual-sub** HT keeps both subs (two `SW` entries collapse to
+  /// one in a channel-keyed map).
+  List<String> get htSatelliteUuids => _uuidsWhere((_) => true);
+
+  /// Every speaker physically bonded into this entity, coordinator first.
+  ///
+  /// Unions both bond representations — the HT `HTSatChanMapSet` and the group
+  /// `ChannelMapSet` — so it is correct for a home theater, a stereo pair, a
+  /// zone, a custom group and a lone standalone speaker alike. Use this whenever
+  /// an operation has to address *the whole bond* (a spectral-tuning apply must
+  /// carry every member or nothing commits); the two maps are never both
+  /// populated, but unioning is cheaper than asking which one is.
+  List<String> get bondedUuids =>
+      <String>{uuid, ...htSatelliteUuids, ...channelMapUuids}.toList();
 
   List<String> _uuidsWhere(bool Function(List<String> tokens) test) {
     final raw = htSatChanMapSet;
