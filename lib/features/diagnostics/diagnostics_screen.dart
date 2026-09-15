@@ -40,8 +40,9 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   bool _includeNetwork = true;
   _Action? _busy; // null = idle; else the action currently running
 
-  /// The typed description, held only while a send is outstanding, so a failed
-  /// email (no mail app configured) doesn't discard what the reporter wrote.
+  /// The typed description, kept until a mail composer has actually opened, so
+  /// failing to reach one (no mail app configured) doesn't discard what the
+  /// reporter wrote.
   String? _pendingNote;
 
   bool get _isBusy => _busy != null;
@@ -75,8 +76,10 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
           defaultTargetPlatform == TargetPlatform.macOS);
 
   /// Runs [action] on a freshly built bundle. Returns true only if [action]
-  /// itself completed — the email path uses that to decide whether the typed
-  /// note can be dropped.
+  /// itself completed — for the email path that means the platform composer
+  /// opened, which is as much as `flutter_email_sender` reports (it says
+  /// nothing about the user then pressing Send). Good enough to decide the
+  /// typed note can be dropped.
   Future<bool> _run(
     _Action which,
     Future<void> Function(String path) action, {
@@ -137,9 +140,9 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
     // Compose the body here, while the context is known-good — collecting the
     // bundle takes seconds, and _email runs after it.
     final body = '$note\n\n${context.l10n.diagEmailAttached}';
-    final sent =
+    final composed =
         await _run(_Action.email, (path) => _email(path, body), note: note);
-    if (sent) _pendingNote = null;
+    if (composed) _pendingNote = null;
   }
 
   Future<void> _email(String path, String body) => FlutterEmailSender.send(
