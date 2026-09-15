@@ -169,11 +169,14 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     } else if (known.isEmpty) {
       // Nothing answered. "Not tuned" would be a claim about speakers we never
       // managed to ask — the same over-reach the breakdown below exists to stop.
-      subtitle = l10n.widgetsTrueplayUnreadable;
-    } else if (tunedCount == 0 && known.length == withIp.length) {
-      // Flat "not tuned" only when the WHOLE set answered. With a speaker
+      // Plural-keyed on the speakers the message covers — the ones the
+      // breakdown lists — because a standalone room passes exactly one.
+      subtitle = l10n.widgetsTrueplayUnreadable(widget.devices.length);
+    } else if (tunedCount == 0 && known.length == widget.devices.length) {
+      // Flat "not tuned" only when EVERY speaker shown answered. With one
       // missing from the reads this would assert a tuning fact about one we
-      // never asked; the counter below says "0/6 tuned" instead, and the
+      // never asked — including a speaker with no IP, which is never read yet
+      // still gets a row; the counter below says "0/6 tuned" instead, and the
       // breakdown names the one that didn't answer.
       subtitle = l10n.widgetsTrueplayNotTuned;
     } else if (withIp.length == 1) {

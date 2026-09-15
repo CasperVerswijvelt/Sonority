@@ -349,9 +349,14 @@
   "@widgetsTrueplayRowUnread": {
     "description": "One speaker's state in the per-speaker Trueplay breakdown: no IP, the speaker never answered discovery, or the calibration read faulted. Shown rather than omitting the speaker, so a set that reads x/y always says which speaker the gap is."
   },
-  "widgetsTrueplayUnreadable": "Couldn't read Trueplay from these speakers.",
+  "widgetsTrueplayUnreadable": "{count, plural, one{Couldn't read Trueplay from this speaker.} other{Couldn't read Trueplay from these speakers.}}",
   "@widgetsTrueplayUnreadable": {
-    "description": "Subtitle when NO speaker in the set answered its calibration read. Distinct from widgetsTrueplayNotTuned, which claims the speakers have no tuning — a claim that can't be made about speakers that were never successfully asked."
+    "description": "Subtitle when NO speaker in the set answered its calibration read. Distinct from widgetsTrueplayNotTuned, which claims the speakers have no tuning — a claim that can't be made about speakers that were never successfully asked. count is how many speakers the message covers; a standalone room passes exactly one.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "widgetsTrueplayActiveCount": "{enabled}/{total} active",
   "@widgetsTrueplayActiveCount": {

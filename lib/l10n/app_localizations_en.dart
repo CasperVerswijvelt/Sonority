@@ -543,8 +543,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get widgetsTrueplayRowUnread => 'Couldn\'t read';
 
   @override
-  String get widgetsTrueplayUnreadable =>
-      'Couldn\'t read Trueplay from these speakers.';
+  String widgetsTrueplayUnreadable(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Couldn\'t read Trueplay from these speakers.',
+      one: 'Couldn\'t read Trueplay from this speaker.',
+    );
+    return '$_temp0';
+  }
 
   @override
   String widgetsTrueplayActiveCount(int enabled, int total) {
