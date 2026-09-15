@@ -203,6 +203,9 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
           diff.isNoOp ? const {} : system.bondMemberUuids(member),
     );
 
+    // Built once: the hint below reads it too, and it walks the whole system.
+    final frontCandidates = avail(_fronts);
+
     // Chime only for a standalone speaker; an already-bonded pick (a current
     // satellite shown pre-selected) can only blink its LED.
     Widget idControls(SonosDevice d) =>
@@ -265,14 +268,14 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                       // Only mention the Amp/Port shortcut when the user
                       // actually has one — otherwise it is advice about
                       // hardware they don't own.
-                      avail(_fronts).any((d) => d.drivesExternalSpeakers)
+                      frontCandidates.any((d) => d.drivesExternalSpeakers)
                           ? context.l10n.frontSurroundsFrontsHintAmp
                           : context.l10n.frontSurroundsFrontsHint,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Gap.s,
                     _ChooseSpeakers(
-                      candidates: avail(_fronts),
+                      candidates: frontCandidates,
                       selected: _fronts,
                       allSelected: _allSelected,
                       picker: picker,
@@ -500,8 +503,6 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     final additions = _additions(system);
     final subs = _subDevices(system);
 
-    if (!mounted) return;
-
     final controller = ref.read(sonosControllerProvider.notifier);
     final router = GoRouter.of(context);
     final outcome = await showBondingProgress(
@@ -711,15 +712,20 @@ class _Review extends StatelessWidget {
           subCount: subCount,
         ),
         Gap.m,
-        InfoNote(_note(context)),
+        // The destructive facts stay inside the warning card; the reassurance
+        // sits OUTSIDE it, so "You can change this anytime" can't read as if it
+        // covered a lost Trueplay tuning or a speaker being unbonded.
+        if (_warning(context) case final w?) ...[InfoNote(w), Gap.s],
+        Text(context.l10n.frontSurroundsReviewNote,
+            style: Theme.of(context).mutedText),
       ],
     );
   }
 
-  /// The one review note: what leaves, who loses their Trueplay, and a closing
-  /// reassurance. One card, because the pieces are one story and the diagram
-  /// above already shows the layout itself.
-  String _note(BuildContext context) {
+  /// What this apply COSTS — what leaves the home theater and who loses their
+  /// Trueplay — or null when it costs nothing. Never the reassurance: that is
+  /// rendered separately, on purpose.
+  String? _warning(BuildContext context) {
     final l10n = context.l10n;
     final dropped = [
       for (final u in diff.toRemove)
@@ -734,15 +740,20 @@ class _Review extends StatelessWidget {
       for (final d in additions.values) d.uuid,
       for (final d in subs) d.uuid,
     });
-    return [
+    final lines = [
       if (dropped.isNotEmpty)
         l10n.frontSurroundsDropNote(
-          dropped.map((d) => d.typeLabel).join(', '),
+          // Named the same way as the Trueplay line directly below it —
+          // `bondedCardTitle`, not the bare type, or the same two speakers read
+          // as "Play:1, Play:1" above and "Play:1 · Surround L" beneath.
+          dropped
+              .map((d) => bondedCardTitle(l10n, system, device: d))
+              .join(', '),
           dropped.length,
         ),
       if (loses.names.isNotEmpty)
         l10n.frontSurroundsTrueplayLoses(loses.names.join(', ')),
-      l10n.frontSurroundsReviewNote,
-    ].join('\n');
+    ];
+    return lines.isEmpty ? null : lines.join('\n');
   }
 }

@@ -1224,7 +1224,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get htTrueplayNote =>
-      'Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Any bonding change switches Trueplay off, and it cannot be switched back on without clearing the tuning, so re-tune afterwards.';
+      'Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Any bonding change switches Trueplay off, and switching it back on may clear the tuning, so re-tune afterwards.';
 
   @override
   String get htAllExtraSpeakers => 'all extra speakers';

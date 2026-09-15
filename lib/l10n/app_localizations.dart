@@ -2005,7 +2005,7 @@ abstract class AppLocalizations {
   /// No description provided for @htTrueplayNote.
   ///
   /// In en, this message translates to:
-  /// **'Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Any bonding change switches Trueplay off, and it cannot be switched back on without clearing the tuning, so re-tune afterwards.'**
+  /// **'Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Any bonding change switches Trueplay off, and switching it back on may clear the tuning, so re-tune afterwards.'**
   String get htTrueplayNote;
 
   /// No description provided for @htAllExtraSpeakers.
@@ -2044,7 +2044,7 @@ abstract class AppLocalizations {
   /// **'Pick two speakers for the front left and right, ideally identical.'**
   String get frontSurroundsFrontsHint;
 
-  /// No description provided for @frontSurroundsFrontsHintAmp.
+  /// Variant of frontSurroundsFrontsHint, shown only when an Amp or Port is actually on the network. Identical but for the last sentence, which offers that shortcut.
   ///
   /// In en, this message translates to:
   /// **'Pick two speakers for the front left and right, ideally identical. A single Amp or Port that feeds both works too.'**
@@ -2224,7 +2224,7 @@ abstract class AppLocalizations {
   /// **'Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———'**
   String get diagEmailBody;
 
-  /// Warning shown when the chosen speakers must be taken out of another bond, naming only the speakers that actually hold a tuning.
+  /// Warning shown when the chosen speakers must be taken out of another bond, naming the speakers whose tuning is at risk — those that hold a stored tuning, plus any whose tuning could not be read.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, one{{names} will lose its Trueplay. Re-tune it in the Sonos app.} other{{names} will lose their Trueplay. Re-tune them in the Sonos app.}}'**

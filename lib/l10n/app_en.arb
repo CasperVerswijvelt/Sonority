@@ -749,7 +749,7 @@
   "htBondedSpeakers": "Bonded speakers",
   "htNoBonded": "Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure” to add some.",
   "htSpeakerFallback": "Speaker",
-  "htTrueplayNote": "Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Any bonding change switches Trueplay off, and it cannot be switched back on without clearing the tuning, so re-tune afterwards.",
+  "htTrueplayNote": "Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Any bonding change switches Trueplay off, and switching it back on may clear the tuning, so re-tune afterwards.",
   "htAllExtraSpeakers": "all extra speakers",
   "htBonded": "Bonded",
   "frontSurroundsTitle": "Configure home theater",
@@ -757,6 +757,9 @@
   "frontSurroundsOptional": "Optional",
   "frontSurroundsFrontsHint": "Pick two speakers for the front left and right, ideally identical.",
   "frontSurroundsFrontsHintAmp": "Pick two speakers for the front left and right, ideally identical. A single Amp or Port that feeds both works too.",
+  "@frontSurroundsFrontsHintAmp": {
+    "description": "Variant of frontSurroundsFrontsHint, shown only when an Amp or Port is actually on the network. Identical but for the last sentence, which offers that shortcut."
+  },
   "frontSurroundsStepSurrounds": "Rear surrounds",
   "frontSurroundsSurroundsHint": "Pick two speakers for the rear left and right surrounds, ideally identical.",
   "frontSurroundsStepSub": "Subwoofer",
@@ -834,7 +837,7 @@
   "diagEmailBody": "Describe what went wrong (what you tried, what you expected, what happened):\n\n\n——— the diagnostics bundle is attached below ———",
   "speakerStealTrueplayWarning": "{count, plural, one{{names} will lose its Trueplay. Re-tune it in the Sonos app.} other{{names} will lose their Trueplay. Re-tune them in the Sonos app.}}",
   "@speakerStealTrueplayWarning": {
-    "description": "Warning shown when the chosen speakers must be taken out of another bond, naming only the speakers that actually hold a tuning.",
+    "description": "Warning shown when the chosen speakers must be taken out of another bond, naming the speakers whose tuning is at risk — those that hold a stored tuning, plus any whose tuning could not be read.",
     "placeholders": {
       "names": {
         "type": "String"

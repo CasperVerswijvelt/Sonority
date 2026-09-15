@@ -147,12 +147,9 @@ String bondedCardTitle(
   AppLocalizations l10n,
   SonosSystem system, {
   required SonosDevice device,
-  String? exceptPrimary,
 }) {
   final owner = system.ownerOf(device.uuid);
-  final source = owner == null || owner == exceptPrimary
-      ? null
-      : system.memberByUuid(owner);
+  final source = owner == null ? null : system.memberByUuid(owner);
   final role = source == null ? null : _roleIn(l10n, source, device.uuid);
   // A Sub's type and its channel are the same word, and "Sub · Sub" is just
   // noise. Seen on hardware in the review card.
@@ -204,8 +201,9 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
   return parts.isEmpty ? null : parts.join(' · ');
 }
 
-/// The speakers among [uuids] that actually hold a stored tuning: their deduped
-/// display names, and how many SPEAKERS that is.
+/// The speakers among [uuids] whose tuning is at risk — one that holds a stored
+/// tuning, or one we could not read: their deduped display names, and how many
+/// SPEAKERS that is.
 ///
 /// The two numbers differ, and that is the point — a bonded speaker's room name
 /// is the BOND's name, so members are named the way the cards are
@@ -233,7 +231,11 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
   final names = tuned
       .map((u) {
         final d = system.device(u);
-        if (d == null) return u;
+        // Never a raw RINCON uuid in user-facing copy. Unresolvable is nearly
+        // impossible now (discovery recovers every topology member), but a
+        // generic word still reads as a speaker, and dropping the entry would
+        // shorten an at-risk list this function exists to keep honest.
+        if (d == null) return l10n.widgetsSpeaker;
         final owner = system.ownerOf(u);
         final src = owner == null ? null : system.memberByUuid(owner);
         // A soundbar has no owner of its own, so name the configured entity's
@@ -293,10 +295,8 @@ class PickerContext {
   }
 
   /// The card title: room name normally, `Type · Channel` under a bond heading.
-  String? titleOverride(BuildContext context, SonosDevice d) => isBonded(d.uuid)
-      ? bondedCardTitle(context.l10n, system,
-          device: d, exceptPrimary: exceptPrimary)
-      : null;
+  String? titleOverride(BuildContext context, SonosDevice d) =>
+      isBonded(d.uuid) ? bondedCardTitle(context.l10n, system, device: d) : null;
 
   Widget? header(BuildContext context, PickerSection s, int count) =>
       _sectionHeader(context,
