@@ -105,8 +105,10 @@ String _kindLabel(AppLocalizations l10n, ZoneGroupMember m) =>
 /// [SonosSystem.canAbsorbFrom]), but EXP-23 Q15/Q16 measured that it comes back
 /// switched off and that switching it on destroys it — no safe delay, and the
 /// role-preserving case died too. So there is no retention to promise a user,
-/// and the header no longer pretends otherwise. Only a zone adds a fact the
-/// screen cannot show: taking one member dissolves the whole group.
+/// and the header no longer pretends otherwise. Only a multi-speaker group adds
+/// a fact the screen cannot show: taking one member dissolves the whole group.
+/// A stereo PAIR is exempt — a pair that loses a half is self-evidently not a
+/// pair any more, so saying so is noise.
 @visibleForTesting
 String sectionCost(
   AppLocalizations l10n,
@@ -118,7 +120,10 @@ String sectionCost(
   // Always state the consequence of picking — it is true whether or not any
   // calibration is at stake, and it is why these speakers are listed apart.
   final base = l10n.pickerSectionLeavesBond;
-  final dissolves = src.isZone ? ' ${l10n.pickerCostZone}' : '';
+  // `isZone` was too narrow: a shipped CUSTOM L/R/Both group of 3+ speakers
+  // dissolves identically and said nothing at all.
+  final dissolves =
+      src.isGroup && !src.isStereoPair ? ' ${l10n.pickerCostZone}' : '';
   // UNKNOWN is not "no tuning". A speaker whose Trueplay read failed has no
   // entry at all, and staying quiet about the cost in that case errs in the one
   // direction that can destroy something. Only a bond we have read in full, and

@@ -500,6 +500,31 @@ void main() {
       expect(cost(pair), isNot(contains('breaks up')));
     });
 
+    // A shipped CUSTOM group (per-speaker L/R/Both) is `GroupKind.custom`, not
+    // `isZone` — so the gate said nothing at all, while taking a member
+    // dissolves it exactly like a zone.
+    test('a 3-member CUSTOM group says it breaks up too', () {
+      const c1 = 'RINCON_C101400';
+      const c2 = 'RINCON_C201400';
+      const c3 = 'RINCON_C301400';
+      const custom = ZoneGroupMember(
+        uuid: c1,
+        zoneName: 'Zolder',
+        // Two left, one right — accepted on hardware, and neither a pair nor a
+        // full-range zone.
+        channelMapSet: '$c1:LF,LF;$c2:LF,LF;$c3:RF,RF',
+      );
+      final sys = SonosSystem(
+        groups: [ZoneGroup(coordinatorUuid: c1, members: [custom])],
+        devicesByUuid: {
+          for (final u in [c1, c2, c3]) u: dev(u, 'Sonos One'),
+        },
+      );
+      expect(custom.groupKind, GroupKind.custom);
+      expect(sectionCost(l10n, sys, custom, const {}),
+          contains('breaks up the whole group'));
+    });
+
     test('nothing tuned in the bond ⇒ no Trueplay sentence at all', () {
       final none = {for (final u in all.keys) u: untuned};
       expect(cost(pair, none), l10n.pickerSectionLeavesBond);
