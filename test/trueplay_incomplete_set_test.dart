@@ -17,7 +17,8 @@ import 'package:sonority/state/trueplay_controller.dart';
 /// and the write cleared a stale flag" are indistinguishable), and users on
 /// other hardware sit in this state and toggle on purpose. What the evidence
 /// justifies is not letting it happen by ACCIDENT: the loss is silent and has
-/// no undo, so the ON direction confirms first. OFF never does.
+/// no undo, so the ON direction confirms first — and so does the OFF direction
+/// while the set is short, because the only way back is the destructive write.
 void main() {
   const tuned = RoomCalibration(available: true, enabled: false);
   const active = RoomCalibration(available: true, enabled: true);
@@ -118,14 +119,49 @@ void main() {
     await pump(tester, {a.uuid: active, b.uuid: untuned});
     expect(find.textContaining('may be permanent'), findsOneWidget);
   });
+
+  // A warning must only ever describe a write the user can issue. With NOTHING
+  // tuned the switch is disabled, so there is no write and nothing to destroy —
+  // yet the row said "could destroy the tunings that are left" beside a dead
+  // switch. Trueplay can only be MEASURED in the iOS Sonos app, so on Android
+  // this is the only Trueplay row the user ever sees.
+  testWidgets('an UNTUNED set warns about nothing — there is no write to make',
+      (tester) async {
+    final s = await pump(tester, {a.uuid: untuned, b.uuid: untuned});
+    expect(s.onChanged, isNull, reason: 'nothing to switch on');
+    expect(find.textContaining('could destroy'), findsNothing);
+    expect(find.textContaining('Not tuned'), findsOneWidget);
+  });
+
+  // Same rule while the reads are still in flight: the switch is disabled, so
+  // "Checking… · turning it on could destroy…" was up to 8s of warning about a
+  // set that may turn out to be complete.
+  testWidgets('a set still being read warns about nothing either',
+      (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        trueplayControllerProvider
+            .overrideWith(() => _FakeTrueplay(const {}, busy: {a.uuid, b.uuid})),
+      ],
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(body: TrueplayControl(devices: [a, b])),
+      ),
+    ));
+    await tester.pump();
+    expect(find.textContaining('could destroy'), findsNothing);
+    expect(find.textContaining('Checking'), findsOneWidget);
+  });
 }
 
 class _FakeTrueplay extends TrueplayController {
   final Map<String, RoomCalibration> cal;
-  _FakeTrueplay(this.cal);
+  final Set<String> busy;
+  _FakeTrueplay(this.cal, {this.busy = const {}});
 
   @override
-  TrueplayState build() => TrueplayState(byUuid: cal);
+  TrueplayState build() => TrueplayState(byUuid: cal, busy: busy);
 
   @override
   Future<void> load(Iterable<SonosDevice> devices) async {}

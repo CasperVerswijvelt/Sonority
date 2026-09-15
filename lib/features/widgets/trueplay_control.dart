@@ -152,7 +152,11 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // irreversible, and that is worth knowing before rather than after.
     final incomplete = tunedCount < withIp.length;
     final canToggle = tunedCount > 0 && !busy;
-    final warn = incomplete;
+    // Only warn about a write the user can actually issue. `incomplete` is also
+    // true with NOTHING tuned (and while the reads are still in flight), where
+    // the switch is disabled — so warning there told every untuned speaker, and
+    // every set mid-read, that it could destroy tunings that do not exist.
+    final warn = incomplete && canToggle;
     // Keep the Switch mounted so it never jumps; a fixed-width slot holds the
     // spinner (left of the switch) only while busy, so the layout is stable.
     final trailing = Row(
