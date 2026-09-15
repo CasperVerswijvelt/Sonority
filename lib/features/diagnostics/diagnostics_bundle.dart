@@ -51,7 +51,7 @@ Future<String> buildDiagnosticsZip({
 
   // The reporter's own words first — the file that says why the bundle exists.
   final note = options.note;
-  if (note != null) add('user_note.txt', note);
+  if (note != null && note.isNotEmpty) add('user_note.txt', note);
 
   // Core topology views.
   add(
@@ -439,8 +439,11 @@ String _readme(
   DateTime now,
   DiagnosticsOptions o,
 ) {
+  // Same condition as the write above, so the index can never list a file the
+  // bundle didn't produce.
+  final note = o.note;
   final files = [
-    if (o.note != null)
+    if (note != null && note.isNotEmpty)
       'user_note.txt           — what the reporter said went wrong',
     'README.txt              — this file',
     'parsed_topology.json    — machine-readable system dump (all members incl. hidden)',

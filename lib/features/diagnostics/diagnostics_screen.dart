@@ -205,10 +205,9 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                   ),
           ),
           // Bundle-content toggles + the always-included line + escalation
-          // actions, pinned below the
-          // scrolling topology. The toggles are a flat register (leading divider +
-          // square ink) via the shared SettingsSection, like the room / new-profile
-          // registers.
+          // actions, pinned below the scrolling topology. The toggles are a flat
+          // register (leading divider + square ink) via the shared
+          // SettingsSection, like the room / new-profile registers.
           SettingsSection(children: [
             SwitchListTile(
               value: _includeLogs,

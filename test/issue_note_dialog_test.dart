@@ -82,6 +82,20 @@ void main() {
     expect(await result, typed);
   });
 
+  testWidgets('tapping the scrim keeps the dialog and the typed text',
+      (tester) async {
+    await open(tester);
+    const typed = 'surrounds bond but the left one stays silent';
+    await tester.enterText(find.byType(TextField), typed);
+    await tester.pump();
+    // Top-left corner: outside the centred dialog, so the tap lands on the
+    // barrier. A dismissible barrier would pop and lose the text.
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsOneWidget, reason: 'still open');
+    expect(find.text(typed), findsOneWidget);
+  });
+
   testWidgets('Cancel returns null so nothing is collected', (tester) async {
     final result = await open(tester);
     await tester.enterText(find.byType(TextField), 'a' * kMinIssueNoteLength);
