@@ -1,0 +1,139 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sonority/data/models/sonos_models.dart';
+import 'package:sonority/data/sonos/front_layout.dart';
+import 'package:sonority/data/sonos/room_calibration.dart';
+import 'package:sonority/features/front_surrounds/front_surrounds_flow.dart';
+import 'package:sonority/features/widgets/info_note.dart';
+import 'package:sonority/features/widgets/speaker_diagram.dart';
+import 'package:sonority/features/widgets/speaker_picker.dart';
+import 'package:sonority/l10n/app_localizations.dart';
+
+/// The review step is the ONLY gate on a destructive bond write (there is no
+/// confirm dialog), so whatever the apply costs has to be on the same screen as
+/// the Apply button — named, not implied.
+///
+/// The regression guarded here shipped as a silent screen: the card returned
+/// "Nothing selected yet" for a deselect-everything, which removes every
+/// satellite and wipes the whole set's Trueplay.
+void main() {
+  const bar = 'RINCON_BEAM01400';
+  const rearL = 'RINCON_REARL01400';
+  const rearR = 'RINCON_REARR01400';
+  const sub = 'RINCON_SUB01400';
+
+  SonosDevice dev(String uuid, String model, [String room = 'Room']) =>
+      SonosDevice(uuid: uuid, roomName: room, modelName: model, ip: '1.2.3.4');
+
+  final devices = {
+    bar: dev(bar, 'Sonos Beam', 'Woonkamer'),
+    rearL: dev(rearL, 'Sonos Play:1'),
+    rearR: dev(rearR, 'Sonos Play:1'),
+    sub: dev(sub, 'Sonos Sub'),
+  };
+
+  final ht = ZoneGroupMember(
+    uuid: bar,
+    zoneName: 'Woonkamer',
+    htSatChanMapSet: '$bar:CC;$rearL:LR;$rearR:RR;$sub:SW',
+    satellites: const [
+      SonosSatellite(
+          uuid: rearL, zoneName: 'Woonkamer', channels: [SonosChannel.leftRear]),
+      SonosSatellite(
+          uuid: rearR, zoneName: 'Woonkamer', channels: [SonosChannel.rightRear]),
+      SonosSatellite(
+          uuid: sub, zoneName: 'Woonkamer', channels: [SonosChannel.sub]),
+    ],
+  );
+
+  final system = SonosSystem(
+    groups: [
+      ZoneGroup(coordinatorUuid: bar, members: [ht]),
+    ],
+    devicesByUuid: devices,
+  );
+
+  const tuned = RoomCalibration(available: true, enabled: true);
+
+  Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SingleChildScrollView(child: child)),
+        ),
+      );
+
+  group('the home-theater review card, with everything deselected', () {
+    /// What the flow builds when the user deselects both rears AND the sub on a
+    /// live 5.1: nothing picked, but the apply strips the bond.
+    HtReviewStep card({required ZoneGroupMember member}) {
+      final diff = diffHtLayout(
+        current: member,
+        target: buildLayoutMap(
+          soundbar: member,
+          soundbarDevice: devices[bar]!,
+          desired: const {},
+          preserveExisting: false,
+        ),
+      );
+      return HtReviewStep(
+        system: system,
+        member: member,
+        additions: const {},
+        subs: const [],
+        diff: diff,
+        picker: PickerContext(
+          system: system,
+          calibration: {
+            for (final u in [bar, rearL, rearR, sub]) u: tuned,
+          },
+          exceptPrimary: bar,
+          // What the flow passes when the apply writes anything at all.
+          ownBondMembers:
+              diff.isNoOp ? const {} : system.bondMemberUuids(member),
+        ),
+      );
+    }
+
+    testWidgets('names what leaves and whose Trueplay it costs',
+        (tester) async {
+      await pump(tester, card(member: ht));
+
+      // What leaves — every satellite, named the way the cards are.
+      expect(find.textContaining('leave this home theater'), findsOneWidget);
+      expect(find.textContaining('Play:1 · Surround L'), findsOneWidget);
+      expect(find.textContaining('Play:1 · Surround R'), findsOneWidget);
+
+      // …and the unrecoverable part: RemoveHTSatellite wipes the whole set,
+      // the soundbar included.
+      expect(find.textContaining('Loses Trueplay'), findsOneWidget);
+      expect(find.textContaining('Beam'), findsWidgets);
+
+      // The gate itself: the cost is not allowed to be swallowed by the
+      // empty-selection placeholder while Apply stays enabled.
+      expect(find.text('Nothing selected yet — choose speakers above.'),
+          findsNothing);
+      expect(find.byType(InfoNote), findsOneWidget);
+    });
+
+    testWidgets('shows the bare soundbar it would leave behind',
+        (tester) async {
+      // A diagram with no satellites around the bar is the plainest possible
+      // statement of "everything leaves"; suppressing it would only hide it.
+      await pump(tester, card(member: ht));
+      expect(find.byType(SpeakerDiagram), findsOneWidget);
+    });
+
+    testWidgets('a bare soundbar with nothing picked still says so',
+        (tester) async {
+      // The one case the placeholder is actually right for: no satellites, no
+      // selection, so the apply is a no-op and writes nothing.
+      const bareBar = ZoneGroupMember(
+          uuid: bar, zoneName: 'Woonkamer', htSatChanMapSet: '$bar:CC');
+      await pump(tester, card(member: bareBar));
+      expect(find.text('Nothing selected yet — choose speakers above.'),
+          findsOneWidget);
+      expect(find.byType(InfoNote), findsNothing);
+    });
+  });
+}

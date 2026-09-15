@@ -345,7 +345,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
               Step(
                 title: Text(context.l10n.frontSurroundsStepReview),
                 isActive: _step >= 3,
-                content: _Review(
+                content: HtReviewStep(
                   system: system,
                   member: member,
                   additions: _additions(system),
@@ -663,7 +663,11 @@ class _AmpWiringNote extends StatelessWidget {
   }
 }
 
-class _Review extends StatelessWidget {
+/// Step 4 — the review card, and the destructive-write gate: it names what
+/// leaves the home theater and whose Trueplay the apply costs, one tap before
+/// Apply. Public only so that gate can be widget-tested.
+@visibleForTesting
+class HtReviewStep extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember member;
   final Map<SonosChannel, SonosDevice> additions;
@@ -680,7 +684,8 @@ class _Review extends StatelessWidget {
   /// the speaker list can't price the same selection differently.
   final PickerContext picker;
 
-  const _Review({
+  const HtReviewStep({
+    super.key,
     required this.system,
     required this.member,
     required this.additions,
@@ -692,7 +697,14 @@ class _Review extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final subCount = subs.length;
-    if (additions.isEmpty && subCount == 0) {
+    // Deselecting everything on a bonded home theater is not "nothing
+    // selected" — it unbonds every satellite, and `RemoveHTSatellite` wipes
+    // the whole set's Trueplay. Only a genuine no-op gets the placeholder;
+    // anything that writes falls through to the diagram + cost card below,
+    // which is this flow's only gate. (A bare soundbar is exactly what the
+    // diagram then shows, which is the plainest way to say "everything
+    // leaves".)
+    if (additions.isEmpty && subCount == 0 && diff.isNoOp) {
       return Text(context.l10n.frontSurroundsNothingSelected);
     }
     // The diagram shows the DESIRED end state (the current selection), which is
