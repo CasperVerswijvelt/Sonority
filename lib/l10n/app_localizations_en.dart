@@ -537,6 +537,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get widgetsTrueplayTunedOff => 'Tuned · off';
 
   @override
+  String get widgetsTrueplayRowNotTuned => 'Not tuned';
+
+  @override
+  String get widgetsTrueplayRowUnread => 'Couldn\'t read';
+
+  @override
+  String get widgetsTrueplayUnreadable =>
+      'Couldn\'t read Trueplay from these speakers.';
+
+  @override
   String widgetsTrueplayActiveCount(int enabled, int total) {
     return '$enabled/$total active';
   }

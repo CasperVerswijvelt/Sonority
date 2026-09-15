@@ -341,6 +341,18 @@
   "widgetsTrueplayNotTuned": "Not tuned — run Trueplay once in the Sonos app (iOS).",
   "widgetsTrueplayActive": "Active",
   "widgetsTrueplayTunedOff": "Tuned · off",
+  "widgetsTrueplayRowNotTuned": "Not tuned",
+  "@widgetsTrueplayRowNotTuned": {
+    "description": "One speaker's state in the per-speaker Trueplay breakdown. Short form of widgetsTrueplayNotTuned, which carries the full 'run it in the Sonos app' instruction and is only shown when NO speaker is tuned."
+  },
+  "widgetsTrueplayRowUnread": "Couldn't read",
+  "@widgetsTrueplayRowUnread": {
+    "description": "One speaker's state in the per-speaker Trueplay breakdown: no IP, the speaker never answered discovery, or the calibration read faulted. Shown rather than omitting the speaker, so a set that reads x/y always says which speaker the gap is."
+  },
+  "widgetsTrueplayUnreadable": "Couldn't read Trueplay from these speakers.",
+  "@widgetsTrueplayUnreadable": {
+    "description": "Subtitle when NO speaker in the set answered its calibration read. Distinct from widgetsTrueplayNotTuned, which claims the speakers have no tuning — a claim that can't be made about speakers that were never successfully asked."
+  },
   "widgetsTrueplayActiveCount": "{enabled}/{total} active",
   "@widgetsTrueplayActiveCount": {
     "placeholders": {
