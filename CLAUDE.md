@@ -897,6 +897,20 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   expose for unofficial fronts. Measurement stays iOS-only (out of scope).
   **Both directions warn and ask while the bonded set is INCOMPLETE** (see the
   destructive-enable rule); a complete set never asks, and nothing is blocked.
+  A **per-speaker breakdown** (`trueplayRows`, pure + unit-tested) sits under the
+  row and names each speaker's state, but ONLY when the speakers disagree — a
+  uniform set already says everything in its `x/y` subtitle. A speaker whose read
+  FAILED is what renders `5/6`, so it gets a "Couldn't read" row rather than no
+  row at all.
+  ⚠️ **Two known holes, deliberately left to their own measured change** — both
+  feed `tunedCount`/`withIp.length`, which is what decides whether the toggle
+  warns at all, so neither is a drive-by: (1) a bonded speaker missing from
+  `devicesByUuid` is invisible to the counter (`home_theater_screen.dart` filters
+  through `whereType<SonosDevice>()`, so it never reaches the widget —
+  `trueplay.json` in the diagnostics bundle is what covers that one), and (2)
+  `TrueplayController._readAll` **drops** failed reads and merges
+  (`{...byUuid, ...results}`), so a re-read that faults keeps the STALE value — a
+  just-bonded speaker can still read "Active" and still count as tuned.
 - ✅ **Take a speaker from another bond** (`features/widgets/speaker_picker.dart`) —
   the HT and group pickers offer speakers already bonded into another pair, zone or
   home theater, grouped under a heading per source bond, and name what the take

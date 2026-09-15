@@ -910,6 +910,24 @@ abstract class AppLocalizations {
   /// **'Tuned · off'**
   String get widgetsTrueplayTunedOff;
 
+  /// One speaker's state in the per-speaker Trueplay breakdown. Short form of widgetsTrueplayNotTuned, which carries the full 'run it in the Sonos app' instruction and is only shown when NO speaker is tuned.
+  ///
+  /// In en, this message translates to:
+  /// **'Not tuned'**
+  String get widgetsTrueplayRowNotTuned;
+
+  /// One speaker's state in the per-speaker Trueplay breakdown: no IP, the speaker never answered discovery, or the calibration read faulted. Shown rather than omitting the speaker, so a set that reads x/y always says which speaker the gap is.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read'**
+  String get widgetsTrueplayRowUnread;
+
+  /// Subtitle when NO speaker in the set answered its calibration read. Distinct from widgetsTrueplayNotTuned, which claims the speakers have no tuning — a claim that can't be made about speakers that were never successfully asked.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read Trueplay from these speakers.'**
+  String get widgetsTrueplayUnreadable;
+
   /// No description provided for @widgetsTrueplayActiveCount.
   ///
   /// In en, this message translates to:
