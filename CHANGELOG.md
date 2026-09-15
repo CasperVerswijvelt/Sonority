@@ -33,6 +33,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Applying a saved profile whose group has lost a member now dissolves the old group first instead of retrying a command Sonos rejects, and freeing a single saved room goes through the same path as every other bonding step.
 - A speaker taken out of a home theater and put into a group no longer stores the home theater's name as its own, which made a later separate rename it into a duplicate of the home theater's room.
 - Rebuilding a group no longer aborts when one of its speakers is slow to answer after being unbonded, which could leave the old group dissolved and nothing in its place.
+- Separating a speaker group now restores the names of the speakers whose names were saved, even when one member's name could not be captured — previously a single skipped member cost every speaker in the group its name, and they came back as duplicates ("Living Room 2").
 
 ## [0.7.0] - 2026-08-18
 

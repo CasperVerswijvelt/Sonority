@@ -399,7 +399,14 @@ class SonosRepository {
         DiagnosticsLog.add('name snapshot for ${d.uuid} failed, skipping: $e');
       }
     }
-    if (merged.isNotEmpty) await _saveZoneSnapshot(merged);
+    if (merged.isNotEmpty) {
+      // Keyed by the FULL target membership, never by what was captured — see
+      // [_saveZoneSnapshot].
+      await _saveZoneSnapshot(
+        [for (final m in members) m.device.uuid, if (sub != null) sub.uuid],
+        merged,
+      );
+    }
 
     final map = buildGroupMap(
       [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
@@ -580,9 +587,18 @@ class SonosRepository {
     return 'zone_snapshot_${s.join('_')}';
   }
 
-  Future<void> _saveZoneSnapshot(Map<String, ZoneAttributes> attrs) async {
+  /// Stores [attrs] under the key for [members] — the group's FULL intended
+  /// membership, deliberately NOT `attrs.keys`.
+  ///
+  /// A snapshot is legitimately a SUBSET of the group: a member whose current
+  /// name isn't its own is skipped, and a member that won't answer :1400 is
+  /// best-effort. Keying by what was captured made the read — which asks by the
+  /// LIVE member list — miss the key entirely, so a later separate restored
+  /// NOBODY's name, not just the skipped one's.
+  Future<void> _saveZoneSnapshot(
+      Iterable<String> members, Map<String, ZoneAttributes> attrs) async {
     await _store.setString(
-      _zoneKey(attrs.keys),
+      _zoneKey(members),
       jsonEncode({
         for (final e in attrs.entries)
           e.key: {

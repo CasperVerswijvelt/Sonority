@@ -57,6 +57,14 @@ class _Soap extends SonosSoapClient {
   /// 8×5s — both land in the same catch inside `reassertGroup`.
   final Set<String> attrsFailFor;
 
+  /// What `GetZoneAttributes` answers. Mutable so a test can make the speakers
+  /// come back under the coordinator's absorbed name, as Sonos does after a
+  /// separate.
+  String zoneName = 'Living Room';
+
+  /// `SetZoneAttributes` writes by IP — i.e. whose name was actually restored.
+  final renamed = <String, String>{};
+
   _Soap(this.onBond, {bool Function(int)? formed, this.attrsFailFor = const {}})
       : formed = formed ?? ((n) => n > 0);
 
@@ -81,13 +89,16 @@ class _Soap extends SonosSoapClient {
             nest: () => b.element('ZoneGroupState',
                 nest: formed(bondCalls) ? _paired : _apart));
         return b.buildDocument().rootElement;
+      case 'SetZoneAttributes':
+        renamed[ip] = args['DesiredZoneName']!;
+        return XmlDocument.parse('<Body/>').rootElement;
       default:
         attrCalls++;
         if (attrsFailFor.contains(ip)) {
           throw SonosSoapException('GetZoneAttributes', faultCode: '500');
         }
         return XmlDocument.parse(
-                '<Body><CurrentZoneName>Living Room</CurrentZoneName></Body>')
+                '<Body><CurrentZoneName>$zoneName</CurrentZoneName></Body>')
             .rootElement;
     }
   }
@@ -180,6 +191,27 @@ void main() {
     final soap = _Soap((_) => null);
     await create(soap, skipNameSnapshot: {b});
     expect(soap.attrCalls, 1, reason: 'only A is snapshotted');
+  });
+
+  // ...and the consequence: a partial snapshot must still restore the members
+  // it DID capture. Keyed by what was captured rather than by the group's full
+  // membership, the read (which asks by the live member list) missed the key
+  // and NOBODY was renamed — A came back under the coordinator's absorbed name.
+  test('a partial snapshot still restores the member it captured', () async {
+    final soap = _Soap((_) => null);
+    final repo = SonosRepository(
+      deviceProps: DevicePropertiesClient(soap),
+      topology: ZoneTopologyClient(soap),
+      groupVerifyInterval: Duration.zero,
+    );
+    await repo.createGroup(
+        members: members, previous: before, skipNameSnapshot: {b});
+    // What Sonos leaves behind on a separate: both members under the group name.
+    soap.zoneName = 'Group';
+    await repo.separateGroup(
+        members: const [devA, devB], channelMapSet: '$a:LF,LF;$b:RF,RF');
+    expect(soap.renamed, {'1.2.3.4': 'Living Room'},
+        reason: 'A was captured, so A is restored; B was skipped on purpose');
   });
 
   // The snapshot runs BEFORE the first write, and on the dissolve→recreate path
