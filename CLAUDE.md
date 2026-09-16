@@ -785,7 +785,21 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
    (re-broadcast after a theme switch — it resets). Both themes when the change
    is colour/contrast-sensitive (`adb -s emulator-5554 shell cmd uimode night
    yes|no`, restore with `auto`); before/after when the change alters an
-   existing screen; the wide layout too if it touches it. Hosting: GitHub has
+   existing screen.
+   **A TABLET/WIDE SHOT IS MANDATORY, not "if it touches it."** Every screen has
+   a wide layout whether or not the change aimed at one, and the failures there
+   are invisible on a phone: a bare `AspectRatio` that grows its height with the
+   window, a form stretched over 1300pt, a `CardGrid` that reflows into an
+   unreadable column count. Drive the same emulator at tablet metrics rather than
+   keeping a second AVD:
+   ```
+   adb -s emulator-5554 shell wm size 2560x1600
+   adb -s emulator-5554 shell wm density 240      # ≈1067dp wide, past the breakpoint
+   # … capture …
+   adb -s emulator-5554 shell wm size reset && adb -s emulator-5554 shell wm density reset
+   ```
+   ⚠️ **Always reset both**, in the same session — a left-over `wm size` silently
+   poisons every later screenshot in the PR. Hosting: GitHub has
    no upload API for a PR body (the web UI's drag-and-drop uses an undocumented
    `user-attachments` endpoint `gh` can't reach), so the PNGs need a public URL
    of their own. Push them to a branch **`pr-shots-<N>`, one per PR** — never
@@ -912,6 +926,14 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   **room page** offers shortcuts INTO the flows ("Group with another speaker" →
   `/group`; "Add to a home theater" → the fronts flow for a chosen soundbar) via
   pop-then-push, so a room isn't a dead end.
+- **Every new screen must work at every supported size — this is a requirement,
+  not a nice-to-have.** Phone portrait, tablet/desktop wide, and the awkward
+  middle. Check before opening the PR (the tablet shot above is how), and state
+  in the PR which widths you drove. The two failure modes that never show on a
+  phone: a widget sized by aspect ratio alone (it grows in the *other* axis as the
+  window widens), and content that should be clamped but is not. Most pages fill
+  the width by design; a **form** (sliders, inputs, a picker column) should clamp
+  with `MaxWidthBody` instead, and should say in a comment why it deviates.
 - **Responsive layout (macOS / wide windows).** One breakpoint,
   `kWideLayoutBreakpoint` (`core/theme.dart`), two states only — no icon-only
   middle. Below it: the phone layout (bottom `NavigationBar`, single column) —
