@@ -164,12 +164,16 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     final picker = PickerContext(
       system: system,
       calibration: ref.watch(trueplayControllerProvider).byUuid,
+      // A speaker still being READ is not one known to be untuned — without
+      // this the flow opens claiming every bond loses its tuning, then
+      // retracts when the reads land.
+      busy: ref.watch(trueplayControllerProvider).busy,
       exceptPrimary: widget.editUuid,
       // Editing a group REBUILDS it, clearing its own members' Trueplay too —
       // but only if the bond actually changes. Gating on that is what keeps
       // the flow from warning the moment it opens on an untouched group. A
       // CREATE always writes, and costs the speakers it bonds together.
-      writes: existing == null || _bondDiffers(system, existing),
+      writes: _bondDiffers(system, existing),
     );
 
     final scheme = Theme.of(context).colorScheme;
@@ -362,15 +366,13 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
   /// True when the current selection would rewrite [existing]'s BOND — the
   /// part that costs Trueplay, since `AddBondedZones` rebuilds the bond even on
   /// an unchanged map. A rename alone doesn't, which is why it isn't in here.
-  bool _bondDiffers(SonosSystem system, ZoneGroupMember existing) {
+  /// Delegates to the shared [groupApplyWrites] so the Apply gate and the cost
+  /// card can't drift apart — and so a test can reach the real rule.
+  bool _bondDiffers(SonosSystem system, ZoneGroupMember? existing) {
     final members = _members(system);
-    // The SAME comparison `editGroup` verifies with, so the Apply gate can't
-    // claim a Trueplay cost for an edit that then writes nothing. A hand-rolled
-    // ordered signature did exactly that: re-picking a zone's members in
-    // another order changed the string but not the bond, so the review card
-    // warned about losing tunings and the apply was a no-op.
-    return !existing.matchesGroupLayout(
-      {for (final m in members) m.device.uuid: m.channel},
+    return groupApplyWrites(
+      existing: existing,
+      channels: {for (final m in members) m.device.uuid: m.channel},
       subUuid: _subUuid,
       coordUuid: members.firstOrNull?.device.uuid,
     );

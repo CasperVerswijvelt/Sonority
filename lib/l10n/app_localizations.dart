@@ -2266,6 +2266,12 @@ abstract class AppLocalizations {
   /// **'Taking any of them breaks up the whole group.'**
   String get pickerCostZone;
 
+  /// Review-step sentence naming the home theater(s) a selection takes speakers out of. A home theater is not dissolved by the take (unlike a group) but it is still modified, and every one of ITS speakers loses its Trueplay tuning; the review card is the last gate before Apply and carries no section heading to say which bond the speakers came from.
+  ///
+  /// In en, this message translates to:
+  /// **'{names} {count, plural, =1{loses} other{lose}} the speakers you take.'**
+  String pickerCostLeavesHt(String names, int count);
+
   /// Review-step line naming the source groups this selection dissolves. Restated here because the review card is the only gate before Apply, and an untuned group otherwise made it silent about the dissolve.
   ///
   /// In en, this message translates to:

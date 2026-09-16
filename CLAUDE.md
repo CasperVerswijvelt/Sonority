@@ -1000,7 +1000,7 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
    than keeping a second AVD:
    ```
    adb -s emulator-5554 shell wm size 2560x1600
-   adb -s emulator-5554 shell wm density 240      # ≈1067dp wide, past the breakpoint
+   adb -s emulator-5554 shell wm density 240      # 1707x1067dp, past the breakpoint
    # … capture …
    adb -s emulator-5554 shell wm size reset && adb -s emulator-5554 shell wm density reset
    ```

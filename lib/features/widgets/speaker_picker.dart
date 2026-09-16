@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
+import '../../data/sonos/front_layout.dart';
 import '../../data/sonos/room_calibration.dart';
 import 'card_grid.dart';
 import 'entity_cards.dart' show groupKindL10n;
@@ -10,6 +11,37 @@ import 'entity_icons.dart';
 import 'info_note.dart';
 import 'pill_chip.dart';
 import 'section_header.dart';
+
+/// Whether a home-theater apply writes a bond at all — the ONE rule behind
+/// [PickerContext.writes] for the fronts/surrounds flow.
+///
+/// Named and shared because both cost tests used to hand-write it, so the
+/// regression it guards stayed green: gating on `diff.toRemove.isNotEmpty`
+/// priced a purely ADDITIVE apply at zero, while Q20 measured exactly that
+/// operation (added one satellite, removed none) taking the bar and both rears
+/// to `available=0`. Every write costs the bond its tuning; only a genuine
+/// no-op costs nothing.
+bool htApplyWrites(HtDiff diff) => !diff.isNoOp;
+
+/// Whether a speaker-group apply writes a bond at all — the same rule for the
+/// group flow, and the gate that also enables Apply.
+///
+/// A CREATE always writes, and costs the speakers it bonds together (two
+/// freshly tuned standalone speakers paired lose both tunings; that used to be
+/// priced at zero). An EDIT writes only when the bond itself differs, compared
+/// exactly as `editGroup` verifies it — order-insensitively except for the
+/// coordinator, so re-picking a zone's members in another order is a no-op
+/// rather than a warned-about write that never happens. A rename-only edit
+/// writes no bond and costs no tuning.
+bool groupApplyWrites({
+  required ZoneGroupMember? existing,
+  required Map<String, GroupChannel> channels,
+  String? subUuid,
+  String? coordUuid,
+}) =>
+    existing == null ||
+    !existing.matchesGroupLayout(channels,
+        subUuid: subUuid, coordUuid: coordUuid);
 
 /// One block of a speaker picker: a heading plus the speakers under it.
 ///
@@ -73,6 +105,7 @@ Widget? _sectionHeader(
   required PickerSection section,
   required int sectionCount,
   required Map<String, RoomCalibration> calibration,
+  Set<String> busy = const {},
 }) {
   // Only the plain "Available" block is chrome-free when it stands alone; a
   // lone BOND block still has to say whose speakers these are and what taking
@@ -90,7 +123,7 @@ Widget? _sectionHeader(
     icon: src.isHomeTheater
         ? Icons.surround_sound
         : groupKindIcon(src.groupKind),
-    helper: sectionCost(l10n, system, src, calibration),
+    helper: sectionCost(l10n, system, src, calibration, busy: busy),
   );
 }
 
@@ -107,27 +140,38 @@ String _kindLabel(AppLocalizations l10n, ZoneGroupMember m) =>
 /// role-preserving case died too. So there is no retention to promise a user,
 /// and the header no longer pretends otherwise. Only a multi-speaker group adds
 /// a fact the screen cannot show: taking one member dissolves the whole group.
-/// A stereo PAIR is exempt — a pair that loses a half is self-evidently not a
-/// pair any more, so saying so is noise.
+/// A stereo pair is NOT exempt. It reads as self-evident only next to a heading
+/// that names it; the review card carries no heading, and it is the last gate
+/// before Apply. A pair is a "speaker group" in our own UI (Office · Stereo
+/// pair), so the group sentence covers it without a second string.
 @visibleForTesting
 String sectionCost(
   AppLocalizations l10n,
   SonosSystem system,
   ZoneGroupMember src,
-  Map<String, RoomCalibration> calibration,
-) {
+  Map<String, RoomCalibration> calibration, {
+  Set<String> busy = const {},
+}) {
   final members = system.bondMemberUuids(src);
   // Always state the consequence of picking — it is true whether or not any
   // calibration is at stake, and it is why these speakers are listed apart.
   final base = l10n.pickerSectionLeavesBond;
   // `isZone` was too narrow: a shipped CUSTOM L/R/Both group of 3+ speakers
-  // dissolves identically and said nothing at all.
-  final dissolves =
-      src.isGroup && !src.isStereoPair ? ' ${l10n.pickerCostZone}' : '';
+  // dissolves identically and said nothing at all. Pairs included — see above.
+  final dissolves = src.isGroup ? ' ${l10n.pickerCostZone}' : '';
   // UNKNOWN is not "no tuning". A speaker whose Trueplay read failed has no
   // entry at all, and staying quiet about the cost in that case errs in the one
   // direction that can destroy something. Only a bond we have read in full, and
   // read as untuned, gets the short line.
+  // A read IN FLIGHT is a third state, and it is not the one to err loudly on:
+  // the reads are kicked off when the flow opens, so treating "not answered
+  // yet" as "unknown, warn" made "Expect to re-tune all of them." the DEFAULT
+  // first impression of every bond block for as long as the reads took — then
+  // silently retract. On Android, where Trueplay can't be measured at all and
+  // nothing is ever tuned, that is the only thing a user would ever see.
+  // Withholding the claim costs nothing: the sentences above are true either
+  // way, and a genuinely failed read still lands on the loud branch.
+  if (members.any(busy.contains)) return '$base$dissolves';
   final known = members.every((u) => calibration.containsKey(u));
   if (known && !members.any((u) => calibration[u]!.available)) {
     return '$base$dissolves';
@@ -225,8 +269,13 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
   Iterable<String> uuids,
   Map<String, RoomCalibration> calibration, {
   String? ownBond,
+  Set<String> busy = const {},
 }) {
   final tuned = uuids
+      // Still being read — see [sectionCost]. Naming a speaker as at risk
+      // before anyone has asked it anything is the same false alarm, and this
+      // note sits directly under the headings that one governs.
+      .where((u) => !busy.contains(u))
       // A line-out box (Amp / Port / Connect) has no drivers of its own, so
       // Sonos never tunes it — naming one gives advice that cannot be followed.
       // Same getter that keeps them out of the Trueplay lists everywhere else.
@@ -276,11 +325,16 @@ class PickerContext {
   /// also what keeps a flow from warning the moment it opens.
   final bool writes;
 
+  /// Speakers whose calibration read is in flight. A cost claim about one of
+  /// these is a claim nobody has asked yet — see [sectionCost].
+  final Set<String> busy;
+
   const PickerContext({
     required this.system,
     required this.calibration,
     this.exceptPrimary,
     this.writes = false,
+    this.busy = const {},
   });
 
   /// What the DESTINATION costs, which no source bond can know about: the
@@ -325,7 +379,8 @@ class PickerContext {
           system: system,
           section: s,
           sectionCount: count,
-          calibration: calibration);
+          calibration: calibration,
+          busy: busy);
 
   /// The speakers [selected] costs their Trueplay tuning, named for display.
   ///
@@ -344,14 +399,20 @@ class PickerContext {
       alsoLosing: _destinationCost(selected),
     );
     return tunedSpeakers(l10n, system, losing, calibration,
-        ownBond: exceptPrimary);
+        ownBond: exceptPrimary, busy: busy);
   }
 
   /// The source groups this selection DISSOLVES, as a sentence, or null.
   ///
-  /// A multi-speaker group does not shrink when a member is taken — absorbing
-  /// one dissolves the whole bond (EXP-23 Q12). A stereo pair is exempt: a pair
-  /// that loses a half is self-evidently not a pair any more.
+  /// A group does not shrink when a member is taken — absorbing one dissolves
+  /// the whole bond (EXP-23 Q12), and a stereo pair is a group here (it is
+  /// listed as one in the UI), so both break up.
+  ///
+  /// A home theater is the third case and behaves differently: it SURVIVES
+  /// minus the speakers taken. It still has to be named. Its own members all
+  /// lose their tuning (Q20) and the card otherwise says nothing at all about
+  /// modifying a second entity — the user picked from a heading two screens
+  /// back and the review card has no heading to carry it.
   ///
   /// The section header states this per block, but the review step is the last
   /// screen before Apply and the only gate there is — the removal confirm
@@ -360,17 +421,24 @@ class PickerContext {
   /// cause. Trueplay can't even be measured from Android, so an untuned group
   /// is the common case, not the corner one.
   String? dissolveNote(AppLocalizations l10n, Set<String> selected) {
-    final names = <String>{};
+    final broken = <String>{};
+    final shrunk = <String>{};
     for (final u in selected) {
       final owner = system.ownerOf(u);
       if (owner == null || owner == exceptPrimary) continue;
       final src = system.memberByUuid(owner);
-      if (src != null && src.isGroup && !src.isStereoPair) names.add(src.zoneName);
+      if (src == null) continue;
+      (src.isGroup ? broken : shrunk).add(src.zoneName);
     }
-    final sorted = names.toList()..sort();
-    return sorted.isEmpty
-        ? null
-        : l10n.pickerCostDissolves(sorted.join(', '), sorted.length);
+    final sentences = <String>[
+      if (broken.isNotEmpty)
+        l10n.pickerCostDissolves(
+            (broken.toList()..sort()).join(', '), broken.length),
+      if (shrunk.isNotEmpty)
+        l10n.pickerCostLeavesHt(
+            (shrunk.toList()..sort()).join(', '), shrunk.length),
+    ];
+    return sentences.isEmpty ? null : sentences.join(' ');
   }
 
   /// [tuningCost] as the one-sentence note under a picker list, or null when

@@ -159,10 +159,12 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         consider(d.uuid);
       }
       // Speakers bonded into ANOTHER entity. `AddHTSatellite` absorbs one
-      // straight out of a live stereo pair with its Trueplay tuning intact
-      // (EXP-23), so making the user unbond by hand first was unnecessary. What
-      // the take costs is tagged on the card and summarised by the note under
-      // the list.
+      // straight out of a live stereo pair without a separate unbond step
+      // (EXP-23), so making the user do it by hand first was unnecessary. NOT a
+      // retention claim — the coefficients survive in storage, which is not the
+      // same as keeping the tuning, and the bond still clears the set (Q20).
+      // What the take costs is tagged on the card and summarised by the note
+      // under the list.
       for (final d in system.stealableSpeakers(exceptPrimary: member.uuid)) {
         consider(d.uuid);
       }
@@ -194,12 +196,16 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     final picker = PickerContext(
       system: system,
       calibration: ref.watch(trueplayControllerProvider).byUuid,
+      // A speaker still being READ is not one known to be untuned — without
+      // this the flow opens claiming every bond loses its tuning, then
+      // retracts when the reads land.
+      busy: ref.watch(trueplayControllerProvider).busy,
       exceptPrimary: member.uuid,
       // Any write costs this bond its tuning, not just one that drops a
       // satellite (CLAUDE.md, Q20: a pure add took the bar and both rears to
       // `available=0`). A no-op writes nothing, so it costs nothing — which is
       // also what keeps the flow from warning the moment it opens.
-      writes: !diff.isNoOp,
+      writes: htApplyWrites(diff),
     );
 
     // Built once: the hint below reads it too, and it walks the whole system.

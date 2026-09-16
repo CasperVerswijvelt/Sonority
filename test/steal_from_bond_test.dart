@@ -494,9 +494,14 @@ void main() {
       }
     });
 
-    test('a zone still says the group breaks up, which nothing else shows', () {
+    test('every group says it breaks up, a pair included', () {
+      // The pair used to be exempt as "self-evident". It reads that way only
+      // beside a heading that names the pair — and the same sentence is the
+      // review card's, which has no heading and is the last gate before Apply.
+      // A pair IS a speaker group in this UI (Office · Stereo pair), so one
+      // sentence covers both without a second string to drift.
       expect(cost(zone), contains('breaks up the whole group'));
-      expect(cost(pair), isNot(contains('breaks up')));
+      expect(cost(pair), contains('breaks up the whole group'));
     });
 
     // A shipped CUSTOM group (per-speaker L/R/Both) is `GroupKind.custom`, not
@@ -526,8 +531,12 @@ void main() {
 
     test('nothing tuned in the bond ⇒ no Trueplay sentence at all', () {
       final none = {for (final u in all.keys) u: untuned};
-      expect(cost(pair, none), l10n.pickerSectionLeavesBond);
-      // ...but a zone still warns that picking dissolves it, tuning or not.
+      // The HT is the one source that neither dissolves nor shrinks the
+      // sentence: it says only what picking does.
+      expect(cost(ht, none), l10n.pickerSectionLeavesBond);
+      expect(cost(pair, none), isNot(contains('Trueplay')));
+      expect(cost(pair, none), contains('breaks up the whole group'));
+      // ...and a group still warns that picking dissolves it, tuning or not.
       expect(cost(zone, none), contains('breaks up the whole group'));
       expect(cost(zone, none), isNot(contains('Trueplay')));
     });

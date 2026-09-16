@@ -92,12 +92,28 @@ void main() {
     test('both subs read as bonded with an empty satellite list', () {
       expect(midSettle.isStandalone(sub1), isFalse);
       expect(midSettle.isStandalone(sub2), isFalse,
-          reason: 'the second SW entry used to be overwritten by the first');
+          reason: 'the FIRST SW entry is the one the second overwrites');
     });
 
     test('both subs are part of the bond, so both are priced', () {
       final m = midSettle.memberByUuid(bar)!;
       expect(midSettle.bondMemberUuids(m), {bar, sub1, sub2});
+    });
+
+    test('both subs resolve an owner, so both get freed before a bond', () {
+      // Where the value is CONSUMED. `isStandalone` reading right is not
+      // enough: `mustFreeBeforeBonding` short-circuits on `ownerOf == null`,
+      // so the sub the channel key dropped was reported standalone-owned,
+      // skipped its free, and let a bond target a speaker the bar still holds.
+      expect(midSettle.ownerOf(sub1), bar);
+      expect(midSettle.ownerOf(sub2), bar);
+      for (final s in [sub1, sub2]) {
+        expect(
+          midSettle.mustFreeBeforeBonding(s, keep: const {}, absorbing: false),
+          isTrue,
+          reason: '$s is bonded to $bar and must be freed first',
+        );
+      }
     });
   });
 
