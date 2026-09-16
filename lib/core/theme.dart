@@ -215,10 +215,11 @@ const Duration kShortAnim = Duration(milliseconds: 240);
 /// only responsive breakpoint in the app — keep width branches keyed to it.
 const double kWideLayoutBreakpoint = 720;
 
-/// Max width the guided-flow wizards + bonding-progress screen clamp to on a
-/// wide layout (via [MaxWidthBody]) so a modal, full-window form stays readable
-/// instead of stretching edge-to-edge. Tab/detail pages fill the full width
-/// (the desktop window is capped instead — see MainFlutterWindow.swift).
+/// Max width a form clamps to on a wide layout (via [MaxWidthBody]) so it stays
+/// readable instead of stretching edge-to-edge: the guided-flow wizards, the
+/// bonding-progress screen, and any form-shaped page (sliders, inputs, a picker
+/// column). Every other tab/detail page fills the full width (the desktop window
+/// is capped instead — see MainFlutterWindow.swift).
 const double kContentMaxWidth = 720;
 
 /// Shared spacing scale (each a square [SizedBox], so it works as height OR
