@@ -791,10 +791,6 @@
   "frontSurroundsChooseTwoFirst": "Choose two speakers first.",
   "frontSurroundsTapSwap": "Tap swap if the sides are reversed.",
   "frontSurroundsNothingSelected": "Nothing selected yet — choose speakers above.",
-  "frontSurroundsReviewNote": "The layout can be changed anytime.",
-  "@frontSurroundsReviewNote": {
-    "description": "Reassurance under the review-step warning card. Scoped to the LAYOUT on purpose: it renders directly below the lines naming the speakers that leave and the tunings this apply clears, and a cleared Trueplay tuning is exactly what cannot be changed back here (re-measuring needs the iOS Sonos app)."
-  },
   "frontSurroundsTrueplayLoses": "Could lose Trueplay: {names}. Plan to re-tune in the Sonos app.",
   "@frontSurroundsTrueplayLoses": {
     "description": "Review-step line naming the speakers whose stored tuning this apply could clear. Hedged to 'could', identically to speakerStealTrueplayWarning: it renders the SAME tuningCost list two screens later, and that list deliberately includes speakers whose tuning could not be read. Worded without it/them so it needs no plural: two identical models share one label.",

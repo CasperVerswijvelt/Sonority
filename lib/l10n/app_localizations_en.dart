@@ -1299,9 +1299,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nothing selected yet — choose speakers above.';
 
   @override
-  String get frontSurroundsReviewNote => 'The layout can be changed anytime.';
-
-  @override
   String frontSurroundsTrueplayLoses(String names) {
     return 'Could lose Trueplay: $names. Plan to re-tune in the Sonos app.';
   }
