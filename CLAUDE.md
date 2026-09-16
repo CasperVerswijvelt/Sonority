@@ -633,7 +633,19 @@ interpolated) then use it.
    clear error if not.
 3. **Live writes are destructive** to the user's real living-room system. Pattern:
    snapshot first, gate behind explicit confirm, make it self-reverting, verify by
-   re-reading. The user HAS a real Sonos system on the LAN — validate against it.
+   re-reading. The user HAS a real Sonos system on the LAN, so validate against it.
+   **The HT configure flow's gate is its review step, not a modal, and that is a
+   decision (accepted 2026-09-16), not an oversight.** It used to show
+   "The layout can be changed anytime" and then pop an "Unbond N speakers?"
+   dialog after Apply. Now the review step itself names what leaves AND what
+   loses its Trueplay, on the screen where the selection can still be changed,
+   and Apply goes straight to the progress screen. The facts moved earlier and
+   got more complete; what went is the hard stop. It is bounded: the Remove
+   buttons on the home theater page keep their dialog, a drop here needs a
+   deliberate uncheck first, and `seedHtRoles` seeds from the authoritative
+   channel map by uuid so an unresolvable speaker can never drop silently.
+   Don't re-add the dialog without raising it, and don't flag it as a missing
+   confirm.
 4. **Identify chime** (`identify_service.dart`): spins up an in-app HTTP server
    serving a generated WAV, then `AVTransport.SetAVTransportURI`+`Play`, with
    `RenderingControl` volume save/bump/restore. The clip needs lead/trail silence
