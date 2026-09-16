@@ -18,6 +18,7 @@ Widget trueplayHarness(
   Map<String, RoomCalibration> cal, {
   Set<String> busy = const {},
   void Function(FakeTrueplay)? fake,
+  String Function(SonosDevice)? label,
 }) =>
     ProviderScope(
       overrides: [
@@ -30,7 +31,9 @@ Widget trueplayHarness(
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: TrueplayControl(devices: devices)),
+        home: Scaffold(
+          body: TrueplayControl(devices: devices, label: label),
+        ),
       ),
     );
 

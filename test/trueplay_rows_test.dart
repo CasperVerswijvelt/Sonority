@@ -1,8 +1,11 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
 import 'package:sonority/data/sonos/room_calibration.dart';
 import 'package:sonority/features/widgets/label_value_row.dart';
+import 'package:sonority/features/widgets/speaker_picker.dart';
 import 'package:sonority/features/widgets/trueplay_control.dart';
+import 'package:sonority/l10n/app_localizations.dart';
 
 import 'trueplay_harness.dart';
 
@@ -202,6 +205,115 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining("Couldn't read"), findsNothing);
     expect(find.text('Trueplay'), findsNothing);
+  });
+
+  // The case the breakdown exists for, and the one it used to fail: a 5.1 with
+  // two MATCHED surrounds. Labelled by type alone both rows read "One SL", so
+  // "5/6" still named nobody — the channel was on screen only as row ORDER.
+  group('two speakers of the same model', () {
+    const barUuid = 'RINCON_BEAM01400';
+    const surroundL = 'RINCON_ONESL_L01400';
+    const surroundR = 'RINCON_ONESL_R01400';
+    const subUuid = 'RINCON_SUB01400';
+
+    const beam = SonosDevice(
+        uuid: barUuid,
+        roomName: 'Woonkamer',
+        modelName: 'Sonos Beam',
+        modelNumber: 'S31',
+        ip: '192.168.1.30');
+    const oneSlLeft = SonosDevice(
+        uuid: surroundL,
+        roomName: 'Woonkamer',
+        modelName: 'Sonos One SL',
+        ip: '192.168.1.31');
+    const oneSlRight = SonosDevice(
+        uuid: surroundR,
+        roomName: 'Woonkamer',
+        modelName: 'Sonos One SL',
+        ip: '192.168.1.32');
+    const theSub = SonosDevice(
+        uuid: subUuid,
+        roomName: 'Woonkamer',
+        modelName: 'Sonos Sub',
+        ip: '192.168.1.33');
+
+    final system = SonosSystem(
+      groups: [
+        ZoneGroup(coordinatorUuid: barUuid, members: [
+          const ZoneGroupMember(
+            uuid: barUuid,
+            zoneName: 'Woonkamer',
+            htSatChanMapSet:
+                '$barUuid:CC;$surroundL:LR;$surroundR:RR;$subUuid:SW',
+          ),
+        ]),
+      ],
+      devicesByUuid: const {
+        barUuid: beam,
+        surroundL: oneSlLeft,
+        surroundR: oneSlRight,
+        subUuid: theSub,
+      },
+    );
+
+    late AppLocalizations l10n;
+    setUp(() async {
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    String label(SonosDevice d) => bondedCardTitle(l10n, system, device: d);
+
+    testWidgets('the breakdown tells matched surrounds apart', (tester) async {
+      await tester.pumpWidget(trueplayHarness(
+        const [beam, oneSlLeft, oneSlRight],
+        const {barUuid: on, surroundL: storedOff},
+        label: label,
+      ));
+      await tester.pumpAndSettle();
+
+      final labels = tester
+          .widgetList<LabelValueRow>(find.byType(LabelValueRow))
+          .map((r) => r.label)
+          .toList();
+      expect(labels.toSet(), hasLength(labels.length),
+          reason: 'every row has to name a different speaker');
+      expect(find.text('One SL · Surround L'), findsOneWidget);
+      expect(find.text('One SL · Surround R'), findsOneWidget);
+      // The one holding the set short is the R surround, and the row says so.
+      expect(
+        tester.getSemantics(find.byType(LabelValueRow).last),
+        matchesSemantics(label: "One SL · Surround R\nCouldn't read"),
+      );
+    });
+
+    testWidgets('the bar and the sub carry no redundant channel',
+        (tester) async {
+      // The soundbar is the bond's own coordinator (there is only one) and a
+      // Sub's type and channel are the same word — "Beam (Gen 2) · Center" and
+      // "Sub · Sub" would both be noise.
+      await tester.pumpWidget(trueplayHarness(
+        const [beam, oneSlLeft, theSub],
+        const {barUuid: on, surroundL: storedOff},
+        label: label,
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text('Beam (Gen 2)'), findsOneWidget);
+      expect(find.text('Sub'), findsOneWidget);
+    });
+  });
+
+  testWidgets('a standalone room labels its speaker by type alone',
+      (tester) async {
+    // What the room page passes: one device and no label override. A standalone
+    // speaker holds no channel, so a qualifier would be an empty " · " or a
+    // channel it doesn't have — and one speaker renders no breakdown anyway.
+    await tester.pumpWidget(trueplayHarness([left], const {}));
+    await tester.pumpAndSettle();
+    expect(find.byType(LabelValueRow), findsNothing);
+    expect(trueplayRows([left, right], const {'LEFT': on}).map((r) => r.label),
+        ['Five', 'One'],
+        reason: 'unqualified is the default; only a bonded caller overrides it');
   });
 
   testWidgets('a breakdown row announces its speaker and its state together',

@@ -20,6 +20,7 @@ import '../widgets/rename_dialog.dart';
 import '../widgets/scroll_footer.dart';
 import '../widgets/section_header.dart';
 import '../widgets/settings_section.dart';
+import '../widgets/speaker_picker.dart';
 import '../widgets/trueplay_control.dart';
 
 /// Shows one home theater's current layout and the add/remove-fronts actions.
@@ -225,7 +226,16 @@ class _Content extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          SettingsSection(children: [TrueplayControl(devices: bonded)]),
+          SettingsSection(children: [
+            TrueplayControl(
+              devices: bonded,
+              // Bonded speakers have no name of their own, and two matched
+              // surrounds have the same TYPE — so the breakdown's "5/6" would
+              // still name nobody. The card title already qualifies a bonded
+              // speaker by its channel ("One SL · Surround L").
+              label: (d) => bondedCardTitle(l10n, system, device: d),
+            ),
+          ]),
           if (member.hasDedicatedFronts)
             Padding(
               padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),

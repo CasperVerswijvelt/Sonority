@@ -31,9 +31,12 @@ enum TrueplayRowState {
 /// theater has no way to tell which speaker is the one holding the set short.
 /// Pure so the state mapping is testable without a widget.
 ///
-/// `label` is the speaker TYPE, not its room name: inside a bonded entity Sonos
-/// absorbs the individual name into the entity's, so the type is what
-/// identifies it.
+/// Rows are labelled by speaker TYPE, not room name: inside a bonded entity
+/// Sonos absorbs the individual name into the entity's, so the type is what
+/// identifies it. [label] overrides that per device — a bonded caller passes
+/// `bondedCardTitle`, which appends the channel ("One SL · Surround L") so two
+/// speakers of the SAME model are told apart. Without it the type alone is the
+/// label, which is all a standalone room has and all it needs.
 ///
 /// Every device is kept, including ones with no reading at all — and those are
 /// the whole point. A speaker whose calibration could not be read stays in the
@@ -42,18 +45,21 @@ enum TrueplayRowState {
 /// speakers into "5/6". Before this it had no row, so the missing sixth was
 /// unattributable.
 ///
-// ponytail: two speakers of the same model produce two identical labels, so a
-// mixed pair narrows the culprit to a model, not to a unit. Disambiguating
-// needs the channel, which means threading the bond's channel map in; Identify
+// ponytail: the channel is the only qualifier threaded in, and it separates
+// every shape this renders for bar one — a home theater is one bar, an L/R pair
+// of fronts, an L/R pair of surrounds and a sub, all distinct. DUAL SUBS are the
+// exception: both hold `SW`, so both rows read "Sub". Numbering them would
+// re-encode position, which is the thing this change exists to stop; Identify
 // already answers "which physical speaker" and costs nothing to reach.
 List<({String label, TrueplayRowState state})> trueplayRows(
   List<SonosDevice> devices,
-  Map<String, RoomCalibration> byUuid,
-) =>
+  Map<String, RoomCalibration> byUuid, {
+  String Function(SonosDevice)? label,
+}) =>
     [
       for (final d in devices)
         (
-          label: d.typeLabel,
+          label: label?.call(d) ?? d.typeLabel,
           state: switch (byUuid[d.uuid]) {
             null => TrueplayRowState.unknown,
             final c when c.active => TrueplayRowState.active,
@@ -75,6 +81,13 @@ List<({String label, TrueplayRowState state})> trueplayRows(
 class TrueplayControl extends ConsumerStatefulWidget {
   final List<SonosDevice> devices;
 
+  /// How to name a speaker in the per-speaker breakdown; defaults to its type.
+  /// A bonded caller passes `bondedCardTitle` so same-model speakers are told
+  /// apart by channel — see [trueplayRows]. The widget doesn't reach for the
+  /// topology itself: what a speaker is called depends on the bond it sits in,
+  /// which only the caller knows.
+  final String Function(SonosDevice)? label;
+
   /// Set when Trueplay can't apply at all (e.g. Amp-driven fronts — Sonos only
   /// tunes native speakers). Shows an explanation instead of a toggle.
   final String? unsupportedReason;
@@ -82,6 +95,7 @@ class TrueplayControl extends ConsumerStatefulWidget {
   const TrueplayControl({
     super.key,
     required this.devices,
+    this.label,
     this.unsupportedReason,
   });
 
@@ -283,7 +297,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // uniform set (all active, none tuned, nothing read yet) says everything in
     // the subtitle already, so it stays a single row and never flashes a list
     // in while the reads land.
-    final rows = trueplayRows(widget.devices, tp.byUuid);
+    final rows = trueplayRows(widget.devices, tp.byUuid, label: widget.label);
     final showRows =
         rows.length > 1 && rows.map((r) => r.state).toSet().length > 1;
 
