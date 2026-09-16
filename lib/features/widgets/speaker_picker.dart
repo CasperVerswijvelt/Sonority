@@ -263,24 +263,41 @@ class PickerContext {
   /// The entity being configured — its own members are "available", not stolen.
   final String? exceptPrimary;
 
-  /// The configured entity's OWN members, when the apply about to run costs
-  /// them their tuning as well — the part no source bond can know about.
+  /// Whether the apply about to run writes a bond at all.
   ///
-  /// A group edit: always, since `AddBondedZones` rebuilds the bond even on an
-  /// unchanged map (EXP-23 Q8a). A home theater: whenever the apply writes
-  /// anything at all, NOT only when it drops a satellite — a purely additive
-  /// `AddHTSatellite` was measured dropping the bar and both rears to
-  /// `available=0` with nothing removed (CLAUDE.md, Q20), and which satellites
-  /// survive is not predictable. Empty when the apply is a no-op, and when
-  /// creating a group from scratch.
-  final Set<String> ownBondMembers;
+  /// True for a group create (a create is a write), for a group edit whose bond
+  /// differs, and for a home theater whose engine diff is not a no-op. False
+  /// only for an apply that writes nothing, which therefore costs nothing —
+  /// also what keeps a flow from warning the moment it opens.
+  final bool writes;
 
   const PickerContext({
     required this.system,
     required this.calibration,
     this.exceptPrimary,
-    this.ownBondMembers = const {},
+    this.writes = false,
   });
+
+  /// What the DESTINATION costs, which no source bond can know about: the
+  /// configured entity's own current members, plus everything [selected] —
+  /// the speakers joining the new bond.
+  ///
+  /// Every member, not only a dropped one: a purely additive `AddHTSatellite`
+  /// was measured dropping the bar and both rears to `available=0` with nothing
+  /// removed (CLAUDE.md, Q20), `AddBondedZones` rebuilds the bond even on an
+  /// unchanged map (Q8a), and which satellites survive is not predictable. The
+  /// selection is in there because a bonding change costs the bond it creates,
+  /// not just the ones it empties — two freshly tuned standalone speakers
+  /// paired together lose both tunings, and that used to be priced at zero.
+  Set<String> _destinationCost(Set<String> selected) {
+    if (!writes) return const {};
+    final live =
+        exceptPrimary == null ? null : system.memberByUuid(exceptPrimary!);
+    return {
+      ...selected,
+      if (live != null) ...system.bondMemberUuids(live),
+    };
+  }
 
   List<PickerSection> sections(List<SonosDevice> candidates) => pickerSections(
         system: system,
@@ -319,7 +336,7 @@ class PickerContext {
     final losing = system.tuningLostBySelection(
       selected: selected,
       exceptPrimary: exceptPrimary,
-      alsoLosing: ownBondMembers,
+      alsoLosing: _destinationCost(selected),
     );
     return tunedSpeakers(l10n, system, losing, calibration,
         ownBond: exceptPrimary);

@@ -105,9 +105,9 @@ void main() {
             for (final u in [bar, rearL, rearR, sub]) u: tuned,
           },
           exceptPrimary: bar,
-          // What the flow passes when the apply writes anything at all.
-          ownBondMembers:
-              diff.isNoOp ? const {} : system.bondMemberUuids(member),
+          // Exactly what the flow passes — see the wiring test in
+          // steal_from_bond_test.dart, which drives the real flow.
+          writes: !diff.isNoOp,
         ),
       );
     }

@@ -321,8 +321,7 @@ void main() {
               u: const RoomCalibration(available: true, enabled: true),
           },
           exceptPrimary: bar,
-          ownBondMembers:
-              writes ? system.bondMemberUuids(ht) : const <String>{},
+          writes: writes,
         );
 
     // The speaker list's note and the review card are rendered from the SAME

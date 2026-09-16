@@ -167,10 +167,9 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
       exceptPrimary: widget.editUuid,
       // Editing a group REBUILDS it, clearing its own members' Trueplay too —
       // but only if the bond actually changes. Gating on that is what keeps
-      // the flow from warning the moment it opens on an untouched group.
-      ownBondMembers: existing == null || !_bondDiffers(system, existing)
-          ? const {}
-          : system.bondMemberUuids(existing),
+      // the flow from warning the moment it opens on an untouched group. A
+      // CREATE always writes, and costs the speakers it bonds together.
+      writes: existing == null || _bondDiffers(system, existing),
     );
 
     final scheme = Theme.of(context).colorScheme;
@@ -364,15 +363,17 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
   /// part that costs Trueplay, since `AddBondedZones` rebuilds the bond even on
   /// an unchanged map. A rename alone doesn't, which is why it isn't in here.
   bool _bondDiffers(SonosSystem system, ZoneGroupMember existing) {
-    // Ordered uuid:channel signature captures membership, channels, and (for
-    // stereo) the L/R order in one compare.
-    final want = [
-      for (final m in _members(system)) '${m.device.uuid}:${m.channel.name}',
-    ].join(';');
-    final have = [
-      for (final e in existing.groupChannels.entries) '${e.key}:${e.value.name}',
-    ].join(';');
-    return want != have || _subUuid != existing.subUuid;
+    final members = _members(system);
+    // The SAME comparison `editGroup` verifies with, so the Apply gate can't
+    // claim a Trueplay cost for an edit that then writes nothing. A hand-rolled
+    // ordered signature did exactly that: re-picking a zone's members in
+    // another order changed the string but not the bond, so the review card
+    // warned about losing tunings and the apply was a no-op.
+    return !existing.matchesGroupLayout(
+      {for (final m in members) m.device.uuid: m.channel},
+      subUuid: _subUuid,
+      coordUuid: members.firstOrNull?.device.uuid,
+    );
   }
 
   /// True when the current selection would actually change [existing] — so an

@@ -199,8 +199,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       // satellite (CLAUDE.md, Q20: a pure add took the bar and both rears to
       // `available=0`). A no-op writes nothing, so it costs nothing — which is
       // also what keeps the flow from warning the moment it opens.
-      ownBondMembers:
-          diff.isNoOp ? const {} : system.bondMemberUuids(member),
+      writes: !diff.isNoOp,
     );
 
     // Built once: the hint below reads it too, and it walks the whole system.

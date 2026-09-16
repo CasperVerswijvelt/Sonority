@@ -288,11 +288,20 @@ class ZoneGroupMember {
   /// (per-speaker channel, order-insensitive) plus [subUuid] — the "would a write
   /// change anything" test for a speaker group. Channel-aware on purpose: a
   /// membership-set-only check passes before an in-place channel reassignment has
-  /// landed. Shared by the group-edit verification and the profile active-match
-  /// check so the two can't disagree.
+  /// landed. Shared by the group-edit verification, the group flow's Apply gate
+  /// and the profile active-match check so the three can't disagree.
+  ///
+  /// [coordUuid] is the one position that is NOT interchangeable: the
+  /// coordinator stays visible and carries the map, and `AddBondedZones` cannot
+  /// move it, so a target that coordinates elsewhere needs a full
+  /// dissolve-and-recreate. Callers that know which speaker should coordinate
+  /// pass it; the rest compare channels only.
   bool matchesGroupLayout(Map<String, GroupChannel> targetChannels,
-      {String? subUuid}) {
+      {String? subUuid, String? coordUuid}) {
     if (!isGroup || this.subUuid != subUuid) return false;
+    if (coordUuid != null && channelMapUuids.firstOrNull != coordUuid) {
+      return false;
+    }
     final live = groupChannels;
     return live.length == targetChannels.length &&
         targetChannels.entries.every((e) => live[e.key] == e.value);
