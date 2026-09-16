@@ -187,8 +187,8 @@ TrueplayRequest buildApplySpectral(SpectralTuning t) => TrueplayRequest(
 TrueplayRequest buildClearAllTunings() =>
     TrueplayRequest(method: 'ClearAllTunings', payload: Uint8List(0));
 
-/// Build the `GetDeviceConfig` envelope — a READ (the first thing the iOS app
-/// POSTs, once per player: payload = `1:<rincon>`).
+/// Build the `GetDeviceConfig` envelope — a READ, issued once per player before
+/// any apply (payload = `1:<rincon>`).
 /// The response carries that player's channel vocabulary for its current layout.
 TrueplayRequest buildGetDeviceConfig(String rincon) => TrueplayRequest(
     method: 'GetDeviceConfig',

@@ -10,8 +10,7 @@ import '../../data/sonos/custom_eq.dart';
 class EqCurve {
   final Float64List db;
   final Color color;
-  final bool dashed;
-  const EqCurve(this.db, this.color, {this.dashed = false});
+  const EqCurve(this.db, this.color);
 }
 
 /// The EQ plot: dB against log frequency, with the correction rails drawn.
@@ -112,7 +111,7 @@ class _EqPainter extends CustomPainter {
         Paint()
           ..color = c.color
           ..style = PaintingStyle.stroke
-          ..strokeWidth = c.dashed ? 1.5 : 2.5
+          ..strokeWidth = 2.5
           ..strokeCap = StrokeCap.round
           ..strokeJoin = StrokeJoin.round,
       );

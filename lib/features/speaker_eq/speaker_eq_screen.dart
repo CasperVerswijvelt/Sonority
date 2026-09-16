@@ -46,13 +46,12 @@ Map<String, String> eqRoles(ZoneGroupMember member) => {
         if (member.groupChannels[u] == null) u: SonosChannel.sub.shortLabel,
     };
 
-/// The tuning flow for one entity: measure (not built yet), adjust, apply.
+/// The EQ page for one entity: adjust, then apply.
 ///
-/// The three steps are one screen on purpose. A room measurement produces a base
-/// correction and the sliders are offsets on top of it; with no measurement the
-/// base is simply flat and the sliders are the whole curve. That is why step 1
-/// is shown but disabled rather than hidden — it is a stage of this flow, not a
-/// separate feature.
+/// A room measurement, when it ships, produces a base correction and these
+/// sliders become offsets on top of it. With no measurement the base is simply
+/// flat and the sliders are the whole curve — which is why the measure stage is
+/// absent rather than stubbed: nothing here has to change to add it.
 class SpeakerEqScreen extends ConsumerStatefulWidget {
   final String uuid;
   const SpeakerEqScreen({super.key, required this.uuid});
@@ -352,8 +351,6 @@ class _Gutter extends StatelessWidget {
       child: child);
 }
 
-/// Step 1, present but not yet built. Shown rather than hidden so the capability
-/// is discoverable; deliberately says nothing about how it will work or when.
 class _Bands extends StatelessWidget {
   final List<double> gains;
   final void Function(int index, double value) onChanged;
@@ -376,12 +373,18 @@ class _Bands extends StatelessWidget {
             Expanded(
               child: Column(
                 children: [
-                  Text(
-                    l10n.eqGainDb(_fmt(gains[i])),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: gains[i] == 0
-                          ? theme.colorScheme.onSurfaceVariant
-                          : theme.colorScheme.onSurface,
+                  // Ten columns is narrow enough that "-5.5 dB" wraps and
+                  // shoves its slider down; shrink to fit instead.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      l10n.eqGainDb(_fmt(gains[i])),
+                      maxLines: 1,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: gains[i] == 0
+                            ? theme.colorScheme.onSurfaceVariant
+                            : theme.colorScheme.onSurface,
+                      ),
                     ),
                   ),
                   Expanded(

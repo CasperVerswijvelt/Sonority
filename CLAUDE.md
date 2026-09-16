@@ -33,8 +33,8 @@ unofficial fronts — never measure it. Both are called out again below.) Exampl
 and **room renaming** DO exist in the official app, but we now do them anyway —
 because profiles are only useful if a *complete* HT/stereo setup can be finished
 inside Sonority (otherwise you snapshot a half-config and still bounce to the
-Sonos app). Justified by "finish a setup in one app, then save it." Keep this the
-*only* exception; don't widen it to EQ/volume/grouping/etc.
+Sonos app). Justified by "finish a setup in one app, then save it." Don't widen *this* one
+to volume, grouping, or the RenderingControl tone knobs.
 
 **Deliberate exception #2 — the SPECTRAL-TUNING path is ours (decided 2026-09-15).**
 The rule below used to read "there are no EQ/volume editing sliders in Sonority —
@@ -144,7 +144,7 @@ lib/
   state/           sonos_controller.dart — AsyncNotifier<SonosSystem?>; applyHomeTheaterLayout,
                      applyProfile, _applyHtTarget (diff-based), renameRoom; applyProgressProvider
   features/        discovery / home_theater / front_surrounds (full HT setup) /
-                     speaker_eq (the 8-band EQ page) /
+                     speaker_eq (the 10-band EQ page) /
                      group (unified Stereo/Zone/Custom) / profiles / room / widgets
   app.dart, main.dart — go_router StatefulShellRoute (System|Profiles tabs), ProviderScope
 tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, zone_probe, lr_audiotest, eq_probe, capture_shots, gen_assets.sh (icon/wordmark/splash pipeline), gen_site (docs/ landing page)
@@ -361,9 +361,10 @@ interpolated) then use it.
     `RoomCalibrationEnabled` + `RoomCalibrationAvailable`; `SetRoomCalibrationStatus
     (InstanceID, RoomCalibrationEnabled)`. **available = a tuning is stored**
     (measured once in the **iOS** Sonos app — cloud DSP + Apple-only mic profiles,
-    **cannot** be done from Android); **enabled = applied**. We only read + toggle
-    (non-destructive, instant), which is the part the Sonos app won't expose for
-    the unofficial fronts config. Toggle ALL bonded members so the separately-tuned
+    **cannot** be done from Android); **enabled = applied**. Sonority reads and toggles this
+    (non-destructive, instant) — the part the Sonos app won't expose for the
+    unofficial fronts config — and, since the EQ shipped, also **writes and
+    clears** the same slot (see the spectral-tuning section). Toggle ALL bonded members so the separately-tuned
     fronts engage; **Amp-driven fronts can't be Trueplay'd** (native speakers only).
   - **Gotcha (A/B-tested on hardware):** Sonos **invalidates** Trueplay across the
     WHOLE bonded set when that set changes. Measured: a freshly-tuned Beam HT
@@ -792,10 +793,10 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 - ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
   all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't
   expose for unofficial fronts. Measurement stays iOS-only (out of scope).
-- ✅ **EQ** (`features/speaker_eq/`, `data/sonos/custom_eq.dart`) — an 8-band
+- ✅ **EQ** (`features/speaker_eq/`, `data/sonos/custom_eq.dart`) — a 10-band
   equaliser applied as a real biquad cascade over the `:1443` spectral-tuning
   path, on any HT / group / single speaker, whole-entity or per-speaker. See the
-  spectral-tuning section below for the rules it must obey. Shares the storage
+  spectral-tuning section for the rules it must obey. Shares the storage
   slot with Trueplay (so the existing toggle is its on/off, and applying replaces
   a Sonos-app calibration **irreversibly** — gated behind a confirm). The
   measure-your-room step is **not shown at all** until it ships (an

@@ -391,7 +391,7 @@ abstract class AppLocalizations {
   /// No description provided for @errTuningNotStored.
   ///
   /// In en, this message translates to:
-  /// **'The speakers accepted the EQ but didn’t store it. Try again; if it keeps failing, check every speaker is reachable.'**
+  /// **'The speakers didn’t store the EQ. Try again; if it keeps failing, check every speaker is reachable.'**
   String get errTuningNotStored;
 
   /// No description provided for @errTuningNotCleared.
@@ -2284,18 +2284,6 @@ abstract class AppLocalizations {
   /// **'Edited'**
   String get eqEdited;
 
-  /// No description provided for @eqLegendRequested.
-  ///
-  /// In en, this message translates to:
-  /// **'Requested'**
-  String get eqLegendRequested;
-
-  /// No description provided for @eqLegendAchieved.
-  ///
-  /// In en, this message translates to:
-  /// **'Actual'**
-  String get eqLegendAchieved;
-
   /// No description provided for @eqLiveApply.
   ///
   /// In en, this message translates to:
@@ -2305,7 +2293,7 @@ abstract class AppLocalizations {
   /// No description provided for @eqLiveApplySubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Hear changes as you move the sliders.'**
+  /// **'Hear each change a moment after you let go.'**
   String get eqLiveApplySubtitle;
 
   /// No description provided for @eqApply.

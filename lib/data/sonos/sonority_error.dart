@@ -71,7 +71,7 @@ class SonorityError implements Exception {
       case SonorityErrorCode.cannotBlinkLight:
         return 'Could not reach the speaker to blink its light.';
       case SonorityErrorCode.tuningNotStored:
-        return 'The speakers accepted the EQ but did not store it. '
+        return 'The speakers did not store the EQ. '
             'Try again; if it keeps failing, check every speaker is reachable.';
       case SonorityErrorCode.tuningNotCleared:
         return 'The EQ could not be removed from these speakers.';

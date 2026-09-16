@@ -184,7 +184,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errTuningNotStored =>
-      'The speakers accepted the EQ but didn’t store it. Try again; if it keeps failing, check every speaker is reachable.';
+      'The speakers didn’t store the EQ. Try again; if it keeps failing, check every speaker is reachable.';
 
   @override
   String get errTuningNotCleared =>
@@ -1395,16 +1395,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eqEdited => 'Edited';
 
   @override
-  String get eqLegendRequested => 'Requested';
-
-  @override
-  String get eqLegendAchieved => 'Actual';
-
-  @override
   String get eqLiveApply => 'Live apply';
 
   @override
-  String get eqLiveApplySubtitle => 'Hear changes as you move the sliders.';
+  String get eqLiveApplySubtitle =>
+      'Hear each change a moment after you let go.';
 
   @override
   String get eqApply => 'Apply';
