@@ -729,12 +729,7 @@ class HtReviewStep extends StatelessWidget {
           subCount: subCount,
         ),
         Gap.m,
-        // The destructive facts stay inside the warning card; the reassurance
-        // sits OUTSIDE it and is scoped to the LAYOUT, so it can't read as if
-        // it covered a lost Trueplay tuning, which it cannot undo.
-        if (_warning(context) case final w?) ...[InfoNote(w), Gap.s],
-        Text(context.l10n.frontSurroundsReviewNote,
-            style: Theme.of(context).mutedText),
+        if (_warning(context) case final w?) InfoNote(w),
       ],
     );
   }

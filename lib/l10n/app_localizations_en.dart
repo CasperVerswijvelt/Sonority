@@ -335,7 +335,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String stepFreeUnconfirmed(String name) {
-    return 'Couldn’t confirm $name was freed — carrying on and verifying at the bond';
+    return 'Couldn’t confirm $name was freed. Carrying on, and verifying at the bond';
   }
 
   @override
@@ -1316,9 +1316,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nothing selected yet — choose speakers above.';
 
   @override
-  String get frontSurroundsReviewNote => 'The layout can be changed anytime.';
-
-  @override
   String frontSurroundsTrueplayLoses(String names) {
     return 'Could lose Trueplay: $names. Plan to re-tune in the Sonos app.';
   }
@@ -1427,7 +1424,7 @@ class AppLocalizationsEn extends AppLocalizations {
       other: 'break up',
       one: 'breaks up',
     );
-    return '$names $_temp0 — a group doesn\'t shrink when you take a speaker out of it.';
+    return '$names $_temp0. A group doesn\'t shrink when you take a speaker out of it.';
   }
 
   @override
