@@ -2263,7 +2263,7 @@ abstract class AppLocalizations {
   /// No description provided for @eqTrueplayNote.
   ///
   /// In en, this message translates to:
-  /// **'Sonos stores one tuning per speaker, and your EQ goes in the same place as a Trueplay calibration. A speaker can have one or the other, not both. Applying an EQ replaces a Trueplay calibration for good, and it can only be measured again in the Sonos app.'**
+  /// **'Sonority’s EQ uses the Trueplay calibration slot on your speakers. Applying an EQ replaces your existing EQ or Trueplay calibration.'**
   String get eqTrueplayNote;
 
   /// No description provided for @eqModeAll.
