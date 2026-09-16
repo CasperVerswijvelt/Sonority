@@ -442,6 +442,10 @@ class SonosSystem {
             // ANOTHER home theater look standalone mid-settle, skip its free,
             // and target a speaker that bar still claims.
             ...m.channelAssignments.values,
+            // `channelAssignments` is keyed by CHANNEL, so a dual-sub map
+            // (`…:SW;…:SW`) collapses to one uuid — and the second Sub would
+            // read as standalone in exactly the mid-settle window above.
+            ...m.subUuids,
             ...m.satellites.map((s) => s.uuid),
             // Covers both stereo-pair halves and all zone members.
             ...m.channelMapUuids,
@@ -527,8 +531,10 @@ class SonosSystem {
   Set<String> bondMemberUuids(ZoneGroupMember m) => {
         m.uuid,
         // Authoritative map first — see [_bondedUuids] on why the `<Satellite>`
-        // list alone is not safe to decide bonding on.
+        // list alone is not safe to decide bonding on, and why the sub list is
+        // spread separately (a dual-sub map collapses under a channel key).
         ...m.channelAssignments.values,
+        ...m.subUuids,
         ...m.satellites.map((s) => s.uuid),
         ...m.channelMapUuids,
       };
@@ -608,15 +614,19 @@ class SonosSystem {
     required bool absorbing,
   }) {
     if (keep.contains(uuid) || isStandalone(uuid)) return false;
-    final src = memberByUuid(ownerOf(uuid) ?? '');
-    // No resolvable source. Normally that means a home theater's own PRIMARY —
-    // `ownerOf` returns null for a soundbar — where there is nothing to free it
-    // FROM, and asking anyway costs a no-op write plus an 18s poll on a
-    // condition already met. It also covers the `ZoneGroup ID="…:orphan"` case
-    // (an Invisible survivor whose coordinator is gone), where `freeSpeaker`
-    // would find nothing to act on either; the caller's poll-verify is the
-    // backstop there.
-    if (src == null) return false;
+    final owner = ownerOf(uuid);
+    // NO owner at all: a home theater's own PRIMARY — `ownerOf` returns null
+    // for a soundbar — where there is nothing to free it FROM, and asking
+    // anyway costs a no-op write plus an 18s poll on a condition already met.
+    if (owner == null) return false;
+    final src = memberByUuid(owner);
+    // Bonded, but the owner doesn't resolve to a VISIBLE member — the
+    // `ZoneGroup ID="…:orphan"` case, an Invisible survivor whose partner is
+    // gone. `memberByUuid` filters `Invisible`, so `src` is always null here,
+    // but `freeSpeaker` walks `groups[].members` unfiltered and DOES recover it
+    // (targeted `SeparateStereoPair` on the stale map). Must free: absorbing
+    // out of a bond we can't classify is not a measured case.
+    if (src == null) return true;
     return !(absorbing && canAbsorbFrom(src));
   }
 

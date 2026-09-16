@@ -16,7 +16,7 @@ import '../data/sonos/sonority_error.dart';
 import '../data/sonos/speaker_settings.dart';
 import '../features/profiles/profile.dart';
 import '../features/profiles/profile_controller.dart'
-    show EntityIssue, preflightProfile;
+    show EntityIssue, entityFreePlan, preflightProfile;
 import 'localized_error.dart';
 import 'shared_preferences_store.dart';
 
@@ -499,8 +499,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // Nothing to keep and nothing absorbs a standalone room, so this is
         // the shared helper with the degenerate arguments — it also reads back
         // from the right speaker when the bond's coordinator IS the one freed.
-        sys = await _freeConflicts(sys, [e.primaryUuid],
-            keep: const {}, absorbing: false, ph: ph,
+        final plan = entityFreePlan(e, sys);
+        sys = await _freeConflicts(sys, plan.uuids.toList(),
+            keep: plan.keep, absorbing: plan.absorbing, ph: ph,
             phaseLabel: l10n.stepFreeFromBond);
         _activeOp?.throwIfCancelled();
         ph.phase('names', l10n.stepRestoreRoomName);
@@ -548,19 +549,15 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // such a map faults on every attempt. `groupEditIsInPlace` is exactly
         // that test, so the live group only counts as "keep" when the rebuild
         // really can re-assert over it. Otherwise nothing is kept and the whole
-        // bond is dissolved first — which is what `editGroup` does too.
-        final live =
-            sys.memberByUuid(e.primaryUuid)?.channelMapUuids ?? const <String>[];
+        // bond is dissolved first — which is what `editGroup` does too. All of
+        // that is [entityFreePlan], shared with the pre-flight.
         final htSourced = _htSourced(sys, involved);
-        sys = await _freeConflicts(sys, involved,
-            keep: groupEditIsInPlace(
-              currentUuids: live,
-              targetUuids: involved,
-              targetCoordUuid: e.primaryUuid,
-            )
-                ? live.toSet()
-                : const <String>{},
-            absorbing: false, ph: ph, fallbackIp: coord!.ip);
+        final plan = entityFreePlan(e, sys);
+        sys = await _freeConflicts(sys, plan.uuids.toList(),
+            keep: plan.keep,
+            absorbing: plan.absorbing,
+            ph: ph,
+            fallbackIp: coord!.ip);
         // Resolve members (coordinator-first) + sub from the stored map.
         final parsed = ZoneGroupMember(
           uuid: e.primaryUuid,
@@ -624,7 +621,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // second Sub in a dual-sub setup) — use it directly rather than a
         // channel→uuid map, which would collapse two SW entries into one.
         final fullTarget = ChannelMap.parse(map);
-        final satUuids = fullTarget.entries.skip(1).map((e) => e.uuid).toSet();
         // Free any satellite currently bonded to a different coordinator/pair —
         // EXCEPT one sitting in a stereo pair, which `AddHTSatellite` absorbs
         // directly: the pair dissolves implicitly and the speaker KEEPS its
@@ -635,10 +631,12 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // unchanged re-apply would free every satellite it already has —
         // stripping the bond, wiping its Trueplay, and destroying the
         // zero-write no-op the diff exists for.
-        final live = sys.memberByUuid(bar!.uuid);
-        sys = await _freeConflicts(sys, satUuids,
-            keep: {bar.uuid, if (live != null) ...sys.bondMemberUuids(live)},
-            absorbing: true, ph: ph, fallbackIp: bar.ip);
+        final plan = entityFreePlan(e, sys);
+        sys = await _freeConflicts(sys, plan.uuids.toList(),
+            keep: plan.keep,
+            absorbing: plan.absorbing,
+            ph: ph,
+            fallbackIp: bar!.ip);
         // Diff against the live layout and apply only what changed — no strip.
         // A re-applied/unchanged layout is a no-op (zero writes); otherwise
         // remove just the satellites that move or leave, then additively bond.
