@@ -13,7 +13,7 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Added
 - Speaker pickers now offer speakers that are already bonded into another stereo pair, home theater or group, so you no longer have to unbond by hand first (a subwoofer bonded into another home theater or speaker group is the exception — free that one first). They're grouped under a heading per source bond that says what taking one costs, and each card shows the channel it currently holds plus whether it has a Trueplay tuning.
-- Choosing such a speaker names exactly which speakers lose their Trueplay, so you know what needs re-tuning before you apply. Taking one out of a zone or a multi-speaker custom group also says that the whole group breaks up, which nothing else on screen shows.
+- Choosing such a speaker names the speakers that could lose their Trueplay, and says when the whole source group breaks up — on the picker and again on the review step, whatever their tuning state.
 - Creating a speaker group from a speaker that's bonded elsewhere now frees it first. Sonos accepts the grouping command and silently does nothing otherwise, so the group would never have formed.
 - Diagnostics bundles now include `trueplay.json` — each speaker's stored and enabled calibration state, with a reason recorded for any speaker that couldn't be read. Read-only, like the rest of the bundle.
 - Sonority now carries a license: the code is source-available under PolyForm Perimeter 1.0.1 — read, build, modify and contribute freely, but redistributing a competing product (paid or free) isn't permitted. The "Sonority" name, icon, wordmark and marketing assets remain reserved, and `CONTRIBUTING.md` documents the licensing grant that pull requests carry.
@@ -26,6 +26,13 @@ section into the GitHub Release notes regardless of the build suffix
 - Emailing a diagnostics bundle now asks what went wrong first (at least 20 characters) and puts that description in the mail body and in the bundle as `user_note.txt`, so a report never arrives without an explanation. Share and save-to-disk are unchanged.
 
 ### Fixed
+- Pairing or grouping speakers that already hold a Trueplay tuning now says so — creating a bond costs its own members their tuning, which was previously priced at zero.
+- A speaker taken out of a group of three or more no longer leaves the untaken member named after the group, duplicating a live room name.
+- Applying a profile now asks before dissolving a bond that has grown since the profile was saved, and recovers a speaker left orphaned by a vanished group partner instead of silently doing nothing.
+- The second subwoofer of a dual-sub home theater is no longer briefly offered as a free speaker while the topology settles.
+- Re-picking a group's speakers in a different order no longer offers to apply a change that writes nothing, or warns that their tunings will be lost.
+- Trueplay now reports a speaker it couldn't re-read as unread instead of keeping its previous answer, so a just-bonded speaker can't still look tuned — which is what decides whether turning it on warns you first.
+- A speaker group with an unknown address now shows why it failed instead of leaving the progress timeline spinning.
 - Turning Trueplay on or off for a home theater or pair now asks first when some of its speakers have no stored tuning — Sonos applies a tuning for the bonded set as a whole, so turning it on can permanently destroy the tunings the others still have, and turning it off may not be reversible. A fully tuned set never asks.
 - A speaker with no stored tuning no longer warns that turning Trueplay on could destroy tunings it doesn't have, and a fully tuned set no longer warns while its tuning is still being read. The switch is disabled in both cases, so there was no write to warn about.
 - Freeing a speaker from its current setup is no longer given up on when Sonos is slow to answer: the command usually took effect anyway, so the app now verifies instead of aborting an apply that had already taken a speaker out of one setup and put it in neither.

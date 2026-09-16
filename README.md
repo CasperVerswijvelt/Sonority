@@ -161,8 +161,9 @@ there if a different model/firmware ever needs it.
 - ✅ Identify a speaker by blinking its status LED (default; macOS-safe) or a chime (mobile),
   from the pick-a-speaker flows and per-speaker in the room / group / home-theater detail views
 - ✅ Take a speaker straight out of another stereo pair, zone or home theater — the pickers
-  list it under the setup it belongs to and name exactly which speakers will need re-tuning;
-  a subwoofer that already belongs to another home theater or speaker group must be freed first
+  list it under the setup it belongs to and name which speakers could need re-tuning (a
+  deliberately cautious list: it includes any speaker whose tuning couldn't be read); a
+  subwoofer that already belongs to another home theater or speaker group must be freed first
 - ✅ Trueplay read + toggle on speakers / pairs / home theaters (it warns and asks first when
   any speaker in the bond has no stored tuning — switching it *on* there can wipe the others')
 - ✅ Diagnostics — a hide-nothing technical system view, packaged into a shareable zip for support

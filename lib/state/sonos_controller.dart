@@ -272,8 +272,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       tracker.start('bond');
       final ph = _phases(tracker, 'bond');
       // `AddHTSatellite` absorbs a speaker straight out of a stereo pair or a
-      // zone (EXP-23 Q7/Q9/Q10), so those need no freeing and keep their
-      // Trueplay. It has NEVER been shown to absorb one out of another HOME
+      // zone (EXP-23 Q7/Q9/Q10), so those need no freeing. NOT "and keep their
+      // Trueplay": the coefficients survive in storage but come back off and
+      // cannot be switched on, so the only thing the absorb buys is the skipped
+      // write. It has NEVER been shown to absorb one out of another HOME
       // THEATER — untestable here, one soundbar — so those are freed first
       // rather than assumed. Without this the write would target a speaker the
       // other bar still claims.
@@ -628,10 +630,12 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         final fullTarget = ChannelMap.parse(map);
         // Free any satellite currently bonded to a different coordinator/pair —
         // EXCEPT one sitting in a stereo pair, which `AddHTSatellite` absorbs
-        // directly: the pair dissolves implicitly and the speaker KEEPS its
-        // Trueplay tuning, whereas freeing it first (detach +
-        // `SeparateStereoPair`) destroys that tuning irrecoverably. Measured
-        // over two cycles each way — EXP-23 Q7/Q9. `keep` MUST include this
+        // directly: the pair dissolves implicitly and the speaker's coefficients
+        // survive in storage, where freeing it first (detach +
+        // `SeparateStereoPair`) wipes them outright. Measured over two cycles
+        // each way — EXP-23 Q7/Q9. That is NOT usable retention (it comes back
+        // off and the enable destroys it), so what this buys is the skipped
+        // write, and no copy credits it. `keep` MUST include this
         // bar's current members: an HT is not absorbable, so without them an
         // unchanged re-apply would free every satellite it already has —
         // stripping the bond, wiping its Trueplay, and destroying the

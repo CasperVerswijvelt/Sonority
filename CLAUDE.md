@@ -220,8 +220,13 @@ interpolated) then use it.
     `AddHTSatellite` on a pair coordinator returns UPnPError 401.
   - `CreateStereoPair` / `SeparateStereoPair` — stereo pairs.
   - ⭐ **`AddHTSatellite` ABSORBS a speaker straight out of a live stereo pair or
-    zone** — no separate/dissolve first, one write, and the speaker keeps its
-    Trueplay (EXP-23 Q7/Q9/Q10). **`AddBondedZones` absorbs from NOTHING**: it is
+    zone** — no separate/dissolve first, one write (EXP-23 Q7/Q9/Q10). Its
+    Trueplay COEFFICIENTS survive in storage, which is **not** retention and
+    must never be written as "keeps its Trueplay": the speaker comes back
+    `enabled=0` and the only write that switches it on destroys it, so the
+    retention is unusable and no copy may promise it. Full rule ~180 lines
+    below, under `RenderingControl` → Trueplay; the one thing the absorb buys is
+    **skipping the free**. **`AddBondedZones` absorbs from NOTHING**: it is
     accepted (HTTP 200) and silently no-ops on a speaker bonded elsewhere (Q11, 2
     cycles), so a group target must free the speaker first. Absorbing out of another
     home theater is **unmeasured** (one soundbar here) and treated as not possible.
@@ -474,10 +479,11 @@ interpolated) then use it.
     | absorbed pair, role **PRESERVED** | `1`→`1`, `2`→`2` | `0/0` **destroyed** |
     | absorbed pair, role swapped | `1`→`2`, `2`→`1` | `0/0` **destroyed** |
     **No safe delay** (600s behaves like 65s) and **the channel role is irrelevant** —
-    the role-preserving cell was the pre-registered falsifier and it died anyway. The
-    only thing the harmless row has that the others lack is that its bond never changed
-    after the tuning was stored. The write is NOT destructive in itself, so Sonority's
-    Trueplay toggle is safe on an untouched speaker.
+    the role-preserving cell was the pre-registered falsifier and it died anyway.
+    (The framing at the time read the harmless row as "its bond never changed since
+    the tuning was stored". That is the rule **Q19 falsified** — do not reason from
+    it; the discriminator is set completeness, above.) The write is NOT destructive
+    in itself, so Sonority's Trueplay toggle is safe on an untouched speaker.
     ⇒ **`available=1` after a bonding change is storage, not a usable tuning.** It is
     off, and the only way to switch it on destroys it, so audibly it is
     indistinguishable from a lost one. **Copy must never promise retention or tell a
@@ -894,7 +900,10 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 - ✅ **Take a speaker from another bond** (`features/widgets/speaker_picker.dart`) —
   the HT and group pickers offer speakers already bonded into another pair, zone or
   home theater, grouped under a heading per source bond, and name what the take
-  costs in Trueplay per selection. An HT target ABSORBS (one `AddHTSatellite`,
+  costs in Trueplay per selection. **Soundbars and Subs are NOT offered**
+  (`stealableSpeakers` drops both — a bar has its own flow, and the Sub pickers
+  list standalone Subs only), so a Sub bonded elsewhere still has to be freed by
+  hand. An HT target ABSORBS (one `AddHTSatellite`,
   the coefficients survive, no free needed — `SonosSystem.canAbsorbFrom` /
   `mustFreeBeforeBonding` model that and `_freeConflicts` acts on it); a group
   target frees first (`AddBondedZones` no-ops on a bonded speaker).
@@ -904,9 +913,19 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   measurement record only, and there is no absorb flag left to pass.
   One computation — `PickerContext.tuningCost` — feeds both the note under the
   speaker list and the HT review card, because they gave different answers
-  three taps apart when they were two. An HT apply that writes ANYTHING also
-  prices its own current members (Q20: a pure add took the bar and both rears
-  to `available=0`); a no-op prices nothing.
+  three taps apart when they were two. Any apply that WRITES prices the whole
+  destination: the entity's current members (Q20: a pure add took the bar and
+  both rears to `available=0`) **and the selection itself** — a bonding change
+  costs the bond it creates, so pairing two tuned standalone speakers is priced,
+  which it was not at first. A no-op prices nothing (`PickerContext.writes`).
+  The review step is the ONLY gate before Apply (the removal confirm dialog was
+  deleted in favour of it), so it also states the **dissolve** —
+  `PickerContext.dissolveNote` — whatever the source group's tuning state; an
+  untuned group made the card silent about a live group it was about to break
+  up, and untuned is the common case since Trueplay cannot be measured from
+  Android. A line-out box (Amp/Port/Connect) is never named as losing a tuning
+  it cannot hold, and the copy hedges to "could lose" because the list
+  deliberately includes speakers whose tuning could not be READ.
 - ✅ CI release pipeline.
 - Candidate next: channel-level/height trim (overlaps the app — weak). Discovery
   recovers topology-only speakers when a description fetch fails, **including

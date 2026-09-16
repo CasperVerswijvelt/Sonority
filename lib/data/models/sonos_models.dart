@@ -553,8 +553,9 @@ class SonosSystem {
   ///
   /// Hardware-measured (EXP-23): `AddHTSatellite` absorbs a speaker straight out
   /// of a live stereo pair — the pair dissolves implicitly and the speaker's
-  /// Trueplay COEFFICIENTS survive — so the unbond-first step Sonority used to
-  /// require was unnecessary. It was not the only thing costing a tuning: a
+  /// Trueplay COEFFICIENTS survive *in storage*, which is not retention and is
+  /// never credited in copy — so the unbond-first step Sonority used to require
+  /// was unnecessary. It was not the only thing costing a tuning: a
   /// bonding change clears members with no removal and no enable written at all
   /// (CLAUDE.md, Q20). What a take costs is [tuningLostBySelection].
   ///
