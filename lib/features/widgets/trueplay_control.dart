@@ -24,6 +24,12 @@ enum TrueplayRowState {
 
   /// Not read: no IP, the speaker never answered discovery, or the read faulted.
   unknown,
+
+  /// A read is in flight right now. Distinct from [unknown]: "we haven't asked
+  /// yet" is not "we asked and got nothing", and the two are only ever seconds
+  /// apart — but those are the seconds right after a bonding change, when the
+  /// speaker refuses :1400 for 20-30s and every read is slow.
+  checking,
 }
 
 /// Breaks an aggregate like "5/6 tuned · 0/6 active" down per speaker.
@@ -55,18 +61,25 @@ enum TrueplayRowState {
 List<({String label, TrueplayRowState state})> trueplayRows(
   List<SonosDevice> devices,
   Map<String, RoomCalibration> byUuid, {
+  Set<String> busy = const {},
   String Function(SonosDevice)? label,
 }) =>
     [
       for (final d in devices)
         (
           label: label?.call(d) ?? d.typeLabel,
-          state: switch (byUuid[d.uuid]) {
-            null => TrueplayRowState.unknown,
-            final c when c.active => TrueplayRowState.active,
-            final c when c.available => TrueplayRowState.tunedOff,
-            _ => TrueplayRowState.notTuned,
-          },
+          // `busy` outranks a stale/absent reading: a speaker mid-read has
+          // either no entry yet (a set that just grew) or last week's, and
+          // naming it "Couldn't read" is the same over-reach this breakdown
+          // exists to stop — now aimed at a speaker BY NAME.
+          state: byUuid[d.uuid] == null && busy.contains(d.uuid)
+              ? TrueplayRowState.checking
+              : switch (byUuid[d.uuid]) {
+                  null => TrueplayRowState.unknown,
+                  final c when c.active => TrueplayRowState.active,
+                  final c when c.available => TrueplayRowState.tunedOff,
+                  _ => TrueplayRowState.notTuned,
+                },
         ),
     ];
 
@@ -77,8 +90,10 @@ List<({String label, TrueplayRowState state})> trueplayRows(
 /// which is the part the Sonos app won't expose for unofficial front setups.
 ///
 /// Pass every speaker the toggle should act on: for a home theater that's all
-/// bonded members (so the separately-tuned fronts engage too); for a stereo pair
-/// both speakers; for a standalone room just the one.
+/// bonded members (so the separately-tuned fronts engage too); for a standalone
+/// room just the one. ⚠️ A speaker group (stereo pair / zone / custom) has no
+/// Trueplay row yet — `GroupDetailScreen` renders none — so this widget has
+/// exactly two callers today; don't describe a surface it doesn't have.
 class TrueplayControl extends ConsumerStatefulWidget {
   final List<SonosDevice> devices;
 
@@ -89,15 +104,10 @@ class TrueplayControl extends ConsumerStatefulWidget {
   /// which only the caller knows.
   final String Function(SonosDevice)? label;
 
-  /// Set when Trueplay can't apply at all (e.g. Amp-driven fronts — Sonos only
-  /// tunes native speakers). Shows an explanation instead of a toggle.
-  final String? unsupportedReason;
-
   const TrueplayControl({
     super.key,
     required this.devices,
     this.label,
-    this.unsupportedReason,
   });
 
   @override
@@ -113,13 +123,11 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
   @override
   void initState() {
     super.initState();
-    if (widget.unsupportedReason == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!mounted) return;
-        await ref.read(trueplayControllerProvider.notifier).load(widget.devices);
-        if (mounted) setState(() => _attempted = true);
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await ref.read(trueplayControllerProvider.notifier).load(widget.devices);
+      if (mounted) setState(() => _attempted = true);
+    });
   }
 
   /// Applies the toggle, asking first while the bonded set is short.
@@ -159,7 +167,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // only; an identical list must not re-fetch on every rebuild.
     final before = old.devices.map((d) => d.uuid).toSet();
     final now = widget.devices.map((d) => d.uuid).toSet();
-    if (widget.unsupportedReason == null && !setEquals(before, now)) {
+    if (!setEquals(before, now)) {
       // Post-frame, like `initState` above and for the same reason: `load`
       // marks its targets busy BEFORE its first await, and Riverpod forbids
       // touching provider state during the build phase — `didUpdateWidget` is
@@ -181,18 +189,6 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     if (widget.devices.isEmpty) return const SizedBox.shrink();
 
     final scheme = Theme.of(context).colorScheme;
-    final reason = widget.unsupportedReason;
-    if (reason != null) {
-      return _frame(
-        context,
-        icon: Icons.tune,
-        iconColor: scheme.onSurfaceVariant,
-        subtitle: reason,
-        trailing: null,
-        onTap: null,
-      );
-    }
-
     final tp = ref.watch(trueplayControllerProvider);
     // ONE set drives the counter, the breakdown rows and the warning gate:
     // every speaker passed in. A device with no IP is never read (the
@@ -321,9 +317,21 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // uniform set (all active, none tuned, nothing read yet) says everything in
     // the subtitle already, so it stays a single row and never flashes a list
     // in while the reads land.
-    final rows = trueplayRows(widget.devices, tp.byUuid, label: widget.label);
+    final rows = trueplayRows(
+      widget.devices,
+      tp.byUuid,
+      busy: tp.busy,
+      label: widget.label,
+    );
+    // Disagreement is judged on the SETTLED rows only. A row still being read
+    // is not evidence the set disagrees — counting it would flash the whole
+    // list in mid-read (the thing the paragraph above rules out) every time a
+    // uniform set grew by one. Once the list is up for a real disagreement, a
+    // pending row says so honestly rather than claiming a verdict.
+    final settled =
+        rows.where((r) => r.state != TrueplayRowState.checking).toList();
     final showRows =
-        rows.length > 1 && rows.map((r) => r.state).toSet().length > 1;
+        rows.length > 1 && settled.map((r) => r.state).toSet().length > 1;
 
     final tile = _frame(
       context,
@@ -369,6 +377,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
         TrueplayRowState.tunedOff => l10n.widgetsTrueplayTunedOff,
         TrueplayRowState.notTuned => l10n.widgetsTrueplayRowNotTuned,
         TrueplayRowState.unknown => l10n.widgetsTrueplayRowUnread,
+        TrueplayRowState.checking => l10n.widgetsTrueplayChecking,
       };
 
   // A flat, full-width tile (no card) — it's a setting, so it reads distinctly

@@ -326,6 +326,59 @@ void main() {
         reason: 'unqualified is the default; only a bonded caller overrides it');
   });
 
+  test('a speaker being read right now is checking, not unreadable', () {
+    // `unknown` renders "Couldn't read" — a claim that we asked and got
+    // nothing. Mid-read we have not asked yet, and the two are only seconds
+    // apart in exactly the window a just-bonded speaker refuses :1400.
+    final rows = trueplayRows(
+      [bar, era],
+      const {'BAR': on},
+      busy: const {'ERA'},
+    );
+    expect(rows.map((r) => r.state),
+        [TrueplayRowState.active, TrueplayRowState.checking]);
+    expect(
+      trueplayRows([bar, era], const {'BAR': on}).last.state,
+      TrueplayRowState.unknown,
+      reason: 'the same row with no read in flight IS unreadable',
+    );
+  });
+
+  testWidgets('a uniform set that grows by one does not flash the list in',
+      (tester) async {
+    // The set agrees; the new member is simply pending. Counting it as a
+    // disagreeing state would pop the whole breakdown open mid-read and then
+    // close it again — and name the new speaker "Couldn't read" while doing so.
+    await tester.pumpWidget(trueplayHarness(
+      [bar, left, era],
+      const {'BAR': on, 'LEFT': on},
+      busy: const {'ERA'},
+    ));
+    // Not pumpAndSettle: `busy` keeps a progress spinner animating, so the
+    // scheduler never goes idle. Two pumps = build, then the post-frame read.
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(LabelValueRow), findsNothing);
+    expect(find.text("Couldn't read"), findsNothing);
+  });
+
+  testWidgets('once the set really disagrees, a pending row says so', (tester) async {
+    // Settled rows disagree (active vs not tuned), so the list is up on its own
+    // merits — and the speaker still being read must not borrow a verdict.
+    await tester.pumpWidget(trueplayHarness(
+      [bar, left, era],
+      const {'BAR': on, 'LEFT': none},
+      busy: const {'ERA'},
+    ));
+    // Not pumpAndSettle: `busy` keeps a progress spinner animating, so the
+    // scheduler never goes idle. Two pumps = build, then the post-frame read.
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(LabelValueRow), findsNWidgets(3));
+    expect(find.text('Checking…'), findsOneWidget);
+    expect(find.text("Couldn't read"), findsNothing);
+  });
+
   testWidgets('a breakdown row announces its speaker and its state together',
       (tester) async {
     // As sibling nodes a screen reader read "Era 100" and "Couldn't read" as

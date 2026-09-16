@@ -29,6 +29,7 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Fixed
 - The Trueplay breakdown now refreshes when a home theater's speakers change, instead of showing the set from before the last apply until you pull to refresh.
+- The Trueplay breakdown no longer names a speaker "Couldn't read" while its reading is still in flight — the 20-30 seconds a just-bonded speaker refuses connections is exactly when that breakdown is on screen.
 - Pairing or grouping speakers that already hold a Trueplay tuning now says so — creating a bond costs its own members their tuning, which was previously priced at zero.
 - Applying a profile now asks before dissolving a bond that has grown since the profile was saved, and recovers a speaker left orphaned by a vanished group partner instead of silently doing nothing.
 - The second subwoofer of a dual-sub home theater is no longer briefly offered as a free speaker while the topology settles.
