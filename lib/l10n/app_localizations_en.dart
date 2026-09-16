@@ -1406,14 +1406,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pickerCostZone => 'Taking any of them breaks up the whole group.';
 
   @override
-  String pickerCostLeavesHt(String names, int count) {
+  String pickerCostLeavesHt(String names, int hts, int taken) {
     String _temp0 = intl.Intl.pluralLogic(
-      count,
+      hts,
       locale: localeName,
-      other: 'lose',
-      one: 'loses',
+      other: '$names lose',
+      one: '$names loses',
     );
-    return '$names $_temp0 the speakers you take.';
+    String _temp1 = intl.Intl.pluralLogic(
+      taken,
+      locale: localeName,
+      other: 'the speakers you take',
+      one: 'the speaker you take',
+    );
+    return '$_temp0 $_temp1.';
   }
 
   @override

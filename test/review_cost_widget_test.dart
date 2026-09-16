@@ -105,9 +105,11 @@ void main() {
             for (final u in [bar, rearL, rearR, sub]) u: tuned,
           },
           exceptPrimary: bar,
-          // Exactly what the flow passes — see the wiring test in
-          // steal_from_bond_test.dart, which drives the real flow.
-          writes: !diff.isNoOp,
+          // The production rule, not a copy of it. This was the last
+          // hand-written `!diff.isNoOp` in the suite, which is exactly how the
+          // drop-gated regression stayed green. Wiring test lives in
+          // destination_cost_test.dart.
+          writes: htApplyWrites(diff),
         ),
       );
     }

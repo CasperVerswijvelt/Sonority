@@ -21,10 +21,10 @@ configurations the official app refuses to create — **dedicated front left/rig
 speakers** on a home theater, a **full in-app home-theater setup** (fronts + rear surrounds +
 sub), **speaker groups** — one page to bond 2–16 speakers as a stereo pair, a zone, or a
 custom per‑speaker L/R/Both layout (mismatched models + an optional Sub, no model‑list
-restriction) — **taking speakers straight out of a pair, zone or home theater** without
+restriction). It also does **taking speakers straight out of a pair, zone or home theater** without
 unbonding them by hand first (a subwoofer that already belongs to another home theater or
-speaker group is the exception — free that one first), and **config profiles** that snapshot a
-layout and re-apply it in one tap — via Sonos' undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr*.
+speaker group is the exception: free that one first), and **config profiles** that snapshot a
+layout and re-apply it in one tap. All of it over Sonos' undocumented local UPnP API. A focused, better-UX alternative to *SonoSequencr*.
 
 > [!NOTE]
 > **Built with AI-assisted programming.** I'm a software engineer, and I directed this
@@ -160,14 +160,14 @@ there if a different model/firmware ever needs it.
   captured in profiles; not restricted to Sonos' official model list
 - ✅ Identify a speaker by blinking its status LED (default; macOS-safe) or a chime (mobile),
   from the pick-a-speaker flows and per-speaker in the room / group / home-theater detail views
-- ✅ Take a speaker straight out of another stereo pair, zone or home theater — the pickers
+- ✅ Take a speaker straight out of another stereo pair, zone or home theater. The pickers
   list it under the setup it belongs to and name which speakers could need re-tuning (a
   deliberately cautious list: it includes any speaker whose tuning couldn't be read); a
   subwoofer that already belongs to another home theater or speaker group must be freed first
 - ✅ Trueplay read + toggle on single speakers and home theaters (it warns and asks first when
-  any speaker in the bond has no stored tuning — switching it *on* there can wipe the others');
-  the home-theater row breaks the count down per speaker when they disagree. Speaker groups
-  have no Trueplay row yet
+  any speaker in the bond has no stored tuning, because switching it *on* there can wipe the
+  others'); the home-theater row breaks the count down per speaker when they disagree. Speaker
+  groups have no Trueplay row yet
 - ✅ Diagnostics — a hide-nothing technical system view, packaged into a shareable zip for support
 - ✅ Responsive layout for iPad and desktop — a left navigation rail and multi-column content on
   wide screens (resizable macOS window), the single-column phone layout unchanged

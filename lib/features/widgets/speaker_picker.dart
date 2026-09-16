@@ -423,20 +423,29 @@ class PickerContext {
   String? dissolveNote(AppLocalizations l10n, Set<String> selected) {
     final broken = <String>{};
     final shrunk = <String>{};
+    var takenFromHts = 0;
     for (final u in selected) {
       final owner = system.ownerOf(u);
       if (owner == null || owner == exceptPrimary) continue;
       final src = system.memberByUuid(owner);
       if (src == null) continue;
-      (src.isGroup ? broken : shrunk).add(src.zoneName);
+      if (src.isGroup) {
+        broken.add(src.zoneName);
+      } else {
+        shrunk.add(src.zoneName);
+        takenFromHts++;
+      }
     }
     final sentences = <String>[
       if (broken.isNotEmpty)
         l10n.pickerCostDissolves(
             (broken.toList()..sort()).join(', '), broken.length),
       if (shrunk.isNotEmpty)
+        // Two counts, and they genuinely differ: the verb agrees with the
+        // home theaters, the noun with the speakers taken. One home theater
+        // losing two surrounds needs "Woonkamer loses the speakerS".
         l10n.pickerCostLeavesHt(
-            (shrunk.toList()..sort()).join(', '), shrunk.length),
+            (shrunk.toList()..sort()).join(', '), shrunk.length, takenFromHts),
     ];
     return sentences.isEmpty ? null : sentences.join(' ');
   }

@@ -109,12 +109,37 @@ class TrueplayController extends Notifier<TrueplayState> {
       load(system.devicesByUuid.values);
 
   /// Fetch (or refresh) calibration status for a set of speakers.
+  ///
+  /// Each speaker settles on its OWN, rather than the whole batch clearing when
+  /// the slowest one returns. `busy` suppresses every tuning claim in both
+  /// setup flows (a speaker nobody has asked yet must not be described), and
+  /// `loadAll` reads the entire household the moment a flow opens. Batched,
+  /// one unreachable speaker held all of them busy for a full 8s SOAP timeout,
+  /// which is long enough to cover the taps it takes to pick two speakers: the
+  /// review card, the only gate before Apply, could render with no cost line at
+  /// all because every speaker in it was still "pending".
   Future<void> load(Iterable<SonosDevice> devices) async {
     final targets = _withIp(devices);
     if (targets.isEmpty) return;
     _setBusy(targets.map((d) => d.uuid), true);
-    _fold(targets, await _readAll(targets));
-    _setBusy(targets.map((d) => d.uuid), false);
+    try {
+      await Future.wait(targets.map((d) async {
+        try {
+          final fresh = await _repo.roomCalibration(d.ip!);
+          _fold([d], {d.uuid: fresh});
+        } catch (_) {
+          // Unreachable or unsupported. Same verdict as a batch read: no entry,
+          // which [_fold] turns into an eviction rather than a stale keep.
+          _fold([d], const {});
+        } finally {
+          _setBusy([d.uuid], false);
+        }
+      }));
+    } finally {
+      // Belt and braces. A stuck `busy` flag is silent and permanent, and it
+      // suppresses exactly the copy that warns about a destructive write.
+      _setBusy(targets.map((d) => d.uuid), false);
+    }
   }
 
   /// Toggle Trueplay on/off across all [devices] (e.g. every bonded member of a

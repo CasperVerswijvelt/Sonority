@@ -368,12 +368,16 @@ interpolated) then use it.
     `RoomCalibrationEnabled` + `RoomCalibrationAvailable`; `SetRoomCalibrationStatus
     (InstanceID, RoomCalibrationEnabled)`. **available = a tuning is stored**
     (measured once in the **iOS** Sonos app — cloud DSP + Apple-only mic profiles,
-    **cannot** be done from Android); **enabled = applied**. We only read + toggle — never
-    measure — which is the part the Sonos app won't expose for the unofficial
-    fronts config. The toggle writes to ALL bonded members so separately-tuned
-    fronts engage together, which is why an INCOMPLETE set is dangerous — both
-    directions **warn and ask** there, and neither is blocked (see the
-    destructive-enable rule below, which is the real record).
+    **cannot** be done from Android); **enabled = applied**. We only read and
+    toggle, never measure. The toggle writes to ALL bonded members, because a
+    tuning applies to the bonded set as a whole. ⚠️ Do NOT describe it as the
+    thing that makes separately-tuned fronts engage: that is a bonding change,
+    and the measurements below say activation never survives one. What the
+    toggle is actually good for is a set that has NOT changed since its tuning
+    was authored, plus reading and reporting the state honestly. An INCOMPLETE
+    set is the dangerous case, so both directions **warn and ask** there and
+    neither is blocked (see the destructive-enable rule below, which is the
+    real record).
     **Amp-driven fronts can't be Trueplay'd** (native speakers only).
   - ⭐ **THE RULE (EXP-23, 2026-09-13 — hardware-measured, but read the tiers below
     before quoting a row):** a speaker keeps
@@ -892,14 +896,15 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   `operationLogProvider` that still scopes the progress screen's log view. The
   `dart:io` bits (OS/network/temp-file) sit behind a `diagnostics_platform.dart`
   conditional-import barrel so the demo web build still compiles.
-- ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) —
-  toggles the iOS-measured calibration the Sonos app won't expose for unofficial
-  fronts. Measurement stays iOS-only (out of scope). ⚠️ **Only two call sites:
-  `room_screen.dart` (a single standalone speaker) and `home_theater_screen.dart`.
-  `GroupDetailScreen` has NO Trueplay row**, so a stereo pair / zone / custom
-  group can't be read or toggled at all — worth knowing before trusting copy
-  that says "pairs", and a pair is the other shape where the incomplete-set
-  warning would matter.
+- ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`).
+  It reads and switches a tuning the iOS Sonos app already authored. It does NOT
+  make one survive a bonding change, and the measurements say nothing does (see
+  the destructive-enable rule). Measurement stays iOS-only, out of scope.
+  ⚠️ **Only two call sites: `room_screen.dart` (a single standalone speaker) and
+  `home_theater_screen.dart`. `GroupDetailScreen` has NO Trueplay row**, so a
+  stereo pair, zone or custom group cannot be read or toggled at all. Worth
+  knowing before trusting any copy that says "pairs", and a pair is the other
+  shape where the incomplete-set warning would matter.
   **Both directions warn and ask while the bonded set is INCOMPLETE** (see the
   destructive-enable rule); a complete set never asks, and nothing is blocked.
   A **per-speaker breakdown** (`trueplayRows`, pure + unit-tested) sits under the

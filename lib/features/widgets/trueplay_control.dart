@@ -68,10 +68,14 @@ List<({String label, TrueplayRowState state})> trueplayRows(
       for (final d in devices)
         (
           label: label?.call(d) ?? d.typeLabel,
-          // `busy` outranks a stale/absent reading: a speaker mid-read has
-          // either no entry yet (a set that just grew) or last week's, and
-          // naming it "Couldn't read" is the same over-reach this breakdown
-          // exists to stop — now aimed at a speaker BY NAME.
+          // `busy` outranks an ABSENT reading only, not a stale one. A speaker
+          // with no entry yet (a set that just grew) must not be called
+          // "Couldn't read" while we are still asking it: that is the same
+          // over-reach this breakdown exists to stop, aimed at a speaker BY
+          // NAME. A speaker that DOES have a cached entry keeps showing it
+          // while it re-reads, deliberately: blanking it would make every row
+          // flicker on each refresh, and the switch is disabled while busy
+          // anyway. The cost is that a cached row can be one read out of date.
           state: byUuid[d.uuid] == null && busy.contains(d.uuid)
               ? TrueplayRowState.checking
               : switch (byUuid[d.uuid]) {

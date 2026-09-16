@@ -182,14 +182,11 @@ void main() {
     expect(rows, 3);
     expect(find.textContaining('1/$rows tuned · 1/$rows active'), findsOneWidget,
         reason: 'the denominator is the number of speakers the rows list');
-    // The counter is the visible half; the SAFETY property the widened
-    // denominator bought is that the set still reads incomplete, so the
-    // destructive-enable warning stays on. Without this a refactor could keep
-    // the strings and re-split the gate.
-    // BAR is switched on here, so the short set's warning is the one-way-door
-    // half; either way the point is that a member nobody asked keeps the set
-    // INCOMPLETE and the warning on. Without this a refactor could keep the
-    // counter strings and quietly re-split the gate.
+    // The counter is the visible half. The SAFETY property the widened
+    // denominator bought is that a member nobody asked keeps the set
+    // INCOMPLETE, so the destructive-enable warning stays on. BAR is switched
+    // on here, so the warning is the one-way-door half. Without this, a
+    // refactor could keep the counter strings and quietly re-split the gate.
     expect(find.textContaining('may be permanent'), findsOneWidget,
         reason: 'an unasked member keeps the set incomplete, which is the point');
   });

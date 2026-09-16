@@ -838,7 +838,7 @@ abstract class AppLocalizations {
   /// **'TV / Soundbar'**
   String get widgetsTvSoundbar;
 
-  /// No description provided for @widgetsTrueplayChecking.
+  /// Two contexts: the Trueplay tile subtitle before the first read lands, and one speaker's value in the per-speaker breakdown while that speaker's read is in flight. Deliberately distinct from 'Couldn't read', which asserts we asked and got nothing; this one says we have not asked yet. The distinction matters most in the 20-30s a just-bonded speaker refuses connections, which is exactly when the breakdown is on screen.
   ///
   /// In en, this message translates to:
   /// **'Checking…'**
@@ -2272,17 +2272,17 @@ abstract class AppLocalizations {
   /// **'Available'**
   String get pickerSectionAvailable;
 
-  /// No description provided for @pickerCostZone.
+  /// Section-header sentence for a bond whose members cannot be taken one at a time: absorbing any member dissolves the whole thing (EXP-23 Q12). Covers every speaker group, which in this app includes a stereo pair, a zone and a custom L/R/Both group. 'Group' here is the UI word for an AddBondedZones bond, not a playback group. Not shown for a home theater, which survives the take minus the speakers removed.
   ///
   /// In en, this message translates to:
   /// **'Taking any of them breaks up the whole group.'**
   String get pickerCostZone;
 
-  /// Review-step sentence naming the home theater(s) a selection takes speakers out of. A home theater is not dissolved by the take (unlike a group) but it is still modified, and every one of ITS speakers loses its Trueplay tuning; the review card is the last gate before Apply and carries no section heading to say which bond the speakers came from.
+  /// Review-step sentence naming the home theater(s) a selection takes speakers out of. A home theater is not dissolved by the take, unlike a speaker group, but it is still modified and every one of ITS members loses its Trueplay tuning. The review card is the last gate before Apply and carries no section heading to say where the speakers came from. Two counts, because they differ: the verb agrees with the number of source home theaters, the noun with the number of speakers taken (one home theater can lose two).
   ///
   /// In en, this message translates to:
-  /// **'{names} {count, plural, =1{loses} other{lose}} the speakers you take.'**
-  String pickerCostLeavesHt(String names, int count);
+  /// **'{hts, plural, =1{{names} loses} other{{names} lose}} {taken, plural, =1{the speaker you take} other{the speakers you take}}.'**
+  String pickerCostLeavesHt(String names, int hts, int taken);
 
   /// Review-step line naming the source groups this selection dissolves. Restated here because the review card is the only gate before Apply, and an untuned group otherwise made it silent about the dissolve.
   ///

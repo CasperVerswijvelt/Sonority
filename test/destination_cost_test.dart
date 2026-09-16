@@ -134,28 +134,36 @@ void main() {
       // else on the card mentions a second entity at all.
       const barU = 'RINCON_BAR01400';
       const satU = 'RINCON_SAT01400';
+      const sat2U = 'RINCON_SAT201400';
       final withHt = SonosSystem(
         groups: [
           ZoneGroup(coordinatorUuid: barU, members: const [
             ZoneGroupMember(
               uuid: barU,
               zoneName: 'Woonkamer',
-              htSatChanMapSet: '$barU:CC;$satU:LR',
+              htSatChanMapSet: '$barU:CC;$satU:LR;$sat2U:RR',
             ),
           ]),
         ],
         devicesByUuid: {
           barU: dev(barU, 'Woonkamer'),
           satU: dev(satU, 'Woonkamer'),
+          sat2U: dev(sat2U, 'Woonkamer'),
         },
       );
-      final note = PickerContext(
+      final ctx = PickerContext(
         system: withHt,
         calibration: {for (final u in [barU, satU]) u: untuned},
         writes: true,
-      ).dissolveNote(l10n, {satU});
-      expect(note, isNotNull);
-      expect(note, contains('Woonkamer'));
+      );
+      // Singular: ONE speaker is being taken. The plural reads on the speakers
+      // taken, not on the number of source home theaters, which is why taking
+      // one surround used to render "Woonkamer loses the speakerS you take."
+      expect(ctx.dissolveNote(l10n, {satU}),
+          'Woonkamer loses the speaker you take.');
+      expect(ctx.dissolveNote(l10n, {satU, sat2U}),
+          'Woonkamer loses the speakers you take.',
+          reason: 'one home theater, two speakers: verb singular, noun plural');
     });
 
     test('nothing bonded, nothing dissolves', () {

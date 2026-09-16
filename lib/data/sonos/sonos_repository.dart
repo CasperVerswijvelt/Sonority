@@ -553,10 +553,10 @@ class SonosRepository {
       {CancellationToken? cancel}) async {
     for (final g in system.groups) {
       for (final m in g.members) {
-        // A satellite (front/rear/sub) of an HT primary.
-        if (m.uuid != uuid &&
-            (m.channelAssignments.values.contains(uuid) ||
-                m.satellites.any((s) => s.uuid == uuid))) {
+        // A satellite (front/rear/sub) of an HT primary. Same predicate the
+        // decision layer uses, so the two can't disagree about whether there is
+        // anything here to free.
+        if (m.holdsSatellite(uuid)) {
           final ip = m.ip;
           if (ip != null) {
             await _deviceProps.removeHtSatellite(soundbarIp: ip, satelliteUuid: uuid);
