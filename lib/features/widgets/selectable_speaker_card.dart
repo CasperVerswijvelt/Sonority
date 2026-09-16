@@ -43,15 +43,15 @@ class SelectableSpeakerCard extends StatelessWidget {
 
   /// Replaces the speaker's room name as the card title. Used inside a bond
   /// block, where the heading already names the bond and the speaker's own name
-  /// was absorbed into it by Sonos — so the TYPE is what identifies it.
+  /// was absorbed into it by Sonos, so the TYPE is what identifies it.
   ///
   /// It suppresses the type-label DEFAULT subtitle (which would repeat the
-  /// title), but not an explicit [subtitle] — the Amp note still has to say
+  /// title), but not an explicit [subtitle]: the Amp note still has to say
   /// that one box drives both fronts, wherever the card is listed.
   final String? titleOverride;
   final Widget? identify;
 
-  /// Tags shown under the row — currently just the speaker's Trueplay state
+  /// Tags shown under the row. Currently just the speaker's Trueplay state
   /// (the bond it would be taken from is stated once, in the section heading).
   /// Built with [PillChip] so a picker tags a speaker the same way a card tags
   /// a bonded role.

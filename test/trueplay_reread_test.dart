@@ -10,7 +10,7 @@ import 'package:sonority/state/trueplay_controller.dart';
 import 'trueplay_harness.dart';
 
 /// The control reads once from `initState`, but the home-theater page's State
-/// survives the nested fronts route — so returning from an apply rebuilds it
+/// survives the nested fronts route, so returning from an apply rebuilds it
 /// with a DIFFERENT bonded set. Without a re-read the new member renders from
 /// the pre-bond cache (or not at all) until the user pulls to refresh.
 void main() {
@@ -50,7 +50,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(fake.loads.last, {'A', 'B', 'C'});
     // …and no provider was touched during the build phase. Riverpod throws for
-    // that, and `didUpdateWidget` runs inside it — calling `load` straight
+    // that, and `didUpdateWidget` runs inside it. Calling `load` straight
     // through instead of post-frame threw in every debug build.
     expect(tester.takeException(), isNull);
   });

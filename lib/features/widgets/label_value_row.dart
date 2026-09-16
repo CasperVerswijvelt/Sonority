@@ -22,7 +22,7 @@ class LabelValueRow extends StatelessWidget {
     // A Wrap, NOT a Row. A Row lays its non-flex children out with unbounded
     // main-axis constraints, so a bare `Text(value)` never wrapped: it took the
     // whole width, `freeSpace` went negative and the `Expanded` label was
-    // clamped to zero — measured in the Trueplay indent, the speaker name went
+    // clamped to zero. Measured in the Trueplay indent, the speaker name went
     // 102.75px → 11.75px at 1.5x text scale and 0px (plus a RenderFlex
     // overflow, silently clipped in release) from 2x. The name is the entire
     // payload of a breakdown row, so that is the feature gone.
@@ -30,8 +30,8 @@ class LabelValueRow extends StatelessWidget {
     // Making the value `Flexible` instead fixes the overflow but splits the
     // width by FLEX, which ignores what the text actually needs: at 1.0x, where
     // the pair fits on one line today, the value wrapped onto two. A Wrap sizes
-    // both halves to their intrinsic width when they fit — pixel-identical to
-    // the old row — stacks them onto two lines when they don't, and bounds each
+    // both halves to their intrinsic width when they fit. Pixel-identical to
+    // the old row. Stacks them onto two lines when they don't, and bounds each
     // half to the row width so its own text wraps instead of overflowing.
     return MergeSemantics(
       child: Padding(

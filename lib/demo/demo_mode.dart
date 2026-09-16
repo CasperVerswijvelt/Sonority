@@ -93,14 +93,14 @@ class _DemoSonosRepository extends SonosRepository {
       demoSystem;
 
   // What a home theater ACTUALLY looks like after dedicated fronts are bonded,
-  // per EXP-23: the outcome is PARTIAL, not uniform. Measured on hardware — a
+  // per EXP-23: the outcome is PARTIAL, not uniform. Measured on hardware: a
   // speaker absorbed out of a live pair keeps its stored tuning but comes back
   // switched off (`1/0`), while the members the bond disturbed lose theirs
   // outright (`0/0`). This demo used to model it as everything wiped, which is
   // tidier and wrong, and it hid the one UI state the toggle's warning exists
   // for.
   static final _htWipedIps = {
-    '192.0.2.10', // Arc coordinator — the bar loses it in every measured case
+    '192.0.2.10', // Arc coordinator: the bar loses it in every measured case
     for (final s in _htSatellites)
       if (s.channels.first != SonosChannel.leftFront &&
           s.channels.first != SonosChannel.rightFront)
@@ -117,7 +117,7 @@ class _DemoSonosRepository extends SonosRepository {
   Future<RoomCalibration> roomCalibration(String ip) async =>
       _htWipedIps.contains(ip)
           ? const RoomCalibration(available: false, enabled: false)
-          // Stored, but switched off and not switchable back on — the state
+          // Stored, but switched off and not switchable back on: the state
           // Sonos leaves an absorbed speaker in.
           : _htRetainedIps.contains(ip)
               ? const RoomCalibration(available: true, enabled: false)

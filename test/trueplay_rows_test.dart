@@ -6,6 +6,7 @@ import 'package:sonority/features/widgets/label_value_row.dart';
 import 'package:sonority/features/widgets/speaker_picker.dart';
 import 'package:sonority/features/widgets/trueplay_control.dart';
 import 'package:sonority/l10n/app_localizations.dart';
+import 'package:sonority/l10n/app_localizations_en.dart';
 
 import 'trueplay_harness.dart';
 
@@ -55,7 +56,7 @@ void main() {
 
   test('a speaker that could not be read is kept as unknown, not dropped', () {
     // `right` has an IP, so it stays in the on-screen denominator while its
-    // failed read keeps it out of the numerator — that is what renders "1/2"
+    // failed read keeps it out of the numerator. That is what renders "1/2"
     // rather than "1/1", and without a row the missing speaker is
     // unattributable. `noIp` can't be read either and leaves both counts.
     final rows = trueplayRows([bar, right, noIp], const {'BAR': on});
@@ -99,7 +100,7 @@ void main() {
   testWidgets('no failure copy while the first read is still in flight',
       (tester) async {
     // The reads are scheduled post-frame, so the first build has nothing loaded
-    // AND nothing busy — which used to paint the failure line for one frame.
+    // AND nothing busy, which used to paint the failure line for one frame.
     await tester.pumpWidget(trueplayHarness([bar, left], const {}));
     expect(find.textContaining('Checking…'), findsOneWidget);
     expect(find.textContaining("Couldn't read Trueplay from these speakers."),
@@ -136,7 +137,7 @@ void main() {
   testWidgets('a fully tuned set that is switched OFF still says it is tuned',
       (tester) async {
     // Every speaker holds a stored tuning and nothing is switched on, so the
-    // breakdown stays hidden (they all agree) — "0/3 active" on its own then
+    // breakdown stays hidden (they all agree). "0/3 active" on its own then
     // reads as though nothing were tuned at all.
     await tester.pumpWidget(trueplayHarness(
       [bar, left, right],
@@ -169,7 +170,7 @@ void main() {
 
   // ONE set has to drive the counter, the rows and the warning gate. A device
   // with no IP was excluded from the counter's denominator but still given a
-  // row, so the two disagreed — and worse, it made `incomplete` read a set as
+  // row, so the two disagreed, and worse, it made `incomplete` read a set as
   // complete that had a member nobody had ever asked, which silently dropped
   // the destructive-enable warning.
   testWidgets('a no-IP speaker is counted, not just listed', (tester) async {
@@ -195,7 +196,7 @@ void main() {
       (tester) async {
     // The fall-through the split opened: the flat "not tuned" branch failed
     // (one read, two devices) and the single-speaker branch fired instead,
-    // because exactly one device had an IP — printing "Tuned · off" for a
+    // because exactly one device had an IP. Printing "Tuned · off" for a
     // speaker that answered with no stored tuning at all.
     await tester.pumpWidget(trueplayHarness([noIp, left], const {'LEFT': none}));
     await tester.pumpAndSettle();
@@ -216,7 +217,7 @@ void main() {
 
   // The case the breakdown exists for, and the one it used to fail: a 5.1 with
   // two MATCHED surrounds. Labelled by type alone both rows read "One SL", so
-  // "5/6" still named nobody — the channel was on screen only as row ORDER.
+  // "5/6" still named nobody: the channel was on screen only as row ORDER.
   group('two speakers of the same model', () {
     const barUuid = 'RINCON_BEAM01400';
     const surroundL = 'RINCON_ONESL_L01400';
@@ -297,7 +298,7 @@ void main() {
     testWidgets('the bar and the sub carry no redundant channel',
         (tester) async {
       // The soundbar is the bond's own coordinator (there is only one) and a
-      // Sub's type and channel are the same word — "Beam (Gen 2) · Center" and
+      // Sub's type and channel are the same word. "Beam (Gen 2) · Center" and
       // "Sub · Sub" would both be noise.
       await tester.pumpWidget(trueplayHarness(
         const [beam, oneSlLeft, theSub],
@@ -314,7 +315,7 @@ void main() {
       (tester) async {
     // What the room page passes: one device and no label override. A standalone
     // speaker holds no channel, so a qualifier would be an empty " · " or a
-    // channel it doesn't have — and one speaker renders no breakdown anyway.
+    // channel it doesn't have, and one speaker renders no breakdown anyway.
     await tester.pumpWidget(trueplayHarness([left], const {}));
     await tester.pumpAndSettle();
     expect(find.byType(LabelValueRow), findsNothing);
@@ -324,7 +325,7 @@ void main() {
   });
 
   test('a speaker being read right now is checking, not unreadable', () {
-    // `unknown` renders "Couldn't read" — a claim that we asked and got
+    // `unknown` renders "Couldn't read": a claim that we asked and got
     // nothing. Mid-read we have not asked yet, and the two are only seconds
     // apart in exactly the window a just-bonded speaker refuses :1400.
     final rows = trueplayRows(
@@ -341,11 +342,12 @@ void main() {
     );
   });
 
-  testWidgets('a uniform set that grows by one does not flash the list in',
+  testWidgets('a grown set answers the counter while the new speaker is read',
       (tester) async {
-    // The set agrees; the new member is simply pending. Counting it as a
-    // disagreeing state would pop the whole breakdown open mid-read and then
-    // close it again — and name the new speaker "Couldn't read" while doing so.
+    // THE case this control exists for. The counter already reads 2/3 because
+    // the new member is not in its numerator, so hiding the list leaves "which
+    // one?" unanswered for the 20-30s a just-bonded speaker refuses :1400.
+    // It is named and marked pending, not given a verdict it has not earned.
     await tester.pumpWidget(trueplayHarness(
       [bar, left, era],
       const {'BAR': on, 'LEFT': on},
@@ -355,13 +357,30 @@ void main() {
     // scheduler never goes idle. Two pumps = build, then the post-frame read.
     await tester.pump();
     await tester.pump();
+    expect(find.byType(LabelValueRow), findsNWidgets(3));
+    expect(find.text('Checking…'), findsOneWidget);
+    expect(find.text("Couldn't read"), findsNothing,
+        reason: 'pending is not a failed read');
+  });
+
+  testWidgets('a cold open stays quiet until something has settled',
+      (tester) async {
+    // Nothing read yet, so every row would say "Checking…" and the list would
+    // repeat the spinner, then flash out. A pending row is a reason to show
+    // what is already KNOWN beside it, and here nothing is.
+    await tester.pumpWidget(trueplayHarness(
+      [bar, left, era],
+      const {},
+      busy: const {'BAR', 'LEFT', 'ERA'},
+    ));
+    await tester.pump();
+    await tester.pump();
     expect(find.byType(LabelValueRow), findsNothing);
-    expect(find.text("Couldn't read"), findsNothing);
   });
 
   testWidgets('once the set really disagrees, a pending row says so', (tester) async {
     // Settled rows disagree (active vs not tuned), so the list is up on its own
-    // merits — and the speaker still being read must not borrow a verdict.
+    // merits, and the speaker still being read must not borrow a verdict.
     await tester.pumpWidget(trueplayHarness(
       [bar, left, era],
       const {'BAR': on, 'LEFT': none},
@@ -374,6 +393,40 @@ void main() {
     expect(find.byType(LabelValueRow), findsNWidgets(3));
     expect(find.text('Checking…'), findsOneWidget);
     expect(find.text("Couldn't read"), findsNothing);
+  });
+
+  test('the home theater page passes the channel-qualifying label', () {
+    // The only new production wiring with no test: delete `label:` at the HT
+    // call site and every row falls back to the bare type, so a 5.1 with two
+    // matched surrounds reads "One SL" twice and answers nothing. No test in
+    // the repo builds HomeTheaterScreen, so this pins the contract instead:
+    // the label callback the page passes must qualify by channel.
+    const barD = SonosDevice(
+        uuid: 'BAR', roomName: 'Living Room', modelName: 'Sonos Beam');
+    const sl1 = SonosDevice(
+        uuid: 'SL1', roomName: 'Living Room', modelName: 'Sonos One SL');
+    const sl2 = SonosDevice(
+        uuid: 'SL2', roomName: 'Living Room', modelName: 'Sonos One SL');
+    final system = SonosSystem(
+      groups: [
+        ZoneGroup(coordinatorUuid: 'BAR', members: const [
+          ZoneGroupMember(
+            uuid: 'BAR',
+            zoneName: 'Living Room',
+            htSatChanMapSet: 'BAR:CC;SL1:LR;SL2:RR',
+          ),
+        ]),
+      ],
+      devicesByUuid: const {'BAR': barD, 'SL1': sl1, 'SL2': sl2},
+    );
+    final l10n = AppLocalizationsEn();
+    final rows = trueplayRows(
+      [barD, sl1, sl2],
+      const {},
+      label: (d) => bondedCardTitle(l10n, system, device: d),
+    );
+    expect(rows.map((r) => r.label),
+        ['Beam', 'One SL · Surround L', 'One SL · Surround R']);
   });
 
   testWidgets('a breakdown row announces its speaker and its state together',

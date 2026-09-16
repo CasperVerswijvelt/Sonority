@@ -230,7 +230,7 @@ class _Content extends StatelessWidget {
             TrueplayControl(
               devices: bonded,
               // Bonded speakers have no name of their own, and two matched
-              // surrounds have the same TYPE — so the breakdown's "5/6" would
+              // surrounds have the same TYPE, so the breakdown's "5/6" would
               // still name nobody. The card title already qualifies a bonded
               // speaker by its channel ("One SL · Surround L").
               label: (d) => bondedCardTitle(l10n, system, device: d),

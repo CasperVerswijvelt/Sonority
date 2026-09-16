@@ -107,20 +107,20 @@ bool entityIsActive(EntitySnapshot e, SonosSystem system) {
 bool profileIsActive(Profile p, SonosSystem system) =>
     p.entities.isNotEmpty && p.entities.every((e) => entityIsActive(e, system));
 
-/// What a profile apply would FREE for entity [e] against the live [system] —
+/// What a profile apply would FREE for entity [e] against the live [system],
 /// the exact arguments `SonosController._applyEntity` hands `_freeConflicts`.
 ///
 /// Shared so pre-flight and apply cannot disagree. They did: apply moved to
 /// [SonosSystem.mustFreeBeforeBonding] while pre-flight kept an owner-based
 /// test, so a profile whose group had since GROWN (`{A,B}` captured, `{A,B,C}`
-/// live) reported zero conflicts — no confirm dialog — and the apply then
+/// live) reported zero conflicts, so no confirm dialog, and the apply then
 /// dissolved the live zone, costing C its name and its tuning.
 ({Set<String> uuids, Set<String> keep, bool absorbing}) entityFreePlan(
     EntitySnapshot e, SonosSystem system) {
   const nothing = (uuids: <String>{}, keep: <String>{}, absorbing: false);
   switch (e.kind) {
     case EntityKind.single:
-      // Freed unconditionally by apply — including when it IS the primary,
+      // Freed unconditionally by apply, including when it IS the primary,
       // which the old pre-flight skipped outright.
       return (uuids: {e.primaryUuid}, keep: const <String>{}, absorbing: false);
     case EntityKind.homeTheater:
@@ -164,7 +164,7 @@ bool profileIsActive(Profile p, SonosSystem system) =>
   }
 }
 
-/// The speakers a profile apply would free for [e] — the pre-flight half of
+/// The speakers a profile apply would free for [e]: the pre-flight half of
 /// [entityFreePlan], asked with the same `keep`/`absorbing` the apply passes.
 List<String> _conflicts(
     EntitySnapshot e, SonosSystem system, String Function(String) label) {
@@ -198,7 +198,7 @@ List<EntityIssue> preflightProfile(Profile profile, SonosSystem system) {
             if (system.device(u) == null || system.device(u)!.reachable == false)
               label(u),
         ],
-        // A speaker is conflicting exactly when the apply would FREE it — a
+        // A speaker is conflicting exactly when the apply would FREE it: a
         // destructive write that dissolves whatever bond it sits in.
         conflicts: _conflicts(e, system, label),
       ),

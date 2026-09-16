@@ -19,7 +19,7 @@ class _FakeSsdp extends SsdpDiscovery {
       {_aUrl, _bUrl};
 }
 
-/// SSDP sees only player A — the other member exists in topology alone.
+/// SSDP sees only player A: the other member exists in topology alone.
 class _FakeSsdpAOnly extends SsdpDiscovery {
   @override
   Future<Set<String>> discover({Duration timeout = const Duration(seconds: 4)}) async =>
@@ -127,7 +127,7 @@ class _FakeSatelliteTopology extends ZoneTopologyClient {
 
 void main() {
   // A satellite is a `<Satellite>` child, not a member, so a members-only
-  // recovery sweep left an SSDP-missed Sub absent from `devicesByUuid` — and
+  // recovery sweep left an SSDP-missed Sub absent from `devicesByUuid`, and
   // the HT setup flow builds its target map from RESOLVED devices, so the next
   // apply would have dropped the SW channel and unbonded the user's Sub with no
   // warning. Seen on real hardware.
@@ -176,7 +176,7 @@ void main() {
     expect(half, isNotNull,
         reason: 'unresolved, a group edit would have left it behind');
     expect(half!.modelName, 'Sonos One');
-    // Still hidden where hiding belongs — the room list, not the device map.
+    // Still hidden where hiding belongs: the room list, not the device map.
     expect(system.allMembers.map((m) => m.uuid), ['RINCON_A01400']);
     // And a resolved hidden half must not become a bond candidate.
     expect(system.bondableSpeakers.map((d) => d.uuid),

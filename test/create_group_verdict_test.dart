@@ -12,7 +12,7 @@ import 'package:xml/xml.dart';
 const a = 'RINCON_A01400';
 const b = 'RINCON_B01400';
 
-// Two standalone rooms, then the same two as a stereo pair — the shape
+// Two standalone rooms, then the same two as a stereo pair: the shape
 // GetZoneGroupState really returns (see zone_test.dart): the coordinator stays
 // visible carrying the ChannelMapSet, the other member goes Invisible.
 const _apart = '''
@@ -40,7 +40,7 @@ const _paired = '''
 </ZoneGroups></ZoneGroupState>''';
 
 /// Answers `GetZoneAttributes` + `GetZoneGroupState` and lets the test decide
-/// what `AddBondedZones` does — the three calls a create makes.
+/// what `AddBondedZones` does: the three calls a create makes.
 class _Soap extends SonosSoapClient {
   /// Error to throw for the Nth `AddBondedZones` (null = accept it).
   final Object? Function(int call) onBond;
@@ -54,7 +54,7 @@ class _Soap extends SonosSoapClient {
 
   /// IPs whose `GetZoneAttributes` should fail. A SOAP fault rather than a
   /// refused socket so the test doesn't sit through `retryUnreachable`'s real
-  /// 8×5s — both land in the same catch inside `reassertGroup`.
+  /// 8×5s: both land in the same catch inside `reassertGroup`.
   final Set<String> attrsFailFor;
 
   /// What `GetZoneAttributes` answers. Mutable so a test can make the speakers
@@ -62,7 +62,7 @@ class _Soap extends SonosSoapClient {
   /// separate.
   String zoneName = 'Living Room';
 
-  /// `SetZoneAttributes` writes by IP — i.e. whose name was actually restored.
+  /// `SetZoneAttributes` writes by IP. I.e. whose name was actually restored.
   final renamed = <String, String>{};
 
   _Soap(this.onBond, {bool Function(int)? formed, this.attrsFailFor = const {}})
@@ -133,7 +133,7 @@ void main() {
       );
 
   // A bond write that times out or is refused very often still applies, so
-  // createGroup must NOT decide — it verifies. Reporting failure on the write
+  // createGroup must NOT decide. It verifies. Reporting failure on the write
   // is what failed a user's apply whose write had in fact landed.
   test('a timed-out bond write is not a verdict', () async {
     final soap = _Soap((_) => TimeoutException('AddBondedZones'));
@@ -172,7 +172,7 @@ void main() {
 
   // The defect, reproduced on hardware: creating a group out of speakers that
   // were bonded elsewhere a moment ago. Sonos accepts AddBondedZones (200 OK)
-  // and silently does nothing because the old bond is still tearing down — so a
+  // and silently does nothing because the old bond is still tearing down, so a
   // single write left the source home theater stripped and no group built. The
   // identical write succeeded on the user's retry, so we retry it ourselves.
   test('an accepted write that silently no-ops is re-asserted', () async {
@@ -184,7 +184,7 @@ void main() {
   });
 
   // A speaker just pulled out of a home theater still answers with the BAR's
-  // room name — `RemoveHTSatellite` doesn't restore names and nothing ever
+  // room name. `RemoveHTSatellite` doesn't restore names and nothing ever
   // captured the original. Storing it would make a later separate rename the
   // speaker into a collision with the live home theater.
   test('a skipped member has no name read at all', () async {
@@ -196,7 +196,7 @@ void main() {
   // ...and the consequence: a partial snapshot must still restore the members
   // it DID capture. Keyed by what was captured rather than by the group's full
   // membership, the read (which asks by the live member list) missed the key
-  // and NOBODY was renamed — A came back under the coordinator's absorbed name.
+  // and NOBODY was renamed: A came back under the coordinator's absorbed name.
   test('a partial snapshot still restores the member it captured', () async {
     final soap = _Soap((_) => null);
     final repo = SonosRepository(
@@ -220,7 +220,7 @@ void main() {
   // ask by the full membership too. It used to key the read off the resolved
   // devices, so one member the app couldn't resolve (an SSDP-missed hidden half,
   // or one whose description fetch failed) shortened the key, missed the stored
-  // entry outright, and cost EVERY speaker in the group its name — not just the
+  // entry outright, and cost EVERY speaker in the group its name, not just the
   // unresolved one.
   test('an unresolvable member does not cost everyone else their name',
       () async {
@@ -232,7 +232,7 @@ void main() {
     );
     await repo.createGroup(members: members, previous: before);
     soap.zoneName = 'Group';
-    // B never resolved to a device, so it isn't a write target — but it IS part
+    // B never resolved to a device, so it isn't a write target, but it IS part
     // of the group, and so part of the key.
     await repo.separateGroup(
         members: const [devA],
@@ -243,7 +243,7 @@ void main() {
   });
 
   // The snapshot runs BEFORE the first write, and on the dissolve→recreate path
-  // the old group is already torn down by then — rethrowing here left a user
+  // the old group is already torn down by then. Rethrowing here left a user
   // with no group at all rather than one member's name unrecorded.
   test('a name read that fails does not abort the bond', () async {
     final soap = _Soap((_) => null, attrsFailFor: {'1.2.3.5'});

@@ -10,8 +10,8 @@ import 'package:sonority/features/widgets/label_value_row.dart';
 /// 102.75 → 11.75 → 0 → 0 px across these four scales, and from 2.0 the row
 /// overflowed (silently clipped in a release build).
 ///
-/// The speaker name is the entire payload of the breakdown — the counter
-/// already says how many, the row exists to say WHICH — so losing the label is
+/// The speaker name is the entire payload of the breakdown: the counter
+/// already says how many, the row exists to say WHICH, so losing the label is
 /// losing the feature. Hence a real test rather than an eyeball at 1.0.
 void main() {
   // gutter + a 24pt icon + the ListTile's 16pt title gap, as the Trueplay

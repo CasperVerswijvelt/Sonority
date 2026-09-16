@@ -83,7 +83,7 @@ class RoomScreen extends ConsumerWidget {
               ),
             Gap.s,
             // Settings: a flat, sectioned Trueplay row, not another card. The
-            // section is skipped when there is no device to report on —
+            // section is skipped when there is no device to report on,
             // `SettingsSection` always leads with a `Divider`, so an empty one
             // renders a hairline with nothing under it. Reachable: a topology
             // member that never resolved to a device.

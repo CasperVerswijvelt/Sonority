@@ -8,8 +8,8 @@ import 'package:sonority/l10n/app_localizations.dart';
 /// Taking speakers out of an existing bond: who is offered, and what the take
 /// costs in room calibration.
 ///
-/// The cost is the WHOLE source bond, every time. Storage is kinder — EXP-23
-/// measured that an absorbed speaker keeps its coefficients — but they come
+/// The cost is the WHOLE source bond, every time. Storage is kinder. EXP-23
+/// measured that an absorbed speaker keeps its coefficients, but they come
 /// back switched off and the write that switches them on destroys them, so no
 /// screen credits an absorb. What the absorb is still worth is skipping the
 /// free, which is `canAbsorbFrom`.
@@ -82,7 +82,7 @@ void main() {
     });
 
     test('a pair half hidden from allMembers is still offered', () {
-      // pairR is Invisible in real topology — it only exists in the primary's
+      // pairR is Invisible in real topology. It only exists in the primary's
       // ChannelMapSet, which is exactly why the old bondableSpeakers missed it.
       expect(system.stealableSpeakers().map((d) => d.uuid), contains(pairR));
     });
@@ -91,7 +91,7 @@ void main() {
   group('what taking a speaker costs, and what an absorb is still worth', () {
     // Storage is kinder than this: an absorbed speaker keeps its coefficients
     // (Q7/Q9/Q10). They come back switched OFF and the only write that switches
-    // them on destroys them, so no screen credits an absorb — the whole source
+    // them on destroys them, so no screen credits an absorb: the whole source
     // bond pays, whatever the source's kind.
     test('a pair pays in full, however many halves are taken', () {
       expect(system.tuningLostBySelection(selected: {pairL, pairR}),
@@ -99,7 +99,7 @@ void main() {
       expect(system.tuningLostBySelection(selected: {pairL}), {pairL, pairR});
     });
 
-    test('a zone pays in full — taking one member dissolves it (Q12)', () {
+    test('a zone pays in full. Taking one member dissolves it (Q12)', () {
       expect(system.tuningLostBySelection(selected: {zoneB}), {zoneA, zoneB});
       expect(system.tuningLostBySelection(selected: {zoneA, zoneB}),
           {zoneA, zoneB});
@@ -124,7 +124,7 @@ void main() {
       expect(system.canAbsorbFrom(pair), isTrue);
       expect(system.canAbsorbFrom(zone), isTrue);
       expect(system.canAbsorbFrom(ht), isFalse,
-          reason: 'never measured — one soundbar on the test system');
+          reason: 'never measured: one soundbar on the test system');
     });
   });
 
@@ -137,7 +137,7 @@ void main() {
     // is the right question.
     test('a zone COORDINATOR is not standalone', () {
       expect(system.isStandalone(zoneA), isFalse,
-          reason: 'ownerOf(zoneA) returns zoneA itself — the trap');
+          reason: 'ownerOf(zoneA) returns zoneA itself: the trap');
       expect(system.ownerOf(zoneA), zoneA);
     });
 
@@ -161,7 +161,7 @@ void main() {
     });
   });
 
-  group('mustFreeBeforeBonding — what each apply path decides to free', () {
+  group('mustFreeBeforeBonding. What each apply path decides to free', () {
     // This predicate is where every bug in this feature lived: three controller
     // paths each hand-rolled it and each got it wrong differently. One of them
     // dissolved a live zone on real hardware.
@@ -180,7 +180,7 @@ void main() {
           isFalse);
     });
 
-    test('the target keeps its OWN members — an unchanged re-apply frees none',
+    test('the target keeps its OWN members: an unchanged re-apply frees none',
         () {
       for (final u in [bar, rear, sub]) {
         expect(
@@ -191,7 +191,7 @@ void main() {
       }
     });
 
-    test('an HT target ABSORBS a pair or zone member — no free', () {
+    test('an HT target ABSORBS a pair or zone member. No free', () {
       for (final u in [pairL, pairR, zoneA, zoneB]) {
         expect(
             system.mustFreeBeforeBonding(u, keep: const {}, absorbing: true),
@@ -200,7 +200,7 @@ void main() {
       }
     });
 
-    test('a GROUP target absorbs nothing — every bonded speaker is freed', () {
+    test('a GROUP target absorbs nothing: every bonded speaker is freed', () {
       for (final u in [pairL, pairR, zoneA, zoneB, rear]) {
         expect(
             system.mustFreeBeforeBonding(u, keep: const {}, absorbing: false),
@@ -217,7 +217,7 @@ void main() {
 
     test('re-applying an HT unchanged frees NOTHING', () {
       // Regression: an HT is not absorbable, so without the bar's own members
-      // in `keep` every satellite it already has reads as needing a free — a
+      // in `keep` every satellite it already has reads as needing a free: a
       // no-op re-apply would strip the bond and wipe its Trueplay. `keep` must
       // be the bar plus its live bond, which is what both HT paths now pass.
       final keep = {bar, ...system.bondMemberUuids(ht)};
@@ -237,7 +237,7 @@ void main() {
 
     test('the coordinator trap: ownerOf returns self, isStandalone does not',
         () {
-      // The exact hardware-caught bug — an owner-based test skipped this.
+      // The exact hardware-caught bug: an owner-based test skipped this.
       expect(system.ownerOf(zoneA), zoneA);
       expect(
           system.mustFreeBeforeBonding(zoneA, keep: const {}, absorbing: false),
@@ -267,7 +267,7 @@ void main() {
       ]);
       expect(s[0].devices.map((d) => d.uuid), [rear],
           reason: "the configured entity's own members are available, not a "
-              'separate block — keeping one costs nothing');
+              'separate block. Keeping one costs nothing');
       expect(s[1].source?.uuid, pairL);
       expect(s[1].devices.map((d) => d.uuid), [pairL, pairR],
           reason: 'both halves land under one heading, in candidate order');
@@ -312,7 +312,7 @@ void main() {
 
     // The PickerContext the flow builds. `writes` is `!diff.isNoOp` there:
     // ANY write costs this home theater its own tuning, not only one that
-    // drops a satellite (CLAUDE.md Q20 — a pure add took the bar and both
+    // drops a satellite (CLAUDE.md Q20: a pure add took the bar and both
     // rears to available=0). A no-op writes nothing, so it costs nothing.
     PickerContext ctx({required bool writes}) => PickerContext(
           system: system,
@@ -326,7 +326,7 @@ void main() {
 
     // The speaker list's note and the review card are rendered from the SAME
     // method with the same selection; the bar is skipped either way by
-    // exceptPrimary. They disagreed once — that is what this pins.
+    // exceptPrimary. They disagreed once. That is what this pins.
     test('the picker note and the review card name the same speakers', () {
       final c = ctx(writes: true);
       final picked = {pairL, pairR}; // what the speaker step has selected
@@ -350,7 +350,7 @@ void main() {
       expect(c.warning(l10n, {pairL}), isNotNull);
     });
 
-    test('taking a WHOLE pair still costs it — no screen credits an absorb',
+    test('taking a WHOLE pair still costs it. No screen credits an absorb',
         () {
       // Storage is kinder (both halves absorbed ⇒ nothing lost), but a
       // surviving tuning comes back off and cannot be switched on again, so the
@@ -457,7 +457,7 @@ void main() {
     });
 
     test('a speaker that could not be read counts as at risk', () async {
-      // No entry at all means the Trueplay read FAILED — routine inside the
+      // No entry at all means the Trueplay read FAILED. Routine inside the
       // ~20-30s window after an unbond, or for an offline speaker. Dropping it
       // silently shortened the at-risk list while the section header above it,
       // reading the same map, already said the bond needs re-tuning.
@@ -483,7 +483,7 @@ void main() {
         sectionCost(l10n, system, src, cal ?? all);
 
     // EXP-23 Q15/Q16: a tuning that survives an absorb comes back switched off,
-    // and switching it on destroys it — no safe delay, and the role-preserving
+    // and switching it on destroys it. No safe delay, and the role-preserving
     // case died too. So NO source may promise retention, however much of it
     // survives in storage. These assertions are the only thing stopping that
     // promise creeping back into the prose.
@@ -496,7 +496,7 @@ void main() {
 
     test('every group says it breaks up, a pair included', () {
       // The pair used to be exempt as "self-evident". It reads that way only
-      // beside a heading that names the pair — and the same sentence is the
+      // beside a heading that names the pair, and the same sentence is the
       // review card's, which has no heading and is the last gate before Apply.
       // A pair IS a speaker group in this UI (Office · Stereo pair), so one
       // sentence covers both without a second string to drift.
@@ -505,7 +505,7 @@ void main() {
     });
 
     // A shipped CUSTOM group (per-speaker L/R/Both) is `GroupKind.custom`, not
-    // `isZone` — so the gate said nothing at all, while taking a member
+    // `isZone`, so the gate said nothing at all, while taking a member
     // dissolves it exactly like a zone.
     test('a 3-member CUSTOM group says it breaks up too', () {
       const c1 = 'RINCON_C101400';
@@ -514,7 +514,7 @@ void main() {
       const custom = ZoneGroupMember(
         uuid: c1,
         zoneName: 'Zolder',
-        // Two left, one right — accepted on hardware, and neither a pair nor a
+        // Two left, one right. Accepted on hardware, and neither a pair nor a
         // full-range zone.
         channelMapSet: '$c1:LF,LF;$c2:LF,LF;$c3:RF,RF',
       );

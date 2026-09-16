@@ -922,7 +922,7 @@ abstract class AppLocalizations {
   /// **'Couldn\'t read'**
   String get widgetsTrueplayRowUnread;
 
-  /// Subtitle when NO speaker in the set answered its calibration read. Distinct from widgetsTrueplayNotTuned, which claims the speakers have no tuning — a claim that can't be made about speakers that were never successfully asked. count is how many speakers the message covers; a standalone room passes exactly one.
+  /// Subtitle when NO speaker in the set answered its calibration read. Distinct from widgetsTrueplayNotTuned, which claims the speakers have no tuning: a claim that can't be made about speakers that were never successfully asked. count is how many speakers the message covers; a standalone room passes exactly one.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, one{Couldn\'t read Trueplay from this speaker.} other{Couldn\'t read Trueplay from these speakers.}}'**
@@ -2260,7 +2260,7 @@ abstract class AppLocalizations {
   /// **'At least {min} characters'**
   String diagNoteHelper(int min);
 
-  /// Warning shown when the chosen speakers must be taken out of another bond, naming the speakers whose tuning is at risk — those that hold a stored tuning, plus any whose tuning could not be read. Hedged to 'could': the list deliberately includes speakers whose tuning could not be READ, and which members of a disturbed bond survive is not predictable anyway (CLAUDE.md, Q20). Same hedge as the Trueplay toggle's 'could destroy'.
+  /// Warning shown when the chosen speakers must be taken out of another bond, naming the speakers whose tuning is at risk. Those that hold a stored tuning, plus any whose tuning could not be read. Hedged to 'could': the list deliberately includes speakers whose tuning could not be READ, and which members of a disturbed bond survive is not predictable anyway (CLAUDE.md, Q20). Same hedge as the Trueplay toggle's 'could destroy'.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, one{{names} could lose its Trueplay tuning. Plan to re-tune it in the Sonos app.} other{{names} could lose their Trueplay tuning. Plan to re-tune them in the Sonos app.}}'**

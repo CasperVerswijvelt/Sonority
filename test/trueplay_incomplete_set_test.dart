@@ -6,7 +6,7 @@ import 'package:sonority/data/sonos/room_calibration.dart';
 import 'trueplay_harness.dart';
 
 /// ☠️ Measured (EXP-23): switching Trueplay ON while any bonded member holds no
-/// stored tuning clears the tunings that ARE there — four cells, unrecoverably,
+/// stored tuning clears the tunings that ARE there. Four cells, unrecoverably,
 /// because a tuning commits for the set as a whole. The same write on a
 /// changed-but-COMPLETE set (Q19, ×2) was harmless.
 ///
@@ -15,7 +15,7 @@ import 'trueplay_harness.dart';
 /// and the write cleared a stale flag" are indistinguishable), and users on
 /// other hardware sit in this state and toggle on purpose. What the evidence
 /// justifies is not letting it happen by ACCIDENT: the loss is silent and has
-/// no undo, so the ON direction confirms first — and so does the OFF direction
+/// no undo, so the ON direction confirms first, and so does the OFF direction
 /// while the set is short, because the only way back is the destructive write.
 void main() {
   const tuned = RoomCalibration(available: true, enabled: false);
@@ -37,7 +37,7 @@ void main() {
     return tester.widget<Switch>(find.byType(Switch));
   }
 
-  testWidgets('an INCOMPLETE set is NOT blocked — the switch still works',
+  testWidgets('an INCOMPLETE set is NOT blocked: the switch still works',
       (tester) async {
     final s = await pump(tester, {a.uuid: tuned, b.uuid: untuned});
     expect(s.onChanged, isNotNull,
@@ -51,7 +51,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
     // Scoped to the dialog: the row behind it carries the same warning, which
-    // is the point — you are told before you tap, and again before it writes.
+    // is the point. You are told before you tap, and again before it writes.
     expect(
         find.descendant(
             of: find.byType(AlertDialog),
@@ -71,7 +71,7 @@ void main() {
     expect(fake.writes, isEmpty);
   });
 
-  testWidgets('accepting the confirm DOES write — the other half of the gate',
+  testWidgets('accepting the confirm DOES write: the other half of the gate',
       (tester) async {
     await pump(tester, {a.uuid: tuned, b.uuid: untuned});
     await tester.tap(find.byType(Switch));
@@ -92,11 +92,11 @@ void main() {
         reason: 'nothing is at stake, so asking would be noise');
   });
 
-  testWidgets('switching OFF on an incomplete set ALSO asks — it is a one-way door',
+  testWidgets('switching OFF on an incomplete set ALSO asks. It is a one-way door',
       (tester) async {
     // Not because the (0) write is known to destroy anything; it is not, and on
     // an incomplete set it is untested. But the only way back is the (1) write,
-    // which IS destructive here — so turning it off is effectively
+    // which IS destructive here, so turning it off is effectively
     // irreversible, and being told that afterwards is no use.
     await pump(tester, {a.uuid: active, b.uuid: untuned});
     await tester.tap(find.byType(Switch));
@@ -127,11 +127,11 @@ void main() {
   });
 
   // A warning must only ever describe a write the user can issue. With NOTHING
-  // tuned the switch is disabled, so there is no write and nothing to destroy —
+  // tuned the switch is disabled, so there is no write and nothing to destroy,
   // yet the row said "could destroy the tunings that are left" beside a dead
   // switch. Trueplay can only be MEASURED in the iOS Sonos app, so on Android
   // this is the only Trueplay row the user ever sees.
-  testWidgets('an UNTUNED set warns about nothing — there is no write to make',
+  testWidgets('an UNTUNED set warns about nothing. There is no write to make',
       (tester) async {
     final s = await pump(tester, {a.uuid: untuned, b.uuid: untuned});
     expect(s.onChanged, isNull, reason: 'nothing to switch on');

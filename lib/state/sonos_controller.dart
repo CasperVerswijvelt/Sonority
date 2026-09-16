@@ -112,6 +112,31 @@ final speakerSettingsProvider =
 final sonosControllerProvider =
     AsyncNotifierProvider<SonosController, SonosSystem?>(SonosController.new);
 
+/// Which speaker to settle-read the topology from after unbonding [unbonding].
+///
+/// Never one of the speakers this pass just unbonded. Each refuses :1400 for
+/// ~20-30s afterwards, `_settleRead` swallows a refused socket, and the next
+/// loop iteration then acts on topology where the speaker is still bonded. Two
+/// of them are easy to pick by accident: for a group the "owner" IS one of them
+/// (the coordinator), and the caller's fallback is frequently the new
+/// coordinator. Returns null when nothing else is reachable, so the caller can
+/// fall back to its last known IP.
+@visibleForTesting
+String? settleReadIp(
+  SonosSystem sys, {
+  String? ownerIp,
+  String? fallbackIp,
+  required Iterable<String> unbonding,
+}) {
+  final freed = {for (final x in unbonding) sys.device(x)?.ip};
+  return ownerIp ??
+      (freed.contains(fallbackIp) ? null : fallbackIp) ??
+      [
+        for (final d in sys.devicesByUuid.values)
+          if (d.ip != null && !freed.contains(d.ip)) d.ip!
+      ].firstOrNull;
+}
+
 /// Holds the discovered Sonos system and drives the bonding actions.
 ///
 /// Scans automatically on first read (app launch); `AsyncLoading` == working;
@@ -276,7 +301,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       // Trueplay": the coefficients survive in storage but come back off and
       // cannot be switched on, so the only thing the absorb buys is the skipped
       // write. It has NEVER been shown to absorb one out of another HOME
-      // THEATER — untestable here, one soundbar — so those are freed first
+      // THEATER (untestable here, one soundbar) so those are freed first
       // rather than assumed. Without this the write would target a speaker the
       // other bar still claims.
       // Seeded from what we already know; the authoritative read happens inside
@@ -499,7 +524,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           throw SonorityError(SonorityErrorCode.entityNotOnNetwork, e.label);
         }
         // Nothing to keep and nothing absorbs a standalone room, so this is
-        // the shared helper with the degenerate arguments — it also reads back
+        // the shared helper with the degenerate arguments. It also reads back
         // from the right speaker when the bond's coordinator IS the one freed.
         final plan = entityFreePlan(e, sys);
         sys = await _freeConflicts(sys, plan.uuids.toList(),
@@ -543,7 +568,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           return sys;
         }
         // Free any member bonded elsewhere. `keep` must come from the LIVE
-        // group, never the target set — passing `involved` made `keep` and
+        // group, never the target set. Passing `involved` made `keep` and
         // `uuids` identical, so a member that coordinates its own bond (where
         // `ownerOf` returns itself) was never freed.
         //
@@ -551,7 +576,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // such a map faults on every attempt. `groupEditIsInPlace` is exactly
         // that test, so the live group only counts as "keep" when the rebuild
         // really can re-assert over it. Otherwise nothing is kept and the whole
-        // bond is dissolved first — which is what `editGroup` does too. All of
+        // bond is dissolved first, which is what `editGroup` does too. All of
         // that is [entityFreePlan], shared with the pre-flight.
         final htSourced = _htSourced(sys, involved);
         final plan = entityFreePlan(e, sys);
@@ -623,16 +648,16 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // second Sub in a dual-sub setup) — use it directly rather than a
         // channel→uuid map, which would collapse two SW entries into one.
         final fullTarget = ChannelMap.parse(map);
-        // Free any satellite currently bonded to a different coordinator/pair —
+        // Free any satellite currently bonded to a different coordinator/pair,
         // EXCEPT one sitting in a stereo pair, which `AddHTSatellite` absorbs
         // directly: the pair dissolves implicitly and the speaker's coefficients
         // survive in storage, where freeing it first (detach +
         // `SeparateStereoPair`) wipes them outright. Measured over two cycles
-        // each way — EXP-23 Q7/Q9. That is NOT usable retention (it comes back
+        // each way. EXP-23 Q7/Q9. That is NOT usable retention (it comes back
         // off and the enable destroys it), so what this buys is the skipped
         // write, and no copy credits it. `keep` MUST include this
         // bar's current members: an HT is not absorbable, so without them an
-        // unchanged re-apply would free every satellite it already has —
+        // unchanged re-apply would free every satellite it already has,
         // stripping the bond, wiping its Trueplay, and destroying the
         // zero-write no-op the diff exists for.
         final plan = entityFreePlan(e, sys);
@@ -669,14 +694,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// absorb it from, returning the settled system.
   ///
   /// ONE implementation because every caller kept drifting: the question is
-  /// `isStandalone`, NOT `ownerOf(u) != target` — for a group's COORDINATOR
+  /// `isStandalone`, NOT `ownerOf(u) != target`. For a group's COORDINATOR
   /// `ownerOf` returns that speaker's own uuid, so an owner-based test reads it
   /// as unbonded, skips the free, and the bond write then silently no-ops
   /// (hardware-caught: it dissolved a live zone without forming the new group).
   ///
   /// [absorbing] is true for a home-theater target, which can take a speaker
-  /// straight out of a pair or zone without a separate free (EXP-23 Q7/Q9/Q10)
-  /// — those are skipped. It says nothing about the tuning surviving: a
+  /// straight out of a pair or zone without a separate free (EXP-23 Q7/Q9/Q10),
+  /// so those are skipped. It says nothing about the tuning surviving: a
   /// bonding change clears the whole destination set either way (Q20). `AddBondedZones` absorbs from nothing (Q11), and
   /// absorbing out of another home theater is unmeasured, so both are freed.
   Future<SonosSystem> _freeConflicts(
@@ -692,7 +717,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final label = phaseLabel ?? l10n.stepFreeConflicting;
     // Speakers a dissolve this pass has ALREADY freed. Freeing one member of a
     // bonded group dissolves the whole bond, so its siblings need no write of
-    // their own — and the settle poll below returns its last read whether or not
+    // their own, and the settle poll below returns its last read whether or not
     // it converged, so without this a stale read (routine: `fallbackIp` can be
     // the coordinator that just stopped answering :1400) sent a second
     // destructive write against a map that no longer exists. Seen with a stereo
@@ -723,7 +748,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         ph.log('free $u: write failed ($e), verifying');
       }
       if (src?.isGroup ?? false) dissolved.addAll(src!.channelMapUuids);
-      // Read back from the FORMER OWNER — but a bond's COORDINATOR is its own
+      // Read back from the FORMER OWNER, but a bond's COORDINATOR is its own
       // owner, so in that case the "owner" is the very speaker that just
       // stopped answering :1400 for ~20-30s. Fall back then, or _settleRead
       // swallows the refused socket and hands the next iteration stale
@@ -732,14 +757,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       // …and neither may the fallback be a speaker THIS pass is unbonding, for
       // the same reason: it is inside its own refused window. `fallbackIp` is
       // often the group's new coordinator, which is frequently one of them.
-      final freedIps = {for (final x in uuids) sys.device(x)?.ip};
-      final ip = ownerIp ??
-          (freedIps.contains(fallbackIp) ? null : fallbackIp) ??
-          [
-            for (final d in sys.devicesByUuid.values)
-              if (d.ip != null && !freedIps.contains(d.ip)) d.ip!
-          ].firstOrNull ??
-          _lastIp;
+      final ip = settleReadIp(sys,
+          ownerIp: ownerIp, fallbackIp: fallbackIp, unbonding: uuids) ?? _lastIp;
       // POLL, don't settle-read once: the topology lags ~15s and a single 4s
       // read swallows its own error, so the next iteration would act on a
       // system where this speaker is still bonded.
@@ -749,7 +768,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         attempts: 6,
         until: (s) => s.ownerOf(u) == null,
       );
-      // Read the poll's verdict — but do NOT abort on it. A read that never
+      // Read the poll's verdict, but do NOT abort on it. A read that never
       // converges is routine, not evidence the unbond failed: the write very
       // often applied and the topology is simply lagging or refusing (both
       // documented), and the bond write downstream re-asserts until it
@@ -988,7 +1007,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       final ph = _phases(tracker, 'group');
       try {
         // Before anything destructive: the free below DISSOLVES whatever bond a
-        // member is in, and `createGroup` rejects a member with no IP — so a
+        // member is in, and `createGroup` rejects a member with no IP, so a
         // speaker recovered from topology alone would have cost the user a live
         // group and then thrown without a single bond write. Inside the TRY, not
         // just the guard: `tracker.start` has already marked the step active, so
@@ -999,7 +1018,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // Speakers bonded elsewhere must be FREED first: unlike `AddHTSatellite`,
         // which absorbs a speaker straight out of a live pair or zone,
         // `AddBondedZones` is ACCEPTED and silently does nothing when a member is
-        // still bonded somewhere else — the group never forms (EXP-23 Q11, two
+        // still bonded somewhere else: the group never forms (EXP-23 Q11, two
         // cycles). Freeing clears that bond's room calibration, which is why the
         // picker warns before you get here.
         var sys = previous ?? await _repo.discover();
@@ -1018,7 +1037,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             keep: const {}, absorbing: false, ph: ph, fallbackIp: coord.ip);
         ph.phase('bond', l10n.stepBondSpeakers);
         // Writes, verifies and re-asserts until the bond is really there, or
-        // throws didNotCreateGroup. Seed from `sys`, not `previous` — the free
+        // throws didNotCreateGroup. Seed from `sys`, not `previous`: the free
         // loop advanced it, and the pre-free topology still shows the members
         // bonded elsewhere.
         var system = await _repo.createGroup(
@@ -1029,7 +1048,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
             onNote: ph.log,
             cancel: _activeOp);
         // The bond is confirmed, but the absorbed members can linger in the
-        // room list for a few seconds (the ~15s topology lag) — wait for them
+        // room list for a few seconds (the ~15s topology lag). Wait for them
         // to go before adopting the topology, or the overview shows the new
         // group AND stale room cards for its members.
         ph.phase('confirm', l10n.stepWaitForConfirm);
@@ -1181,7 +1200,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     // membership set. Critical for an in-place channel reassignment (membership
     // is unchanged, so a set-only check would pass before the write even lands).
     // Coordinator-aware: `AddBondedZones` cannot move the coordinator, so a
-    // target that coordinates elsewhere is NOT already applied — it needs the
+    // target that coordinates elsewhere is NOT already applied. It needs the
     // dissolve-and-recreate path, and the flow's Apply gate agrees via
     // `_bondDiffers`.
     bool applied(SonosSystem s) =>
@@ -1210,7 +1229,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       final ph = _phases(tracker, 'edit');
       try {
         // Before anything destructive: the free below DISSOLVES whatever bond a
-        // taken speaker is in, and the rebuild path dissolves THIS group — so a
+        // taken speaker is in, and the rebuild path dissolves THIS group, so a
         // missing IP has to fail here, not after. An in-place re-assert only
         // writes to the coordinator; a rebuild goes through `separateGroup` +
         // `createGroup`, which need every member's IP AND the OUTGOING
@@ -1229,8 +1248,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         // A member taken from ANOTHER bond has to be freed first: `AddBondedZones`
         // is accepted and silently no-ops on a speaker bonded elsewhere (EXP-23
-        // Q11), and `reassertGroup` would then re-assert — each attempt rebuilding
-        // this group and clearing its Trueplay (Q8a) — until it gave up. `keep` is
+        // Q11), and `reassertGroup` would then re-assert: each attempt rebuilding
+        // this group and clearing its Trueplay (Q8a), until it gave up. `keep` is
         // the group's own members, so an ordinary edit frees nothing.
         final keepInGroup = {...current, existing.uuid};
         final needsFree = needsBond &&

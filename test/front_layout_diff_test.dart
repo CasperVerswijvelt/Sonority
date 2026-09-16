@@ -105,7 +105,7 @@ void main() {
   test('an Amp on both fronts is not masked by another entry claiming LF', () {
     // The shape a channel-keyed walk gets wrong: `channelAssignments` is
     // channel → uuid (last entry wins), so it reads this live map as
-    // {LF: fl, RF: amp} and forgets the Amp still holds LF — making the target
+    // {LF: fl, RF: amp} and forgets the Amp still holds LF. Making the target
     // below look already-applied (Apply disabled on a real change). Diffing by
     // uuid → channels via `uuidsForChannel` keeps both claims.
     final d = diffHtLayout(

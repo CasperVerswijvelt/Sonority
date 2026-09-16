@@ -11,7 +11,7 @@ import 'package:sonority/state/trueplay_controller.dart';
 /// Shared by the toggle-gate and per-speaker-breakdown tests so there is one
 /// fake controller rather than one per test file.
 /// [fake] receives the controller this harness built, so a test can assert on
-/// the WRITES it recorded — `Switch.value` is derived from [cal] and therefore
+/// the WRITES it recorded. `Switch.value` is derived from [cal] and therefore
 /// reads the same whether or not a toggle fired.
 Widget trueplayHarness(
   List<SonosDevice> devices,
@@ -64,7 +64,7 @@ class FakeTrueplay extends TrueplayController {
 /// It also MUTATES provider state synchronously, exactly as the real
 /// `TrueplayController.load` does (`_setBusy` runs before its first await).
 /// That is load-bearing: Riverpod throws when provider state is touched during
-/// the build phase, and `didUpdateWidget` runs inside it — without this the
+/// the build phase, and `didUpdateWidget` runs inside it. Without this the
 /// test passes whether the widget defers the read or not.
 class RecordingTrueplay extends FakeTrueplay {
   final loads = <Set<String>>[];

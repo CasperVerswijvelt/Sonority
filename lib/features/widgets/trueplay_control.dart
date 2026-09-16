@@ -12,7 +12,7 @@ import 'label_value_row.dart';
 
 /// What one speaker contributes to the aggregate Trueplay counter.
 enum TrueplayRowState {
-  /// Tuned and switched on — the only state that is audibly doing anything.
+  /// Tuned and switched on: the only state that is audibly doing anything.
   active,
 
   /// A tuning is stored but switched off. Normal right after a bonding change.
@@ -27,25 +27,25 @@ enum TrueplayRowState {
 
   /// A read is in flight right now. Distinct from [unknown]: "we haven't asked
   /// yet" is not "we asked and got nothing", and the two are only ever seconds
-  /// apart — but those are the seconds right after a bonding change, when the
+  /// apart, but those are the seconds right after a bonding change, when the
   /// speaker refuses :1400 for 20-30s and every read is slow.
   checking,
 }
 
 /// Breaks an aggregate like "5/6 tuned · 0/6 active" down per speaker.
 ///
-/// The counter says how many, never which — and a user looking at a home
+/// The counter says how many, never which, and a user looking at a home
 /// theater has no way to tell which speaker is the one holding the set short.
 /// Pure so the state mapping is testable without a widget.
 ///
 /// Rows are labelled by speaker TYPE, not room name: inside a bonded entity
 /// Sonos absorbs the individual name into the entity's, so the type is what
-/// identifies it. [label] overrides that per device — a bonded caller passes
+/// identifies it. [label] overrides that per device: a bonded caller passes
 /// `bondedCardTitle`, which appends the channel ("One SL · Surround L") so two
 /// speakers of the SAME model are told apart. Without it the type alone is the
 /// label, which is all a standalone room has and all it needs.
 ///
-/// Every device is kept, including ones with no reading at all — and those are
+/// Every device is kept, including ones with no reading at all, and those are
 /// the whole point. A speaker whose calibration could not be read stays in the
 /// counter's denominator (which is simply every device passed in) while
 /// dropping out of its numerator: that, not omission, is what turns six
@@ -53,7 +53,7 @@ enum TrueplayRowState {
 /// unattributable.
 ///
 // ponytail: the channel is the only qualifier threaded in, and it separates
-// every shape this renders for bar one — a home theater is one bar, an L/R pair
+// every shape this renders for bar one: a home theater is one bar, an L/R pair
 // of fronts, an L/R pair of surrounds and a sub, all distinct. DUAL SUBS are the
 // exception: both hold `SW`, so both rows read "Sub". Numbering them would
 // re-encode position, which is the thing this change exists to stop; Identify
@@ -96,14 +96,14 @@ List<({String label, TrueplayRowState state})> trueplayRows(
 /// Pass every speaker the toggle should act on: for a home theater that's all
 /// bonded members (so the separately-tuned fronts engage too); for a standalone
 /// room just the one. ⚠️ A speaker group (stereo pair / zone / custom) has no
-/// Trueplay row yet — `GroupDetailScreen` renders none — so this widget has
+/// Trueplay row yet. `GroupDetailScreen` renders none, so this widget has
 /// exactly two callers today; don't describe a surface it doesn't have.
 class TrueplayControl extends ConsumerStatefulWidget {
   final List<SonosDevice> devices;
 
   /// How to name a speaker in the per-speaker breakdown; defaults to its type.
   /// A bonded caller passes `bondedCardTitle` so same-model speakers are told
-  /// apart by channel — see [trueplayRows]. The widget doesn't reach for the
+  /// apart by channel. See [trueplayRows]. The widget doesn't reach for the
   /// topology itself: what a speaker is called depends on the bond it sits in,
   /// which only the caller knows.
   final String Function(SonosDevice)? label;
@@ -138,7 +138,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
   ///
   /// BOTH directions ask, for different reasons. Switching ON can destroy the
   /// tunings that are left. Switching OFF is not known to destroy anything, but
-  /// the only way back is the ON write, so it is a one-way door — and being
+  /// the only way back is the ON write, so it is a one-way door, and being
   /// told that afterwards is no use.
   Future<void> _set(bool on, bool warn, List<RoomCalibration> tuned) async {
     if (warn) {
@@ -166,7 +166,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     super.didUpdateWidget(old);
     // The HT page's State survives the nested fronts route, so returning from
     // an apply rebuilds this with a DIFFERENT bonded set and no read of its
-    // own — the new member would render from whatever the pre-bond cache said
+    // own: the new member would render from whatever the pre-bond cache said
     // (or nothing) until the user pulled to refresh. Re-read on a set change
     // only; an identical list must not re-fetch on every rebuild.
     final before = old.devices.map((d) => d.uuid).toSet();
@@ -174,7 +174,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     if (!setEquals(before, now)) {
       // Post-frame, like `initState` above and for the same reason: `load`
       // marks its targets busy BEFORE its first await, and Riverpod forbids
-      // touching provider state during the build phase — `didUpdateWidget` is
+      // touching provider state during the build phase. `didUpdateWidget` is
       // in it, so calling straight through threw in every debug build.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -187,7 +187,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
   @override
   Widget build(BuildContext context) {
     // Nothing to report on, and every message below would be about zero
-    // speakers — the room page renders this whenever the topology has a member
+    // speakers: the room page renders this whenever the topology has a member
     // it never resolved to a device, which used to read "Couldn't read
     // Trueplay from these speakers."
     if (widget.devices.isEmpty) return const SizedBox.shrink();
@@ -197,11 +197,11 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // ONE set drives the counter, the breakdown rows and the warning gate:
     // every speaker passed in. A device with no IP is never read (the
     // controller only fetches `_withIp`), so it lands here exactly like a read
-    // that FAILED — in the denominator, out of both numerators, rendered
+    // that FAILED. In the denominator, out of both numerators, rendered
     // "Couldn't read" and keeping the set incomplete so the destructive-enable
     // warning stays on. Splitting the no-IP case out of the counter while
     // still giving it a row made the two disagree, and let `incomplete` read a
-    // set as complete that had a member nobody ever asked — including a
+    // set as complete that had a member nobody ever asked, including a
     // fall-through that printed "Tuned · off" for a speaker with no tuning.
     // Whether a null IP is even reachable in production is unknown; treating
     // "we could not ask" as one state makes the question moot.
@@ -226,14 +226,14 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       subtitle = l10n.widgetsTrueplayChecking;
     } else if (known.isEmpty) {
       // Nothing answered. "Not tuned" would be a claim about speakers we never
-      // managed to ask — the same over-reach the breakdown below exists to stop.
-      // Plural-keyed on the speakers the message covers — the ones the
-      // breakdown lists — because a standalone room passes exactly one.
+      // managed to ask: the same over-reach the breakdown below exists to stop.
+      // Plural-keyed on the speakers the message covers: the ones the
+      // breakdown lists, because a standalone room passes exactly one.
       subtitle = l10n.widgetsTrueplayUnreadable(total);
     } else if (tunedCount == 0 && known.length == total) {
       // Flat "not tuned" only when EVERY speaker shown answered. With one
       // missing from the reads this would assert a tuning fact about one we
-      // never asked — including a speaker with no IP, which is never read yet
+      // never asked, including a speaker with no IP, which is never read yet
       // still gets a row; the counter below says "0/6 tuned" instead, and the
       // breakdown names the one that didn't answer.
       subtitle = l10n.widgetsTrueplayNotTuned;
@@ -243,7 +243,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     } else {
       // Multi-speaker (HT / pair): tuned coverage first, then the active
       // counter. The tuned half is dropped only when it would say nothing the
-      // active half doesn't — a complete set with something switched on.
+      // active half doesn't: a complete set with something switched on.
       //
       // Tuned BEFORE active, because a stored tuning is the precondition for an
       // active one and the breakdown rows below read the same way ("Tuned ·
@@ -277,13 +277,13 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // this exact state and toggle deliberately. Removing a control on
     // one-household evidence is the wrong trade in an app whose whole point is
     // doing what the official app refuses. The copy hedges to "could" for the
-    // same reason — the certainty isn't earned.
+    // same reason: the certainty isn't earned.
     //
     // What the evidence DOES justify is not letting it happen by accident: the
     // loss is silent and there is no undo, so the enable asks first and names
     // what it costs.
     //
-    // ⚠️ Turning it OFF asks too, while the set is short — not because the (0)
+    // ⚠️ Turning it OFF asks too, while the set is short, not because the (0)
     // write is known to destroy anything (it isn't; every destructive cell we
     // have is the (1) write, and (0) on an incomplete set is simply UNTESTED)
     // but because it is a TRAP DOOR: the only way back is the (1) write, which
@@ -293,7 +293,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     final canToggle = tunedCount > 0 && !busy;
     // Only warn about a write the user can actually issue. `incomplete` is also
     // true with NOTHING tuned (and while the reads are still in flight), where
-    // the switch is disabled — so warning there told every untuned speaker, and
+    // the switch is disabled, so warning there told every untuned speaker, and
     // every set mid-read, that it could destroy tunings that do not exist.
     final warn = incomplete && canToggle;
     // Keep the Switch mounted so it never jumps; a fixed-width slot holds the
@@ -316,7 +316,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       ],
     );
 
-    // Per-speaker breakdown, shown ONLY when the speakers disagree — which is
+    // Per-speaker breakdown, shown ONLY when the speakers disagree, which is
     // exactly when the "5/6" counter raises a question it can't answer. A
     // uniform set (all active, none tuned, nothing read yet) says everything in
     // the subtitle already, so it stays a single row and never flashes a list
@@ -327,15 +327,25 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       busy: tp.busy,
       label: widget.label,
     );
-    // Disagreement is judged on the SETTLED rows only. A row still being read
-    // is not evidence the set disagrees — counting it would flash the whole
-    // list in mid-read (the thing the paragraph above rules out) every time a
-    // uniform set grew by one. Once the list is up for a real disagreement, a
-    // pending row says so honestly rather than claiming a verdict.
+    // Two ways to earn the list, and one way to be denied it.
+    //
+    // Earned: the settled rows disagree, which is the ordinary case. Or some
+    // rows have settled and others are still being read, which is the case this
+    // control exists for: the counter is ALREADY showing a gap ("5/6") because
+    // the pending speaker is not in its numerator, so hiding the list leaves
+    // the exact question unanswered in the exact window it gets asked, the
+    // 20-30s a just-bonded speaker refuses :1400.
+    //
+    // Denied: nothing has settled at all. That is a cold open, where every row
+    // would read "Checking…" and the list would say nothing the spinner does
+    // not, then flash out. A pending row never counts as a disagreeing STATE,
+    // only as a reason to show what is already known beside it.
     final settled =
         rows.where((r) => r.state != TrueplayRowState.checking).toList();
-    final showRows =
-        rows.length > 1 && settled.map((r) => r.state).toSet().length > 1;
+    final anyPending = settled.length != rows.length;
+    final showRows = rows.length > 1 &&
+        settled.isNotEmpty &&
+        (settled.map((r) => r.state).toSet().length > 1 || anyPending);
 
     final tile = _frame(
       context,
