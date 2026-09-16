@@ -858,12 +858,16 @@
   },
   "pickerSectionAvailable": "Available",
   "pickerCostZone": "Taking any of them breaks up the whole group.",
-  "pickerCostLeavesHt": "{names} {count, plural, =1{loses} other{lose}} the speakers you take.",
+  "@pickerCostZone": {
+    "description": "Section-header sentence for a bond whose members cannot be taken one at a time: absorbing any member dissolves the whole thing (EXP-23 Q12). Covers every speaker group, which in this app includes a stereo pair, a zone and a custom L/R/Both group. 'Group' here is the UI word for an AddBondedZones bond, not a playback group. Not shown for a home theater, which survives the take minus the speakers removed."
+  },
+  "pickerCostLeavesHt": "{hts, plural, =1{{names} loses} other{{names} lose}} {taken, plural, =1{the speaker you take} other{the speakers you take}}.",
   "@pickerCostLeavesHt": {
-    "description": "Review-step sentence naming the home theater(s) a selection takes speakers out of. A home theater is not dissolved by the take (unlike a group) but it is still modified, and every one of ITS speakers loses its Trueplay tuning; the review card is the last gate before Apply and carries no section heading to say which bond the speakers came from.",
+    "description": "Review-step sentence naming the home theater(s) a selection takes speakers out of. A home theater is not dissolved by the take, unlike a speaker group, but it is still modified and every one of ITS members loses its Trueplay tuning. The review card is the last gate before Apply and carries no section heading to say where the speakers came from. Two counts, because they differ: the verb agrees with the number of source home theaters, the noun with the number of speakers taken (one home theater can lose two).",
     "placeholders": {
       "names": {"type": "String"},
-      "count": {"type": "int"}
+      "hts": {"type": "int"},
+      "taken": {"type": "int"}
     }
   },
   "pickerCostDissolves": "{names} {count, plural, =1{breaks up} other{break up}}. A group doesn't shrink when you take a speaker out of it.",

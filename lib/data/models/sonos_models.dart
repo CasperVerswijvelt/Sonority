@@ -243,6 +243,23 @@ class ZoneGroupMember {
   /// `ChannelMapSet` that [subUuid] scans), so it's HT-only by design.
   List<String> get subUuids => uuidsForChannel(SonosChannel.sub);
 
+  /// Whether this member holds [uuid] as a bonded HT satellite (front, rear or
+  /// sub).
+  ///
+  /// ONE predicate on purpose. It existed as two hand-rolled copies, in
+  /// [SonosSystem.ownerOf] and in `SonosRepository.freeSpeaker`, and they
+  /// drifted: `channelAssignments` is keyed by CHANNEL, so a dual-sub map
+  /// (`…:SW;…:SW`) collapses to one uuid and the FIRST sub reads as unheld. The
+  /// `<Satellite>` list normally covers it, but that list vanishes for ~15s
+  /// after any bonding change, which is exactly when this gets asked. With the
+  /// copies out of step, the decision layer said "free this sub" and the write
+  /// layer then issued no `RemoveHTSatellite` at all.
+  bool holdsSatellite(String uuid) =>
+      uuid != this.uuid &&
+      (channelAssignments.values.contains(uuid) ||
+          subUuids.contains(uuid) ||
+          satellites.any((s) => s.uuid == uuid));
+
   /// True when this visible member carries a `ChannelMapSet` — i.e. it's a
   /// bonded **speaker group** (stereo pair / zone / custom L-R layout).
   bool get isGroup => channelMapSet?.isNotEmpty ?? false;
@@ -521,15 +538,7 @@ class SonosSystem {
   String? ownerOf(String uuid) {
     for (final g in groups) {
       for (final m in g.members) {
-        if (m.uuid != uuid &&
-            (m.channelAssignments.values.contains(uuid) ||
-                // Keyed by CHANNEL, so a dual-sub map (`…:SW;…:SW`) collapses
-                // to one uuid and the FIRST sub resolves to no owner — which
-                // short-circuits `mustFreeBeforeBonding` into skipping its
-                // free, in exactly the mid-settle window this read exists for.
-                // Same spread as [_bondedUuids] and [bondMemberUuids].
-                m.subUuids.contains(uuid) ||
-                m.satellites.any((s) => s.uuid == uuid))) {
+        if (m.holdsSatellite(uuid)) {
           return m.uuid;
         }
         if (m.isGroup && m.channelMapUuids.contains(uuid)) {

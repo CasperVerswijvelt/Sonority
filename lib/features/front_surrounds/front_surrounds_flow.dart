@@ -477,7 +477,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       _ => true,
     };
     final isLast = _step == 3;
-    final canApply = _frontsValid && _surroundsValid && !diff.isNoOp;
+    final canApply = _frontsValid && _surroundsValid && htApplyWrites(diff);
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Row(
@@ -728,8 +728,10 @@ class HtReviewStep extends StatelessWidget {
           rearRightLabel: label(SonosChannel.rightRear),
           subCount: subCount,
         ),
-        Gap.m,
-        if (_warning(context) case final w?) InfoNote(w),
+        // Gap only when there is something to separate from the diagram; the
+        // note is conditional, so an unconditional gap left dead space under a
+        // costless apply.
+        if (_warning(context) case final w?) ...[Gap.m, InfoNote(w)],
       ],
     );
   }
