@@ -160,7 +160,15 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     final before = old.devices.map((d) => d.uuid).toSet();
     final now = widget.devices.map((d) => d.uuid).toSet();
     if (widget.unsupportedReason == null && !setEquals(before, now)) {
-      ref.read(trueplayControllerProvider.notifier).load(widget.devices);
+      // Post-frame, like `initState` above and for the same reason: `load`
+      // marks its targets busy BEFORE its first await, and Riverpod forbids
+      // touching provider state during the build phase — `didUpdateWidget` is
+      // in it, so calling straight through threw in every debug build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(trueplayControllerProvider.notifier).load(widget.devices);
+        }
+      });
     }
   }
 

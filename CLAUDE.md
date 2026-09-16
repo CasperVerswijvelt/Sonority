@@ -892,9 +892,14 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   `operationLogProvider` that still scopes the progress screen's log view. The
   `dart:io` bits (OS/network/temp-file) sit behind a `diagnostics_platform.dart`
   conditional-import barrel so the demo web build still compiles.
-- ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
-  all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't
-  expose for unofficial fronts. Measurement stays iOS-only (out of scope).
+- ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) —
+  toggles the iOS-measured calibration the Sonos app won't expose for unofficial
+  fronts. Measurement stays iOS-only (out of scope). ⚠️ **Only two call sites:
+  `room_screen.dart` (a single standalone speaker) and `home_theater_screen.dart`.
+  `GroupDetailScreen` has NO Trueplay row**, so a stereo pair / zone / custom
+  group can't be read or toggled at all — worth knowing before trusting copy
+  that says "pairs", and a pair is the other shape where the incomplete-set
+  warning would matter.
   **Both directions warn and ask while the bonded set is INCOMPLETE** (see the
   destructive-enable rule); a complete set never asks, and nothing is blocked.
   A **per-speaker breakdown** (`trueplayRows`, pure + unit-tested) sits under the

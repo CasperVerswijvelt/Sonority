@@ -164,8 +164,10 @@ there if a different model/firmware ever needs it.
   list it under the setup it belongs to and name which speakers could need re-tuning (a
   deliberately cautious list: it includes any speaker whose tuning couldn't be read); a
   subwoofer that already belongs to another home theater or speaker group must be freed first
-- ✅ Trueplay read + toggle on speakers / pairs / home theaters (it warns and asks first when
-  any speaker in the bond has no stored tuning — switching it *on* there can wipe the others')
+- ✅ Trueplay read + toggle on single speakers and home theaters (it warns and asks first when
+  any speaker in the bond has no stored tuning — switching it *on* there can wipe the others');
+  the home-theater row breaks the count down per speaker when they disagree. Speaker groups
+  have no Trueplay row yet
 - ✅ Diagnostics — a hide-nothing technical system view, packaged into a shareable zip for support
 - ✅ Responsive layout for iPad and desktop — a left navigation rail and multi-column content on
   wide screens (resizable macOS window), the single-column phone layout unchanged

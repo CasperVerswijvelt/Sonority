@@ -57,3 +57,25 @@ class FakeTrueplay extends TrueplayController {
     writes.add(on);
   }
 }
+
+/// Records the device sets `load` was asked for, so a test can assert the
+/// widget re-read when its speakers changed.
+///
+/// It also MUTATES provider state synchronously, exactly as the real
+/// `TrueplayController.load` does (`_setBusy` runs before its first await).
+/// That is load-bearing: Riverpod throws when provider state is touched during
+/// the build phase, and `didUpdateWidget` runs inside it — without this the
+/// test passes whether the widget defers the read or not.
+class RecordingTrueplay extends FakeTrueplay {
+  final loads = <Set<String>>[];
+  RecordingTrueplay(super.cal, {super.busy});
+
+  @override
+  Future<void> load(Iterable<SonosDevice> devices) async {
+    final uuids = devices.map((d) => d.uuid).toSet();
+    loads.add(uuids);
+    state = state.copyWith(busy: {...state.busy, ...uuids});
+    await Future<void>.delayed(Duration.zero);
+    state = state.copyWith(busy: const {});
+  }
+}
