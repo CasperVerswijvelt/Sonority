@@ -183,7 +183,7 @@ void main() {
       expect(find.byType(InfoNote), findsOneWidget);
       expect(find.textContaining('Eetkamer · One SL · L'), findsOneWidget);
       expect(find.textContaining('Eetkamer · One SL · R'), findsOneWidget);
-      expect(find.textContaining('will lose their Trueplay'), findsOneWidget);
+      expect(find.textContaining('could lose their Trueplay'), findsOneWidget);
     });
 
     testWidgets('stays quiet when nothing tuned is at stake', (tester) async {

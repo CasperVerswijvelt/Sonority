@@ -1372,8 +1372,10 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$names will lose their Trueplay. Re-tune them in the Sonos app.',
-      one: '$names will lose its Trueplay. Re-tune it in the Sonos app.',
+      other:
+          '$names could lose their Trueplay tuning. Plan to re-tune them in the Sonos app.',
+      one:
+          '$names could lose its Trueplay tuning. Plan to re-tune it in the Sonos app.',
     );
     return '$_temp0';
   }
@@ -1383,6 +1385,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pickerCostZone => 'Taking any of them breaks up the whole group.';
+
+  @override
+  String pickerCostDissolves(String names, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'break up',
+      one: 'breaks up',
+    );
+    return '$names $_temp0 — a group doesn\'t shrink when you take a speaker out of it.';
+  }
 
   @override
   String get pickerCostCleared => 'Trueplay is cleared on all of them.';

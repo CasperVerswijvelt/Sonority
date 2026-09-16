@@ -743,15 +743,16 @@ class HtReviewStep extends StatelessWidget {
         if (system.device(u) case final d?) d,
     ];
     // What the HT holds after apply — the bar plus everything still selected.
-    // Priced by the SAME PickerContext the speaker lists used (which already
-    // carries this home theater in `ownBondMembers` when the apply writes), so
-    // the two screens name the same speakers.
-    final loses = picker.tuningCost(l10n, {
+    // Priced by the SAME PickerContext the speaker lists used, so the two
+    // screens name the same speakers.
+    final selected = {
       member.uuid,
       for (final d in additions.values) d.uuid,
       for (final d in subs) d.uuid,
-    });
+    };
+    final loses = picker.tuningCost(l10n, selected);
     final lines = [
+      if (picker.dissolveNote(l10n, selected) case final n?) n,
       if (dropped.isNotEmpty)
         l10n.frontSurroundsDropNote(
           // Named the same way as the Trueplay line directly below it —

@@ -226,8 +226,13 @@ String? _roleIn(AppLocalizations l10n, ZoneGroupMember source, String uuid) {
   Map<String, RoomCalibration> calibration, {
   String? ownBond,
 }) {
-  final tuned =
-      uuids.where((u) => calibration[u]?.available ?? true).toList();
+  final tuned = uuids
+      // A line-out box (Amp / Port / Connect) has no drivers of its own, so
+      // Sonos never tunes it — naming one gives advice that cannot be followed.
+      // Same getter that keeps them out of the Trueplay lists everywhere else.
+      .where((u) => !(system.device(u)?.drivesExternalSpeakers ?? false))
+      .where((u) => calibration[u]?.available ?? true)
+      .toList();
   final names = tuned
       .map((u) {
         final d = system.device(u);
@@ -340,6 +345,32 @@ class PickerContext {
     );
     return tunedSpeakers(l10n, system, losing, calibration,
         ownBond: exceptPrimary);
+  }
+
+  /// The source groups this selection DISSOLVES, as a sentence, or null.
+  ///
+  /// A multi-speaker group does not shrink when a member is taken — absorbing
+  /// one dissolves the whole bond (EXP-23 Q12). A stereo pair is exempt: a pair
+  /// that loses a half is self-evidently not a pair any more.
+  ///
+  /// The section header states this per block, but the review step is the last
+  /// screen before Apply and the only gate there is — the removal confirm
+  /// dialog was deleted in favour of it — and an UNTUNED group priced nothing,
+  /// so the card said nothing destructive about a dissolve it was about to
+  /// cause. Trueplay can't even be measured from Android, so an untuned group
+  /// is the common case, not the corner one.
+  String? dissolveNote(AppLocalizations l10n, Set<String> selected) {
+    final names = <String>{};
+    for (final u in selected) {
+      final owner = system.ownerOf(u);
+      if (owner == null || owner == exceptPrimary) continue;
+      final src = system.memberByUuid(owner);
+      if (src != null && src.isGroup && !src.isStereoPair) names.add(src.zoneName);
+    }
+    final sorted = names.toList()..sort();
+    return sorted.isEmpty
+        ? null
+        : l10n.pickerCostDissolves(sorted.join(', '), sorted.length);
   }
 
   /// [tuningCost] as the one-sentence note under a picker list, or null when

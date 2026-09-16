@@ -683,9 +683,14 @@ class GroupReviewStep extends StatelessWidget {
         ],
         Gap.s,
         // Same renderer as the picker note and the HT review card — one cost
-        // model, three screens.
-        if (picker.warning(l10n, selected.toSet()) case final w?) ...[
-          InfoNote(w),
+        // model, three screens. The dissolve is stated even when nothing tuned
+        // is at stake: it is destructive on its own, and this card replaced the
+        // confirm dialog.
+        if ([
+          if (picker.dissolveNote(l10n, selected.toSet()) case final n?) n,
+          if (picker.warning(l10n, selected.toSet()) case final w?) w,
+        ] case final lines when lines.isNotEmpty) ...[
+          InfoNote(lines.join('\n')),
           Gap.s,
         ],
         Text(l10n.groupReviewNote, style: muted),

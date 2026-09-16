@@ -2242,10 +2242,10 @@ abstract class AppLocalizations {
   /// **'At least {min} characters'**
   String diagNoteHelper(int min);
 
-  /// Warning shown when the chosen speakers must be taken out of another bond, naming the speakers whose tuning is at risk — those that hold a stored tuning, plus any whose tuning could not be read.
+  /// Warning shown when the chosen speakers must be taken out of another bond, naming the speakers whose tuning is at risk — those that hold a stored tuning, plus any whose tuning could not be read. Hedged to 'could': the list deliberately includes speakers whose tuning could not be READ, and which members of a disturbed bond survive is not predictable anyway (CLAUDE.md, Q20). Same hedge as the Trueplay toggle's 'could destroy'.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one{{names} will lose its Trueplay. Re-tune it in the Sonos app.} other{{names} will lose their Trueplay. Re-tune them in the Sonos app.}}'**
+  /// **'{count, plural, one{{names} could lose its Trueplay tuning. Plan to re-tune it in the Sonos app.} other{{names} could lose their Trueplay tuning. Plan to re-tune them in the Sonos app.}}'**
   String speakerStealTrueplayWarning(String names, int count);
 
   /// No description provided for @pickerSectionAvailable.
@@ -2259,6 +2259,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Taking any of them breaks up the whole group.'**
   String get pickerCostZone;
+
+  /// Review-step line naming the source groups this selection dissolves. Restated here because the review card is the only gate before Apply, and an untuned group otherwise made it silent about the dissolve.
+  ///
+  /// In en, this message translates to:
+  /// **'{names} {count, plural, =1{breaks up} other{break up}} — a group doesn\'t shrink when you take a speaker out of it.'**
+  String pickerCostDissolves(String names, int count);
 
   /// The Trueplay cost of taking a speaker out of any bond. One sentence for every source: a tuning that survives an absorb comes back switched off and cannot be switched on without being destroyed (EXP-23 Q15/Q16, no safe delay, role-preserving included), so nothing can promise retention.
   ///

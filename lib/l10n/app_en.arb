@@ -843,9 +843,9 @@
       "min": { "type": "int" }
     }
   },
-  "speakerStealTrueplayWarning": "{count, plural, one{{names} will lose its Trueplay. Re-tune it in the Sonos app.} other{{names} will lose their Trueplay. Re-tune them in the Sonos app.}}",
+  "speakerStealTrueplayWarning": "{count, plural, one{{names} could lose its Trueplay tuning. Plan to re-tune it in the Sonos app.} other{{names} could lose their Trueplay tuning. Plan to re-tune them in the Sonos app.}}",
   "@speakerStealTrueplayWarning": {
-    "description": "Warning shown when the chosen speakers must be taken out of another bond, naming the speakers whose tuning is at risk — those that hold a stored tuning, plus any whose tuning could not be read.",
+    "description": "Warning shown when the chosen speakers must be taken out of another bond, naming the speakers whose tuning is at risk — those that hold a stored tuning, plus any whose tuning could not be read. Hedged to 'could': the list deliberately includes speakers whose tuning could not be READ, and which members of a disturbed bond survive is not predictable anyway (CLAUDE.md, Q20). Same hedge as the Trueplay toggle's 'could destroy'.",
     "placeholders": {
       "names": {
         "type": "String"
@@ -857,6 +857,14 @@
   },
   "pickerSectionAvailable": "Available",
   "pickerCostZone": "Taking any of them breaks up the whole group.",
+  "pickerCostDissolves": "{names} {count, plural, =1{breaks up} other{break up}} — a group doesn't shrink when you take a speaker out of it.",
+  "@pickerCostDissolves": {
+    "description": "Review-step line naming the source groups this selection dissolves. Restated here because the review card is the only gate before Apply, and an untuned group otherwise made it silent about the dissolve.",
+    "placeholders": {
+      "names": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
   "pickerCostCleared": "Trueplay is cleared on all of them.",
   "@pickerCostCleared": {
     "description": "The Trueplay cost of taking a speaker out of any bond. One sentence for every source: a tuning that survives an absorb comes back switched off and cannot be switched on without being destroyed (EXP-23 Q15/Q16, no safe delay, role-preserving included), so nothing can promise retention."

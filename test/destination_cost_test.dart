@@ -69,6 +69,98 @@ void main() {
     expect(ctx(writes: false).warning(l10n, {a, b}), isNull);
   });
 
+  group('a dissolve is stated even when nothing is tuned', () {
+    // The review step is the only gate before Apply — the removal confirm
+    // dialog was deleted in favour of it — and an UNTUNED group priced nothing,
+    // so the card said nothing destructive about a dissolve it was causing.
+    // Untuned is the common case: Trueplay can't be measured from Android.
+    const x = 'RINCON_X01400';
+    const y = 'RINCON_Y01400';
+    const z = 'RINCON_Z01400';
+
+    final withGroups = SonosSystem(
+      groups: [
+        ZoneGroup(coordinatorUuid: x, members: const [
+          ZoneGroupMember(
+            uuid: x,
+            zoneName: 'Keuken',
+            channelMapSet: '$x:LF,RF;$y:LF,RF;$z:LF,RF',
+          ),
+        ]),
+        ZoneGroup(coordinatorUuid: a, members: const [
+          ZoneGroupMember(
+            uuid: a,
+            zoneName: 'Eetkamer',
+            channelMapSet: '$a:LF,LF;$b:RF,RF',
+          ),
+        ]),
+      ],
+      devicesByUuid: {
+        x: dev(x, 'Keuken'),
+        y: dev(y, 'Keuken'),
+        z: dev(z, 'Keuken'),
+        a: dev(a, 'Eetkamer'),
+        b: dev(b, 'Eetkamer'),
+      },
+    );
+
+    // Every speaker read, and read as UNTUNED — so tuningCost names nobody.
+    PickerContext untunedCtx() => PickerContext(
+          system: withGroups,
+          calibration: {for (final u in [x, y, z, a, b]) u: untuned},
+          writes: true,
+        );
+
+    test('taking a member of a multi-speaker group names the group', () {
+      final c = untunedCtx();
+      expect(c.tuningCost(l10n, {y}).names, isEmpty,
+          reason: 'nothing tuned — this is the case that went silent');
+      expect(c.dissolveNote(l10n, {y}), contains('Keuken'));
+    });
+
+    test('a stereo pair is exempt — half a pair is self-evidently not a pair',
+        () {
+      expect(untunedCtx().dissolveNote(l10n, {b}), isNull);
+    });
+
+    test('nothing bonded, nothing dissolves', () {
+      expect(untunedCtx().dissolveNote(l10n, {}), isNull);
+    });
+
+    test('two source groups are both named, once each', () {
+      final note = untunedCtx().dissolveNote(l10n, {y, z})!;
+      expect(note, contains('Keuken'));
+      expect('Keuken'.allMatches(note).length, 1,
+          reason: 'one group, not one line per member taken');
+    });
+  });
+
+  test('a line-out box is never named as losing a tuning it cannot hold', () {
+    // An Amp / Port / Connect has no drivers of its own, so Sonos never tunes
+    // it — "re-tune it in the Sonos app" is advice that cannot be followed.
+    const amp = 'RINCON_AMP01400';
+    final withAmp = SonosSystem(
+      groups: [
+        ZoneGroup(coordinatorUuid: amp, members: const [
+          ZoneGroupMember(uuid: amp, zoneName: 'Salon'),
+        ]),
+      ],
+      devicesByUuid: {
+        amp: SonosDevice(
+            uuid: amp,
+            roomName: 'Salon',
+            modelName: 'Sonos Amp',
+            ip: '1.2.3.4'),
+      },
+    );
+    final c = PickerContext(
+        system: withAmp, calibration: const {}, writes: true);
+    // Unread would otherwise count it as at-risk, which is the safe default
+    // everywhere else — but not for a box that cannot hold a tuning at all.
+    expect(c.tuningCost(l10n, {amp}).names, isEmpty);
+    expect(c.warning(l10n, {amp}), isNull);
+  });
+
   group('the Apply gate and the engine agree about what a write is', () {
     const zone = ZoneGroupMember(
       uuid: a,
