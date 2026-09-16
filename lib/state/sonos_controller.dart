@@ -294,6 +294,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       ]);
       try {
         var sys = known ?? await _repo.discover();
+        // Captured BEFORE the free: absorbing dissolves the source bond around
+        // the speaker taken, so afterwards there is nothing left to read it
+        // from. See [_restoreAbsorbedNames].
+        final survivors = sys.absorbedSurvivors(satellites);
         sys = await _freeConflicts(sys, satellites,
             keep: keepFor(sys), absorbing: true, ph: ph,
             fallbackIp: soundbarDevice.ip);
@@ -304,6 +308,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           sys: sys,
           ph: ph,
         );
+        await _restoreAbsorbedNames(sys, survivors, ph);
         tracker.done('bond');
         return sys;
       } catch (e) {
@@ -632,6 +637,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // stripping the bond, wiping its Trueplay, and destroying the
         // zero-write no-op the diff exists for.
         final plan = entityFreePlan(e, sys);
+        // Before the free — the source bond is gone afterwards.
+        final survivors = sys.absorbedSurvivors(plan.uuids);
         sys = await _freeConflicts(sys, plan.uuids.toList(),
             keep: plan.keep,
             absorbing: plan.absorbing,
@@ -651,6 +658,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           sys: sys,
           ph: ph,
         );
+        await _restoreAbsorbedNames(sys, survivors, ph);
         _activeOp?.throwIfCancelled();
         ph.phase('names', l10n.stepRestoreRoomName);
         if (!await _repo.setRoomName(
@@ -724,7 +732,17 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       // swallows the refused socket and hands the next iteration stale
       // topology.
       final ownerIp = owner == null || owner == u ? null : sys.device(owner)?.ip;
-      final ip = ownerIp ?? fallbackIp ?? _lastIp;
+      // …and neither may the fallback be a speaker THIS pass is unbonding, for
+      // the same reason: it is inside its own refused window. `fallbackIp` is
+      // often the group's new coordinator, which is frequently one of them.
+      final freedIps = {for (final x in uuids) sys.device(x)?.ip};
+      final ip = ownerIp ??
+          (freedIps.contains(fallbackIp) ? null : fallbackIp) ??
+          [
+            for (final d in sys.devicesByUuid.values)
+              if (d.ip != null && !freedIps.contains(d.ip)) d.ip!
+          ].firstOrNull ??
+          _lastIp;
       // POLL, don't settle-read once: the topology lags ~15s and a single 4s
       // read swallows its own error, so the next iteration would act on a
       // system where this speaker is still bonded.
@@ -734,8 +752,47 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         attempts: 6,
         until: (s) => s.ownerOf(u) == null,
       );
+      // Read the poll's verdict — but do NOT abort on it. A read that never
+      // converges is routine, not evidence the unbond failed: the write very
+      // often applied and the topology is simply lagging or refusing (both
+      // documented), and the bond write downstream re-asserts until it
+      // verifies. Aborting here is the exact regression the retry rule exists
+      // to prevent. What was missing is that the real cause only reached the
+      // raw log, so a bond that then failed ~110s later surfaced as
+      // `bondingIncomplete` with nothing explaining why. Now it's on the
+      // timeline.
+      if (sys.ownerOf(u) != null) {
+        ph.note(l10n.stepFreeUnconfirmed(sys.device(u)?.roomName ?? u));
+      }
     }
     return sys;
+  }
+
+  /// Puts back the room names of speakers a bond ABSORBED a group away from.
+  ///
+  /// `AddHTSatellite` dissolves the source pair/zone around the speaker it
+  /// takes (EXP-23 Q12) without a `SeparateStereoPair`, so the restore that
+  /// path performs never runs. Call AFTER the bond write with the survivors
+  /// captured BEFORE the free, or the source bond is gone and unreadable.
+  /// Cosmetic, therefore best-effort — never fail an applied bond over a name.
+  Future<void> _restoreAbsorbedNames(
+      SonosSystem sys, Map<String, Set<String>> survivors, Phases ph) async {
+    for (final e in survivors.entries) {
+      final src = sys.memberByUuid(e.key);
+      final key = src != null ? sys.bondMemberUuids(src) : {e.key, ...e.value};
+      final targets = [
+        for (final u in e.value)
+          if (sys.device(u) case final d?) d,
+      ];
+      if (targets.isEmpty) continue;
+      try {
+        await _repo.restoreAbsorbedNames(key, targets, cancel: _activeOp);
+      } on OperationCancelled {
+        rethrow;
+      } catch (err) {
+        ph.log('restore absorbed names: $err');
+      }
+    }
   }
 
   /// Members of [uuids] currently bonded into a HOME THEATER, whose room name
@@ -959,33 +1016,33 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final result = await AsyncValue.guard(() async {
       tracker.start('group');
       final ph = _phases(tracker, 'group');
-      // Before anything destructive: the free below DISSOLVES whatever bond a
-      // member is in, and `createGroup` rejects a member with no IP — so a
-      // speaker recovered from topology alone would have cost the user a live
-      // group and then thrown without a single bond write. INSIDE the guard so
-      // the failure renders: `showBondingProgress` clears the step list first,
-      // and throwing above the tracker left a bare spinner under a red Done bar
-      // with the error text never shown.
-      _requireIps([for (final m in members) m.device, if (sub != null) sub]);
-      final wanted = name?.trim();
-      // Speakers bonded elsewhere must be FREED first: unlike `AddHTSatellite`,
-      // which absorbs a speaker straight out of a live pair or zone,
-      // `AddBondedZones` is ACCEPTED and silently does nothing when a member is
-      // still bonded somewhere else — the group never forms (EXP-23 Q11, two
-      // cycles). Freeing clears that bond's room calibration, which is why the
-      // picker warns before you get here.
-      var sys = previous ?? await _repo.discover();
-      // A group target absorbs from nothing (EXP-23 Q11), hence absorbing:false.
-      final needsFree = involved
-          .any((u) => sys.mustFreeBeforeBonding(u, keep: const {}, absorbing: false));
-      ph.seed([
-        if (needsFree) ('free', l10n.stepFreeConflicting),
-        ('bond', l10n.stepBondSpeakers),
-        ('confirm', l10n.stepWaitForConfirm),
-        if (wanted != null && wanted.isNotEmpty && coord.ip != null)
-          ('name', l10n.stepNameGroup),
-      ]);
       try {
+        // Before anything destructive: the free below DISSOLVES whatever bond a
+        // member is in, and `createGroup` rejects a member with no IP — so a
+        // speaker recovered from topology alone would have cost the user a live
+        // group and then thrown without a single bond write. Inside the TRY, not
+        // just the guard: `tracker.start` has already marked the step active, so
+        // a throw that skips `tracker.fail` leaves the timeline spinning forever
+        // under a red header with the reason only in the snackbar.
+        _requireIps([for (final m in members) m.device, if (sub != null) sub]);
+        final wanted = name?.trim();
+        // Speakers bonded elsewhere must be FREED first: unlike `AddHTSatellite`,
+        // which absorbs a speaker straight out of a live pair or zone,
+        // `AddBondedZones` is ACCEPTED and silently does nothing when a member is
+        // still bonded somewhere else — the group never forms (EXP-23 Q11, two
+        // cycles). Freeing clears that bond's room calibration, which is why the
+        // picker warns before you get here.
+        var sys = previous ?? await _repo.discover();
+        // A group target absorbs from nothing (EXP-23 Q11), hence absorbing:false.
+        final needsFree = involved
+            .any((u) => sys.mustFreeBeforeBonding(u, keep: const {}, absorbing: false));
+        ph.seed([
+          if (needsFree) ('free', l10n.stepFreeConflicting),
+          ('bond', l10n.stepBondSpeakers),
+          ('confirm', l10n.stepWaitForConfirm),
+          if (wanted != null && wanted.isNotEmpty && coord.ip != null)
+            ('name', l10n.stepNameGroup),
+        ]);
         final htSourced = _htSourced(sys, involved);
         sys = await _freeConflicts(sys, involved,
             keep: const {}, absorbing: false, ph: ph, fallbackIp: coord.ip);
@@ -1181,42 +1238,42 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final result = await AsyncValue.guard(() async {
       tracker.start('edit');
       final ph = _phases(tracker, 'edit');
-      // Before anything destructive: the free below DISSOLVES whatever bond a
-      // taken speaker is in, and the rebuild path dissolves THIS group — so a
-      // missing IP has to fail here, not after. An in-place re-assert only
-      // writes to the coordinator; a rebuild goes through `separateGroup` +
-      // `createGroup`, which need every member's IP AND the OUTGOING
-      // coordinator's (it isn't in `members` on a coordinator change, and
-      // `separateGroup` throws on its missing IP). Inside the guard so the
-      // failure renders instead of hanging the progress screen on a spinner.
-      if (needsBond) {
-        _requireIps(inPlace
-            ? [coord]
-            : [
-                for (final m in members) m.device,
-                if (sub != null) sub,
-                if (previous?.device(existing.uuid) case final outgoing?)
-                  outgoing,
-              ]);
-      }
-      // A member taken from ANOTHER bond has to be freed first: `AddBondedZones`
-      // is accepted and silently no-ops on a speaker bonded elsewhere (EXP-23
-      // Q11), and `reassertGroup` would then re-assert — each attempt rebuilding
-      // this group and clearing its Trueplay (Q8a) — until it gave up. `keep` is
-      // the group's own members, so an ordinary edit frees nothing.
-      final keepInGroup = {...current, existing.uuid};
-      final needsFree = needsBond &&
-          previous != null &&
-          target.any((u) =>
-              previous.mustFreeBeforeBonding(u, keep: keepInGroup, absorbing: false));
-      ph.seed([
-        if (needsFree) ('free', l10n.stepFreeConflicting),
-        if (needsBond && !inPlace) ('separate', l10n.stepSeparateRestore),
-        if (needsBond)
-          ('bond', inPlace ? l10n.stepUpdateGroup : l10n.stepBondSpeakers),
-        if (needsName) ('name', l10n.stepNameGroup),
-      ]);
       try {
+        // Before anything destructive: the free below DISSOLVES whatever bond a
+        // taken speaker is in, and the rebuild path dissolves THIS group — so a
+        // missing IP has to fail here, not after. An in-place re-assert only
+        // writes to the coordinator; a rebuild goes through `separateGroup` +
+        // `createGroup`, which need every member's IP AND the OUTGOING
+        // coordinator's (it isn't in `members` on a coordinator change, and
+        // `separateGroup` throws on its missing IP). Inside the TRY, not just the
+        // guard, or `tracker.fail` is skipped and the step spins forever.
+        if (needsBond) {
+          _requireIps(inPlace
+              ? [coord]
+              : [
+                  for (final m in members) m.device,
+                  if (sub != null) sub,
+                  if (previous?.device(existing.uuid) case final outgoing?)
+                    outgoing,
+                ]);
+        }
+        // A member taken from ANOTHER bond has to be freed first: `AddBondedZones`
+        // is accepted and silently no-ops on a speaker bonded elsewhere (EXP-23
+        // Q11), and `reassertGroup` would then re-assert — each attempt rebuilding
+        // this group and clearing its Trueplay (Q8a) — until it gave up. `keep` is
+        // the group's own members, so an ordinary edit frees nothing.
+        final keepInGroup = {...current, existing.uuid};
+        final needsFree = needsBond &&
+            previous != null &&
+            target.any((u) =>
+                previous.mustFreeBeforeBonding(u, keep: keepInGroup, absorbing: false));
+        ph.seed([
+          if (needsFree) ('free', l10n.stepFreeConflicting),
+          if (needsBond && !inPlace) ('separate', l10n.stepSeparateRestore),
+          if (needsBond)
+            ('bond', inPlace ? l10n.stepUpdateGroup : l10n.stepBondSpeakers),
+          if (needsName) ('name', l10n.stepNameGroup),
+        ]);
         var system = previous;
         var htSourced = const <String>{};
         if (needsBond && system != null) {

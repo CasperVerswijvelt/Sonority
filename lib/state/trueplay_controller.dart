@@ -74,6 +74,29 @@ class TrueplayController extends Notifier<TrueplayState> {
     return results;
   }
 
+  /// Folds a fresh read into the cache, EVICTING any target that didn't answer.
+  ///
+  /// A merge kept the previous value for a speaker whose re-read faulted — and
+  /// the flows seed that cache before they bond (`loadTrueplayForPickers` reads
+  /// every device), while bonding closes :1400 on each member for ~20-30s. So
+  /// the reading left behind was a PRE-bond `available: true` for exactly the
+  /// speakers the bond had just wiped, and `tunedCount` is what gates the
+  /// destructive-enable confirm: a stale reading could suppress the dialog that
+  /// stops a user destroying the tunings that are left. Unknown is the honest
+  /// state, and it keeps the warning on.
+  void _fold(List<SonosDevice> targets, Map<String, RoomCalibration> results) {
+    final next = {...state.byUuid};
+    for (final d in targets) {
+      final fresh = results[d.uuid];
+      if (fresh == null) {
+        next.remove(d.uuid);
+      } else {
+        next[d.uuid] = fresh;
+      }
+    }
+    state = state.copyWith(byUuid: next);
+  }
+
   /// Fetch calibration for EVERY speaker in [system], for the bond-aware
   /// pickers.
   ///
@@ -90,8 +113,7 @@ class TrueplayController extends Notifier<TrueplayState> {
     final targets = _withIp(devices);
     if (targets.isEmpty) return;
     _setBusy(targets.map((d) => d.uuid), true);
-    final results = await _readAll(targets);
-    state = state.copyWith(byUuid: {...state.byUuid, ...results});
+    _fold(targets, await _readAll(targets));
     _setBusy(targets.map((d) => d.uuid), false);
   }
 
@@ -115,8 +137,7 @@ class TrueplayController extends Notifier<TrueplayState> {
           }
         }),
       );
-      final results = await _readAll(targets);
-      state = state.copyWith(byUuid: {...state.byUuid, ...results});
+      _fold(targets, await _readAll(targets));
     } finally {
       _setBusy(targets.map((d) => d.uuid), false);
     }

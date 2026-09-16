@@ -502,6 +502,19 @@ class SonosRepository {
     await _restoreZoneNames(snapshotUuids, members, cancel: cancel);
   }
 
+  /// Restores saved room names for the members a bond ABSORBED a speaker away
+  /// from, whose group dissolved implicitly with no `separateGroup` to do it.
+  ///
+  /// [sourceUuids] is the source bond's FULL membership — that is the snapshot
+  /// key (see [_saveZoneSnapshot]) — and [targets] the speakers actually left
+  /// behind. Best-effort per member, like every other name restore: these
+  /// speakers were just unbonded, so they are inside the ~20-30s window where
+  /// :1400 refuses connections.
+  Future<void> restoreAbsorbedNames(
+      Iterable<String> sourceUuids, List<SonosDevice> targets,
+      {CancellationToken? cancel}) =>
+      _restoreZoneNames(sourceUuids, targets, cancel: cancel);
+
   /// Restores each member's saved room name after a group is dissolved (Sonos
   /// absorbs member names into the coordinator's on separate, and doesn't put
   /// them back). No-op when no snapshot was persisted — e.g. the group was

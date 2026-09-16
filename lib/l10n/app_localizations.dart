@@ -592,6 +592,12 @@ abstract class AppLocalizations {
   /// **'Freeing {name}'**
   String stepFreeing(String name);
 
+  /// Timeline note when the settle poll after an unbond never converged. Not an error: the unbond usually applied and the bond write re-asserts until it verifies. Shown so the timeline names the real cause when that bond then fails, instead of leaving it only in the raw log.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t confirm {name} was freed — carrying on and verifying at the bond'**
+  String stepFreeUnconfirmed(String name);
+
   /// No description provided for @stepWaitForSettle.
   ///
   /// In en, this message translates to:

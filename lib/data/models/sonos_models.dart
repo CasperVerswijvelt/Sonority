@@ -605,6 +605,34 @@ class SonosSystem {
     return losing;
   }
 
+  /// The speakers left behind when [selected] is ABSORBED out of its source
+  /// bonds, keyed by the source coordinator — i.e. who keeps a room name that
+  /// is about to stop being a bond's.
+  ///
+  /// `AddHTSatellite` absorbs a speaker straight out of a live pair or zone and
+  /// the bond dissolves AROUND it rather than shrinking (EXP-23 Q12). No
+  /// `SeparateStereoPair` runs on that path, so the code that restores member
+  /// names never does either, and a 3-speaker group's untaken member is left
+  /// standalone still called "Keuken" — a duplicate of the live room.
+  ///
+  /// The source's own COORDINATOR is excluded: it stays visible and its name
+  /// legitimately IS the bond's, which is why a two-speaker source needs
+  /// nothing restored.
+  Map<String, Set<String>> absorbedSurvivors(Iterable<String> selected) {
+    final out = <String, Set<String>>{};
+    for (final u in selected) {
+      final owner = ownerOf(u);
+      if (owner == null) continue;
+      final src = memberByUuid(owner);
+      if (src == null || !canAbsorbFrom(src)) continue;
+      final left = bondMemberUuids(src)
+          .where((m) => m != src.uuid && !selected.contains(m))
+          .toSet();
+      if (left.isNotEmpty) out[src.uuid] = left;
+    }
+    return out;
+  }
+
   /// Whether [uuid] must be freed from whatever it is bonded to before a new
   /// bond can claim it.
   ///

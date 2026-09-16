@@ -334,6 +334,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String stepFreeUnconfirmed(String name) {
+    return 'Couldn’t confirm $name was freed — carrying on and verifying at the bond';
+  }
+
+  @override
   String get stepWaitForSettle => 'Wait for Sonos to settle';
 
   @override
