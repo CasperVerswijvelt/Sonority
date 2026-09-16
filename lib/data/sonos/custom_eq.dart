@@ -157,6 +157,10 @@ List<BiquadSos> sectionsForCorrection(
   required int maxSections,
 }) {
   assert(correctionDb.length == freqs.length);
+  // No room for even a passthrough. The caller aborts well before this (a
+  // player reporting < 2 sections is refused), but this is public engine API
+  // and rule 4 is absolute: never emit more sections than the player allows.
+  if (maxSections < 1) return const [];
 
   // A sub reproduces roughly 20–120 Hz, so fitting it against the full curve
   // spends every filter above its passband. Everything else fits its whole
@@ -175,19 +179,24 @@ List<BiquadSos> sectionsForCorrection(
     return const [BiquadSos.passthrough];
   }
 
-  // fitBiquads emits nBands peaking sections plus one low shelf.
-  final nBands = math.min(narrow ? 6 : 10, maxSections - 1);
-  // A player reporting room for fewer than a shelf + one peak gets a do-nothing
-  // entry: it still needs one, it just can't carry a curve.
-  if (nBands < 1) return const [BiquadSos.passthrough];
+  // Put the peaking filters on the SLIDER centres rather than an even log
+  // spread. The user is drawing at these exact frequencies, so a filter at each
+  // one is what reproduces what they drew; a generic spread leaves 250 Hz and
+  // 500 Hz between centres and fits them ~2.5 dB short. Plus a low shelf, and a
+  // high shelf unless the channel is band-limited — a sub has no top end to
+  // shelve, and peaking filters alone cannot hold the outermost band.
+  final shelves = narrow ? 1 : 2;
+  final usable = [for (final f in kEqBands) if (f <= fitHi) f];
+  final centers =
+      usable.take(math.max(0, maxSections - shelves)).toList();
+  if (centers.isEmpty) return const [BiquadSos.passthrough];
 
   final fit = fitBiquads(
     f,
     t,
-    nBands: nBands,
     fs: fs,
-    bandLo: narrow ? 25 : 60,
-    bandHi: narrow ? 110 : 8000,
+    centers: centers,
+    highShelf: !narrow,
   );
 
   final sections = fit.sections.take(maxSections).toList();

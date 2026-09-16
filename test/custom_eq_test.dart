@@ -143,6 +143,47 @@ void main() {
           everyElement(lessThan(0.01)));
     });
 
+    test('EVERY band achieves what it asks for, at both rails', () {
+      // Parameterised over the whole band list on purpose. The version of this
+      // test that probed only 125 Hz and 1 kHz passed while the 16 kHz slider
+      // delivered a quarter of its label, because nothing in the cascade sat
+      // above 8 kHz. Any future band added outside the fitter's reach fails here.
+      final grid = eqGrid();
+      for (var b = 0; b < kEqBands.length; b++) {
+        for (final gain in [6.0, -12.0, 3.0]) {
+          final corr =
+              composeCorrection(bandOffsetsDb: flatCurve()..[b] = gain, freqs: grid);
+          final sections =
+              sectionsForCorrection(corr, grid, fs: 44100, maxSections: 16);
+          final f = kEqBands[b];
+          final want = corr[grid.indexWhere((g) => g >= f)];
+          final got = cascadeMagnitudeDb(sections, [f], 44100)[0];
+          expect(got, closeTo(want, 1.0),
+              reason: '${f.toStringAsFixed(0)} Hz at $gain dB: '
+                  'asked ${want.toStringAsFixed(2)}, got ${got.toStringAsFixed(2)}');
+        }
+      }
+    });
+
+    test('the fitted cascade does not overshoot the correction rails', () {
+      // The clamp bounds the TARGET; nothing bounds the fit. The plot draws the
+      // rails as the honest limit, so a cascade that rings past them is a lie
+      // about headroom.
+      final grid = eqGrid();
+      for (var b = 0; b < kEqBands.length; b++) {
+        final corr = composeCorrection(
+            bandOffsetsDb: flatCurve()..[b] = kEqMaxBoostDb, freqs: grid);
+        final achieved = cascadeMagnitudeDb(
+            sectionsForCorrection(corr, grid, fs: 44100, maxSections: 16),
+            grid,
+            44100);
+        for (final v in achieved) {
+          expect(v, lessThan(kEqMaxBoostDb + 1.0),
+              reason: 'band ${kEqBands[b]} Hz overshoots to $v dB');
+        }
+      }
+    });
+
     test('the achieved response tracks what was asked for', () {
       // A cut at 1 kHz and a lift at 125 Hz, checked where they were drawn.
       final o = flatCurve()

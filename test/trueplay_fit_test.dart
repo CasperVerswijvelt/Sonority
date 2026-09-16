@@ -37,8 +37,9 @@ void main() {
       final freqs = geomspace(20, 120, 60);
       final targetDb = cascadeMagnitudeDb(target, freqs, fs).toList();
 
-      final fit =
-          fitBiquads(freqs, targetDb, fs: fs, nBands: 6, bandLo: 25, bandHi: 110);
+      // highShelf: false — a sub has no top end to shelve.
+      final fit = fitBiquads(freqs, targetDb,
+          fs: fs, nBands: 6, bandLo: 25, bandHi: 110, highShelf: false);
       expect(fit.sections.length, 7); // 6 bands + the low shelf
       expect(fit.rmsDb, lessThan(0.4),
           reason: 'sub-band RMS ${fit.rmsDb} dB, max ${fit.maxAbsDb} dB');
@@ -46,7 +47,8 @@ void main() {
 
       // The default 60–8000 Hz placement can't do this: only 2 of its 10 bands
       // land inside the target's band at all.
-      final wide = fitBiquads(freqs, targetDb, fs: fs, nBands: 6);
+      final wide =
+          fitBiquads(freqs, targetDb, fs: fs, nBands: 6, highShelf: false);
       expect(fit.rmsDb * 4, lessThan(wide.rmsDb),
           reason: 'band-limited ${fit.rmsDb} dB should beat the default '
               '60–8000 Hz placement (${wide.rmsDb} dB) by a wide margin');
@@ -60,7 +62,33 @@ void main() {
       final targetDb = List<double>.filled(freqs.length, 0.0);
       final fit = fitBiquads(freqs, targetDb,
           fs: fs, nBands: 10, centers: [50, 100, 200]);
-      expect(fit.sections.length, 4); // 3 centres + the low shelf
+      expect(fit.sections.length, 5); // 3 centres + a shelf at each end
+      expect(
+          fitBiquads(freqs, targetDb,
+                  fs: fs, centers: [50, 100, 200], highShelf: false)
+              .sections
+              .length,
+          4);
+    });
+
+    test('a high shelf is what makes the topmost band reachable', () {
+      // Peaking filters only make bumps, so without a shelf above the last
+      // centre the cascade cannot hold a correction out to Nyquist. This is the
+      // regression that made the 16 kHz band ~25% effective.
+      const fs = 44100.0;
+      final freqs = geomspace(1000, 20000, 80);
+      // Ask for +6 dB across the whole top end.
+      final targetDb = List<double>.filled(freqs.length, 6.0);
+
+      final withShelf = fitBiquads(freqs, targetDb,
+          fs: fs, centers: [2000, 4000, 8000], highShelf: true);
+      final without = fitBiquads(freqs, targetDb,
+          fs: fs, centers: [2000, 4000, 8000], highShelf: false);
+
+      final got = cascadeMagnitudeDb(withShelf.sections, [16000], fs)[0];
+      expect(got, closeTo(6, 1.0), reason: 'with a high shelf: $got dB');
+      expect(withShelf.rmsDb * 2, lessThan(without.rmsDb),
+          reason: 'shelf ${withShelf.rmsDb} dB vs none ${without.rmsDb} dB');
     });
 
     test('a flat target fits near 0 dB', () {

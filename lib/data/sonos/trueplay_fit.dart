@@ -54,6 +54,28 @@ BiquadSos rbjLowShelf(double f0, double gainDb, double fs) {
   );
 }
 
+/// RBJ high-shelf biquad (shelf slope S=1).
+///
+/// The mirror of [rbjLowShelf], and it exists for the same reason: a peaking
+/// filter can only make a bump, so without a shelf at each end the cascade
+/// cannot hold a correction past its outermost centre. The top band was ~25%
+/// effective before this was added.
+BiquadSos rbjHighShelf(double f0, double gainDb, double fs) {
+  final a = math.pow(10, gainDb / 40.0).toDouble();
+  final w0 = 2 * math.pi * f0 / fs;
+  final c = math.cos(w0);
+  final alpha = math.sin(w0) / 2 * math.sqrt((a + 1 / a) * (1 / 1.0 - 1) + 2);
+  final tw = 2 * math.sqrt(a) * alpha;
+  final a0 = (a + 1) - (a - 1) * c + tw;
+  return BiquadSos(
+    a * ((a + 1) + (a - 1) * c + tw) / a0,
+    -2 * a * ((a - 1) + (a + 1) * c) / a0,
+    a * ((a + 1) + (a - 1) * c - tw) / a0,
+    2 * ((a - 1) - (a + 1) * c) / a0,
+    ((a + 1) - (a - 1) * c - tw) / a0,
+  );
+}
+
 /// Largest pole magnitude of one section — the roots of `z² + a1·z + a2`.
 /// **> 1 ⇒ the section is UNSTABLE** (its output grows without bound).
 ///
@@ -112,10 +134,16 @@ class BiquadFit {
 /// Levenberg–Marquardt (numeric Jacobian). Reproduces a typical correction curve
 /// to ~0.6 dB RMS.
 ///
+/// The cascade is bracketed by a low shelf and (unless [highShelf] is false) a
+/// high shelf. Peaking filters can only make bumps, so the shelves are what let
+/// the fit hold a correction beyond the outermost centre — without the high
+/// shelf the topmost band achieves a fraction of what it asks for.
+///
 /// The peaking centers default to `geomspace(bandLo, bandHi, nBands)`. Narrow
 /// them for a **band-limited channel** — a Sonos sub only reproduces ~20–120 Hz,
-/// so spreading 10 bands over the default 60–8000 Hz wastes most of them above
-/// its passband: `fitBiquads(f, t, nBands: 6, bandLo: 25, bandHi: 110)`.
+/// so spreading 10 bands over the default range wastes most of them above its
+/// passband: `fitBiquads(f, t, nBands: 6, bandLo: 25, bandHi: 110,
+/// highShelf: false)` (a sub has no top end to shelve).
 /// The low-shelf keeps its fixed 30–200 Hz frequency bounds either way — that
 /// range is already entirely inside a sub's band, so nothing needs to scale.
 ///
@@ -128,12 +156,15 @@ BiquadFit fitBiquads(
   double fs = 44100,
   int maxIters = 60,
   double bandLo = 60,
-  double bandHi = 8000,
+  double bandHi = 12000,
+  bool highShelf = true,
   List<double>? centers,
 }) {
   final c = centers ?? geomspace(bandLo, bandHi, nBands);
   nBands = c.length;
-  final p = 2 * nBands + 2; // gains, Qs, shelfF, shelfG
+  // gains, Qs, lowShelfF, lowShelfG, then highShelfF, highShelfG.
+  final p = 2 * nBands + (highShelf ? 4 : 2);
+  final loF = 2 * nBands, hiF = 2 * nBands + 2;
   final lo = Float64List(p), hi = Float64List(p);
   for (var i = 0; i < nBands; i++) {
     lo[i] = -18;
@@ -141,24 +172,36 @@ BiquadFit fitBiquads(
     lo[nBands + i] = 0.3;
     hi[nBands + i] = 6; // Qs
   }
-  lo[p - 2] = 30;
-  hi[p - 2] = 200; // shelf f
-  lo[p - 1] = -24;
-  hi[p - 1] = 6; // shelf g
+  lo[loF] = 30;
+  hi[loF] = 200; // low shelf f
+  lo[loF + 1] = -24;
+  hi[loF + 1] = 6; // low shelf g
+  if (highShelf) {
+    lo[hiF] = 2000;
+    hi[hiF] = math.min(16000, fs * 0.45); // high shelf f, clear of Nyquist
+    lo[hiF + 1] = -24;
+    hi[hiF + 1] = 6; // high shelf g
+  }
 
   final theta = Float64List(p);
   for (var i = 0; i < nBands; i++) {
     theta[i] = 0; // flat gains
     theta[nBands + i] = 1; // Q=1
   }
-  theta[p - 2] = 55;
-  theta[p - 1] = -8;
+  theta[loF] = 55;
+  theta[loF + 1] = -8;
+  if (highShelf) {
+    theta[hiF] = math.min(8000, hi[hiF]);
+    theta[hiF + 1] = 0;
+  }
 
   List<BiquadSos> build(Float64List t) {
     final s = <BiquadSos>[
       for (var i = 0; i < nBands; i++)
         rbjPeaking(c[i], math.max(t[nBands + i], 0.2), t[i], fs),
-      rbjLowShelf(t[p - 2].clamp(30, 200), t[p - 1], fs),
+      rbjLowShelf(t[loF].clamp(30, 200), t[loF + 1], fs),
+      if (highShelf)
+        rbjHighShelf(t[hiF].clamp(lo[hiF], hi[hiF]), t[hiF + 1], fs),
     ];
     return s;
   }
