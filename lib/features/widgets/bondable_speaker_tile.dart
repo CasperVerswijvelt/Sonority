@@ -20,12 +20,12 @@ class BondableSpeakerTile extends StatelessWidget {
   final ValueChanged<bool?>? onChanged;
 
   /// Normal subtitle (model name, or an Amp note). Replaced by the warning text
-  /// when the device is unreachable, and omitted entirely when null — which is
+  /// when the device is unreachable, and omitted entirely when null, which is
   /// what a card titled by [titleOverride] does, since its title is already the
   /// speaker type and repeating it below would say the same thing twice.
   final String? subtitle;
 
-  /// Replaces [SonosDevice.roomName] as the title — see
+  /// Replaces [SonosDevice.roomName] as the title. See
   /// [SelectableSpeakerCard.titleOverride].
   final String? titleOverride;
 

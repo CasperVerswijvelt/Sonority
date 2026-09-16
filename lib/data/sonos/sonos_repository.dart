@@ -104,21 +104,21 @@ class SonosRepository {
 
     // Topology is authoritative; SSDP and the per-device description fetch are
     // both lossy. Re-fetch anything we don't yet have a description for,
-    // straight from its topology-provided Location — this recovers a transient
+    // straight from its topology-provided Location. This recovers a transient
     // fetch failure and any device SSDP's multicast missed entirely.
     //
     // SATELLITES COUNT. They are `<Satellite>` children, not members, so a
     // members-only sweep left an SSDP-missed Sub absent from `devicesByUuid`
     // and every consumer resolved it to null: the HT page showed "Speaker" for
-    // it, the setup flow said "no free subwoofer found", and — the reason this
-    // is not cosmetic — the flow builds its target map from resolved devices,
+    // it, the setup flow said "no free subwoofer found", and: the reason this
+    // is not cosmetic: the flow builds its target map from resolved devices,
     // so an apply would have dropped the SW channel and `RemoveHTSatellite`'d
     // the user's Sub with no warning (which per EXP-23 also wipes the bond's
     // Trueplay). Seen live on hardware.
     //
     // INVISIBLE MEMBERS COUNT for the same reason. A stereo-pair half and every
     // non-coordinator zone member is its own `Invisible="1"` member, and a
-    // group edit builds its target from resolved devices too — an SSDP-missed
+    // group edit builds its target from resolved devices too: an SSDP-missed
     // one silently left the group on a rename. Re-fetching is by `Location`, so
     // hidden or not makes no difference; `allMembers` filters Invisible where it
     // belongs, at the topology, not by leaving the device unresolvable. It also
@@ -393,7 +393,7 @@ class SonosRepository {
       if (d.ip == null || skipNameSnapshot.contains(d.uuid)) continue;
       // A newly-added member may have just been unbonded and still be refusing
       // :1400. BEST-EFFORT: this runs before the first write, and on the
-      // dissolve→recreate path the group is already torn down by now — losing
+      // dissolve→recreate path the group is already torn down by now. Losing
       // one member's name snapshot is far cheaper than aborting the rebuild.
       try {
         merged[d.uuid] = await retryUnreachable(
@@ -406,7 +406,7 @@ class SonosRepository {
       }
     }
     if (merged.isNotEmpty) {
-      // Keyed by the FULL target membership, never by what was captured — see
+      // Keyed by the FULL target membership, never by what was captured. See
       // [_saveZoneSnapshot].
       await _saveZoneSnapshot(
         [for (final m in members) m.device.uuid, if (sub != null) sub.uuid],
@@ -482,7 +482,7 @@ class SonosRepository {
   /// through a recipe). [members] are all bonded speakers (incl. any Sub),
   /// coordinator first, resolved by the caller for name restore + IPs. The group
   /// must already be its own coordinator — call [detachFromGroup] + settle first.
-  /// [snapshotUuids] is the group's FULL membership — the key the snapshot was
+  /// [snapshotUuids] is the group's FULL membership: the key the snapshot was
   /// stored under. It is deliberately NOT derived from [members]: those are the
   /// RESOLVED devices, and one unresolvable member shortened the key, missed the
   /// stored entry entirely and restored NOBODY's name (see [_restoreZoneNames]).
@@ -512,7 +512,7 @@ class SonosRepository {
   /// FULL intended membership (see [_saveZoneSnapshot]), so deriving the key
   /// from the resolved devices made one unresolvable member shorten the key,
   /// miss the stored entry entirely, and cost EVERY speaker in the group its
-  /// name — not just the unresolved one. Mirrors the write-side rule.
+  /// name, not just the unresolved one. Mirrors the write-side rule.
   ///
   /// **Best-effort, per member.** These are the speakers Sonos just detached, so
   /// they're squarely inside the ~20-30s window where :1400 refuses connections
@@ -606,13 +606,13 @@ class SonosRepository {
     return 'zone_snapshot_${s.join('_')}';
   }
 
-  /// Stores [attrs] under the key for [members] — the group's FULL intended
+  /// Stores [attrs] under the key for [members]: the group's FULL intended
   /// membership, deliberately NOT `attrs.keys`.
   ///
   /// A snapshot is legitimately a SUBSET of the group: a member whose current
   /// name isn't its own is skipped, and a member that won't answer :1400 is
-  /// best-effort. Keying by what was captured made the read — which asks by the
-  /// LIVE member list — miss the key entirely, so a later separate restored
+  /// best-effort. Keying by what was captured made the read, which asks by the
+  /// LIVE member list. Miss the key entirely, so a later separate restored
   /// NOBODY's name, not just the skipped one's.
   Future<void> _saveZoneSnapshot(
       Iterable<String> members, Map<String, ZoneAttributes> attrs) async {

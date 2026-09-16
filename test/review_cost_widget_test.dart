@@ -12,12 +12,12 @@ import 'package:sonority/l10n/app_localizations.dart';
 
 /// The review step is the ONLY gate on a destructive bond write (there is no
 /// confirm dialog), so whatever the apply costs has to be on the same screen as
-/// the Apply button — named, not implied.
+/// the Apply button. Named, not implied.
 ///
 /// Both regressions guarded here shipped as a silent screen: the HT card
 /// returned "Nothing selected yet" for a deselect-everything (which removes
 /// every satellite and wipes the whole set's Trueplay), and the group card
-/// never mentioned Trueplay at all — three taps behind the note that does.
+/// never mentioned Trueplay at all: three taps behind the note that does.
 void main() {
   const bar = 'RINCON_BEAM01400';
   const rearL = 'RINCON_REARL01400';
@@ -118,7 +118,7 @@ void main() {
         (tester) async {
       await pump(tester, card(member: ht));
 
-      // What leaves — every satellite, named the way the cards are.
+      // What leaves: every satellite, named the way the cards are.
       expect(find.textContaining('leave this home theater'), findsOneWidget);
       expect(find.textContaining('Play:1 · Surround L'), findsOneWidget);
       expect(find.textContaining('Play:1 · Surround R'), findsOneWidget);
@@ -190,7 +190,7 @@ void main() {
 
     testWidgets('an UNTUNED source still states the dissolve', (tester) async {
       // The card replaced the removal confirm dialog, so it is the only gate
-      // left — and with nothing tuned there was no cost line and no warning,
+      // left, and with nothing tuned there was no cost line and no warning,
       // leaving a silent card over an Apply that dissolves a live pair.
       // Untuned is the COMMON case: Trueplay can't be measured from Android.
       await pump(

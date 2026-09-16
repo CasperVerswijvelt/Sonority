@@ -161,7 +161,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       // Speakers bonded into ANOTHER entity. `AddHTSatellite` absorbs one
       // straight out of a live stereo pair without a separate unbond step
       // (EXP-23), so making the user do it by hand first was unnecessary. NOT a
-      // retention claim — the coefficients survive in storage, which is not the
+      // retention claim: the coefficients survive in storage, which is not the
       // same as keeping the tuning, and the bond still clears the set (Q20).
       // What the take costs is tagged on the card and summarised by the note
       // under the list.
@@ -191,19 +191,19 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     // leaves on the review card, and decides whether this home theater's own
     // members are part of the Trueplay cost.
     final diff = _diff(system, member, soundbar);
-    // Trueplay per candidate — a speaker taken from another bond may hold a
+    // Trueplay per candidate: a speaker taken from another bond may hold a
     // tuning the move would cost, and the picker says so before it happens.
     final picker = PickerContext(
       system: system,
       calibration: ref.watch(trueplayControllerProvider).byUuid,
-      // A speaker still being READ is not one known to be untuned — without
+      // A speaker still being READ is not one known to be untuned. Without
       // this the flow opens claiming every bond loses its tuning, then
       // retracts when the reads land.
       busy: ref.watch(trueplayControllerProvider).busy,
       exceptPrimary: member.uuid,
       // Any write costs this bond its tuning, not just one that drops a
       // satellite (CLAUDE.md, Q20: a pure add took the bar and both rears to
-      // `available=0`). A no-op writes nothing, so it costs nothing — which is
+      // `available=0`). A no-op writes nothing, so it costs nothing, which is
       // also what keeps the flow from warning the moment it opens.
       writes: htApplyWrites(diff),
     );
@@ -271,7 +271,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   children: [
                     Text(
                       // Only mention the Amp/Port shortcut when the user
-                      // actually has one — otherwise it is advice about
+                      // actually has one. Otherwise it is advice about
                       // hardware they don't own.
                       frontCandidates.any((d) => d.drivesExternalSpeakers)
                           ? context.l10n.frontSurroundsFrontsHintAmp
@@ -378,8 +378,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
 
   /// What applying this selection would do, from the engine: the very target
   /// [SonosController.applyHomeTheaterLayout] builds (same arguments), diffed
-  /// against the live bond. `isNoOp` gates Apply — an unchanged layout writes
-  /// nothing — and `toRemove` is what leaves. Asking the engine (rather than
+  /// against the live bond. `isNoOp` gates Apply: an unchanged layout writes
+  /// nothing, and `toRemove` is what leaves. Asking the engine (rather than
   /// re-deriving it here) is what keeps the review card and the apply from
   /// disagreeing, and gets the dual-sub / Amp-on-both-fronts shapes right.
   HtDiff _diff(
@@ -541,7 +541,7 @@ class _ChooseSpeakers extends StatelessWidget {
 
   final PickerContext picker;
 
-  /// Every speaker chosen across ALL steps — the Trueplay cost is the union
+  /// Every speaker chosen across ALL steps: the Trueplay cost is the union
   /// over every bond the selection touches, so pricing one step in isolation
   /// named the wrong speakers.
   final Set<String> allSelected;
@@ -668,7 +668,7 @@ class _AmpWiringNote extends StatelessWidget {
   }
 }
 
-/// Step 4 — the review card, and the destructive-write gate: it names what
+/// Step 4: the review card, and the destructive-write gate: it names what
 /// leaves the home theater and whose Trueplay the apply costs, one tap before
 /// Apply. Public only so that gate can be widget-tested.
 @visibleForTesting
@@ -677,10 +677,10 @@ class HtReviewStep extends StatelessWidget {
   final ZoneGroupMember member;
   final Map<SonosChannel, SonosDevice> additions;
 
-  /// Resulting Subs (existing ∪ newly picked) — up to two.
+  /// Resulting Subs (existing ∪ newly picked). Up to two.
   final List<SonosDevice> subs;
 
-  /// What applying would do, straight from the engine — `toRemove` names what
+  /// What applying would do, straight from the engine. `toRemove` names what
   /// leaves. Same object that gates the Apply button, so the card can't
   /// describe an apply different from the one that runs.
   final HtDiff diff;
@@ -703,7 +703,7 @@ class HtReviewStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final subCount = subs.length;
     // Deselecting everything on a bonded home theater is not "nothing
-    // selected" — it unbonds every satellite, and `RemoveHTSatellite` wipes
+    // selected". It unbonds every satellite, and `RemoveHTSatellite` wipes
     // the whole set's Trueplay. Only a genuine no-op gets the placeholder;
     // anything that writes falls through to the diagram + cost card below,
     // which is this flow's only gate. (A bare soundbar is exactly what the
@@ -736,8 +736,8 @@ class HtReviewStep extends StatelessWidget {
     );
   }
 
-  /// What this apply COSTS — what leaves the home theater and who loses their
-  /// Trueplay — or null when it costs nothing. Never the reassurance: that is
+  /// What this apply COSTS. What leaves the home theater and who loses their
+  /// Trueplay, or null when it costs nothing. Never the reassurance: that is
   /// rendered separately, on purpose.
   String? _warning(BuildContext context) {
     final l10n = context.l10n;
@@ -745,7 +745,7 @@ class HtReviewStep extends StatelessWidget {
       for (final u in diff.toRemove)
         if (system.device(u) case final d?) d,
     ];
-    // What the HT holds after apply — the bar plus everything still selected.
+    // What the HT holds after apply: the bar plus everything still selected.
     // Priced by the SAME PickerContext the speaker lists used, so the two
     // screens name the same speakers.
     final selected = {
@@ -758,7 +758,7 @@ class HtReviewStep extends StatelessWidget {
       if (picker.dissolveNote(l10n, selected) case final n?) n,
       if (dropped.isNotEmpty)
         l10n.frontSurroundsDropNote(
-          // Named the same way as the Trueplay line directly below it —
+          // Named the same way as the Trueplay line directly below it,
           // `bondedCardTitle`, not the bare type, or the same two speakers read
           // as "Play:1, Play:1" above and "Play:1 · Surround L" beneath.
           dropped

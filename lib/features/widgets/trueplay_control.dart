@@ -51,7 +51,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
   ///
   /// BOTH directions ask, for different reasons. Switching ON can destroy the
   /// tunings that are left. Switching OFF is not known to destroy anything, but
-  /// the only way back is the ON write, so it is a one-way door — and being
+  /// the only way back is the ON write, so it is a one-way door, and being
   /// told that afterwards is no use.
   Future<void> _set(bool on, bool warn, List<RoomCalibration> tuned) async {
     if (warn) {
@@ -138,13 +138,13 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     // this exact state and toggle deliberately. Removing a control on
     // one-household evidence is the wrong trade in an app whose whole point is
     // doing what the official app refuses. The copy hedges to "could" for the
-    // same reason — the certainty isn't earned.
+    // same reason: the certainty isn't earned.
     //
     // What the evidence DOES justify is not letting it happen by accident: the
     // loss is silent and there is no undo, so the enable asks first and names
     // what it costs.
     //
-    // ⚠️ Turning it OFF asks too, while the set is short — not because the (0)
+    // ⚠️ Turning it OFF asks too, while the set is short, not because the (0)
     // write is known to destroy anything (it isn't; every destructive cell we
     // have is the (1) write, and (0) on an incomplete set is simply UNTESTED)
     // but because it is a TRAP DOOR: the only way back is the (1) write, which
@@ -154,7 +154,7 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
     final canToggle = tunedCount > 0 && !busy;
     // Only warn about a write the user can actually issue. `incomplete` is also
     // true with NOTHING tuned (and while the reads are still in flight), where
-    // the switch is disabled — so warning there told every untuned speaker, and
+    // the switch is disabled, so warning there told every untuned speaker, and
     // every set mid-read, that it could destroy tunings that do not exist.
     final warn = incomplete && canToggle;
     // Keep the Switch mounted so it never jumps; a fixed-width slot holds the

@@ -164,12 +164,12 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     final picker = PickerContext(
       system: system,
       calibration: ref.watch(trueplayControllerProvider).byUuid,
-      // A speaker still being READ is not one known to be untuned — without
+      // A speaker still being READ is not one known to be untuned. Without
       // this the flow opens claiming every bond loses its tuning, then
       // retracts when the reads land.
       busy: ref.watch(trueplayControllerProvider).busy,
       exceptPrimary: widget.editUuid,
-      // Editing a group REBUILDS it, clearing its own members' Trueplay too —
+      // Editing a group REBUILDS it, clearing its own members' Trueplay too,
       // but only if the bond actually changes. Gating on that is what keeps
       // the flow from warning the moment it opens on an untouched group. A
       // CREATE always writes, and costs the speakers it bonds together.
@@ -363,11 +363,11 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     return members;
   }
 
-  /// True when the current selection would rewrite [existing]'s BOND — the
+  /// True when the current selection would rewrite [existing]'s BOND: the
   /// part that costs Trueplay, since `AddBondedZones` rebuilds the bond even on
   /// an unchanged map. A rename alone doesn't, which is why it isn't in here.
   /// Delegates to the shared [groupApplyWrites] so the Apply gate and the cost
-  /// card can't drift apart — and so a test can reach the real rule.
+  /// card can't drift apart, and so a test can reach the real rule.
   bool _bondDiffers(SonosSystem system, ZoneGroupMember? existing) {
     final members = _members(system);
     return groupApplyWrites(
@@ -605,7 +605,7 @@ class _SubStep extends StatelessWidget {
   }
 }
 
-/// Step 4 — summary, the destructive-write gate, and the "large groups can be
+/// Step 4. Summary, the destructive-write gate, and the "large groups can be
 /// flaky" nudge. Public only so the gate can be widget-tested.
 ///
 /// The cost has to be restated HERE and not only under the speaker list: a
@@ -684,7 +684,7 @@ class GroupReviewStep extends StatelessWidget {
           Gap.s,
         ],
         Gap.s,
-        // Same renderer as the picker note and the HT review card — one cost
+        // Same renderer as the picker note and the HT review card: one cost
         // model, three screens. The dissolve is stated even when nothing tuned
         // is at stake: it is destructive on its own, and this card replaced the
         // confirm dialog.

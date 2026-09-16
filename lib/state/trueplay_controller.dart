@@ -24,7 +24,7 @@ class TrueplayState {
   }) => TrueplayState(byUuid: byUuid ?? this.byUuid, busy: busy ?? this.busy);
 }
 
-/// Starts a full [TrueplayController.loadAll] after the current frame — the
+/// Starts a full [TrueplayController.loadAll] after the current frame: the
 /// one call a bond-aware setup flow makes from `initState`.
 ///
 /// Deferred because `load` touches provider state synchronously, which Riverpod
@@ -76,7 +76,7 @@ class TrueplayController extends Notifier<TrueplayState> {
 
   /// Folds a fresh read into the cache, EVICTING any target that didn't answer.
   ///
-  /// A merge kept the previous value for a speaker whose re-read faulted — and
+  /// A merge kept the previous value for a speaker whose re-read faulted, and
   /// the flows seed that cache before they bond (`loadTrueplayForPickers` reads
   /// every device), while bonding closes :1400 on each member for ~20-30s. So
   /// the reading left behind was a PRE-bond `available: true` for exactly the
@@ -102,7 +102,7 @@ class TrueplayController extends Notifier<TrueplayState> {
   ///
   /// Every device, not just the candidates: taking a satellite out of another
   /// home theater costs that bond's soundbar and Sub their tuning too, and
-  /// neither is ever a candidate — gathering only candidates left them out of
+  /// neither is ever a candidate. Gathering only candidates left them out of
   /// the cost line and out of the named losers. Both setup flows call this, so
   /// they can't drift.
   Future<void> loadAll(SonosSystem system) =>

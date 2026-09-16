@@ -6,11 +6,11 @@ import 'package:sonority/data/sonos/room_calibration.dart';
 import 'package:sonority/features/widgets/speaker_picker.dart';
 import 'package:sonority/l10n/app_localizations.dart';
 
-/// What the DESTINATION of a bond costs — the half no source bond knows about.
+/// What the DESTINATION of a bond costs: the half no source bond knows about.
 ///
 /// A bonding change costs the bond it CREATES, not only the ones it empties
 /// (CLAUDE.md, Q20/Q8a). Pricing only stolen speakers left the most ordinary
-/// destructive action in the app — pair two tuned speakers — priced at zero.
+/// destructive action in the app (pair two tuned speakers) priced at zero.
 void main() {
   group('the flow wiring, end to end', _wiring);
 
@@ -60,7 +60,7 @@ void main() {
         isNot(contains('Hal')));
   });
 
-  test('an untuned speaker is not named — there is nothing to lose', () {
+  test('an untuned speaker is not named. There is nothing to lose', () {
     final cost = ctx(writes: true, cal: {a: tuned, b: untuned})
         .tuningCost(l10n, {a, b});
     expect(cost.names, ['Keuken']);
@@ -73,8 +73,8 @@ void main() {
   });
 
   group('a dissolve is stated even when nothing is tuned', () {
-    // The review step is the only gate before Apply — the removal confirm
-    // dialog was deleted in favour of it — and an UNTUNED group priced nothing,
+    // The review step is the only gate before Apply: the removal confirm
+    // dialog was deleted in favour of it, and an UNTUNED group priced nothing,
     // so the card said nothing destructive about a dissolve it was causing.
     // Untuned is the common case: Trueplay can't be measured from Android.
     const x = 'RINCON_X01400';
@@ -107,7 +107,7 @@ void main() {
       },
     );
 
-    // Every speaker read, and read as UNTUNED — so tuningCost names nobody.
+    // Every speaker read, and read as UNTUNED, so tuningCost names nobody.
     PickerContext untunedCtx() => PickerContext(
           system: withGroups,
           calibration: {for (final u in [x, y, z, a, b]) u: untuned},
@@ -117,7 +117,7 @@ void main() {
     test('taking a member of a multi-speaker group names the group', () {
       final c = untunedCtx();
       expect(c.tuningCost(l10n, {y}).names, isEmpty,
-          reason: 'nothing tuned — this is the case that went silent');
+          reason: 'nothing tuned. This is the case that went silent');
       expect(c.dissolveNote(l10n, {y}), contains('Keuken'));
     });
 
@@ -130,7 +130,7 @@ void main() {
 
     test('a home theater source is named even though it survives the take', () {
       // Third case: an HT does NOT break up, it shrinks. It still has to be
-      // named — every one of its members loses its tuning (Q20), and nothing
+      // named: every one of its members loses its tuning (Q20), and nothing
       // else on the card mentions a second entity at all.
       const barU = 'RINCON_BAR01400';
       const satU = 'RINCON_SAT01400';
@@ -180,7 +180,7 @@ void main() {
 
   group('a read still in flight claims nothing', () {
     // The reads are kicked off when the flow OPENS, so "no entry yet" was
-    // indistinguishable from "asked and got nothing" — and the unknown branch
+    // indistinguishable from "asked and got nothing", and the unknown branch
     // errs loud. Every bond block therefore opened with "Expect to re-tune all
     // of them." and every selected speaker was named at risk, for as long as
     // the reads took, then silently retracted. On Android, where Trueplay
@@ -209,7 +209,7 @@ void main() {
           contains('takes it out of this bond'));
     });
 
-    test('a read that actually FAILED still warns — that is the loud case', () {
+    test('a read that actually FAILED still warns. That is the loud case', () {
       expect(sectionCost(l10n, paired, src, const {}), contains('re-tune'));
     });
 
@@ -229,7 +229,7 @@ void main() {
 
   test('a line-out box is never named as losing a tuning it cannot hold', () {
     // An Amp / Port / Connect has no drivers of its own, so Sonos never tunes
-    // it — "re-tune it in the Sonos app" is advice that cannot be followed.
+    // it. "re-tune it in the Sonos app" is advice that cannot be followed.
     const amp = 'RINCON_AMP01400';
     final withAmp = SonosSystem(
       groups: [
@@ -248,7 +248,7 @@ void main() {
     final c = PickerContext(
         system: withAmp, calibration: const {}, writes: true);
     // Unread would otherwise count it as at-risk, which is the safe default
-    // everywhere else — but not for a box that cannot hold a tuning at all.
+    // everywhere else, but not for a box that cannot hold a tuning at all.
     expect(c.tuningCost(l10n, {amp}).names, isEmpty);
     expect(c.warning(l10n, {amp}), isNull);
   });
@@ -265,14 +265,14 @@ void main() {
       c: GroupChannel.both,
     };
 
-    // Through the PRODUCTION rule, not the engine primitive underneath it —
+    // Through the PRODUCTION rule, not the engine primitive underneath it,
     // the flow's `writes` expression was only ever written out in these tests,
     // so reverting it (to drop-gated, or to a flat false) left them green.
     bool writes(Map<String, GroupChannel> channels, {String? coord = a}) =>
         groupApplyWrites(
             existing: zone, channels: channels, coordUuid: coord);
 
-    test('a CREATE always writes — there is no bond to compare against', () {
+    test('a CREATE always writes. There is no bond to compare against', () {
       expect(
         groupApplyWrites(existing: null, channels: target, coordUuid: a),
         isTrue,
@@ -288,7 +288,7 @@ void main() {
       expect(writes(target), isFalse);
     });
 
-    test('moving the coordinator IS a change — it cannot apply in place', () {
+    test('moving the coordinator IS a change. It cannot apply in place', () {
       expect(writes(target, coord: b), isTrue);
     });
 
@@ -338,13 +338,13 @@ void _wiring() {
   final devices = {
     beam: dev(beam, 'Sonos Beam', 'Woonkamer'),
     rear: dev(rear, 'Sonos One SL', 'Woonkamer'),
-    // Free speakers, so they still have names of their own — which is what a
+    // Free speakers, so they still have names of their own, which is what a
     // picker calls them. A bonded one is named by type + channel instead.
     newFl: dev(newFl, 'Sonos Era 100', 'Bureau'),
     newFr: dev(newFr, 'Sonos Era 100', 'Hal'),
   };
 
-  // A tuned 3.1 — bar + one rear — and two free tuned speakers to add as fronts.
+  // A tuned 3.1 (bar + one rear) and two free tuned speakers to add as fronts.
   ZoneGroupMember bar(String map) =>
       ZoneGroupMember(uuid: beam, zoneName: 'Woonkamer', htSatChanMapSet: map);
   final current = bar('$beam:CC;$rear:LR');
@@ -404,7 +404,7 @@ void _wiring() {
 
   test('an ADDITIVE apply writes, so it is priced', () {
     // The regression this pins: gating on `toRemove.isNotEmpty` reads false
-    // here — nothing leaves — and priced the flagship action at zero, while
+    // here (nothing leaves) and priced the flagship action at zero, while
     // Q20 measured exactly this taking the bar and the rear to available=0.
     final add = diffHtLayout(
       current: current,
@@ -420,7 +420,7 @@ void _wiring() {
         preserveExisting: false,
       ),
     );
-    expect(add.toRemove, isEmpty, reason: 'nothing leaves — that is the trap');
+    expect(add.toRemove, isEmpty, reason: 'nothing leaves. That is the trap');
     expect(htApplyWrites(add), isTrue);
   });
 }

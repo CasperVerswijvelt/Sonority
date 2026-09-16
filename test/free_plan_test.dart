@@ -28,7 +28,7 @@ void main() {
   group('an orphaned zone survivor', () {
     // A zone partner went away; Sonos leaves the survivor Invisible, still
     // carrying the whole stale ChannelMapSet. `memberByUuid` filters Invisible
-    // members, so the owner never resolves — but `freeSpeaker` walks the
+    // members, so the owner never resolves, but `freeSpeaker` walks the
     // members unfiltered and DOES recover it with a targeted separate.
     final orphaned = sys([
       const ZoneGroupMember(
@@ -46,7 +46,7 @@ void main() {
           reason: 'the survivor is Invisible, so allMembers excludes it');
     });
 
-    test('must still be freed — the regression that skipped the recovery', () {
+    test('must still be freed: the regression that skipped the recovery', () {
       expect(
           orphaned.mustFreeBeforeBonding(a, keep: const {}, absorbing: false),
           isTrue);
@@ -77,7 +77,7 @@ void main() {
 
   group('dual subs', () {
     // `channelAssignments` is keyed by CHANNEL, so `…:SW;…:SW` collapses to one
-    // uuid. The satellite list normally covers the second — but it briefly
+    // uuid. The satellite list normally covers the second, but it briefly
     // VANISHES after any bonding change (gotcha #1), which is the window the
     // authoritative-map read exists for.
     final midSettle = sys([
@@ -138,7 +138,7 @@ void main() {
       final plan = entityFreePlan(captured, grown);
       expect(plan.uuids, {a, b});
       expect(plan.keep, isEmpty,
-          reason: 'AddBondedZones cannot drop c — the bond must dissolve first');
+          reason: 'AddBondedZones cannot drop c: the bond must dissolve first');
       expect(plan.absorbing, isFalse);
     });
 
@@ -168,7 +168,7 @@ void main() {
           isEmpty);
     });
 
-    test('a single room bonded elsewhere is a conflict — it used to be skipped',
+    test('a single room bonded elsewhere is a conflict. It used to be skipped',
         () {
       const single =
           EntitySnapshot(

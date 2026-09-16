@@ -12,8 +12,9 @@ section into the GitHub Release notes regardless of the build suffix
 ## [Unreleased]
 
 ### Added
+- Pairing or grouping speakers that already hold a Trueplay tuning now says so, because creating a bond costs its own members their tuning.
 - Speaker pickers now offer speakers that are already bonded into another stereo pair, home theater or group, so you no longer have to unbond by hand first (a subwoofer bonded into another home theater or speaker group is the exception: free that one first). They're grouped under a heading per source bond that says what taking one costs, and each card shows the channel it currently holds plus whether it has a Trueplay tuning.
-- Choosing such a speaker names the speakers that could lose their Trueplay, and says when the whole source group breaks up. Both the picker and the review step say it, whatever their tuning state.
+- Choosing such a speaker names the speakers that could lose their Trueplay, and says when the whole source group breaks up, when it breaks up a stereo pair, and when it takes speakers out of another home theater. Both the picker and the review step say it, whatever their tuning state, and neither claims a cost while it is still reading the calibration.
 - Creating a speaker group from a speaker that's bonded elsewhere now frees it first. Sonos accepts the grouping command and silently does nothing otherwise, so the group would never have formed.
 - Diagnostics bundles now include `trueplay.json` — each speaker's stored and enabled calibration state, with a reason recorded for any speaker that couldn't be read. Read-only, like the rest of the bundle.
 - Sonority now carries a license: the code is source-available under PolyForm Perimeter 1.0.1 — read, build, modify and contribute freely, but redistributing a competing product (paid or free) isn't permitted. The "Sonority" name, icon, wordmark and marketing assets remain reserved, and `CONTRIBUTING.md` documents the licensing grant that pull requests carry.
@@ -26,11 +27,8 @@ section into the GitHub Release notes regardless of the build suffix
 - Emailing a diagnostics bundle now asks what went wrong first (at least 20 characters) and puts that description in the mail body and in the bundle as `user_note.txt`, so a report never arrives without an explanation. Share and save-to-disk are unchanged.
 
 ### Fixed
-- Pairing or grouping speakers that already hold a Trueplay tuning now says so. Creating a bond costs its own members their tuning, which was previously priced at zero.
 - Applying a profile now asks before dissolving a bond that has grown since the profile was saved, and recovers a speaker left orphaned by a vanished group partner instead of silently doing nothing.
 - The second subwoofer of a dual-sub home theater is no longer briefly offered as a free speaker while the topology settles, and is now freed from its home theater before being bonded elsewhere instead of being treated as belonging to nothing.
-- The review step before applying a home theater or speaker group now says when the selection breaks up a stereo pair or takes speakers out of another home theater, not only when it breaks up a larger group. An untuned source left that screen silent, and it is the only confirmation before the write.
-- A speaker picker no longer warns that every bond will need re-tuning while it is still reading their calibration; it says so once the reads land, or once one genuinely fails.
 - Re-picking a group's speakers in a different order no longer offers to apply a change that writes nothing, or warns that their tunings will be lost.
 - Trueplay now reports a speaker it couldn't re-read as unread instead of keeping its previous answer, so a just-bonded speaker can't still look tuned. That reading is what decides whether turning it on warns you first.
 - A speaker group with an unknown address now shows why it failed instead of leaving the progress timeline spinning.
