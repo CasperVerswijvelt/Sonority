@@ -406,6 +406,12 @@ abstract class AppLocalizations {
   /// **'These speakers don’t report any tunable channels.'**
   String get errNothingTunable;
 
+  /// No description provided for @errTuningNotEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'The EQ was stored but couldn’t be switched on for every speaker. Try the Trueplay toggle, or apply again.'**
+  String get errTuningNotEnabled;
+
   /// No description provided for @errTuningUnstable.
   ///
   /// In en, this message translates to:

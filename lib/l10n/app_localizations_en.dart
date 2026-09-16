@@ -195,6 +195,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'These speakers don’t report any tunable channels.';
 
   @override
+  String get errTuningNotEnabled =>
+      'The EQ was stored but couldn’t be switched on for every speaker. Try the Trueplay toggle, or apply again.';
+
+  @override
   String get errTuningUnstable =>
       'That EQ curve couldn’t be turned into a safe filter. Nothing was sent to the speakers. Try a gentler curve.';
 

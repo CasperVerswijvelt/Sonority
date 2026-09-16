@@ -8,6 +8,7 @@ import '../data/models/sonos_models.dart';
 import '../data/sonos/custom_eq.dart';
 import '../data/sonos/diagnostics_log.dart';
 import '../data/sonos/key_value_store.dart';
+import '../data/sonos/soap_client.dart';
 import '../data/sonos/sonority_error.dart';
 import '../data/sonos/trueplay_apply.dart';
 import '../data/sonos/trueplay_codec.dart';
@@ -138,22 +139,37 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
 
   // -------------------------------------------------------------- pre-flight
 
+  /// Would applying destroy a tuning the user would want back?
+  ///
+  /// It deliberately does NOT short-circuit on "we have stored offsets, so
+  /// whatever is up there must be ours". Coefficients can never be read back, so
+  /// a Trueplay measured in the Sonos app *after* our last apply is
+  /// indistinguishable from our own EQ — and skipping the confirm would destroy
+  /// it silently and irreversibly. The screen asks once per visit, so re-applying
+  /// while you tweak still doesn't nag.
   Future<EqPreflight> preflight({
     required String entityId,
     required List<SonosDevice> members,
   }) async {
     final targets = members.where((d) => d.ip != null).toList();
     if (targets.isEmpty) return EqPreflight.nothingTunable;
-    if ((await loadStored(entityId)).isNotEmpty) return EqPreflight.ok;
 
     final repo = ref.read(sonosRepositoryProvider);
     for (final d in targets) {
       try {
-        if ((await repo.roomCalibration(d.ip!)).available) {
-          return EqPreflight.wouldOverwrite;
-        }
-      } catch (_) {
-        // Unreachable or unsupported: it can't be holding a tuning we'd lose.
+        // Retried: a speaker refuses :1400 for ~20-30s after being bonded or
+        // unbonded, and that is exactly when someone opens this page.
+        final c = await retryUnreachable(() => repo.roomCalibration(d.ip!),
+            attempts: 3, interval: const Duration(seconds: 2));
+        if (c.available) return EqPreflight.wouldOverwrite;
+      } catch (e) {
+        // "We couldn't ask" is not "there is nothing there". The honest verdict
+        // for an unreadable member is unknown, and unknown has to warn — the
+        // alternative is destroying a calibration without telling anyone.
+        DiagnosticsLog.add(
+            '[eq] ${d.roomName} calibration status unreadable ($e); '
+            'warning rather than assuming it holds nothing');
+        return EqPreflight.wouldOverwrite;
       }
     }
     return EqPreflight.ok;
@@ -181,7 +197,16 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
   }
 
   Future<void> _drain() async {
-    if (_inFlight) return; // the in-flight run picks _pending up when it lands
+    // Re-arm rather than return: the in-flight run only picks `_pending` up if
+    // it IS a drain. `apply()` is also called straight from the Apply button,
+    // and a value stranded behind one of those is never rescheduled — the
+    // sliders and the speakers then disagree, silently, with storage recording
+    // the older value.
+    if (_inFlight) {
+      _debounce?.cancel();
+      _debounce = Timer(_minInterval, _drain);
+      return;
+    }
     final req = _pending;
     if (req == null) return;
     _pending = null;
@@ -238,10 +263,21 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     List<SonosDevice> members,
     Map<String, List<double>> offsets,
   ) async {
-    final targets = members.where((d) => d.ip != null).toList();
-    if (targets.isEmpty) {
+    if (members.isEmpty) {
       throw const SonorityError(SonorityErrorCode.nothingTunable);
     }
+    // ABORT, never filter. An IP-less member is a bonded speaker we simply
+    // can't reach right now; dropping it produces the incomplete set that
+    // stores nothing, and then ENABLES that partial set — which is the
+    // documented way to destroy the tunings on the members left out.
+    for (final d in members) {
+      if (d.ip == null) {
+        DiagnosticsLog.add('[eq] ${d.roomName} has no IP; aborting before any '
+            'write rather than shipping an incomplete set');
+        throw const SonorityError(SonorityErrorCode.speakerIpUnknown);
+      }
+    }
+    final targets = members;
 
     // One session id for the whole batch. It is a free-form label, but a member
     // declaring a different session than the rest of the set is dropped.
@@ -330,9 +366,21 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
 
     // Storing is not enabling — that is a separate call, which is also what
     // makes the existing Trueplay switch an instant A/B for this EQ.
-    await ref
-        .read(trueplayControllerProvider.notifier)
-        .setEnabled(tunings.keys, true);
+    final trueplay = ref.read(trueplayControllerProvider.notifier);
+    await trueplay.setEnabled(tunings.keys, true);
+
+    // `setEnabled` is per-device best-effort and swallows its failures, so ask
+    // the oracle instead of trusting it. A half-enabled set is audibly wrong on
+    // some speakers and right on others, which is worse than a clean failure.
+    final calibration = ref.read(trueplayControllerProvider).byUuid;
+    final notOn = [
+      for (final d in tunings.keys)
+        if (calibration[d.uuid]?.enabled == false) d.roomName,
+    ];
+    if (notOn.isNotEmpty) {
+      DiagnosticsLog.add('[eq] stored, but not enabled on: ${notOn.join(", ")}');
+      throw const SonorityError(SonorityErrorCode.tuningNotEnabled);
+    }
 
     await _persist(entityId, offsets);
     return true;
@@ -354,11 +402,23 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     try {
       final targets = members.where((d) => d.ip != null).toList();
       for (final d in targets) {
-        await _apply.clearAllTunings(ip: d.ip!, rincon: d.uuid, live: true);
+        final status =
+            await _apply.clearAllTunings(ip: d.ip!, rincon: d.uuid, live: true);
+        // Same rule as apply: a 200 proves nothing, but a non-200 IS a failure
+        // and is the only one the transport can tell us about.
+        if (status != 200) {
+          DiagnosticsLog.add(
+              '[eq] ${d.roomName} (${d.ip}) rejected the clear: HTTP $status');
+          throw const SonorityError(SonorityErrorCode.tuningNotCleared);
+        }
       }
-      if (targets.isNotEmpty &&
-          !await _pollAvailable(targets.first.ip!, want: false)) {
-        throw const SonorityError(SonorityErrorCode.tuningNotCleared);
+      // Every member, not just the first: one that silently kept its
+      // coefficients would otherwise be reported as cleared while still
+      // filtering audio.
+      for (final d in targets) {
+        if (!await _pollAvailable(d.ip!, want: false)) {
+          throw const SonorityError(SonorityErrorCode.tuningNotCleared);
+        }
       }
       await _store.setString(_key(entityId), jsonEncode({'v': 1}));
       await ref.read(trueplayControllerProvider.notifier).load(targets);

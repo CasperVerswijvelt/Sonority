@@ -49,6 +49,7 @@ String localizedError(AppLocalizations l10n, Object e) {
       SonorityErrorCode.tuningNotCleared => l10n.errTuningNotCleared,
       SonorityErrorCode.nothingTunable => l10n.errNothingTunable,
       SonorityErrorCode.tuningUnstable => l10n.errTuningUnstable,
+      SonorityErrorCode.tuningNotEnabled => l10n.errTuningNotEnabled,
     };
   }
   if (e is OperationCancelled) return l10n.errAborted;

@@ -115,6 +115,7 @@
   "errTuningNotStored": "The speakers accepted the EQ but didn\u2019t store it. Try again; if it keeps failing, check every speaker is reachable.",
   "errTuningNotCleared": "The EQ could not be removed from these speakers.",
   "errNothingTunable": "These speakers don\u2019t report any tunable channels.",
+  "errTuningNotEnabled": "The EQ was stored but couldn\u2019t be switched on for every speaker. Try the Trueplay toggle, or apply again.",
   "errTuningUnstable": "That EQ curve couldn\u2019t be turned into a safe filter. Nothing was sent to the speakers. Try a gentler curve.",
   "errTimeout": "The speaker didn’t respond in time. It may still be settling — try again in a moment.",
   "errSonosBusy": "Sonos is busy rearranging speakers right now. Wait a moment and try again.",
