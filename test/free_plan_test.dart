@@ -101,66 +101,6 @@ void main() {
     });
   });
 
-  group('absorbedSurvivors — who keeps a name that stops being a bond\'s', () {
-    // `AddHTSatellite` dissolves the source bond AROUND the speaker it takes
-    // (Q12) with no `SeparateStereoPair`, so the restore that path performs
-    // never runs and an untaken member is left standalone still carrying the
-    // group's name — a duplicate of the live room.
-    final zone3 = sys([
-      const ZoneGroupMember(
-        uuid: a,
-        zoneName: 'Keuken',
-        channelMapSet: '$a:LF,RF;$b:LF,RF;$c:LF,RF',
-      ),
-    ], [a, b, c]);
-
-    test('taking one member of three leaves the third needing its name', () {
-      expect(zone3.absorbedSurvivors([b]), {
-        a: {c}
-      }, reason: 'a is the coordinator — its name legitimately IS the bond\'s');
-    });
-
-    test('taking two of three leaves nobody', () {
-      expect(zone3.absorbedSurvivors([b, c]), isEmpty);
-    });
-
-    test('a two-speaker source needs nothing restored', () {
-      final pair2 = sys([
-        const ZoneGroupMember(
-          uuid: a,
-          zoneName: 'Eetkamer',
-          channelMapSet: '$a:LF,LF;$b:RF,RF',
-        ),
-      ], [a, b]);
-      expect(pair2.absorbedSurvivors([b]), isEmpty,
-          reason: 'only the coordinator is left, and it keeps its own name');
-    });
-
-    test('a home theater source is not absorbed, so it is not counted here',
-        () {
-      final htSys = sys([
-        ZoneGroupMember(
-          uuid: bar,
-          zoneName: 'Woonkamer',
-          htSatChanMapSet: '$bar:CC;$b:LR;$c:RR',
-          satellites: const [
-            SonosSatellite(
-                uuid: b, zoneName: 'Woonkamer', channels: [SonosChannel.leftRear]),
-            SonosSatellite(
-                uuid: c, zoneName: 'Woonkamer', channels: [SonosChannel.rightRear]),
-          ],
-        ),
-      ], [bar, b, c]);
-      expect(htSys.absorbedSurvivors([b]), isEmpty,
-          reason: 'an HT is freed explicitly, and that path restores names');
-    });
-
-    test('a standalone speaker has no source bond', () {
-      expect(sys([const ZoneGroupMember(uuid: a, zoneName: 'Keuken')], [a])
-          .absorbedSurvivors([a]), isEmpty);
-    });
-  });
-
   group('entityFreePlan agrees with the pre-flight', () {
     // Profile captured a PAIR {a,b}; the user has since grown it to {a,b,c}.
     final grown = sys([

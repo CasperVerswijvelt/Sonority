@@ -926,6 +926,13 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   Android. A line-out box (Amp/Port/Connect) is never named as losing a tuning
   it cannot hold, and the copy hedges to "could lose" because the list
   deliberately includes speakers whose tuning could not be READ.
+  ⚠️ **Applying a PROFILE prices nothing** — deliberate, and the one destructive
+  path with no cost line. A profile apply is a bonding write like any other, so
+  by Q20 it costs the bonds it rewrites their tuning; the pre-flight names
+  missing/conflicting speakers only. Re-applying an unchanged profile is a
+  no-op (`_applyHtTarget`/`_isGroupFormed`) and genuinely costs nothing, which
+  is the common case — pricing the rest needs the same `writes` gate the flows
+  use, per entity, and that has not been built.
 - ✅ CI release pipeline.
 - Candidate next: channel-level/height trim (overlaps the app — weak). Discovery
   recovers topology-only speakers when a description fetch fails, **including

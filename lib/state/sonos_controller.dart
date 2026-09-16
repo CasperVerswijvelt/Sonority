@@ -296,10 +296,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       ]);
       try {
         var sys = known ?? await _repo.discover();
-        // Captured BEFORE the free: absorbing dissolves the source bond around
-        // the speaker taken, so afterwards there is nothing left to read it
-        // from. See [_restoreAbsorbedNames].
-        final survivors = sys.absorbedSurvivors(satellites);
         sys = await _freeConflicts(sys, satellites,
             keep: keepFor(sys), absorbing: true, ph: ph,
             fallbackIp: soundbarDevice.ip);
@@ -310,7 +306,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           sys: sys,
           ph: ph,
         );
-        await _restoreAbsorbedNames(sys, survivors, ph);
         tracker.done('bond');
         return sys;
       } catch (e) {
@@ -641,8 +636,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // stripping the bond, wiping its Trueplay, and destroying the
         // zero-write no-op the diff exists for.
         final plan = entityFreePlan(e, sys);
-        // Before the free — the source bond is gone afterwards.
-        final survivors = sys.absorbedSurvivors(plan.uuids);
         sys = await _freeConflicts(sys, plan.uuids.toList(),
             keep: plan.keep,
             absorbing: plan.absorbing,
@@ -662,7 +655,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
           sys: sys,
           ph: ph,
         );
-        await _restoreAbsorbedNames(sys, survivors, ph);
         _activeOp?.throwIfCancelled();
         ph.phase('names', l10n.stepRestoreRoomName);
         if (!await _repo.setRoomName(
@@ -770,33 +762,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       }
     }
     return sys;
-  }
-
-  /// Puts back the room names of speakers a bond ABSORBED a group away from.
-  ///
-  /// `AddHTSatellite` dissolves the source pair/zone around the speaker it
-  /// takes (EXP-23 Q12) without a `SeparateStereoPair`, so the restore that
-  /// path performs never runs. Call AFTER the bond write with the survivors
-  /// captured BEFORE the free, or the source bond is gone and unreadable.
-  /// Cosmetic, therefore best-effort — never fail an applied bond over a name.
-  Future<void> _restoreAbsorbedNames(
-      SonosSystem sys, Map<String, Set<String>> survivors, Phases ph) async {
-    for (final e in survivors.entries) {
-      final src = sys.memberByUuid(e.key);
-      final key = src != null ? sys.bondMemberUuids(src) : {e.key, ...e.value};
-      final targets = [
-        for (final u in e.value)
-          if (sys.device(u) case final d?) d,
-      ];
-      if (targets.isEmpty) continue;
-      try {
-        await _repo.restoreAbsorbedNames(key, targets, cancel: _activeOp);
-      } on OperationCancelled {
-        rethrow;
-      } catch (err) {
-        ph.log('restore absorbed names: $err');
-      }
-    }
   }
 
   /// Members of [uuids] currently bonded into a HOME THEATER, whose room name

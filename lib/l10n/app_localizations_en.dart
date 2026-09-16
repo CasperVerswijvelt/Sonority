@@ -1303,7 +1303,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String frontSurroundsTrueplayLoses(String names) {
-    return 'Loses Trueplay: $names. Re-tune in the Sonos app.';
+    return 'Could lose Trueplay: $names. Plan to re-tune in the Sonos app.';
   }
 
   @override

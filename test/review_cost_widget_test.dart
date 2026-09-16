@@ -123,7 +123,7 @@ void main() {
 
       // …and the unrecoverable part: RemoveHTSatellite wipes the whole set,
       // the soundbar included.
-      expect(find.textContaining('Loses Trueplay'), findsOneWidget);
+      expect(find.textContaining('Could lose Trueplay'), findsOneWidget);
       expect(find.textContaining('Beam'), findsWidgets);
 
       // The gate itself: the cost is not allowed to be swallowed by the

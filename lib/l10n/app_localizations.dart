@@ -2134,10 +2134,10 @@ abstract class AppLocalizations {
   /// **'The layout can be changed anytime.'**
   String get frontSurroundsReviewNote;
 
-  /// Review-step line naming the speakers whose stored tuning this apply clears. Worded without it/them so it needs no plural: two identical models share one label.
+  /// Review-step line naming the speakers whose stored tuning this apply could clear. Hedged to 'could', identically to speakerStealTrueplayWarning: it renders the SAME tuningCost list two screens later, and that list deliberately includes speakers whose tuning could not be read. Worded without it/them so it needs no plural: two identical models share one label.
   ///
   /// In en, this message translates to:
-  /// **'Loses Trueplay: {names}. Re-tune in the Sonos app.'**
+  /// **'Could lose Trueplay: {names}. Plan to re-tune in the Sonos app.'**
   String frontSurroundsTrueplayLoses(String names);
 
   /// No description provided for @diagNoSystemToCollect.

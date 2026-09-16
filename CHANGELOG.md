@@ -27,7 +27,6 @@ section into the GitHub Release notes regardless of the build suffix
 
 ### Fixed
 - Pairing or grouping speakers that already hold a Trueplay tuning now says so — creating a bond costs its own members their tuning, which was previously priced at zero.
-- A speaker taken out of a group of three or more no longer leaves the untaken member named after the group, duplicating a live room name.
 - Applying a profile now asks before dissolving a bond that has grown since the profile was saved, and recovers a speaker left orphaned by a vanished group partner instead of silently doing nothing.
 - The second subwoofer of a dual-sub home theater is no longer briefly offered as a free speaker while the topology settles.
 - Re-picking a group's speakers in a different order no longer offers to apply a change that writes nothing, or warns that their tunings will be lost.
