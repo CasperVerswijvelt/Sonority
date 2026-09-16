@@ -28,6 +28,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Emailing a diagnostics bundle now asks what went wrong first (at least 20 characters) and puts that description in the mail body and in the bundle as `user_note.txt`, so a report never arrives without an explanation. Share and save-to-disk are unchanged.
 
 ### Fixed
+- The Trueplay breakdown now refreshes when a home theater's speakers change, instead of showing the set from before the last apply until you pull to refresh.
 - Pairing or grouping speakers that already hold a Trueplay tuning now says so — creating a bond costs its own members their tuning, which was previously priced at zero.
 - Applying a profile now asks before dissolving a bond that has grown since the profile was saved, and recovers a speaker left orphaned by a vanished group partner instead of silently doing nothing.
 - The second subwoofer of a dual-sub home theater is no longer briefly offered as a free speaker while the topology settles.

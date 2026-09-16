@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -146,6 +147,21 @@ class _TrueplayControlState extends ConsumerState<TrueplayControl> {
       if (!ok || !mounted) return;
     }
     ref.read(trueplayControllerProvider.notifier).setEnabled(widget.devices, on);
+  }
+
+  @override
+  void didUpdateWidget(TrueplayControl old) {
+    super.didUpdateWidget(old);
+    // The HT page's State survives the nested fronts route, so returning from
+    // an apply rebuilds this with a DIFFERENT bonded set and no read of its
+    // own — the new member would render from whatever the pre-bond cache said
+    // (or nothing) until the user pulled to refresh. Re-read on a set change
+    // only; an identical list must not re-fetch on every rebuild.
+    final before = old.devices.map((d) => d.uuid).toSet();
+    final now = widget.devices.map((d) => d.uuid).toSet();
+    if (widget.unsupportedReason == null && !setEquals(before, now)) {
+      ref.read(trueplayControllerProvider.notifier).load(widget.devices);
+    }
   }
 
   @override

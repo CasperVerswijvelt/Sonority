@@ -902,15 +902,23 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   uniform set already says everything in its `x/y` subtitle. A speaker whose read
   FAILED is what renders `5/6`, so it gets a "Couldn't read" row rather than no
   row at all.
-  ⚠️ **Two known holes, deliberately left to their own measured change** — both
-  feed `tunedCount`/`withIp.length`, which is what decides whether the toggle
-  warns at all, so neither is a drive-by: (1) a bonded speaker missing from
-  `devicesByUuid` is invisible to the counter (`home_theater_screen.dart` filters
-  through `whereType<SonosDevice>()`, so it never reaches the widget —
-  `trueplay.json` in the diagnostics bundle is what covers that one), and (2)
-  `TrueplayController._readAll` **drops** failed reads and merges
-  (`{...byUuid, ...results}`), so a re-read that faults keeps the STALE value — a
-  just-bonded speaker can still read "Active" and still count as tuned.
+  **The counter's denominator is `widget.devices.length` — every speaker passed
+  in, including one with no IP.** NOT `withIp.length`, which this control used to
+  split out: a bonded member that is never read then left BOTH numerator and
+  denominator, so an incomplete set could read complete and the
+  destructive-enable warning silently dropped. "We could not ask" and "it has no
+  tuning" are one state here on purpose, and it keeps the warning on. So a failed
+  read gives `5/6`; a speaker missing from `devicesByUuid` never reaches the
+  widget at all and gives `5/5` — see the hole below.
+  ⚠️ **One known hole**: a bonded speaker missing from `devicesByUuid` is
+  invisible to the counter (`home_theater_screen.dart` filters through
+  `whereType<SonosDevice>()`), and `tunedCount` is what decides whether the
+  toggle warns — so it is not a drive-by. `trueplay.json` in the diagnostics
+  bundle is what covers it for now. (The sibling hole — `TrueplayController`
+  merging fresh reads over stale ones, so a faulted re-read kept a pre-bond
+  `available: true` for exactly the speakers a bond had just wiped — IS fixed:
+  `_fold` evicts a target that didn't answer. It had to be, because that path is
+  seeded by the setup flows themselves and could suppress the confirm dialog.)
 - ✅ **Take a speaker from another bond** (`features/widgets/speaker_picker.dart`) —
   the HT and group pickers offer speakers already bonded into another pair, zone or
   home theater, grouped under a heading per source bond, and name what the take

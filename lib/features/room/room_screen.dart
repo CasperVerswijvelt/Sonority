@@ -82,8 +82,13 @@ class RoomScreen extends ConsumerWidget {
                 onTap: () => addToHomeTheater(context, soundbars, speaker: uuid),
               ),
             Gap.s,
-            // Settings: a flat, sectioned Trueplay row, not another card.
-            SettingsSection(children: [TrueplayControl(devices: devices)]),
+            // Settings: a flat, sectioned Trueplay row, not another card. The
+            // section is skipped when there is no device to report on —
+            // `SettingsSection` always leads with a `Divider`, so an empty one
+            // renders a hairline with nothing under it. Reachable: a topology
+            // member that never resolved to a device.
+            if (devices.isNotEmpty)
+              SettingsSection(children: [TrueplayControl(devices: devices)]),
           ],
         ),
         children: [
