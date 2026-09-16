@@ -121,9 +121,41 @@ void main() {
       expect(c.dissolveNote(l10n, {y}), contains('Keuken'));
     });
 
-    test('a stereo pair is exempt — half a pair is self-evidently not a pair',
-        () {
-      expect(untunedCtx().dissolveNote(l10n, {b}), isNull);
+    test('a stereo pair breaks up too, and the card has to say so', () {
+      // It reads as self-evident only next to a heading that NAMES the pair.
+      // The review card has no heading, and for an untuned pair it was the
+      // only gate before an Apply that dissolves a live bond.
+      expect(untunedCtx().dissolveNote(l10n, {b}), contains('Eetkamer'));
+    });
+
+    test('a home theater source is named even though it survives the take', () {
+      // Third case: an HT does NOT break up, it shrinks. It still has to be
+      // named — every one of its members loses its tuning (Q20), and nothing
+      // else on the card mentions a second entity at all.
+      const barU = 'RINCON_BAR01400';
+      const satU = 'RINCON_SAT01400';
+      final withHt = SonosSystem(
+        groups: [
+          ZoneGroup(coordinatorUuid: barU, members: const [
+            ZoneGroupMember(
+              uuid: barU,
+              zoneName: 'Woonkamer',
+              htSatChanMapSet: '$barU:CC;$satU:LR',
+            ),
+          ]),
+        ],
+        devicesByUuid: {
+          barU: dev(barU, 'Woonkamer'),
+          satU: dev(satU, 'Woonkamer'),
+        },
+      );
+      final note = PickerContext(
+        system: withHt,
+        calibration: {for (final u in [barU, satU]) u: untuned},
+        writes: true,
+      ).dissolveNote(l10n, {satU});
+      expect(note, isNotNull);
+      expect(note, contains('Woonkamer'));
     });
 
     test('nothing bonded, nothing dissolves', () {
@@ -135,6 +167,55 @@ void main() {
       expect(note, contains('Keuken'));
       expect('Keuken'.allMatches(note).length, 1,
           reason: 'one group, not one line per member taken');
+    });
+  });
+
+  group('a read still in flight claims nothing', () {
+    // The reads are kicked off when the flow OPENS, so "no entry yet" was
+    // indistinguishable from "asked and got nothing" — and the unknown branch
+    // errs loud. Every bond block therefore opened with "Expect to re-tune all
+    // of them." and every selected speaker was named at risk, for as long as
+    // the reads took, then silently retracted. On Android, where Trueplay
+    // cannot be measured at all, that is the only state a user ever sees.
+    const x = 'RINCON_X01400';
+    const y = 'RINCON_Y01400';
+    final paired = SonosSystem(
+      groups: [
+        ZoneGroup(coordinatorUuid: x, members: const [
+          ZoneGroupMember(
+            uuid: x,
+            zoneName: 'Keuken',
+            channelMapSet: '$x:LF,LF;$y:RF,RF',
+          ),
+        ]),
+      ],
+      devicesByUuid: {x: dev(x, 'Keuken'), y: dev(y, 'Keuken')},
+    );
+    final src = paired.memberByUuid(x)!;
+
+    test('the section header withholds the tuning claim while busy', () {
+      expect(sectionCost(l10n, paired, src, const {}, busy: {x, y}),
+          isNot(contains('re-tune')));
+      // The consequences that are true either way still get stated.
+      expect(sectionCost(l10n, paired, src, const {}, busy: {x, y}),
+          contains('takes it out of this bond'));
+    });
+
+    test('a read that actually FAILED still warns — that is the loud case', () {
+      expect(sectionCost(l10n, paired, src, const {}), contains('re-tune'));
+    });
+
+    test('the note under the list names nobody while busy', () {
+      final ctx = PickerContext(
+          system: paired, calibration: const {}, writes: true, busy: {x, y});
+      expect(ctx.tuningCost(l10n, {y}).names, isEmpty);
+      expect(ctx.warning(l10n, {y}), isNull);
+      // Same selection once the reads have failed: named, as before.
+      expect(
+        PickerContext(system: paired, calibration: const {}, writes: true)
+            .tuningCost(l10n, {y}).names,
+        isNotEmpty,
+      );
     });
   });
 
@@ -176,32 +257,45 @@ void main() {
       c: GroupChannel.both,
     };
 
+    // Through the PRODUCTION rule, not the engine primitive underneath it —
+    // the flow's `writes` expression was only ever written out in these tests,
+    // so reverting it (to drop-gated, or to a flat false) left them green.
+    bool writes(Map<String, GroupChannel> channels, {String? coord = a}) =>
+        groupApplyWrites(
+            existing: zone, channels: channels, coordUuid: coord);
+
+    test('a CREATE always writes — there is no bond to compare against', () {
+      expect(
+        groupApplyWrites(existing: null, channels: target, coordUuid: a),
+        isTrue,
+        reason: 'pairing two tuned standalone speakers costs both tunings',
+      );
+    });
+
     test('re-picking the same members in another order is NOT a change', () {
       // The map is built coordinator-first, then in selection order; only the
       // coordinator position is meaningful. An ordered-signature compare read
       // {a,c,b} as a rewrite, so the review card warned and the apply wrote
       // nothing.
-      expect(zone.matchesGroupLayout(target, coordUuid: a), isTrue);
+      expect(writes(target), isFalse);
     });
 
     test('moving the coordinator IS a change — it cannot apply in place', () {
-      expect(zone.matchesGroupLayout(target, coordUuid: b), isFalse);
+      expect(writes(target, coord: b), isTrue);
     });
 
     test('a channel change is still a change', () {
       expect(
-          zone.matchesGroupLayout(
-              {a: GroupChannel.left, b: GroupChannel.both, c: GroupChannel.both},
-              coordUuid: a),
-          isFalse);
+          writes({
+            a: GroupChannel.left,
+            b: GroupChannel.both,
+            c: GroupChannel.both
+          }),
+          isTrue);
     });
 
     test('dropping a member is still a change', () {
-      expect(
-          zone.matchesGroupLayout(
-              {a: GroupChannel.both, b: GroupChannel.both},
-              coordUuid: a),
-          isFalse);
+      expect(writes({a: GroupChannel.both, b: GroupChannel.both}), isTrue);
     });
 
     test('callers that do not care about the coordinator are unaffected', () {
@@ -276,7 +370,9 @@ void _wiring() {
           u: const RoomCalibration(available: true, enabled: true),
       },
       exceptPrimary: beam,
-      writes: !diff.isNoOp,
+      // The PRODUCTION rule, not a copy of it. Hand-writing `!diff.isNoOp`
+      // here is what let the drop-gated regression stay green in both flows.
+      writes: htApplyWrites(diff),
     );
     return picker.tuningCost(l10n, {beam, ...desired.values});
   }
@@ -296,5 +392,27 @@ void _wiring() {
 
   test('re-applying the SAME layout is a no-op and prices nothing', () {
     expect(cost({SonosChannel.leftRear: rear}).names, isEmpty);
+  });
+
+  test('an ADDITIVE apply writes, so it is priced', () {
+    // The regression this pins: gating on `toRemove.isNotEmpty` reads false
+    // here — nothing leaves — and priced the flagship action at zero, while
+    // Q20 measured exactly this taking the bar and the rear to available=0.
+    final add = diffHtLayout(
+      current: current,
+      target: buildLayoutMap(
+        soundbar: current,
+        soundbarDevice: devices[beam]!,
+        desired: {
+          SonosChannel.leftRear: rear,
+          SonosChannel.leftFront: newFl,
+          SonosChannel.rightFront: newFr,
+        },
+        subUuids: const [],
+        preserveExisting: false,
+      ),
+    );
+    expect(add.toRemove, isEmpty, reason: 'nothing leaves — that is the trap');
+    expect(htApplyWrites(add), isTrue);
   });
 }

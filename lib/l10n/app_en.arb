@@ -879,6 +879,14 @@
   },
   "pickerSectionAvailable": "Available",
   "pickerCostZone": "Taking any of them breaks up the whole group.",
+  "pickerCostLeavesHt": "{names} {count, plural, =1{loses} other{lose}} the speakers you take.",
+  "@pickerCostLeavesHt": {
+    "description": "Review-step sentence naming the home theater(s) a selection takes speakers out of. A home theater is not dissolved by the take (unlike a group) but it is still modified, and every one of ITS speakers loses its Trueplay tuning; the review card is the last gate before Apply and carries no section heading to say which bond the speakers came from.",
+    "placeholders": {
+      "names": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
   "pickerCostDissolves": "{names} {count, plural, =1{breaks up} other{break up}} — a group doesn't shrink when you take a speaker out of it.",
   "@pickerCostDissolves": {
     "description": "Review-step line naming the source groups this selection dissolves. Restated here because the review card is the only gate before Apply, and an untuned group otherwise made it silent about the dissolve.",

@@ -993,7 +993,15 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
    status bar leaks personal data (notification icons, contact avatars) into a
    public PR. `emulator -list-avds` → `emulator -avd Sonority_API36
    -no-snapshot-save -no-audio -no-boot-anim &`, then target it explicitly with
-   `adb -s emulator-5554 …` (the phone is usually also attached). Demo mode
+   `adb -s emulator-5554 …` (the phone is usually also attached).
+   **Two emulator traps, each hit twice:** (1) this AVD intermittently renders
+   **all-white** — the tell is a ~10KB `screencap` PNG with the app running and
+   focused, which looks exactly like an app crash. Add `-gpu swiftshader_indirect`
+   and it renders immediately. (2) `-no-snapshot-save` does NOT stop it *loading*
+   a stale snapshot: after an emulator restart the AVD can come back holding an
+   **old installed build** (seen reverting to 0.6.0 and nearly shipping pre-PR UI
+   into a PR body). Always re-install after any restart and check the version
+   pill in the app bar before capturing. Demo mode
    covers the app data (`flutter build apk --debug --dart-define=DEMO=true` →
    `adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-debug.apk`,
    launch with `am start -n be.casperverswijvelt.sonority/.MainActivity` —
@@ -1011,13 +1019,28 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
    (re-broadcast after a theme switch — it resets). Both themes when the change
    is colour/contrast-sensitive (`adb -s emulator-5554 shell cmd uimode night
    yes|no`, restore with `auto`); before/after when the change alters an
-   existing screen; the wide layout too if it touches it. Hosting: GitHub has
-   no upload API for a PR body (the web UI's drag-and-drop uses an undocumented
-   `user-attachments` endpoint `gh` can't reach), so the PNGs need a public URL
-   of their own. Push them to a branch **`pr-shots-<N>`, one per PR** — never
-   merged, never in a PR diff, so no throwaway binaries land in `main`, and
-   outside the `docs/screenshots/*.png` LFS rule so raw URLs serve real images
-   rather than pointer files. Plumbing, no checkout needed:
+   existing screen.
+   **A TABLET/WIDE SHOT IS MANDATORY, not "if it touches it."** Every screen has
+   a wide layout whether or not the change aimed at one, and its failure modes
+   are invisible on a phone — they're enumerated once, under the responsive
+   requirement in Conventions. Drive the same emulator at tablet metrics rather
+   than keeping a second AVD:
+   ```
+   adb -s emulator-5554 shell wm size 2560x1600
+   adb -s emulator-5554 shell wm density 240      # 1707x1067dp, past the breakpoint
+   # … capture …
+   adb -s emulator-5554 shell wm size reset && adb -s emulator-5554 shell wm density reset
+   ```
+   ⚠️ **Always reset both**, in the same session — a left-over `wm size` silently
+   poisons every later screenshot in the PR.
+
+   Hosting: GitHub has no upload API for a PR body (the web UI's drag-and-drop
+   uses an undocumented `user-attachments` endpoint `gh` can't reach), so the
+   PNGs need a public URL of their own. Push them to a branch
+   **`pr-shots-<N>`, one per PR** — never merged, never in a PR diff, so no
+   throwaway binaries land in `main`, and outside the `docs/screenshots/*.png`
+   LFS rule so raw URLs serve real images rather than pointer files. Plumbing,
+   no checkout needed:
    ```
    b=$(git hash-object -w --no-filters shot.png)
    t=$(printf "100644 blob %s\tpr-<N>-<name>.png\n" "$b" | git mktree)   # add a line per shot
@@ -1141,6 +1164,15 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   **room page** offers shortcuts INTO the flows ("Group with another speaker" →
   `/group`; "Add to a home theater" → the fronts flow for a chosen soundbar) via
   pop-then-push, so a room isn't a dead end.
+- **Every new screen must work at every supported size — this is a requirement,
+  not a nice-to-have.** Phone portrait, tablet/desktop wide, and the awkward
+  middle. Check before opening the PR (the tablet shot above is how), and state
+  in the PR which widths you drove. The failure modes that never show on a phone:
+  a widget sized by aspect ratio alone (it grows in the *other* axis as the window
+  widens), content that should be clamped but is not, and a `CardGrid` reflowing
+  into an unreadable column count. Most pages fill the width by design; a **form**
+  (sliders, inputs, a picker column) should clamp with `MaxWidthBody` instead, and
+  should say in a comment why it deviates.
 - **Responsive layout (macOS / wide windows).** One breakpoint,
   `kWideLayoutBreakpoint` (`core/theme.dart`), two states only — no icon-only
   middle. Below it: the phone layout (bottom `NavigationBar`, single column) —
@@ -1151,8 +1183,8 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   `Padding` — sharing one left inset; `NavigationRail`'s own leading/trailing
   centre their slots, so they're not used). The System app bar then just reads
   "System" (discovery flips its title/actions on `MediaQuery.sizeOf(context).width
-  >= kWideLayoutBreakpoint`). **Content is NOT centered/clamped** — `AppScaffold`
-  bodies **fill the full width**; the desktop window is instead width-capped
+  >= kWideLayoutBreakpoint`). **Content is NOT centered/clamped by default** —
+  `AppScaffold` bodies **fill the full width**; the desktop window is instead width-capped
   (`MainFlutterWindow.swift` `contentMaxSize`) so cards fill without stretching.
   Card lists use the shared **`CardGrid`** (`features/widgets/card_grid.dart`) —
   one column on a phone, 2–3 columns when wide — on the overview, the group/HT
@@ -1163,9 +1195,10 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   → `Icons.check`); edge auto-scroll + screen-reader move actions; reorder persists
   order via `ProfilesController.reorder` (SharedPreferences only, no Sonos write).
   The three tabs (System / Profiles / **Diagnostics**) share
-  one `_destinations` list so the rail and bar can't drift. The **modal wizards**
-  (group flow + bonding screen) still clamp to `kContentMaxWidth` via `MaxWidthBody`
-  (a full-window form stays readable); tab/detail pages don't.
+  one `_destinations` list so the rail and bar can't drift. **Forms clamp,
+  everything else fills**: the modal wizards (group flow + bonding screen) and any
+  form-shaped page clamp to `kContentMaxWidth` via `MaxWidthBody` (a full-window
+  form stays readable); every other tab/detail page fills the width.
 - **Names vs. types in the UI.** Once a speaker is bonded into an HT or stereo
   entity its individual room name stops mattering — Sonos absorbs it into the
   entity name (a satellite/hidden half just echoes the HT/pair name), so showing

@@ -675,8 +675,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// (hardware-caught: it dissolved a live zone without forming the new group).
   ///
   /// [absorbing] is true for a home-theater target, which can take a speaker
-  /// straight out of a pair or zone with its Trueplay intact (EXP-23 Q7/Q9/Q10)
-  /// — those are skipped. `AddBondedZones` absorbs from nothing (Q11), and
+  /// straight out of a pair or zone without a separate free (EXP-23 Q7/Q9/Q10)
+  /// — those are skipped. It says nothing about the tuning surviving: a
+  /// bonding change clears the whole destination set either way (Q20). `AddBondedZones` absorbs from nothing (Q11), and
   /// absorbing out of another home theater is unmeasured, so both are freed.
   Future<SonosSystem> _freeConflicts(
     SonosSystem sys,

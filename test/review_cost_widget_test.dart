@@ -186,7 +186,11 @@ void main() {
       expect(find.textContaining('could lose their Trueplay'), findsOneWidget);
     });
 
-    testWidgets('stays quiet when nothing tuned is at stake', (tester) async {
+    testWidgets('an UNTUNED source still states the dissolve', (tester) async {
+      // The card replaced the removal confirm dialog, so it is the only gate
+      // left — and with nothing tuned there was no cost line and no warning,
+      // leaving a silent card over an Apply that dissolves a live pair.
+      // Untuned is the COMMON case: Trueplay can't be measured from Android.
       await pump(
         tester,
         card([pairL, free],
@@ -195,6 +199,19 @@ void main() {
               pairR: untuned,
               free: untuned,
             }),
+      );
+      expect(find.byType(InfoNote), findsOneWidget);
+      expect(find.textContaining('Eetkamer'), findsOneWidget);
+      expect(find.textContaining('breaks up'), findsOneWidget);
+      // ...without inventing a Trueplay cost nobody measured.
+      expect(find.textContaining('Trueplay'), findsNothing);
+    });
+
+    testWidgets('a take that touches no other bond stays quiet', (tester) async {
+      // The genuine quiet case: one free speaker, nothing else disturbed.
+      await pump(
+        tester,
+        card([free], calibration: const {free: untuned}),
       );
       expect(find.byType(InfoNote), findsNothing);
     });

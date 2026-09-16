@@ -523,6 +523,12 @@ class SonosSystem {
       for (final m in g.members) {
         if (m.uuid != uuid &&
             (m.channelAssignments.values.contains(uuid) ||
+                // Keyed by CHANNEL, so a dual-sub map (`…:SW;…:SW`) collapses
+                // to one uuid and the FIRST sub resolves to no owner — which
+                // short-circuits `mustFreeBeforeBonding` into skipping its
+                // free, in exactly the mid-settle window this read exists for.
+                // Same spread as [_bondedUuids] and [bondMemberUuids].
+                m.subUuids.contains(uuid) ||
                 m.satellites.any((s) => s.uuid == uuid))) {
           return m.uuid;
         }
