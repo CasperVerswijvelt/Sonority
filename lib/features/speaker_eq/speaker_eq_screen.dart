@@ -11,6 +11,8 @@ import '../../state/speaker_eq_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/destructive_button.dart';
+import '../widgets/info_note.dart';
+import '../widgets/max_width_body.dart';
 import '../widgets/scroll_footer.dart';
 import 'eq_curve_view.dart';
 import 'eq_slider.dart';
@@ -38,13 +40,13 @@ List<SonosDevice> eqMembers(SonosSystem system, String uuid) {
 /// are both "Era 100", so the type alone cannot identify a speaker. Covers both
 /// bond kinds; empty for a standalone speaker, which needs no role.
 Map<String, String> eqRoles(ZoneGroupMember member) => {
-      for (final c in SonosChannel.values)
-        for (final u in member.uuidsForChannel(c)) u: c.shortLabel,
-      for (final e in member.groupChannels.entries)
-        e.key: groupChannelShort(e.value),
-      for (final u in member.channelMapUuids)
-        if (member.groupChannels[u] == null) u: SonosChannel.sub.shortLabel,
-    };
+  for (final c in SonosChannel.values)
+    for (final u in member.uuidsForChannel(c)) u: c.shortLabel,
+  for (final e in member.groupChannels.entries)
+    e.key: groupChannelShort(e.value),
+  for (final u in member.channelMapUuids)
+    if (member.groupChannels[u] == null) u: SonosChannel.sub.shortLabel,
+};
 
 /// The EQ page for one entity: adjust, then apply.
 ///
@@ -66,7 +68,8 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
   List<double> _shared = flatCurve();
   final Map<String, List<double>> _perMember = {};
   bool _individual = false;
-  String? _editing; // the member whose sliders are on screen, in individual mode
+  String?
+  _editing; // the member whose sliders are on screen, in individual mode
 
   bool _live = false;
   bool _overwriteConfirmed = false;
@@ -117,15 +120,12 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
   }
 
   Map<String, List<double>> _offsetsFor(List<SonosDevice> members) => {
-        for (final d in members)
-          d.uuid: _individual
-              ? (_perMember[d.uuid] ?? flatCurve())
-              : _shared,
-      };
+    for (final d in members)
+      d.uuid: _individual ? (_perMember[d.uuid] ?? flatCurve()) : _shared,
+  };
 
-  List<double> get _current => _individual
-      ? (_perMember[_editing!] ??= flatCurve())
-      : _shared;
+  List<double> get _current =>
+      _individual ? (_perMember[_editing!] ??= flatCurve()) : _shared;
 
   void _setBand(int i, double v) {
     setState(() {
@@ -151,11 +151,13 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
           content: Text(l10n.eqOverwriteBody),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(l10n.actionCancel)),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.actionCancel),
+            ),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(l10n.eqOverwriteConfirm)),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.eqOverwriteConfirm),
+            ),
           ],
         ),
       );
@@ -167,7 +169,9 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
 
   Future<void> _apply(List<SonosDevice> members) async {
     if (!await _ensureConfirmed(members)) return;
-    final ok = await ref.read(speakerEqControllerProvider.notifier).apply(
+    final ok = await ref
+        .read(speakerEqControllerProvider.notifier)
+        .apply(
           entityId: widget.uuid,
           members: members,
           offsets: _offsetsFor(members),
@@ -197,11 +201,13 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
         content: Text(l10n.eqRemoveBody),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.actionCancel)),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.actionCancel),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l10n.eqRemoveConfirm)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.eqRemoveConfirm),
+          ),
         ],
       ),
     );
@@ -223,13 +229,17 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
     final l10n = context.l10n;
     final system = ref.watch(sonosControllerProvider).value;
     final member = system?.memberByUuid(widget.uuid);
-    final members = system == null ? const <SonosDevice>[] : eqMembers(system, widget.uuid);
+    final members = system == null
+        ? const <SonosDevice>[]
+        : eqMembers(system, widget.uuid);
 
     if (member == null || members.isEmpty) {
       return AppScaffold(
         title: l10n.eqTitle,
         body: const Padding(
-            padding: EdgeInsets.all(24), child: MissingRoomView()),
+          padding: EdgeInsets.all(24),
+          child: MissingRoomView(),
+        ),
       );
     }
     _editing ??= members.first.uuid;
@@ -247,7 +257,11 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
       // always-disabled step advertises a feature that doesn't exist yet. When
       // it lands, this becomes the second of two steps — the data model already
       // treats the sliders as offsets on a (currently null) measured base.
-      body: ScrollFooter(
+      // Clamped rather than full-bleed, unlike the other detail pages: this one
+      // is a form, and ten sliders spread across a landscape tablet are unusable.
+      // MaxWidthBody owns the breakpoint, so a phone is untouched.
+      body: MaxWidthBody(
+        child: ScrollFooter(
           padding: const EdgeInsets.symmetric(vertical: 16),
           footer: _Footer(
             status: status,
@@ -258,13 +272,20 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
             hasTuning: _applied || status.applied,
           ),
           children: [
+            // Leads the page: the EQ shares Trueplay's single storage slot,
+            // which is the one thing a user cannot discover from the UI and
+            // cannot undo once they hit Apply.
+            _Gutter(child: InfoNote(l10n.eqTrueplayNote)),
+            Gap.m,
             // Scope first: what you are editing, before what it looks like.
             _Gutter(
               child: SegmentedButton<bool>(
                 segments: [
                   ButtonSegment(value: false, label: Text(l10n.eqModeAll)),
                   ButtonSegment(
-                      value: true, label: Text(l10n.eqModeIndividual)),
+                    value: true,
+                    label: Text(l10n.eqModeIndividual),
+                  ),
                 ],
                 selected: {_individual},
                 showSelectedIcon: false,
@@ -303,9 +324,10 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      EqCurveView(freqs: _freqs, curves: [
-                        EqCurve(curve, scheme.primary),
-                      ]),
+                      EqCurveView(
+                        freqs: _freqs,
+                        curves: [EqCurve(curve, scheme.primary)],
+                      ),
                       Gap.m,
                       _Bands(
                         gains: _current,
@@ -338,7 +360,8 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
                 ),
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -349,8 +372,9 @@ class _Gutter extends StatelessWidget {
   const _Gutter({required this.child});
   @override
   Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
-      child: child);
+    padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
+    child: child,
+  );
 }
 
 class _Bands extends StatelessWidget {
@@ -403,8 +427,10 @@ class _Bands extends StatelessWidget {
                       onChangeEnd: onChangeEnd,
                     ),
                   ),
-                  Text(eqBandLabel(kEqBands[i]),
-                      style: theme.textTheme.labelSmall),
+                  Text(
+                    eqBandLabel(kEqBands[i]),
+                    style: theme.textTheme.labelSmall,
+                  ),
                 ],
               ),
             ),
@@ -452,9 +478,11 @@ class _MemberPicker extends StatelessWidget {
               avatar: edited.contains(d.uuid)
                   ? const Icon(Icons.edit, size: 16)
                   : null,
-              label: Text(roles[d.uuid] == null
-                  ? d.typeLabel
-                  : '${d.typeLabel} · ${roles[d.uuid]}'),
+              label: Text(
+                roles[d.uuid] == null
+                    ? d.typeLabel
+                    : '${d.typeLabel} · ${roles[d.uuid]}',
+              ),
               tooltip: edited.contains(d.uuid) ? l10n.eqEdited : null,
             ),
             Gap.s,
@@ -550,7 +578,10 @@ class _StatusLine extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(
-              width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
           Gap.s,
           Text(l10n.eqApplying, style: theme.textTheme.bodySmall),
         ],
@@ -561,8 +592,9 @@ class _StatusLine extends StatelessWidget {
       // No retry affordance: Apply sits directly above and is exactly that.
       return Text(
         localizedError(l10n, error),
-        style:
-            theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.error,
+        ),
       );
     }
     return Row(

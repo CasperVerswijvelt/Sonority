@@ -32,17 +32,23 @@ class EqCurveView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return AspectRatio(
-      aspectRatio: 2.2,
-      child: CustomPaint(
-        painter: _EqPainter(
-          freqs: freqs,
-          curves: curves,
-          grid: scheme.outlineVariant,
-          label: scheme.onSurfaceVariant,
-          textDirection: Directionality.of(context),
+    // Aspect ratio for shape, a ceiling so it doesn't eat a wide window: a bare
+    // AspectRatio grows the plot's HEIGHT with the width, which on a tablet in
+    // landscape hands half the viewport to a curve.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 220),
+      child: AspectRatio(
+        aspectRatio: 2.2,
+        child: CustomPaint(
+          painter: _EqPainter(
+            freqs: freqs,
+            curves: curves,
+            grid: scheme.outlineVariant,
+            label: scheme.onSurfaceVariant,
+            textDirection: Directionality.of(context),
+          ),
+          child: const SizedBox.expand(),
         ),
-        child: const SizedBox.expand(),
       ),
     );
   }
@@ -73,8 +79,7 @@ class _EqPainter extends CustomPainter {
     return (math.log(f) - lo) / (hi - lo) * s.width;
   }
 
-  double _y(double db, Size s) =>
-      (_top - db) / (_top - _bottom) * s.height;
+  double _y(double db, Size s) => (_top - db) / (_top - _bottom) * s.height;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -87,11 +92,18 @@ class _EqPainter extends CustomPainter {
 
     // Zero line, then the two correction rails — the rails are the honest part:
     // the clamp is on the composed curve, so a user must be able to see it bite.
-    canvas.drawLine(Offset(0, _y(0, size)), Offset(size.width, _y(0, size)),
-        railPaint);
+    canvas.drawLine(
+      Offset(0, _y(0, size)),
+      Offset(size.width, _y(0, size)),
+      railPaint,
+    );
     for (final db in [kEqMaxBoostDb, -kEqMaxCutDb]) {
-      _dashedLine(canvas, Offset(0, _y(db, size)),
-          Offset(size.width, _y(db, size)), railPaint);
+      _dashedLine(
+        canvas,
+        Offset(0, _y(db, size)),
+        Offset(size.width, _y(db, size)),
+        railPaint,
+      );
     }
 
     for (final f in kEqBands) {
@@ -123,15 +135,16 @@ class _EqPainter extends CustomPainter {
     final total = (b - a).distance;
     final dir = (b - a) / total;
     for (var d = 0.0; d < total; d += dash + gap) {
-      canvas.drawLine(
-          a + dir * d, a + dir * math.min(d + dash, total), paint);
+      canvas.drawLine(a + dir * d, a + dir * math.min(d + dash, total), paint);
     }
   }
 
   void _text(Canvas canvas, String s, Offset at) {
     final tp = TextPainter(
       text: TextSpan(
-          text: s, style: TextStyle(color: label, fontSize: 10)),
+        text: s,
+        style: TextStyle(color: label, fontSize: 10),
+      ),
       textDirection: textDirection,
     )..layout();
     tp.paint(canvas, at - Offset(tp.width / 2, 0));

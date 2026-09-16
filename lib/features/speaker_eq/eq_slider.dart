@@ -107,8 +107,7 @@ class _CentreOriginTrackShape extends SliderTrackShape
     // without touching it.
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromCenter(
-            center: rect.center, width: rect.width, height: thin),
+        Rect.fromCenter(center: rect.center, width: rect.width, height: thin),
         Radius.circular(thin / 2),
       ),
       Paint()..color = sliderTheme.inactiveTrackColor ?? Colors.grey,
@@ -124,8 +123,12 @@ class _CentreOriginTrackShape extends SliderTrackShape
     if (hi - lo > 0.5) {
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTRB(lo, rect.center.dy - full / 2, hi,
-              rect.center.dy + full / 2),
+          Rect.fromLTRB(
+            lo,
+            rect.center.dy - full / 2,
+            hi,
+            rect.center.dy + full / 2,
+          ),
           radius,
         ),
         Paint()..color = sliderTheme.activeTrackColor ?? Colors.blue,
