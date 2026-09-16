@@ -595,7 +595,7 @@ abstract class AppLocalizations {
   /// Timeline note when the settle poll after an unbond never converged. Not an error: the unbond usually applied and the bond write re-asserts until it verifies. Shown so the timeline names the real cause when that bond then fails, instead of leaving it only in the raw log.
   ///
   /// In en, this message translates to:
-  /// **'Couldn’t confirm {name} was freed — carrying on and verifying at the bond'**
+  /// **'Couldn’t confirm {name} was freed. Carrying on, and verifying at the bond'**
   String stepFreeUnconfirmed(String name);
 
   /// No description provided for @stepWaitForSettle.
@@ -2269,7 +2269,7 @@ abstract class AppLocalizations {
   /// Review-step line naming the source groups this selection dissolves. Restated here because the review card is the only gate before Apply, and an untuned group otherwise made it silent about the dissolve.
   ///
   /// In en, this message translates to:
-  /// **'{names} {count, plural, =1{breaks up} other{break up}} — a group doesn\'t shrink when you take a speaker out of it.'**
+  /// **'{names} {count, plural, =1{breaks up} other{break up}}. A group doesn\'t shrink when you take a speaker out of it.'**
   String pickerCostDissolves(String names, int count);
 
   /// The Trueplay cost of taking a speaker out of any bond. One sentence for every source: a tuning that survives an absorb comes back switched off and cannot be switched on without being destroyed (EXP-23 Q15/Q16, no safe delay, role-preserving included), so nothing can promise retention.
