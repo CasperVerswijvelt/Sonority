@@ -361,13 +361,6 @@ class ZoneGroupMember {
   List<String> uuidsForChannel(SonosChannel channel) =>
       _uuidsWhere((tokens) => tokens.contains(channel.token));
 
-  /// Every satellite in the HT map, deduped by UUID and in map order.
-  ///
-  /// Unlike `channelAssignments.values` this is keyed by UUID rather than by
-  /// channel, so a **dual-sub** HT keeps both subs (two `SW` entries collapse to
-  /// one in a channel-keyed map).
-  List<String> get htSatelliteUuids => _uuidsWhere((_) => true);
-
   /// Every speaker physically bonded into this entity, coordinator first.
   ///
   /// Unions both bond representations — the HT `HTSatChanMapSet` and the group
@@ -376,8 +369,10 @@ class ZoneGroupMember {
   /// an operation has to address *the whole bond* (a spectral-tuning apply must
   /// carry every member or nothing commits); the two maps are never both
   /// populated, but unioning is cheaper than asking which one is.
+  /// Keyed by UUID rather than by channel, so a **dual-sub** HT keeps both subs
+  /// — two `SW` entries collapse to one in a channel-keyed map.
   List<String> get bondedUuids =>
-      <String>{uuid, ...htSatelliteUuids, ...channelMapUuids}.toList();
+      <String>{uuid, ..._uuidsWhere((_) => true), ...channelMapUuids}.toList();
 
   List<String> _uuidsWhere(bool Function(List<String> tokens) test) {
     final raw = htSatChanMapSet;

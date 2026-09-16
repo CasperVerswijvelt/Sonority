@@ -11,15 +11,13 @@ const kSonosGuestApiKey = '123e4567-e89b-12d3-a456-426655440000';
 /// overridden; this exists purely so the engine compiles for the screenshot-only
 /// web target.
 class TrueplayApplyClient {
-  final Duration timeout;
-  const TrueplayApplyClient({this.timeout = const Duration(seconds: 8)});
+  const TrueplayApplyClient();
 
   Future<int> postConfig({
     required String ip,
     required String rincon,
     required String configId,
     required String encodedBase64,
-    String apiKey = kSonosGuestApiKey,
     bool live = false,
   }) async =>
       throw const SpeakerUnreachable();
@@ -28,7 +26,6 @@ class TrueplayApplyClient {
       readDeviceConfig({
     required String ip,
     required String rincon,
-    String apiKey = kSonosGuestApiKey,
   }) async =>
           throw const SpeakerUnreachable();
 

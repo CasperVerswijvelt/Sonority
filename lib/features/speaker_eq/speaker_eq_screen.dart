@@ -70,7 +70,6 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
 
   bool _live = false;
   bool _overwriteConfirmed = false;
-  bool _loaded = false;
 
   /// Whether a tuning of ours is actually ON the speakers. Not "has the user
   /// moved a slider" — before an apply there is nothing to switch on or remove,
@@ -80,6 +79,16 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
   final _freqs = eqGrid();
 
   @override
+  void initState() {
+    super.initState();
+    // Loaded once here rather than from build(): scheduling it per build needed
+    // a latch, and a second load landing after the user had already moved a
+    // slider would stomp it.
+    final system = ref.read(sonosControllerProvider).value;
+    if (system != null) _load(eqMembers(system, widget.uuid));
+  }
+
+  @override
   void dispose() {
     ref.read(speakerEqControllerProvider.notifier).cancelPending();
     super.dispose();
@@ -87,10 +96,6 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
 
   /// Seed the sliders from whatever was last applied to this entity.
   Future<void> _load(List<SonosDevice> members) async {
-    // Claim the load before awaiting: a rebuild while it is in flight would
-    // otherwise schedule a second one, whose late addAll could stomp slider
-    // moves the user has already made.
-    _loaded = true;
     final stored = await ref
         .read(speakerEqControllerProvider.notifier)
         .loadStored(widget.uuid);
@@ -134,11 +139,11 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
   Future<bool> _ensureConfirmed(List<SonosDevice> members) async {
     if (_overwriteConfirmed) return true;
     final l10n = context.l10n;
-    final result = await ref
+    final wouldOverwrite = await ref
         .read(speakerEqControllerProvider.notifier)
-        .preflight(entityId: widget.uuid, members: members);
+        .wouldOverwrite(members: members);
     if (!mounted) return false;
-    if (result == EqPreflight.wouldOverwrite) {
+    if (wouldOverwrite) {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -227,14 +232,11 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
             padding: EdgeInsets.all(24), child: MissingRoomView()),
       );
     }
-    if (!_loaded) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _load(members));
-    }
     _editing ??= members.first.uuid;
 
     var status = ref.watch(speakerEqControllerProvider);
     // The provider is global; ignore a result that belongs to another entity.
-    if (status.isIdleFor(widget.uuid)) status = const SpeakerEqStatus();
+    if (status.entityId != widget.uuid) status = const SpeakerEqStatus();
     final curve = composeCorrection(bandOffsetsDb: _current, freqs: _freqs);
     final scheme = Theme.of(context).colorScheme;
 

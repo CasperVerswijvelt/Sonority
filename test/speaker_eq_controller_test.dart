@@ -455,9 +455,10 @@ void main() {
     test('a foreign tuning must be confirmed before it is destroyed', () async {
       final c = _container(_FakeApply(), repo: _FakeRepo(foreign: true));
       expect(
-        await c.read(speakerEqControllerProvider.notifier).preflight(
-            entityId: 'RINCON_BAR', members: const [_bar, _rear]),
-        EqPreflight.wouldOverwrite,
+        await c
+            .read(speakerEqControllerProvider.notifier)
+            .wouldOverwrite(members: const [_bar, _rear]),
+        isTrue,
       );
     });
 
@@ -473,29 +474,30 @@ void main() {
         members: const [_bar],
         offsets: {'RINCON_BAR': _cut(4)},
       );
-      expect(
-        await n.preflight(entityId: 'RINCON_BAR', members: const [_bar]),
-        EqPreflight.wouldOverwrite,
-      );
+      expect(await n.wouldOverwrite(members: const [_bar]), isTrue);
     });
 
     test('a member we cannot read warns rather than assuming it is empty',
         () async {
       final c = _container(_FakeApply(), repo: _UnreadableRepo());
       expect(
-        await c.read(speakerEqControllerProvider.notifier).preflight(
-            entityId: 'RINCON_BAR', members: const [_bar]),
-        EqPreflight.wouldOverwrite,
+        await c
+            .read(speakerEqControllerProvider.notifier)
+            .wouldOverwrite(members: const [_bar]),
+        isTrue,
       );
     });
 
-    test('a speaker with nothing to tune is refused', () async {
+    test('an unreachable speaker cannot be holding a tuning we would lose',
+        () async {
       final c = _container(_FakeApply());
       expect(
-        await c.read(speakerEqControllerProvider.notifier).preflight(
-            entityId: 'X', members: const [SonosDevice(
-                uuid: 'RINCON_LONE', roomName: 'Sub', modelName: 'Sonos Sub')]),
-        EqPreflight.nothingTunable,
+        await c.read(speakerEqControllerProvider.notifier).wouldOverwrite(
+            members: const [
+              SonosDevice(
+                  uuid: 'RINCON_LONE', roomName: 'Sub', modelName: 'Sonos Sub'),
+            ]),
+        isFalse,
       );
     });
   });

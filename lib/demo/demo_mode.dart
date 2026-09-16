@@ -63,7 +63,6 @@ class _DemoTrueplayApplyClient extends TrueplayApplyClient {
     required String rincon,
     required String configId,
     required String encodedBase64,
-    String apiKey = kSonosGuestApiKey,
     bool live = false,
   }) async =>
       throw StateError('demo mode: no network I/O (trueplay $configId)');
@@ -73,7 +72,6 @@ class _DemoTrueplayApplyClient extends TrueplayApplyClient {
       readDeviceConfig({
     required String ip,
     required String rincon,
-    String apiKey = kSonosGuestApiKey,
   }) async =>
           throw StateError('demo mode: no network I/O (GetDeviceConfig)');
 }

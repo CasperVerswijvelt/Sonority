@@ -42,7 +42,6 @@ class TrueplayApplyClient {
     required String rincon,
     required String configId,
     required String encodedBase64,
-    String apiKey = kSonosGuestApiKey,
     bool live = false,
   }) async {
     if (!live) {
@@ -54,7 +53,6 @@ class TrueplayApplyClient {
       rincon: rincon,
       configId: configId,
       encodedBase64: encodedBase64,
-      apiKey: apiKey,
     ))
         .status;
   }
@@ -71,14 +69,12 @@ class TrueplayApplyClient {
       readDeviceConfig({
     required String ip,
     required String rincon,
-    String apiKey = kSonosGuestApiKey,
   }) async {
     final resp = await _post(
       ip: ip,
       rincon: rincon,
       configId: 'audiocore',
       encodedBase64: buildGetDeviceConfig(rincon).encodeBase64(),
-      apiKey: apiKey,
     );
     final raw = utf8.decode(resp.body, allowMalformed: true);
     TrueplayDeviceConfig? config;
@@ -100,7 +96,6 @@ class TrueplayApplyClient {
     required String rincon,
     required String configId,
     required String encodedBase64,
-    required String apiKey,
   }) async {
     final client = HttpClient();
     client.badCertificateCallback = (_, __, ___) => true;
@@ -109,7 +104,7 @@ class TrueplayApplyClient {
       final uri = Uri.parse(
           'https://$ip:1443/api/v1/players/$rincon/trueplay/config/$configId');
       final req = await client.postUrl(uri);
-      req.headers.set('X-Sonos-Api-Key', apiKey);
+      req.headers.set('X-Sonos-Api-Key', kSonosGuestApiKey);
       req.headers.contentType = ContentType.json;
       final body = utf8.encode(jsonEncode({
         'trueplayConfig': {

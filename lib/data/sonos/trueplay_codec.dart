@@ -13,8 +13,9 @@
 ///
 /// Only three protobuf wire types appear (varint, fixed32, length-delimited), so
 /// this hand-rolls a tiny reader/writer rather than pull in a protobuf dep. The
-/// codec is lossless and byte-deterministic — decode→encode reproduces the input
-/// byte-identically, which the tests assert.
+/// encoder is byte-deterministic and pinned against golden bytes in the tests;
+/// the only thing decoded is the `GetDeviceConfig` reply, since a player never
+/// hands a tuning back.
 library;
 
 import 'dart:convert';
@@ -74,33 +75,6 @@ class TrueplayRequest {
   }
 
   String encodeBase64() => base64.encode(encode());
-
-  static TrueplayRequest decode(Uint8List bytes) {
-    String rpcVersion = '', service = '', method = '';
-    Uint8List payload = Uint8List(0);
-    final r = _PbReader(bytes);
-    while (!r.eof) {
-      final (field, wire) = r.tag();
-      // Guard on wire type: a `trueplay-node` doc reuses these field numbers with
-      // different wire types, so only read fields that match the envelope schema.
-      if (field == 1 && wire == 2) {
-        rpcVersion = r.string();
-      } else if (field == 2 && wire == 2) {
-        service = r.string();
-      } else if (field == 3 && wire == 2) {
-        method = r.string();
-      } else if (field == 4 && wire == 2) {
-        payload = r.bytesValue();
-      } else {
-        r.skip(wire);
-      }
-    }
-    return TrueplayRequest(
-        rpcVersion: rpcVersion,
-        service: service,
-        method: method,
-        payload: payload);
-  }
 }
 
 /// Encode an `ApplySpectralTuning` payload (the inner message, not the envelope).
@@ -122,60 +96,6 @@ Uint8List encodeSpectralPayload(SpectralTuning t) {
     w.lengthDelimited(2, cw.toBytes());
   }
   return w.toBytes();
-}
-
-/// Decode an `ApplySpectralTuning` payload.
-SpectralTuning decodeSpectralPayload(Uint8List payload) {
-  String deviceId = '';
-  final channels = <ChannelTuning>[];
-  final r = _PbReader(payload);
-  while (!r.eof) {
-    final (field, wire) = r.tag();
-    switch (field) {
-      case 1:
-        deviceId = r.string();
-      case 2:
-        channels.add(_decodeChannel(r.bytesValue()));
-      default:
-        r.skip(wire);
-    }
-  }
-  return SpectralTuning(deviceId: deviceId, channels: channels);
-}
-
-ChannelTuning _decodeChannel(Uint8List bytes) {
-  int channel = 0;
-  double gain = 1.0;
-  final biquads = <BiquadSos>[];
-  final r = _PbReader(bytes);
-  while (!r.eof) {
-    final (field, wire) = r.tag();
-    switch (field) {
-      case 1:
-        channel = r.varintValue();
-      case 2:
-        gain = r.fixed32Float();
-      case 3:
-        biquads.add(_decodeBiquad(r.bytesValue()));
-      default:
-        r.skip(wire);
-    }
-  }
-  return ChannelTuning(channel: channel, gain: gain, biquads: biquads);
-}
-
-BiquadSos _decodeBiquad(Uint8List bytes) {
-  final f = List<double>.filled(5, 0);
-  final r = _PbReader(bytes);
-  while (!r.eof) {
-    final (field, wire) = r.tag();
-    if (field >= 1 && field <= 5 && wire == 5) {
-      f[field - 1] = r.fixed32Float();
-    } else {
-      r.skip(wire);
-    }
-  }
-  return BiquadSos(f[0], f[1], f[2], f[3], f[4]);
 }
 
 /// Build a ready-to-POST `ApplySpectralTuning` envelope for one player.
@@ -348,12 +268,6 @@ class _PbReader {
   }
 
   int varintValue() => _raw();
-
-  double fixed32Float() {
-    final v = ByteData.sublistView(d, p, p + 4).getFloat32(0, Endian.little);
-    p += 4;
-    return v;
-  }
 
   Uint8List bytesValue() {
     final len = _raw();

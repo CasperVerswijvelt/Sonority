@@ -25,22 +25,6 @@ final trueplayApplyProvider =
 final eqStoreProvider =
     Provider<KeyValueStore>((ref) => SharedPreferencesKeyValueStore());
 
-/// What a pre-flight found on the target speakers.
-enum EqPreflight {
-  /// Nothing stored, or the stored tuning is one we wrote. Safe to apply.
-  ok,
-
-  /// A tuning exists that Sonority did not author — almost certainly a Trueplay
-  /// calibration measured in the Sonos app. Coefficients can never be read back
-  /// off a speaker, so applying would destroy it with no way to restore it.
-  /// Needs an explicit, informed confirmation.
-  wouldOverwrite,
-
-  /// No member reports a tunable channel (e.g. an unbonded Sub, which has no
-  /// channel role to author against).
-  nothingTunable,
-}
-
 @immutable
 class SpeakerEqStatus {
   /// Which entity this status is about. The provider is global but the screen is
@@ -59,9 +43,6 @@ class SpeakerEqStatus {
     this.error,
     this.applied = false,
   });
-
-  /// Nothing to show for [id] — either idle, or reporting on another entity.
-  bool isIdleFor(String id) => entityId != id;
 }
 
 final speakerEqControllerProvider =
@@ -147,12 +128,9 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
   /// indistinguishable from our own EQ — and skipping the confirm would destroy
   /// it silently and irreversibly. The screen asks once per visit, so re-applying
   /// while you tweak still doesn't nag.
-  Future<EqPreflight> preflight({
-    required String entityId,
-    required List<SonosDevice> members,
-  }) async {
+  Future<bool> wouldOverwrite({required List<SonosDevice> members}) async {
     final targets = members.where((d) => d.ip != null).toList();
-    if (targets.isEmpty) return EqPreflight.nothingTunable;
+    if (targets.isEmpty) return false;
 
     final repo = ref.read(sonosRepositoryProvider);
     for (final d in targets) {
@@ -161,7 +139,7 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
         // unbonded, and that is exactly when someone opens this page.
         final c = await retryUnreachable(() => repo.roomCalibration(d.ip!),
             attempts: 3, interval: const Duration(seconds: 2));
-        if (c.available) return EqPreflight.wouldOverwrite;
+        if (c.available) return true;
       } catch (e) {
         // "We couldn't ask" is not "there is nothing there". The honest verdict
         // for an unreadable member is unknown, and unknown has to warn — the
@@ -169,10 +147,10 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
         DiagnosticsLog.add(
             '[eq] ${d.roomName} calibration status unreadable ($e); '
             'warning rather than assuming it holds nothing');
-        return EqPreflight.wouldOverwrite;
+        return true;
       }
     }
-    return EqPreflight.ok;
+    return false;
   }
 
   // ------------------------------------------------------------------ apply
