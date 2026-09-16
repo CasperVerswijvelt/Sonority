@@ -1403,7 +1403,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get pickerCostCleared => 'Trueplay is cleared on all of them.';
+  String get pickerCostCleared => 'Expect to re-tune all of them.';
 
   @override
   String get pickerSectionLeavesBond =>

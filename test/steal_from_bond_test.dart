@@ -334,18 +334,18 @@ void main() {
       expect(c.tuningCost(l10n, resulting).names,
           c.tuningCost(l10n, picked).names);
       expect(c.warning(l10n, picked), isNotNull,
-          reason: 'the note cannot stay silent while the header says cleared');
+          reason: 'the note cannot stay silent while the header says re-tune');
     });
 
     test('an UNREAD speaker keeps the note in step with the header', () {
       // The header errs safe on a speaker it could not read; the note has to
-      // err the same way, or the screen says "cleared" and names nobody.
+      // err the same way, or the screen says "re-tune all of them" and names nobody.
       final c = PickerContext(
         system: system,
         calibration: const {pairR: RoomCalibration(available: false, enabled: false)},
         exceptPrimary: bar,
       );
-      expect(sectionCost(l10n, system, pair, c.calibration), contains('cleared'),
+      expect(sectionCost(l10n, system, pair, c.calibration), contains('re-tune'),
           reason: 'pairL was never read');
       expect(c.warning(l10n, {pairL}), isNotNull);
     });
@@ -460,7 +460,7 @@ void main() {
       // No entry at all means the Trueplay read FAILED — routine inside the
       // ~20-30s window after an unbond, or for an offline speaker. Dropping it
       // silently shortened the at-risk list while the section header above it,
-      // reading the same map, already said the bond's tuning gets cleared.
+      // reading the same map, already said the bond needs re-tuning.
       final got = await named({sub});
       expect(got.count, 1);
       expect(got.names, ['Sub']);
@@ -489,7 +489,7 @@ void main() {
     // promise creeping back into the prose.
     test('no source promises that anything keeps its Trueplay', () {
       for (final src in [pair, zone, ht]) {
-        expect(cost(src), contains('cleared'));
+        expect(cost(src), contains('re-tune'));
         expect(cost(src), isNot(contains('keep')));
       }
     });
@@ -535,7 +535,7 @@ void main() {
     test('an UNREAD speaker is not the same as an untuned one', () {
       // A Trueplay read that failed leaves no entry. Suppressing the cost then
       // would be the one wrong direction: silence about a destructive write.
-      expect(cost(pair, const {pairL: untuned}), contains('cleared'));
+      expect(cost(pair, const {pairL: untuned}), contains('re-tune'));
     });
   });
 }

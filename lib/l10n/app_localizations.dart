@@ -2275,7 +2275,7 @@ abstract class AppLocalizations {
   /// The Trueplay cost of taking a speaker out of any bond. One sentence for every source: a tuning that survives an absorb comes back switched off and cannot be switched on without being destroyed (EXP-23 Q15/Q16, no safe delay, role-preserving included), so nothing can promise retention.
   ///
   /// In en, this message translates to:
-  /// **'Trueplay is cleared on all of them.'**
+  /// **'Expect to re-tune all of them.'**
   String get pickerCostCleared;
 
   /// Section-header helper for a bond a speaker would be taken from.

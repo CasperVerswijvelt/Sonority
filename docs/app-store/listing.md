@@ -93,6 +93,7 @@ Sonority is an independent app and is not affiliated with, authorized, maintaine
 • Creating a speaker group now keeps trying until it really exists, instead of giving up while the speakers were still settling
 • A home theater with an amplifier driving both front speakers now applies changes correctly
 • A subwoofer the app failed to spot is no longer left out of your setup
+• Diagnostics reports now include each speaker's room-calibration state, and emailing one asks what went wrong first so a report never arrives without an explanation
 ```
 
 ## Support / marketing URLs
