@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
+import 'package:sonority/data/sonos/front_layout.dart';
 import 'package:sonority/data/sonos/room_calibration.dart';
 import 'package:sonority/features/widgets/speaker_picker.dart';
 import 'package:sonority/l10n/app_localizations.dart';
@@ -11,6 +12,8 @@ import 'package:sonority/l10n/app_localizations.dart';
 /// (CLAUDE.md, Q20/Q8a). Pricing only stolen speakers left the most ordinary
 /// destructive action in the app — pair two tuned speakers — priced at zero.
 void main() {
+  group('the flow wiring, end to end', _wiring);
+
   const a = 'RINCON_A01400';
   const b = 'RINCON_B01400';
   const c = 'RINCON_C01400';
@@ -205,5 +208,93 @@ void main() {
       // The profile active-match check passes no coordUuid.
       expect(zone.matchesGroupLayout(target), isTrue);
     });
+  });
+}
+
+/// The HT flow's `writes` wiring, chained through the SAME production functions
+/// the flow chains: `buildLayoutMap(preserveExisting: false)` → `diffHtLayout`
+/// → `PickerContext(writes: !diff.isNoOp)` → `tuningCost`.
+///
+/// This is the gap that let the "additive apply priced nothing" bug ship: the
+/// widget tests constructed the PickerContext with a hand-written copy of the
+/// flow's expression, so reverting the flow to the old drop-gated behaviour
+/// left every one of them green.
+void _wiring() {
+  const beam = 'RINCON_BEAM01400';
+  const rear = 'RINCON_REAR01400';
+  const newFl = 'RINCON_NEWFL01400';
+  const newFr = 'RINCON_NEWFR01400';
+
+  late AppLocalizations l10n;
+  setUpAll(() async {
+    l10n = await AppLocalizations.delegate.load(const Locale('en'));
+  });
+
+  SonosDevice dev(String uuid, String model, String room) => SonosDevice(
+      uuid: uuid, roomName: room, modelName: model, ip: '1.2.3.4');
+
+  final devices = {
+    beam: dev(beam, 'Sonos Beam', 'Woonkamer'),
+    rear: dev(rear, 'Sonos One SL', 'Woonkamer'),
+    // Free speakers, so they still have names of their own — which is what a
+    // picker calls them. A bonded one is named by type + channel instead.
+    newFl: dev(newFl, 'Sonos Era 100', 'Bureau'),
+    newFr: dev(newFr, 'Sonos Era 100', 'Hal'),
+  };
+
+  // A tuned 3.1 — bar + one rear — and two free tuned speakers to add as fronts.
+  ZoneGroupMember bar(String map) =>
+      ZoneGroupMember(uuid: beam, zoneName: 'Woonkamer', htSatChanMapSet: map);
+  final current = bar('$beam:CC;$rear:LR');
+  final system = SonosSystem(
+    groups: [
+      ZoneGroup(coordinatorUuid: beam, members: [current]),
+      for (final u in [newFl, newFr])
+        ZoneGroup(coordinatorUuid: u, members: [
+          ZoneGroupMember(uuid: u, zoneName: 'Room'),
+        ]),
+    ],
+    devicesByUuid: devices,
+  );
+
+  ({List<String> names, int count}) cost(
+      Map<SonosChannel, String> desired) {
+    final diff = diffHtLayout(
+      current: current,
+      target: buildLayoutMap(
+        soundbar: current,
+        soundbarDevice: devices[beam]!,
+        desired: desired,
+        subUuids: const [],
+        preserveExisting: false,
+      ),
+    );
+    final picker = PickerContext(
+      system: system,
+      calibration: {
+        for (final u in devices.keys)
+          u: const RoomCalibration(available: true, enabled: true),
+      },
+      exceptPrimary: beam,
+      writes: !diff.isNoOp,
+    );
+    return picker.tuningCost(l10n, {beam, ...desired.values});
+  }
+
+  test('adding two fronts prices the bar, the rear AND both new fronts', () {
+    final lost = cost({
+      SonosChannel.leftRear: rear,
+      SonosChannel.leftFront: newFl,
+      SonosChannel.rightFront: newFr,
+    });
+    expect(lost.count, 4);
+    // The bar and the rear are inside the bond, so they are named by TYPE; the
+    // two speakers being absorbed are still standalone, so by room name.
+    expect(lost.names.join(' '), contains('Beam'));
+    expect(lost.names, containsAll(['Bureau', 'Hal']));
+  });
+
+  test('re-applying the SAME layout is a no-op and prices nothing', () {
+    expect(cost({SonosChannel.leftRear: rear}).names, isEmpty);
   });
 }

@@ -29,11 +29,14 @@ void main() {
   final a = dev('RINCON_A01400');
   final b = dev('RINCON_B01400');
 
+  late _FakeTrueplay fake;
+
   Future<Switch> pump(
       WidgetTester tester, Map<String, RoomCalibration> cal) async {
+    fake = _FakeTrueplay(cal);
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        trueplayControllerProvider.overrideWith(() => _FakeTrueplay(cal)),
+        trueplayControllerProvider.overrideWith(() => fake),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -74,7 +77,21 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsNothing);
-    expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+    // The WRITE is the thing under test. `Switch.value` comes from the fake's
+    // fixed map, so it reads false whether or not the toggle fired.
+    expect(fake.writes, isEmpty);
+  });
+
+  testWidgets('accepting the confirm DOES write — the other half of the gate',
+      (tester) async {
+    await pump(tester, {a.uuid: tuned, b.uuid: untuned});
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Turn on anyway')));
+    await tester.pumpAndSettle();
+    expect(fake.writes, [true]);
   });
 
   testWidgets('a COMPLETE set switches on with no confirm at all',
@@ -158,6 +175,13 @@ void main() {
 class _FakeTrueplay extends TrueplayController {
   final Map<String, RoomCalibration> cal;
   final Set<String> busy;
+
+  /// Every `setEnabled` this fake received. `Switch.value` is derived from the
+  /// fixed [cal] map, so asserting on it can never tell a suppressed write from
+  /// a write that happened — the "declining does not write" test was vacuous
+  /// until the writes were recorded here.
+  final writes = <bool>[];
+
   _FakeTrueplay(this.cal, {this.busy = const {}});
 
   @override
@@ -165,4 +189,9 @@ class _FakeTrueplay extends TrueplayController {
 
   @override
   Future<void> load(Iterable<SonosDevice> devices) async {}
+
+  @override
+  Future<void> setEnabled(Iterable<SonosDevice> devices, bool on) async {
+    writes.add(on);
+  }
 }
