@@ -32,6 +32,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Applying a profile now asks before dissolving a bond that has grown since the profile was saved, and recovers a speaker left orphaned by a vanished group partner instead of silently doing nothing.
 - The second subwoofer of a dual-sub home theater is no longer briefly offered as a free speaker while the topology settles, and is now freed from its home theater before being bonded elsewhere instead of being treated as belonging to nothing.
 - Re-picking a group's speakers in a different order no longer offers to apply a change that writes nothing, or warns that their tunings will be lost.
+- The Trueplay count of a dual-subwoofer home theater now includes both subwoofers. One of them was dropped from the count entirely, so a set that still had an untuned speaker could read as fully tuned and turning Trueplay on would not ask first.
 - Trueplay now reports a speaker it couldn't re-read as unread instead of keeping its previous answer, so a just-bonded speaker can't still look tuned. That reading is what decides whether turning it on warns you first.
 - A speaker group with an unknown address now shows why it failed instead of leaving the progress timeline spinning.
 - The label/value rows of a saved profile's captured settings and of the Trueplay breakdown now wrap onto two lines at large text sizes instead of clipping, which previously pushed the speaker name off screen entirely.

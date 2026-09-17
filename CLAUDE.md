@@ -924,9 +924,12 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   a uniform set already says everything in its `x/y` subtitle. A speaker whose
   read FAILED is what renders `5/6`, so it gets a "Couldn't read" row rather
   than no row at all. A speaker whose read is still IN FLIGHT is a third state
-  (`checking`): it has not been asked yet, so it is not called unreadable, and
-  it is excluded from the disagreement test so a pending row cannot flash the
-  whole list open on a set that merely grew.
+  (`checking`): it has not been asked yet, so it is not called unreadable. It
+  never counts as a disagreeing STATE, but it DOES earn the list on its own
+  (`showRows`'s `anyPending`): the counter is already showing a gap while it is
+  pending, so hiding the breakdown leaves that gap unexplained in the exact
+  window it gets asked. The one case that stays quiet is a cold open, where
+  nothing has settled yet and every row would read "Checking..."
   **The counter's denominator is `widget.devices.length`, every speaker passed
   in, including one with no IP.** NOT `withIp.length`, which this control used to
   split out: a bonded member that is never read then left BOTH numerator and

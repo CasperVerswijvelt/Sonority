@@ -23,6 +23,23 @@ import '../widgets/settings_section.dart';
 import '../widgets/speaker_picker.dart';
 import '../widgets/trueplay_control.dart';
 
+/// The native speakers bonded into [member]'s home theater: the bar plus every
+/// satellite, minus any line-out box (an Amp/Port holds no tuning of its own).
+///
+/// Via [SonosSystem.bondMemberUuids], NOT `channelAssignments.values`. That map
+/// is keyed by CHANNEL, so a dual-sub HT (`...:SW;...:SW`) collapses to one uuid
+/// and the second Sub left BOTH the numerator and the denominator of the
+/// Trueplay count: an incomplete set read complete, and the destructive-enable
+/// confirm never fired. Same class of hole as the no-IP one the denominator
+/// already covers. Pulled out of `build` so that stays pinnable by a test.
+List<SonosDevice> htBondedDevices(SonosSystem system, ZoneGroupMember member) =>
+    system
+        .bondMemberUuids(member)
+        .map((u) => system.device(u))
+        .whereType<SonosDevice>()
+        .where((d) => !d.drivesExternalSpeakers)
+        .toList();
+
 /// Shows one home theater's current layout and the add/remove-fronts actions.
 class HomeTheaterScreen extends ConsumerWidget {
   final String soundbarUuid;
@@ -37,13 +54,8 @@ class HomeTheaterScreen extends ConsumerWidget {
     final member = system?.memberByUuid(soundbarUuid);
     final device = system?.device(soundbarUuid);
 
-    // Bonded native members (bar + fronts + rears + sub); Amp fronts excluded.
     final bonded = (system != null && member != null)
-        ? <String>{member.uuid, ...member.channelAssignments.values}
-              .map((u) => system.device(u))
-              .whereType<SonosDevice>()
-              .where((d) => !d.drivesExternalSpeakers)
-              .toList()
+        ? htBondedDevices(system, member)
         : <SonosDevice>[];
 
     Future<void> refreshAll() async {
