@@ -18,6 +18,7 @@ const _two = SonosDevice(uuid: 'B', roomName: 'Office', modelName: 'Sonos One');
 const _bar =
     SonosDevice(uuid: 'BAR', roomName: 'Living', modelName: 'Sonos Beam');
 const _sub = SonosDevice(uuid: 'SUB', roomName: 'Sub', modelName: 'Sonos Sub');
+
 /// Description unreadable, so its model/capabilities are unknown — the group
 /// flow won't offer it, so nothing that counts candidates may count it.
 const _unreachable = SonosDevice(

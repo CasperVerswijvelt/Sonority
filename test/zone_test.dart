@@ -103,7 +103,7 @@ void main() {
     expect(system.ownerOf('standalone'), isNull);
   });
 
-  test('zoneableSpeakers excludes amps, subs, soundbars; offers free speakers', () {
+  test('zoneableSpeakers excludes amps, subs, soundbars, unreachable', () {
     final system = SonosSystem(
       groups: const [],
       devicesByUuid: {
@@ -115,6 +115,11 @@ void main() {
         // A Port drives external speakers (so it can take both HT fronts), but
         // that must NOT cost it its zone eligibility — only Amps are excluded.
         'port': SonosDevice(uuid: 'port', roomName: 'F', modelName: 'Sonos Port', ip: '6'),
+        // Description unreadable, so the model is blank and none of the type
+        // exclusions above catch it — the group flow won't offer it, so nothing
+        // counting candidates may count it either.
+        'gone': SonosDevice(
+            uuid: 'gone', roomName: 'G', modelName: '', ip: '7', reachable: false),
       },
     );
     expect(

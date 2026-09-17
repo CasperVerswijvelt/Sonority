@@ -462,12 +462,10 @@ class SonosSystem {
   /// Sonos' official list) zones fine, so we don't gate on the model list —
   /// create polls to confirm and surfaces a clear error if Sonos rejects it.
   ///
-  /// Unreachable is excluded here but NOT in [bondableSpeakers], and the
-  /// difference is deliberate: the HT picker shows an unreachable speaker as a
-  /// disabled row explaining itself, whereas the group flow omits it. Counting
-  /// what the flow won't offer is what made the room page's "Group with another
-  /// speaker" shortcut dead-end on one candidate — so the gate and the flow read
-  /// this one list.
+  /// Unreachable is excluded here but NOT in [bondableSpeakers]: the group flow
+  /// omits those speakers where the HT picker shows them as a disabled row. Both
+  /// the flow and the shortcuts that gate it read this one list, so a gate can't
+  /// count a candidate the picker won't offer.
   List<SonosDevice> get zoneableSpeakers =>
       bondableSpeakers.where((d) => !d.isAmp && d.reachable).toList();
 
