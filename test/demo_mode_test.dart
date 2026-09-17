@@ -17,7 +17,11 @@ void main() {
     expect(ht.hasDedicatedFronts, isTrue);
     expect(ht.channelAssignments.keys,
         containsAll(SonosChannel.values.where((c) => c != SonosChannel.center)));
-    expect(ht.subUuids, hasLength(1));
+    // TWO subs on purpose. `channelAssignments` is keyed by channel, so a dual
+    // sub map collapses to one uuid there; the demo carries the shape so the
+    // Trueplay count is exercised against it.
+    expect(ht.subUuids, hasLength(2));
+    expect(ht.channelAssignments.values, hasLength(lessThan(6)));
     // Bedroom is surrounds-only — no dedicated fronts, no sub.
     final bedroom =
         demoSystem.homeTheaters.firstWhere((m) => m.zoneName == 'Bedroom');

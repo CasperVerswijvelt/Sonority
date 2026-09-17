@@ -154,6 +154,9 @@ const _frontR = 'RINCON_DEMO_FR000001400';
 const _rearL = 'RINCON_DEMO_RL000001400';
 const _rearR = 'RINCON_DEMO_RR000001400';
 const _sub = 'RINCON_DEMO_SUB000001400';
+// A second Sub. Sonos supports two, and a dual-sub map (`...:SW;...:SW`) is the
+// shape that used to collapse to one uuid in the Trueplay count.
+const _sub2 = 'RINCON_DEMO_SUB200001400';
 const _officeL = 'RINCON_DEMO_OFL000A1400';
 const _officeR = 'RINCON_DEMO_OFR000A1400';
 const _up1 = 'RINCON_DEMO_UP1000001400';
@@ -175,6 +178,7 @@ const _devices = <SonosDevice>[
   SonosDevice(uuid: _rearL, roomName: 'Living Room', modelName: 'Sonos Era 300', ip: '192.0.2.13'),
   SonosDevice(uuid: _rearR, roomName: 'Living Room', modelName: 'Sonos Era 300', ip: '192.0.2.14'),
   SonosDevice(uuid: _sub, roomName: 'Living Room', modelName: 'Sonos Sub', ip: '192.0.2.15'),
+  SonosDevice(uuid: _sub2, roomName: 'Living Room', modelName: 'Sonos Sub', ip: '192.0.2.16'),
   SonosDevice(uuid: _officeL, roomName: 'Office', modelName: 'Sonos One', ip: '192.0.2.20'),
   SonosDevice(uuid: _officeR, roomName: 'Office', modelName: 'Sonos One', ip: '192.0.2.21'),
   SonosDevice(uuid: _up1, roomName: 'Upstairs', modelName: 'Sonos Era 100', ip: '192.0.2.30'),
@@ -196,9 +200,10 @@ const _htSatellites = [
   SonosSatellite(uuid: _rearL, zoneName: 'Living Room', channels: [SonosChannel.leftRear], ip: '192.0.2.13'),
   SonosSatellite(uuid: _rearR, zoneName: 'Living Room', channels: [SonosChannel.rightRear], ip: '192.0.2.14'),
   SonosSatellite(uuid: _sub, zoneName: 'Living Room', channels: [SonosChannel.sub], ip: '192.0.2.15'),
+  SonosSatellite(uuid: _sub2, zoneName: 'Living Room', channels: [SonosChannel.sub], ip: '192.0.2.16'),
 ];
 
-/// Living Room: Arc as center + dedicated Era 100 fronts + Era 300 rears + Sub
+/// Living Room: Arc as center + dedicated Era 100 fronts + Era 300 rears + two Subs
 /// — the 5.1-with-fronts config the official Sonos app refuses to create. The
 /// map string is derived from the typed satellite list (one source of truth).
 final demoHomeTheater = ZoneGroupMember(
