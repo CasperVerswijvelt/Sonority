@@ -657,14 +657,6 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     required Phases ph,
   }) async {
     final l10n = appL10n();
-    // The coordinator can be a discovery stub with no address (its `Location`
-    // went stale, or the topology gave it none) — `bondAndVerify` reports that
-    // properly, so the remove step must not `!` its way to a raw TypeError
-    // first. One guard, since every caller routes through here.
-    final barIp = bar.ip;
-    if (barIp == null) {
-      throw SonorityError(SonorityErrorCode.entityNotOnNetwork, bar.roomName);
-    }
     final diff = front_layout.diffHtLayout(current: current, target: target);
     final bondLabel = l10n.stepBondNSpeakers(target.entries.length - 1);
     if (diff.isNoOp) {
@@ -673,6 +665,15 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       return sys;
     }
     if (diff.toRemove.isNotEmpty) {
+      // The coordinator can be a discovery stub with no address (its `Location`
+      // went stale, or the topology gave it none). Only the remove step needs
+      // guarding — the bond step's `bondAndVerify` raises `coordinatorIpUnknown`
+      // itself, and the no-op case above writes nothing and must keep working
+      // without one.
+      final barIp = bar.ip;
+      if (barIp == null) {
+        throw SonorityError(SonorityErrorCode.soundbarNotOnNetwork, bar.roomName);
+      }
       // Only genuine leaves reach here (a dropped sub / a replaced speaker) —
       // a speaker that merely moves channel stays bonded and reassigns in place.
       ph.phase('remove', l10n.stepRemoveUnused(diff.toRemove.length));

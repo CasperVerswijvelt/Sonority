@@ -171,11 +171,13 @@ class SonosRepository {
         try {
           final d = await _descriptions.fetch(location);
           if (d.uuid == m.uuid) return d;
-          // A stale `Location` (player replaced, lease reassigned — the cause
-          // doesn't matter) now answers as someone else. So the speaker we were
+          // The `Location` now answers as someone else. We haven't seen this
+          // on hardware and aren't claiming a cause (a replaced player, a
+          // reassigned lease — it doesn't matter); what IS certain is what the
+          // answer can't be used for. The speaker we were
           // after is STILL unresolved and needs a stub. The stranger is dropped,
-          // not keyed in: it may not be in this topology at all (a neighbour, a
-          // guest network) and `bondableSpeakers`/`bondableSubs` read straight
+          // not keyed in: nothing says it belongs to this topology, and
+          // `bondableSpeakers`/`bondableSubs` read straight
           // off `devicesByUuid`, so it would be offered as a bonding candidate.
           // And the stub must NOT keep the address we just disproved — the
           // Trueplay read/toggle and the detail-page identify button gate on
