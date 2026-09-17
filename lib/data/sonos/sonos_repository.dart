@@ -123,21 +123,35 @@ class SonosRepository {
     // member and as some coordinator's `<Satellite>`, and fetching it twice is
     // pointless. Which of the two Locations wins is document order — they come
     // from one `GetZoneGroupState`, so they agree in practice.
-    final missing = {
+    final entries = [
       for (final g in groups)
-        for (final m in g.members)
-          for (final e in [
-            (uuid: m.uuid, name: m.zoneName, location: m.location, ip: m.ip),
-            for (final s in m.satellites)
-              (uuid: s.uuid, name: s.zoneName, location: s.location, ip: s.ip),
-          ])
-            if (e.location != null && !devicesByUuid.containsKey(e.uuid))
-              e.uuid: e,
+        for (final m in g.members) ...[
+          (uuid: m.uuid, name: m.zoneName, location: m.location, ip: m.ip),
+          for (final s in m.satellites)
+            (uuid: s.uuid, name: s.zoneName, location: s.location, ip: s.ip),
+        ],
+    ];
+    final missing = {
+      for (final e in entries)
+        if (e.location != null && !devicesByUuid.containsKey(e.uuid)) e.uuid: e,
     }.values;
     if (missing.isNotEmpty) {
       final recovered = await Future.wait(missing.map((m) async {
         try {
-          return await _descriptions.fetch(m.location!);
+          final d = await _descriptions.fetch(m.location!);
+          // A `Location` can be stale — DHCP hands that address to a different
+          // player, and mid-settle a satellite's is the likeliest to be. If it
+          // answers as someone else, the speaker we were after is STILL
+          // unresolved, and keying the answer by the uuid it reports would
+          // overwrite that other player's real entry with a duplicate. So treat
+          // it exactly like a failed fetch: the speaker we asked about gets the
+          // unreachable stub below, and the stranger is dropped.
+          if (d.uuid != m.uuid) {
+            DiagnosticsLog.add('discovery: ${m.location} answered as ${d.uuid}, '
+                'expected ${m.uuid} — stale Location, ignoring');
+            throw StateError('stale Location for ${m.uuid}');
+          }
+          return d;
         } catch (_) {
           // Re-fetch failed too. Keep the device — it's in the authoritative
           // topology — but flag it unreachable (model/capabilities unknown) so
@@ -155,6 +169,21 @@ class SonosRepository {
       for (final d in recovered) {
         devicesByUuid[d.uuid] = d;
       }
+    }
+
+    // Anything still unresolved had no `Location` to re-fetch from — some
+    // firmwares omit it on a `<Satellite>` (see the fixture in
+    // `zone_topology_test`). There's nothing we can do about it here, but a
+    // consumer resolving that speaker to null is exactly the failure this sweep
+    // exists to prevent, so a bundle should say we couldn't ask rather than
+    // leave it looking like we never tried.
+    final unresolved = [
+      for (final e in entries)
+        if (!devicesByUuid.containsKey(e.uuid)) e.uuid,
+    ];
+    if (unresolved.isNotEmpty) {
+      DiagnosticsLog.add('discovery: no description and no Location for '
+          '${unresolved.join(', ')} — left unresolved');
     }
 
     return SonosSystem(groups: groups, devicesByUuid: devicesByUuid);

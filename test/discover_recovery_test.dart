@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
 import 'package:sonority/data/sonos/device_description.dart';
+import 'package:sonority/data/sonos/diagnostics_log.dart';
 import 'package:sonority/data/sonos/soap_client.dart';
 import 'package:sonority/data/sonos/sonos_repository.dart';
 import 'package:sonority/data/sonos/ssdp_discovery.dart';
@@ -144,7 +145,82 @@ class _FakeDoubleListedTopology extends ZoneTopologyClient {
       ];
 }
 
+/// The Sub's `<Satellite>` Location has gone stale — DHCP handed .12 to another
+/// player, which is what answers there now.
+class _FakeStaleLocationDescriptions extends _FakeDescriptions {
+  @override
+  Future<SonosDevice> fetch(String locationUrl) async {
+    if (locationUrl == _subUrl) {
+      calls[locationUrl] = (calls[locationUrl] ?? 0) + 1;
+      return const SonosDevice(
+          uuid: 'RINCON_STRANGER01400',
+          roomName: 'Attic',
+          modelName: 'Sonos One',
+          ip: '192.168.1.12');
+    }
+    return super.fetch(locationUrl);
+  }
+}
+
+/// Some firmwares omit `Location` on a `<Satellite>` (see the fixture in
+/// zone_topology_test) — then there is nothing to re-fetch from.
+class _FakeLocationlessSatelliteTopology extends ZoneTopologyClient {
+  _FakeLocationlessSatelliteTopology() : super(SonosSoapClient());
+
+  @override
+  Future<List<ZoneGroup>> getZoneGroups(String ip) async => const [
+        ZoneGroup(coordinatorUuid: 'RINCON_A01400', members: [
+          ZoneGroupMember(
+            uuid: 'RINCON_A01400',
+            zoneName: 'Living',
+            location: _aUrl,
+            htSatChanMapSet: 'RINCON_A01400:CC;RINCON_SUB01400:SW',
+            satellites: [
+              SonosSatellite(
+                uuid: 'RINCON_SUB01400',
+                zoneName: 'Living',
+                channels: [SonosChannel.sub],
+              ),
+            ],
+          ),
+        ]),
+      ];
+}
+
 void main() {
+  setUp(DiagnosticsLog.clear);
+
+  test('a stale Location answering as another player is not trusted', () async {
+    final descriptions = _FakeStaleLocationDescriptions();
+    final system = await SonosRepository(
+      ssdp: _FakeSsdpAOnly(),
+      descriptions: descriptions,
+      topology: _FakeSatelliteTopology(),
+    ).discover();
+
+    // The stranger must not be keyed in as if we'd found it — it isn't in this
+    // topology, and had it been an SSDP-described player this would have
+    // overwritten its real entry with a duplicate.
+    expect(system.device('RINCON_STRANGER01400'), isNull);
+    // And the speaker we actually asked about is still accounted for.
+    final sub = system.device('RINCON_SUB01400');
+    expect(sub, isNotNull, reason: 'kept: it IS in the authoritative topology');
+    expect(sub!.reachable, isFalse, reason: 'we never got its description');
+    expect(DiagnosticsLog.lines.join('\n'), contains('stale Location'));
+  });
+
+  test('a satellite with no Location is reported, not silently forgotten', () async {
+    final system = await SonosRepository(
+      ssdp: _FakeSsdpAOnly(),
+      descriptions: _FakeDescriptions(),
+      topology: _FakeLocationlessSatelliteTopology(),
+    ).discover();
+
+    expect(system.device('RINCON_SUB01400'), isNull,
+        reason: 'nothing to fetch from — unchanged, but it must be diagnosable');
+    expect(DiagnosticsLog.lines.join('\n'),
+        contains('no description and no Location for RINCON_SUB01400'));
+  });
   // A satellite is a `<Satellite>` child, not a member, so a members-only
   // recovery sweep left an SSDP-missed Sub absent from `devicesByUuid`, and
   // the HT setup flow builds its target map from RESOLVED devices, so the next
