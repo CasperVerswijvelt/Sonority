@@ -40,6 +40,10 @@ void main() {
     // the primary (drives the name-restore-after-unbond path).
     expect(ls.ip, '192.168.1.11');
     expect(ls.zoneName, 'Living Room (LS)');
+    // The full Location, not just the derived IP: discovery re-fetches an
+    // SSDP-missed satellite from it (`SonosRepository.discover`), and without
+    // it a missed Sub silently loses the HT its sub channel on the next apply.
+    expect(ls.location, 'http://192.168.1.11:1400/xml/device_description.xml');
     expect(ht.hasDedicatedFronts, isFalse);
     expect(ht.ip, '192.168.1.10');
 

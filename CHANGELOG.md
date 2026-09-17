@@ -21,6 +21,9 @@ section into the GitHub Release notes regardless of the build suffix
 ### Changed
 - Emailing a diagnostics bundle now asks what went wrong first (at least 20 characters) and puts that description in the mail body and in the bundle as `user_note.txt`, so a report never arrives without an explanation. Share and save-to-disk are unchanged.
 
+### Fixed
+- A bonded speaker the app failed to spot on the network is now recovered from the topology like any other: a home theater satellite (typically a Sub), or the hidden half of a pair or group. Left unresolved, a Sub showed as a generic "Speaker" and would have been silently unbonded by the next apply, and renaming a group dropped its hidden speaker out of it without a word.
+
 ## [0.7.0] - 2026-08-18
 
 ### Added
