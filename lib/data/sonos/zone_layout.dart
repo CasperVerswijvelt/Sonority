@@ -6,6 +6,8 @@
 /// reason `front_layout.dart` exists separately.
 library;
 
+import 'channel_map.dart';
+
 /// The channel a group member plays. Confirmed on hardware (`tool/lr_audiotest.dart`):
 /// Sonos honours these per-speaker — `both` plays full stereo, `left`/`right` only
 /// that side.
@@ -60,3 +62,63 @@ bool groupEditIsInPlace({
     currentUuids.isNotEmpty &&
     targetCoordUuid == currentUuids.first &&
     currentUuids.every(targetUuids.contains);
+
+/// True when a group edit ONLY removes members: same coordinator, a strictly
+/// smaller membership, and every kept member keeping the exact channels it has.
+///
+/// That is precisely the shape `zones.updateZoneDefinition` accepts — the
+/// namespace allows **add or remove, one direction per call, membership only**
+/// (hardware-confirmed; a channel change or a simultaneous add+remove is refused
+/// with `update only allows add or remove, not both`). It is also the shape
+/// `AddBondedZones` faults on, which is why the SOAP path has to dissolve the
+/// whole group and rebuild it. Both maps are raw `UUID:CH,CH;…` strings.
+bool groupEditIsPureDrop({
+  required String currentMap,
+  required String targetMap,
+}) {
+  final current = ChannelMap.parse(currentMap).entries;
+  final target = ChannelMap.parse(targetMap).entries;
+  if (current.isEmpty || target.isEmpty) return false;
+  if (current.first.uuid != target.first.uuid) return false;
+  if (target.length >= current.length) return false;
+
+  final currentTokens = {for (final e in current) e.uuid: e.tokens};
+  for (final e in target) {
+    final was = currentTokens[e.uuid];
+    if (was == null) return false; // an add — not a pure drop
+    if (!_sameTokens(was, e.tokens)) return false; // a reassignment
+  }
+  return true;
+}
+
+/// Token-set comparison that keeps MULTIPLICITY: `LF,LF` (single-sided, a stereo
+/// pair's left half) is a different assignment from `LF`, so a plain Set compare
+/// would call two different bond shapes equal. Order within an entry is still
+/// irrelevant.
+bool _sameTokens(List<String> a, List<String> b) {
+  if (a.length != b.length) return false;
+  final x = [...a]..sort();
+  final y = [...b]..sort();
+  for (var i = 0; i < x.length; i++) {
+    if (x[i] != y[i]) return false;
+  }
+  return true;
+}
+
+/// True when two raw channel maps describe the same bond: same entries in the
+/// same order (the first entry is the coordinator, so order is significant) with
+/// the same channel tokens, ignoring token order within an entry.
+///
+/// Used to reuse an existing stored zone definition instead of adding a new one
+/// on every apply — the `zones` namespace does no dedupe, so without this a
+/// household's definition library would grow without bound.
+bool sameChannelMap(String a, String b) {
+  final x = ChannelMap.parse(a).entries;
+  final y = ChannelMap.parse(b).entries;
+  if (x.length != y.length || x.isEmpty) return false;
+  for (var i = 0; i < x.length; i++) {
+    if (x[i].uuid != y[i].uuid) return false;
+    if (!_sameTokens(x[i].tokens, y[i].tokens)) return false;
+  }
+  return true;
+}

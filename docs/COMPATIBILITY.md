@@ -123,6 +123,18 @@ surround device, the Port/Connect never has been.
 - **"Needs attention" + phantom "not connected" products in the official Sonos
   app are benign.** They appear on *working* setups too (confirmed on the Beam
   rig). Not a signal that a bond failed.
+- **A satellite showing `disconnected: true` in the newer zone API is NOT a
+  silence diagnosis.** Current firmware runs a second bond model on port 1443
+  (`zones` namespace — see `CLAUDE.md`) whose *active zone* on the Beam rig is plain
+  5.1: the Sonority-added fronts are listed as members but flagged
+  `disconnected`, because `AddHTSatellite` never activates a matching zone
+  definition. That same rig is the ✅ audio-confirmed row above, so the flag means
+  "outside the active zone definition", not "getting no audio". **It is still the
+  best untested lead for the Arc Ultra + Amp ❌ row** — worth capturing
+  `GET https://<ip>:1443/api/v1/households/local/zones` from a reporter with a
+  silent bond and seeing whether the silent device is `disconnected` there while a
+  working rig's is too (if both are, the lead is dead; the Beam rig already
+  supplies the working-side control).
 - **Unverified community reports are weak evidence.** A r/SonoSequencr post
   claiming "Arc Ultra + Amp works" is not confirmation — the poster may have hit
   the same *bond-applies-but-silent* false positive (which two users here hit

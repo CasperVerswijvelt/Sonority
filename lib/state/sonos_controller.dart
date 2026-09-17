@@ -575,15 +575,33 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // createGroup can sit for ~30s waiting on a member Sonos only just
         // unbonded, so say something rather than looking hung.
         ph.note(l10n.stepApplyingSettle);
-        await _repo.createGroup(
-            members: memberEntries, sub: sub, cancel: _activeOp);
-        ph.note(l10n.stepWaitingConfirm);
-        sys = await _pollUntil(
-          previous: sys,
+        // The profile carries the room name this entity should end up with, and
+        // activating a definition writes its name onto the room — so store it
+        // under that name, not the coordinator's current one.
+        final viaZoneApi = await _zoneApiBond(
           ip: coord!.ip,
-          attempts: 8,
+          roomName: e.names[coord.uuid] ?? coord.roomName,
+          targetMap: buildGroupMap([
+            for (final m in memberEntries)
+              (uuid: m.device.uuid, channel: m.channel)
+          ], subUuid: sub?.uuid),
+          previous: sys,
           until: (s) => _isGroupFormed(s, e.primaryUuid, involved),
+          ph: ph,
         );
+        if (viaZoneApi == null) {
+          await _repo.createGroup(
+              members: memberEntries, sub: sub, cancel: _activeOp);
+        }
+        ph.note(l10n.stepWaitingConfirm);
+        // Already poll-verified inside _zoneApiBond on the success path.
+        sys = viaZoneApi ??
+            await _pollUntil(
+              previous: sys,
+              ip: coord.ip,
+              attempts: 8,
+              until: (s) => _isGroupFormed(s, e.primaryUuid, involved),
+            );
         if (!_isGroupFormed(sys, e.primaryUuid, involved)) {
           throw SonorityError(SonorityErrorCode.didNotForm, e.label);
         }
@@ -679,6 +697,14 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     // — a swap 800s and re-asserts several times, which reads as alarming
     // otherwise even though it's normal Sonos settling.
     ph.note(l10n.stepApplyingSettle);
+    // Deliberately NOT routed through the newer zones API, unlike every other
+    // bonding path. `AddHTSatellite` MUTATES the bond, so a Trueplay tuning
+    // survives an in-place home-theater change (measured — see the retention
+    // rule in CLAUDE.md); `addZoneDefinition` + `activateZone` creates a NEW
+    // bond object, which is the shape that destroys tunings, and retention
+    // through the zones API is still unmeasured. A home theater is the entity
+    // most likely to hold a tuning, so it keeps the slower, known-safe path
+    // until that measurement exists.
     return _repo.bondAndVerify(
       coordinator: bar,
       target: target,
@@ -853,9 +879,30 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       ]);
       try {
         ph.phase('bond', l10n.stepBondSpeakers);
-        await _repo.createGroup(members: members, sub: sub, cancel: _activeOp);
+        final targetMap = buildGroupMap(
+          [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
+          subUuid: sub?.uuid,
+        );
+        // The definition's name becomes the ROOM name on activation, so store
+        // the name the user actually chose rather than the coordinator's old one
+        // (otherwise the room flashes the wrong name and the definition is
+        // stored under a name that won't match next time). `involved` includes
+        // the Sub, so an activation that came up without it correctly falls back
+        // instead of reporting success and failing the confirm poll.
+        var system = await _zoneApiBond(
+          ip: coord.ip,
+          roomName: wanted != null && wanted.isNotEmpty ? wanted : coord.roomName,
+          targetMap: targetMap,
+          previous: previous,
+          until: (s) => _isGroupFormed(s, coord.uuid, involved),
+          ph: ph,
+        );
+        if (system == null) {
+          await _repo.createGroup(members: members, sub: sub, cancel: _activeOp);
+        }
         ph.phase('confirm', l10n.stepWaitForConfirm);
-        var system = await _pollUntil(
+        // Already poll-verified inside _zoneApiBond — don't sleep through it again.
+        system ??= await _pollUntil(
           previous: previous,
           ip: coord.ip ?? _lastIp,
           attempts: 8,
@@ -947,8 +994,19 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         }
         // 2. Dissolve (SeparateStereoPair on the live map) + restore names.
         ph.phase('separate', l10n.stepSeparateRestore);
-        await _repo.separateGroup(
-            members: members, channelMapSet: cms, cancel: _activeOp);
+        // One `deactivateZone` does the whole teardown when the household has
+        // the newer zone service — no detach, no SeparateStereoPair.
+        final dissolved = await _zoneApiDissolve(
+          ip: coord.ip,
+          coordinatorUuid: coord.uuid,
+          previous: previous,
+          until: (s) => !_isGroupFormed(s, coord.uuid, involved),
+          ph: ph,
+        );
+        if (dissolved == null) {
+          await _repo.separateGroup(
+              members: members, channelMapSet: cms, cancel: _activeOp);
+        }
         ph.phase('settle', l10n.stepWaitForSettle);
         final system = await _pollUntil(
           previous: previous,
@@ -1002,6 +1060,15 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       targetUuids: target,
       targetCoordUuid: coord.uuid,
     );
+    final targetMap = buildGroupMap(
+      [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
+      subUuid: sub?.uuid,
+    );
+    // A pure member removal is the one edit `AddBondedZones` can't do, so the
+    // SOAP path dissolves the whole group and rebuilds it. `updateZoneDefinition`
+    // does it in place — see [tryZoneApi] below.
+    final pureDrop =
+        !inPlace && groupEditIsPureDrop(currentMap: cms, targetMap: targetMap);
     // Verify the FULL target applied — per-member channel + Sub, not just the
     // membership set. Critical for an in-place channel reassignment (membership
     // is unchanged, so a set-only check would pass before the write even lands).
@@ -1029,7 +1096,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       tracker.start('edit');
       final ph = _phases(tracker, 'edit');
       ph.seed([
-        if (needsBond && !inPlace) ('separate', l10n.stepSeparateRestore),
+        if (needsBond && !inPlace && !pureDrop)
+          ('separate', l10n.stepSeparateRestore),
         if (needsBond)
           ('bond', inPlace ? l10n.stepUpdateGroup : l10n.stepBondSpeakers),
         if (needsBond) ('confirm', l10n.stepWaitForConfirm),
@@ -1037,20 +1105,56 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       ]);
       try {
         var system = previous;
+        SonosSystem? viaZoneApi;
+        // One lazy attempt at the newer zones API for this edit; null = take the
+        // SOAP path. A pure removal goes through `updateZoneDefinition` first
+        // because that mutates the live definition in place (keeping its
+        // zoneId) rather than storing a new one; anything else activates the
+        // target layout. Lazy, so an in-place or no-op edit never writes here.
+        Future<SonosSystem?> tryZoneApi() async {
+          // Start the phase before the write so its notes land under it.
+          ph.phase('bond', l10n.stepUpdateGroup);
+          final ip = existing.ip;
+          if (pureDrop &&
+              ip != null &&
+              await _repo.dropGroupMembersViaZoneApi(
+                ip: ip,
+                coordinatorUuid: existing.uuid,
+                targetMap: targetMap,
+                onNote: ph.log,
+              )) {
+            // Membership changed in place; the shared `confirm` phase below
+            // poll-verifies the end state, as it does for the SOAP paths.
+            return system ?? previous;
+          }
+          return _zoneApiBond(
+            ip: ip,
+            roomName: existing.zoneName,
+            targetMap: targetMap,
+            previous: system,
+            until: applied,
+            ph: ph,
+          );
+        }
+
         if (needsBond && inPlace) {
           // Adds + channel reassignments apply on the live coordinator.
           // reassertGroup re-asserts until verified (like HT bondAndVerify) — an
           // in-place group re-assert intermittently 800s mid-reshuffle / partial-
           // applies, so a single write is unreliable.
-          ph.phase('bond', l10n.stepUpdateGroup);
-          system = await _repo.reassertGroup(
-            members: members,
-            sub: sub,
-            currentUuids: current,
-            previous: system,
-            onNote: ph.log,
-            cancel: _activeOp,
-          );
+          system = await tryZoneApi() ??
+              await _repo.reassertGroup(
+                members: members,
+                sub: sub,
+                currentUuids: current,
+                previous: system,
+                onNote: ph.log,
+                cancel: _activeOp,
+              );
+        } else if (needsBond && (viaZoneApi = await tryZoneApi()) != null) {
+          // The newer API reconfigured in place, so a drop or a coordinator
+          // change needs no dissolve at all.
+          system = viaZoneApi;
         } else if (needsBond) {
           // A drop / coordinator change can't be re-asserted — dissolve first.
           final ordered = [
@@ -1157,6 +1261,67 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
     final want = involved.toSet();
     return have.length == want.length && have.containsAll(want);
   }
+
+  /// Runs one newer-`:1443`-zones-API bonding attempt and verifies it landed.
+  ///
+  /// Returns the verified system, or **null** meaning "carry on with the SOAP
+  /// path": no IP, the household has no zone service, the namespace refused, or
+  /// it applied but the topology never converged. Every refusal is free — a
+  /// rejected zones command changes no state — so falling back is always safe.
+  ///
+  /// [run] is the repository call that does the write, so apply and dissolve
+  /// share this poll-verify instead of each owning a copy.
+  Future<SonosSystem?> _zoneApi({
+    required String? ip,
+    required SonosSystem? previous,
+    required bool Function(SonosSystem) until,
+    required Phases ph,
+    required Future<bool> Function(String ip) run,
+  }) async {
+    if (ip == null) return null;
+    if (!await run(ip)) return null;
+    final system =
+        await _pollUntil(previous: previous, ip: ip, attempts: 8, until: until);
+    if (until(system)) return system;
+    ph.log('zones API did not converge — using the SOAP path');
+    return null;
+  }
+
+  /// Apply a whole bond in one call — see [_zoneApi] for the fallback contract.
+  Future<SonosSystem?> _zoneApiBond({
+    required String? ip,
+    required String roomName,
+    required String targetMap,
+    required SonosSystem? previous,
+    required bool Function(SonosSystem) until,
+    required Phases ph,
+  }) =>
+      _zoneApi(
+        ip: ip,
+        previous: previous,
+        until: until,
+        ph: ph,
+        run: (ip) => _repo.applyBondViaZoneApi(
+            ip: ip, roomName: roomName, targetMap: targetMap, onNote: ph.log),
+      );
+
+  /// Tear a bond down in one call (`deactivateZone`), replacing the SOAP
+  /// detach → `SeparateStereoPair` dance.
+  Future<SonosSystem?> _zoneApiDissolve({
+    required String? ip,
+    required String coordinatorUuid,
+    required SonosSystem? previous,
+    required bool Function(SonosSystem) until,
+    required Phases ph,
+  }) =>
+      _zoneApi(
+        ip: ip,
+        previous: previous,
+        until: until,
+        ph: ph,
+        run: (ip) => _repo.dissolveBondViaZoneApi(
+            ip: ip, coordinatorUuid: coordinatorUuid, onNote: ph.log),
+      );
 
   /// Re-reads topology until [until] holds or attempts run out. Sonos takes up
   /// to ~15s to re-enumerate satellites after a bonding change, so a single
