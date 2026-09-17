@@ -163,7 +163,9 @@ class _FakeStaleLocationDescriptions extends _FakeDescriptions {
 }
 
 /// Some firmwares omit `Location` on a `<Satellite>` (see the fixture in
-/// zone_topology_test) — then there is nothing to re-fetch from.
+/// zone_topology_test) — then there is nothing to re-fetch from. The Sub is ALSO
+/// listed as its own Invisible member here (no Location either), the mid-settle
+/// double-listing the sweep dedupes: it must be named once, not twice.
 class _FakeLocationlessSatelliteTopology extends ZoneTopologyClient {
   _FakeLocationlessSatelliteTopology() : super(SonosSoapClient());
 
@@ -183,6 +185,11 @@ class _FakeLocationlessSatelliteTopology extends ZoneTopologyClient {
               ),
             ],
           ),
+          ZoneGroupMember(
+            uuid: 'RINCON_SUB01400',
+            zoneName: 'Living',
+            invisible: true,
+          ),
         ]),
       ];
 }
@@ -199,13 +206,18 @@ void main() {
     ).discover();
 
     // The stranger must not be keyed in as if we'd found it — it isn't in this
-    // topology, and had it been an SSDP-described player this would have
-    // overwritten its real entry with a duplicate.
+    // topology at all, and `bondableSpeakers` reads straight off `devicesByUuid`,
+    // so it would have been offered as a bonding candidate.
     expect(system.device('RINCON_STRANGER01400'), isNull);
     // And the speaker we actually asked about is still accounted for.
     final sub = system.device('RINCON_SUB01400');
     expect(sub, isNotNull, reason: 'kept: it IS in the authoritative topology');
     expect(sub!.reachable, isFalse, reason: 'we never got its description');
+    // …but WITHOUT the address, which we just proved is another player's.
+    // Trueplay/identify/the bundle gate on `ip != null`, not on `reachable`, so
+    // keeping it would aim a write at a speaker the user never touched.
+    expect(sub.ip, isNull);
+    expect(descriptions.calls[_subUrl], 1, reason: 'no retry of a bad address');
     expect(DiagnosticsLog.lines.join('\n'), contains('stale Location'));
   });
 
@@ -218,8 +230,9 @@ void main() {
 
     expect(system.device('RINCON_SUB01400'), isNull,
         reason: 'nothing to fetch from — unchanged, but it must be diagnosable');
+    // Named exactly once, even though the topology lists it twice.
     expect(DiagnosticsLog.lines.join('\n'),
-        contains('no description and no Location for RINCON_SUB01400'));
+        contains('no description and no Location for RINCON_SUB01400 — left'));
   });
   // A satellite is a `<Satellite>` child, not a member, so a members-only
   // recovery sweep left an SSDP-missed Sub absent from `devicesByUuid`, and

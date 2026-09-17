@@ -137,34 +137,37 @@ class SonosRepository {
     }.values;
     if (missing.isNotEmpty) {
       final recovered = await Future.wait(missing.map((m) async {
+        var ip = m.ip; // from `Location`, so only as good as that URL is
         try {
           final d = await _descriptions.fetch(m.location!);
-          // A `Location` can be stale — DHCP hands that address to a different
-          // player, and mid-settle a satellite's is the likeliest to be. If it
-          // answers as someone else, the speaker we were after is STILL
-          // unresolved, and keying the answer by the uuid it reports would
-          // overwrite that other player's real entry with a duplicate. So treat
-          // it exactly like a failed fetch: the speaker we asked about gets the
-          // unreachable stub below, and the stranger is dropped.
-          if (d.uuid != m.uuid) {
-            DiagnosticsLog.add('discovery: ${m.location} answered as ${d.uuid}, '
-                'expected ${m.uuid} — stale Location, ignoring');
-            throw StateError('stale Location for ${m.uuid}');
-          }
-          return d;
+          if (d.uuid == m.uuid) return d;
+          // A stale `Location` (player replaced, lease reassigned — the cause
+          // doesn't matter) now answers as someone else. So the speaker we were
+          // after is STILL unresolved and needs the stub below, or we've quietly
+          // reintroduced the gap this sweep exists to close. The stranger is
+          // dropped, not keyed in: it may not be in this topology at all (a
+          // neighbour, a guest network) and `bondableSpeakers`/`bondableSubs`
+          // read straight off `devicesByUuid`, so it would be offered as a
+          // bonding candidate. And the stub must NOT keep the address we just
+          // disproved — `reachable: false` guards nothing (Trueplay, identify
+          // and the bundle all gate on `ip != null` alone), so a write aimed
+          // there would hit a speaker the user never touched.
+          DiagnosticsLog.add('discovery: ${m.location} answered as ${d.uuid}, '
+              'expected ${m.uuid} — stale Location, ignoring');
+          ip = null;
         } catch (_) {
           // Re-fetch failed too. Keep the device — it's in the authoritative
           // topology — but flag it unreachable (model/capabilities unknown) so
           // the UI surfaces it disabled with a warning instead of dropping it
           // silently.
-          return SonosDevice(
-            uuid: m.uuid,
-            roomName: m.name,
-            modelName: '',
-            ip: m.ip,
-            reachable: false,
-          );
         }
+        return SonosDevice(
+          uuid: m.uuid,
+          roomName: m.name,
+          modelName: '',
+          ip: ip,
+          reachable: false,
+        );
       }));
       for (final d in recovered) {
         devicesByUuid[d.uuid] = d;
@@ -176,11 +179,14 @@ class SonosRepository {
     // `zone_topology_test`). There's nothing we can do about it here, but a
     // consumer resolving that speaker to null is exactly the failure this sweep
     // exists to prevent, so a bundle should say we couldn't ask rather than
-    // leave it looking like we never tried.
-    final unresolved = [
+    // leave it looking like we never tried. A set, not a list: mid-settle one
+    // speaker reads as both a member and some coordinator's `<Satellite>` (the
+    // same reason `missing` is keyed by uuid), and naming it twice would read as
+    // two speakers in a bundle.
+    final unresolved = {
       for (final e in entries)
         if (!devicesByUuid.containsKey(e.uuid)) e.uuid,
-    ];
+    };
     if (unresolved.isNotEmpty) {
       DiagnosticsLog.add('discovery: no description and no Location for '
           '${unresolved.join(', ')} — left unresolved');
