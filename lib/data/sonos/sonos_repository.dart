@@ -107,8 +107,9 @@ class SonosRepository {
     // it and the setup flow reporting no free subwoofer are the cosmetic half;
     // the other half is not: the flow builds its target map from resolved
     // devices, so an apply would have dropped the SW channel and
-    // `RemoveHTSatellite`'d the user's Sub with no warning (which per EXP-23
-    // also wipes the bond's Trueplay). Seen live on hardware.
+    // `RemoveHTSatellite`'d the user's Sub with no warning — which also wipes
+    // the Trueplay of the whole bonded set, since Sonos invalidates it whenever
+    // that set changes. Seen live on hardware.
     //
     // INVISIBLE MEMBERS COUNT for the same reason. A stereo-pair half and every
     // non-coordinator zone member is its own `Invisible="1"` member, and a
@@ -118,33 +119,25 @@ class SonosRepository {
     // belongs, at the topology, not by leaving the device unresolvable. It also
     // gets a standalone Sub (Invisible as well) a real description.
     //
-    // Keyed by uuid: mid-settle the same speaker can show up BOTH as a member
-    // and as some coordinator's `<Satellite>` (the topology lag behind
-    // `dropSelfConflictingSingles`), and fetching it twice is pointless.
+    // Keyed by uuid: mid-settle (the ~15s lag) one speaker can read BOTH as a
+    // member and as some coordinator's `<Satellite>`, and fetching it twice is
+    // pointless. Which of the two Locations wins is document order — they come
+    // from one `GetZoneGroupState`, so they agree in practice.
     final missing = {
       for (final g in groups)
-        for (final m in g.members) ...{
-          if (m.location != null && !devicesByUuid.containsKey(m.uuid))
-            m.uuid: (
-              uuid: m.uuid,
-              name: m.zoneName,
-              location: m.location!,
-              ip: m.ip
-            ),
-          for (final s in m.satellites)
-            if (s.location != null && !devicesByUuid.containsKey(s.uuid))
-              s.uuid: (
-                uuid: s.uuid,
-                name: s.zoneName,
-                location: s.location!,
-                ip: s.ip
-              ),
-        },
+        for (final m in g.members)
+          for (final e in [
+            (uuid: m.uuid, name: m.zoneName, location: m.location, ip: m.ip),
+            for (final s in m.satellites)
+              (uuid: s.uuid, name: s.zoneName, location: s.location, ip: s.ip),
+          ])
+            if (e.location != null && !devicesByUuid.containsKey(e.uuid))
+              e.uuid: e,
     }.values;
     if (missing.isNotEmpty) {
       final recovered = await Future.wait(missing.map((m) async {
         try {
-          return await _descriptions.fetch(m.location);
+          return await _descriptions.fetch(m.location!);
         } catch (_) {
           // Re-fetch failed too. Keep the device — it's in the authoritative
           // topology — but flag it unreachable (model/capabilities unknown) so

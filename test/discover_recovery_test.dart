@@ -116,7 +116,6 @@ class _FakeSatelliteTopology extends ZoneTopologyClient {
                 uuid: 'RINCON_SUB01400',
                 zoneName: 'Living',
                 channels: [SonosChannel.sub],
-                ip: '192.168.1.12',
                 location: _subUrl,
               ),
             ],
@@ -125,9 +124,9 @@ class _FakeSatelliteTopology extends ZoneTopologyClient {
       ];
 }
 
-/// Mid-settle (the ~15s topology lag): the Sub reads BOTH as the bar's
-/// `<Satellite>` and as its own member, the same double-listing behind
-/// `dropSelfConflictingSingles`.
+/// Mid-settle (the ~15s topology lag), one speaker reads twice: the Sub is
+/// still the bar's `<Satellite>` and already its own member again. One speaker,
+/// one Location, so it must be fetched once.
 class _FakeDoubleListedTopology extends ZoneTopologyClient {
   _FakeDoubleListedTopology() : super(SonosSoapClient());
 
@@ -154,7 +153,7 @@ void main() {
   test('recovers a SATELLITE that SSDP missed entirely', () async {
     final descriptions = _FakeDescriptions();
     final system = await SonosRepository(
-      ssdp: _FakeSsdp(),
+      ssdp: _FakeSsdpAOnly(),
       descriptions: descriptions,
       topology: _FakeSatelliteTopology(),
     ).discover();
@@ -168,20 +167,22 @@ void main() {
 
   test('a speaker listed twice mid-settle is fetched once', () async {
     final descriptions = _FakeDescriptions();
-    await SonosRepository(
-      ssdp: _FakeSsdp(),
+    final system = await SonosRepository(
+      ssdp: _FakeSsdpAOnly(),
       descriptions: descriptions,
       topology: _FakeDoubleListedTopology(),
     ).discover();
 
     expect(descriptions.calls[_subUrl], 1,
         reason: 'member + satellite are the same speaker, one Location');
+    expect(system.device('RINCON_SUB01400'), isNotNull,
+        reason: 'deduped, not dropped');
   });
 
   test('an undescribable satellite is kept, flagged unreachable', () async {
     final descriptions = _FakeDescriptions(alwaysFail: {_subUrl});
     final system = await SonosRepository(
-      ssdp: _FakeSsdp(),
+      ssdp: _FakeSsdpAOnly(),
       descriptions: descriptions,
       topology: _FakeSatelliteTopology(),
     ).discover();
