@@ -156,14 +156,27 @@ class SonosSatellite {
   final String uuid;
   final String zoneName;
   final List<SonosChannel> channels;
-  final String? ip;
+
+  /// The satellite's description URL from the topology. Stored rather than just
+  /// the derived [ip] so discovery can re-fetch a satellite SSDP missed (see
+  /// `SonosRepository.discover`, where an unresolved Sub silently cost the whole
+  /// HT its sub channel on the next apply).
+  final String? location;
 
   const SonosSatellite({
     required this.uuid,
     required this.zoneName,
     required this.channels,
-    this.ip,
+    this.location,
   });
+
+  /// Derived, never stored — same as [ZoneGroupMember.ip], so the two can't
+  /// drift from the one `Location` the topology gave us.
+  String? get ip {
+    final loc = location;
+    if (loc == null) return null;
+    return Uri.tryParse(loc)?.host;
+  }
 
   bool get isSub => channels.contains(SonosChannel.sub);
   bool get isFront =>

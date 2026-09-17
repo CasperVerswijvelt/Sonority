@@ -205,12 +205,12 @@ const _devices = <SonosDevice>[
 
 String _location(String ip) => 'http://$ip:1400/xml/device_description.xml';
 
-const _htSatellites = [
-  SonosSatellite(uuid: _frontL, zoneName: 'Living Room', channels: [SonosChannel.leftFront], ip: '192.0.2.11'),
-  SonosSatellite(uuid: _frontR, zoneName: 'Living Room', channels: [SonosChannel.rightFront], ip: '192.0.2.12'),
-  SonosSatellite(uuid: _rearL, zoneName: 'Living Room', channels: [SonosChannel.leftRear], ip: '192.0.2.13'),
-  SonosSatellite(uuid: _rearR, zoneName: 'Living Room', channels: [SonosChannel.rightRear], ip: '192.0.2.14'),
-  SonosSatellite(uuid: _sub, zoneName: 'Living Room', channels: [SonosChannel.sub], ip: '192.0.2.15'),
+final _htSatellites = [
+  SonosSatellite(uuid: _frontL, zoneName: 'Living Room', channels: [SonosChannel.leftFront], location: _location('192.0.2.11')),
+  SonosSatellite(uuid: _frontR, zoneName: 'Living Room', channels: [SonosChannel.rightFront], location: _location('192.0.2.12')),
+  SonosSatellite(uuid: _rearL, zoneName: 'Living Room', channels: [SonosChannel.leftRear], location: _location('192.0.2.13')),
+  SonosSatellite(uuid: _rearR, zoneName: 'Living Room', channels: [SonosChannel.rightRear], location: _location('192.0.2.14')),
+  SonosSatellite(uuid: _sub, zoneName: 'Living Room', channels: [SonosChannel.sub], location: _location('192.0.2.15')),
 ];
 
 /// Living Room: Arc as center + dedicated Era 100 fronts + Era 300 rears + Sub
@@ -227,9 +227,9 @@ final demoHomeTheater = ZoneGroupMember(
   satellites: _htSatellites,
 );
 
-const _bedroomSatellites = [
-  SonosSatellite(uuid: _bedRearL, zoneName: 'Bedroom', channels: [SonosChannel.leftRear], ip: '192.0.2.51'),
-  SonosSatellite(uuid: _bedRearR, zoneName: 'Bedroom', channels: [SonosChannel.rightRear], ip: '192.0.2.52'),
+final _bedroomSatellites = [
+  SonosSatellite(uuid: _bedRearL, zoneName: 'Bedroom', channels: [SonosChannel.leftRear], location: _location('192.0.2.51')),
+  SonosSatellite(uuid: _bedRearR, zoneName: 'Bedroom', channels: [SonosChannel.rightRear], location: _location('192.0.2.52')),
 ];
 
 /// Bedroom: a Beam as center + two Sonos One rear surrounds (no dedicated
