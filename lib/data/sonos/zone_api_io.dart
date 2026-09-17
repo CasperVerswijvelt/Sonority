@@ -6,15 +6,27 @@
 /// reconfigures a live bond in ONE call. See CLAUDE.md ("The `zones` namespace on
 /// :1443") for the hardware findings behind every method here.
 ///
-/// It is **undocumented**, so nothing may depend on it: [supported] feature-detects
-/// per household and every caller keeps its SOAP path as the fallback.
+/// This is **the** bonding path. The :1400 SOAP bonding calls are kept in the
+/// engine as the legacy path (`bondAndVerify`, `createGroup`, `separateGroup`,
+/// `reassertGroup`) — split off, NOT wired as a mid-operation fallback, so a
+/// refusal here is an error rather than a second write on top of the first.
+/// There is deliberately no capability probe either: an absent namespace refuses
+/// the subscribe by name (`ERROR_UNSUPPORTED_NAMESPACE`) in ~4ms, so the
+/// operation itself is the detection.
 ///
-/// ⚠️ Reads are free; [updateDefinition] is a **live speaker write** and is gated
-/// behind `live: true`, so nothing writes by accident.
+/// ⚠️ Reads are free; **every write** is a live speaker write, gated behind
+/// `live: true` so nothing writes by accident.
 ///
-/// Reads go over REST; commands have no REST route (hardware-probed: 404/405) and
-/// must go over the websocket. Reached through the `zone_api.dart` barrel so the
-/// screenshot-only web/demo build gets a throwing stub instead.
+/// Commands have no REST route (hardware-probed: 404/405) and must go over the
+/// websocket, so a multi-step operation runs inside [withSession]: ONE socket and
+/// ONE household lookup for the whole burst. That is not a micro-optimisation —
+/// connecting per command made `applyBondViaZoneApi` pay four TLS handshakes and
+/// measured SLOWER than the SOAP path it replaces (`tool/bond_timing.dart`:
+/// add 3.8s SOAP vs 7.3s zones). Subscribing also delivers the active zones and
+/// the definition library, and Sonos pushes a fresh copy after any change, so
+/// reads inside a session cost no extra round trip.
+/// Reached through the `zone_api.dart` barrel so the screenshot-only web/demo
+/// build gets a throwing stub instead.
 library;
 
 import 'dart:async';
@@ -81,185 +93,58 @@ class ZoneApiClient {
     ..badCertificateCallback = ((_, __, ___) => true)
     ..connectionTimeout = timeout;
 
-  /// True when this household exposes the `zones` namespace. One REST call, no
-  /// websocket — cheap enough to gate a feature on.
-  Future<bool> supported(String ip) async {
-    try {
-      return (await activeZones(ip)) != null;
-    } catch (_) {
-      return false;
-    }
-  }
-
   /// The bonds currently in force, or null if the household has no zone service.
+  ///
+  /// A standalone REST read for callers that only want a look (the e2e test,
+  /// `tool/bond_timing.dart`). Inside [withSession] use
+  /// [ZoneApiSession.activeZones], which comes free with the subscribe.
   Future<List<ActiveZone>?> activeZones(String ip) async {
     final c = _client();
     try {
-      final body = await _get(
-        c,
-        'https://$ip:1443/api/v1/households/local/zones',
-      );
+      final body =
+          await _get(c, 'https://$ip:1443/api/v1/households/local/zones');
       final zones = body['zones'];
       if (body['_objectType'] != 'activeZoneList' || zones is! List) {
         return null;
       }
-      return [
-        for (final z in zones.cast<Map<String, dynamic>>())
-          ActiveZone(
-            zoneId: z['zoneId'] as String,
-            members: [
-              for (final m
-                  in (z['members'] as List).cast<Map<String, dynamic>>())
-                ActiveZoneMember(
-                  uuid: m['id'] as String,
-                  disconnected: (m['state'] as Map?)?['disconnected'] == true,
-                ),
-            ],
-          ),
-      ];
+      return [for (final z in zones.cast<Map<String, dynamic>>()) _zone(z)];
     } finally {
       c.close(force: true);
     }
   }
 
-  /// Change a live bond's membership in place — the one call that replaces
-  /// dissolve-then-recreate for a member **removal** (`AddBondedZones` faults on
-  /// any map that drops a member).
+  /// Runs [body] against ONE open websocket, then closes it. Every multi-step
+  /// operation belongs in here — see the note at the top of the file for why.
   ///
-  /// ⚠️ Hardware-confirmed limit: the namespace allows **add or remove, one
-  /// direction per call, membership only**. A channel reassignment, or an add and
-  /// a remove together, is refused with `update only allows add or remove, not
-  /// both` — the call changes nothing, so the caller just falls back.
+  /// A session exists to issue commands, so the whole thing is the write gate:
+  /// `live: true` or nothing opens. One gate instead of one per command.
   ///
-  /// Throws [ZoneApiException] with the server's own reason on refusal.
-  Future<void> updateDefinition({
-    required String ip,
-    required String zoneId,
-    required String rawMap,
-    bool live = false,
-  }) async {
-    _requireLive(live, 'updateDefinition');
-    await _command(ip, 'updateZoneDefinition', {
-      'zoneId': zoneId,
-      'channelMapSet': zoneMembersFromMap(rawMap),
-    });
-  }
-
-  /// The household's stored definition library. Only ever arrives as a pushed
-  /// event, so this subscribes and takes the first `zoneDefinitionsChange`.
-  Future<List<ZoneDefinition>> definitions(String ip) async {
-    final zones = await _subscribeOnce(ip);
-    return [
-      for (final z in zones)
-        ZoneDefinition(
-          zoneId: z['zoneId'] as String,
-          name: z['name'] as String? ?? '',
-          rawMap: [
-            for (final m in (z['members'] as List).cast<Map<String, dynamic>>())
-              '${m['id']}:${(m['channelMap'] as List).join(',')}',
-          ].join(';'),
-        ),
-    ];
-  }
-
-  /// Store a new definition. Does NOT apply it — [activate] does.
-  Future<void> addDefinition({
-    required String ip,
-    required String name,
-    required String rawMap,
-    bool live = false,
-  }) async {
-    _requireLive(live, 'addDefinition');
-    await _command(ip, 'addZoneDefinition', {
-      'name': name,
-      'channelMapSet': zoneMembersFromMap(rawMap),
-    });
-  }
-
-  /// Apply a stored definition — one call replaces a whole bond rebuild.
-  ///
-  /// ⚠️ Also applies the definition's `name` as the room name.
-  Future<void> activate({
-    required String ip,
-    required String zoneId,
-    bool live = false,
-  }) async {
-    _requireLive(live, 'activate');
-    await _command(ip, 'activateZone', {'zoneId': zoneId});
-  }
-
-  /// Dissolve the live bond. A real unbond: members become standalone rooms.
-  Future<void> deactivate({
-    required String ip,
-    required String zoneId,
-    bool live = false,
-  }) async {
-    _requireLive(live, 'deactivate');
-    await _command(ip, 'deactivateZone', {'zoneId': zoneId});
-  }
-
-  /// Delete a stored definition. Refused while it is active.
-  Future<void> removeDefinition({
-    required String ip,
-    required String zoneId,
-    bool live = false,
-  }) async {
-    _requireLive(live, 'removeDefinition');
-    await _command(ip, 'removeZoneDefinition', {'zoneId': zoneId});
-  }
-
-  void _requireLive(bool live, String what) {
+  /// Throws [ZoneApiException] if the household has no zone service: the
+  /// subscribe is refused by name (`ERROR_UNSUPPORTED_NAMESPACE`, measured at
+  /// ~4ms), so there is no timeout to sit through — which is why opening a
+  /// session doubles as the capability check.
+  Future<T> withSession<T>(
+      String ip, Future<T> Function(ZoneSession session) body,
+      {bool live = false}) async {
     if (!live) {
-      throw StateError('$what is a live speaker write; pass live: true.');
+      throw StateError(
+          'A zones session issues live speaker writes; pass live: true.');
     }
-  }
-
-  /// Connect, subscribe, take the first `zoneDefinitionsChange`, close.
-  Future<List<Map<String, dynamic>>> _subscribeOnce(String ip) async {
     final c = _client();
     WebSocket? ws;
     try {
-      final info = await _get(c, 'https://$ip:1443/api/v1/players/local/info');
+      final info =
+          await _get(c, 'https://$ip:1443/api/v1/players/local/info');
       ws = await WebSocket.connect(
         'wss://$ip:1443/websocket/api',
         protocols: const ['v1.api.smartspeaker.audio'],
         headers: {'X-Sonos-Api-Key': kSonosGuestApiKey},
         customClient: c,
       ).timeout(timeout);
-      final done = Completer<List<Map<String, dynamic>>>();
-      ws.listen(
-        (raw) {
-          if (done.isCompleted) return;
-          try {
-            final msg = jsonDecode(raw as String) as List;
-            if ((msg[0] as Map)['type'] != 'zoneDefinitionsChange') return;
-            done.complete(
-              ((msg[1] as Map)['zones'] as List).cast<Map<String, dynamic>>(),
-            );
-          } catch (e, s) {
-            // A binary frame or an unexpected payload shape would otherwise
-            // escape as an uncaught async error, leaving us to wait out the
-            // whole timeout for a reply that can never parse.
-            if (!done.isCompleted) done.completeError(e, s);
-          }
-        },
-        // A close or error arriving after we already completed must not throw.
-        onError: (Object e, StackTrace s) {
-          if (!done.isCompleted) done.completeError(e, s);
-        },
-        cancelOnError: true,
-      );
-      ws.add(
-        jsonEncode([
-          {
-            'namespace': 'zones',
-            'command': 'subscribe',
-            'householdId': info['householdId'],
-          },
-          const <String, Object>{},
-        ]),
-      );
-      return await done.future.timeout(timeout);
+      final session =
+          ZoneApiSession._(ws, info['householdId'] as String, timeout);
+      await session._open();
+      return await body(session);
     } finally {
       await ws?.close();
       c.close(force: true);
@@ -273,67 +158,184 @@ class ZoneApiClient {
     return jsonDecode(await res.transform(utf8.decoder).join())
         as Map<String, dynamic>;
   }
+}
 
-  /// One websocket round-trip: connect, send, wait for this command's reply,
-  /// close. Commands are rare and the socket is cheap, so the engine deliberately
-  /// keeps no long-lived connection.
-  Future<void> _command(
-    String ip,
-    String command,
-    Map<String, Object> body,
-  ) async {
-    final c = _client();
-    WebSocket? ws;
-    try {
-      final info = await _get(c, 'https://$ip:1443/api/v1/players/local/info');
-      ws = await WebSocket.connect(
-        'wss://$ip:1443/websocket/api',
-        protocols: const ['v1.api.smartspeaker.audio'],
-        headers: {'X-Sonos-Api-Key': kSonosGuestApiKey},
-        customClient: c,
-      ).timeout(timeout);
-      final done = Completer<void>();
-      ws.listen(
-        (raw) {
-          if (done.isCompleted) return;
-          try {
-            final msg = jsonDecode(raw as String) as List;
-            final header = msg[0] as Map<String, dynamic>;
-            if (header['response'] != command) return;
-            if (header['success'] == true) {
-              done.complete();
-            } else {
-              final err = msg[1] as Map<String, dynamic>;
-              done.completeError(
-                ZoneApiException(
-                  (err['reason'] ?? err['errorCode'] ?? 'refused').toString(),
-                ),
-              );
+ActiveZone _zone(Map<String, dynamic> z) => ActiveZone(
+      zoneId: z['zoneId'] as String,
+      members: [
+        for (final m in (z['members'] as List).cast<Map<String, dynamic>>())
+          ActiveZoneMember(
+            uuid: m['id'] as String,
+            disconnected: (m['state'] as Map?)?['disconnected'] == true,
+          ),
+      ],
+    );
+
+List<ZoneDefinition> _defs(List<dynamic> zones) => [
+      for (final z in zones.cast<Map<String, dynamic>>())
+        ZoneDefinition(
+          zoneId: z['zoneId'] as String,
+          name: z['name'] as String? ?? '',
+          rawMap: [
+            for (final m in (z['members'] as List).cast<Map<String, dynamic>>())
+              '${m['id']}:${(m['channelMap'] as List).join(',')}',
+          ].join(';'),
+        ),
+    ];
+
+/// What a caller may do inside [ZoneApiClient.withSession].
+///
+/// An interface rather than a concrete type purely so tests can substitute one:
+/// [ZoneApiSession] owns a live socket, so it cannot be constructed off-network.
+abstract interface class ZoneSession {
+  /// The bonds in force as of the last push. Free — no round trip.
+  List<ActiveZone> get activeZones;
+
+  /// The stored definition library as of the last push. Free — no round trip.
+  List<ZoneDefinition> get definitions;
+
+  /// Waits for Sonos to push an updated library — what follows an add.
+  Future<List<ZoneDefinition>> nextDefinitions();
+
+  Future<void> addDefinition({required String name, required String rawMap});
+
+  /// Membership only, one direction per call.
+  Future<void> updateDefinition({
+    required String zoneId,
+    required String rawMap,
+  });
+
+  /// ⚠️ Also applies the definition's `name` as the room name.
+  Future<void> activate(String zoneId);
+
+  /// A real unbond: members become standalone rooms.
+  Future<void> deactivate(String zoneId);
+
+  /// Deletes a stored definition. Refused while it is active.
+  Future<void> removeDefinition(String zoneId);
+}
+
+/// One open websocket to a player's `zones` namespace. Created by
+/// [ZoneApiClient.withSession] and only valid inside it.
+///
+/// The subscribe that opens the session hands us the current active zones and
+/// definition library, and Sonos pushes a fresh copy of either after any change —
+/// so [activeZones] and [definitions] are free, and [nextDefinitions] waits for
+/// the push rather than asking again.
+class ZoneApiSession implements ZoneSession {
+  final WebSocket _ws;
+  final String _householdId;
+  final Duration _timeout;
+  final _events = StreamController<(Map<String, dynamic>, dynamic)>.broadcast();
+
+  List<ActiveZone> _activeZones = const [];
+  List<ZoneDefinition> _definitions = const [];
+
+  ZoneApiSession._(this._ws, this._householdId, this._timeout) {
+    _ws.listen(
+      (raw) {
+        try {
+          final msg = jsonDecode(raw as String) as List;
+          final header = msg[0] as Map<String, dynamic>;
+          final body = msg[1];
+          final zones = body is Map ? body['zones'] : null;
+          if (zones is List) {
+            if (header['type'] == 'activeZonesChange') {
+              _activeZones = [
+                for (final z in zones) _zone(z as Map<String, dynamic>),
+              ];
+            } else if (header['type'] == 'zoneDefinitionsChange') {
+              _definitions = _defs(zones);
             }
-          } catch (e, s) {
-            if (!done.isCompleted) done.completeError(e, s);
           }
-        },
-        onError: (Object e, StackTrace s) {
-          if (!done.isCompleted) done.completeError(e, s);
-        },
-        cancelOnError: true,
-      );
-      ws.add(
-        jsonEncode([
-          {
-            'namespace': 'zones',
-            'command': command,
-            'householdId': info['householdId'],
-          },
-          body,
-        ]),
-      );
-      await done.future.timeout(timeout);
-    } finally {
-      await ws?.close();
-      c.close(force: true);
-    }
+          if (!_events.isClosed) _events.add((header, body));
+        } catch (e, s) {
+          // A binary frame or an unexpected payload shape would otherwise escape
+          // as an uncaught async error, leaving every waiter to time out.
+          if (!_events.isClosed) _events.addError(e, s);
+        }
+      },
+      onError: (Object e, StackTrace s) {
+        if (!_events.isClosed) _events.addError(e, s);
+      },
+      onDone: () {
+        if (!_events.isClosed) _events.close();
+      },
+    );
+  }
+
+  @override
+  List<ActiveZone> get activeZones => _activeZones;
+
+  @override
+  List<ZoneDefinition> get definitions => _definitions;
+
+  Future<void> _open() async {
+    // Wait for the definition library, which arrives right after the subscribe
+    // reply — it is the read no caller can do without.
+    final pushed = _events.stream
+        .firstWhere((e) => e.$1['type'] == 'zoneDefinitionsChange')
+        .timeout(_timeout);
+    await _send('subscribe', const {});
+    await pushed;
+  }
+
+  /// Cheaper and more truthful than re-subscribing: Sonos pushes the library.
+  @override
+  Future<List<ZoneDefinition>> nextDefinitions() async {
+    await _events.stream
+        .firstWhere((e) => e.$1['type'] == 'zoneDefinitionsChange')
+        .timeout(_timeout);
+    return _definitions;
+  }
+
+  @override
+  Future<void> addDefinition({required String name, required String rawMap}) =>
+      _send('addZoneDefinition',
+          {'name': name, 'channelMapSet': zoneMembersFromMap(rawMap)});
+
+  /// A channel change or a simultaneous add+remove is refused (`update only
+  /// allows add or remove, not both`), which costs nothing: it changes no state.
+  @override
+  Future<void> updateDefinition(
+          {required String zoneId, required String rawMap}) =>
+      _send('updateZoneDefinition',
+          {'zoneId': zoneId, 'channelMapSet': zoneMembersFromMap(rawMap)});
+
+  @override
+  Future<void> activate(String zoneId) =>
+      _send('activateZone', {'zoneId': zoneId});
+
+  @override
+  Future<void> deactivate(String zoneId) =>
+      _send('deactivateZone', {'zoneId': zoneId});
+
+  @override
+  Future<void> removeDefinition(String zoneId) =>
+      _send('removeZoneDefinition', {'zoneId': zoneId});
+
+  /// Sends one command and waits for its reply. Throws [ZoneApiException] with
+  /// the server's own wording on refusal.
+  ///
+  /// The reply waiter is armed BEFORE the send: on one shared socket the answer
+  /// can arrive before a listener attached afterwards would see it.
+  Future<void> _send(String command, Map<String, Object> body) async {
+    final reply = _events.stream
+        .firstWhere((e) => e.$1['response'] == command)
+        .timeout(_timeout);
+    _ws.add(jsonEncode([
+      {
+        'namespace': 'zones',
+        'command': command,
+        'householdId': _householdId,
+      },
+      body,
+    ]));
+    final (header, errBody) = await reply;
+    if (header['success'] == true) return;
+    final err = errBody is Map ? errBody : const <String, Object?>{};
+    throw ZoneApiException(
+        (err['reason'] ?? err['errorCode'] ?? 'refused').toString());
   }
 }
 

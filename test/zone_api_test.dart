@@ -117,9 +117,18 @@ void main() {
       expect(sameChannelMap('$a:LF,RF;$b:LF,RF', '$a:RF,LF;$b:LF,RF'), isTrue);
     });
 
-    // The first entry is the coordinator, so entry order IS significant.
-    test('a different entry order is a different bond', () {
+    // A different COORDINATOR is a different bond…
+    test('a different coordinator is a different bond', () {
       expect(sameChannelMap('$a:LF,RF;$b:LF,RF', '$b:LF,RF;$a:LF,RF'), isFalse);
+    });
+
+    // …but the order of the remaining members is not part of its identity, and
+    // Sonos does not preserve ours. Requiring it cost a real apply failure.
+    test('member order after the coordinator is irrelevant', () {
+      expect(
+        sameChannelMap('$a:CC;$b:LF;$c:RF', '$a:CC;$c:RF;$b:LF'),
+        isTrue,
+      );
     });
 
     test('different channels do not match', () {
@@ -178,15 +187,12 @@ void main() {
   });
 
   group('ZoneApiClient', () {
-    // Nothing may write by accident: the live gate is the only thing standing
-    // between a refresh and a real bonding change on someone's living room.
-    test('updateDefinition refuses to write without live: true', () {
+    // Nothing may write by accident: a session exists to issue commands, so the
+    // gate is the session itself — one gate instead of one per command.
+    test('a session refuses to open without live: true', () {
       expect(
-        () => const ZoneApiClient().updateDefinition(
-          ip: '192.0.2.1',
-          zoneId: 'zone-1',
-          rawMap: '$a:LF,RF;$b:LF,RF',
-        ),
+        () => const ZoneApiClient()
+            .withSession('192.0.2.1', (_) async => null),
         throwsA(isA<StateError>()),
       );
     });

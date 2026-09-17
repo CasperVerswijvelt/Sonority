@@ -207,6 +207,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Sonos reported an error. See the raw log for details.';
 
   @override
+  String errBondRefused(String reason) {
+    return 'Sonos refused the change to this bonding setup ($reason). See the raw log for details.';
+  }
+
+  @override
   String get errAborted => 'Aborted';
 
   @override
@@ -325,9 +330,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stepSeparateRestore => 'Separate + restore room names';
 
   @override
-  String get stepDetach => 'Detach from playback group';
-
-  @override
   String get stepFreeFromBond => 'Free from its current bond';
 
   @override
@@ -346,9 +348,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stepWaitForConfirm => 'Wait for Sonos to confirm';
-
-  @override
-  String get stepWaitingConfirm => 'waiting for Sonos to confirm';
 
   @override
   String get stepApplyingSettle =>

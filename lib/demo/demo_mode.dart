@@ -77,11 +77,17 @@ class _DemoHttpClient extends http.BaseClient {
 // needed.
 /// The zones API is HTTP, not SOAP, so it needs its own stub: without one a demo
 /// build would sit out a real 8s timeout against an unroutable TEST-NET IP.
-/// Reporting "no zone service" is also the honest answer for a fake household.
+/// Refusing by name is the same fail-fast shape as `_DemoSoapClient` — a demo
+/// build emits no network I/O, and bonding taps stop rather than hang.
 class _DemoZoneApiClient extends ZoneApiClient {
   const _DemoZoneApiClient();
   @override
   Future<List<ActiveZone>?> activeZones(String ip) async => null;
+  @override
+  Future<T> withSession<T>(
+          String ip, Future<T> Function(ZoneSession session) body,
+          {bool live = false}) async =>
+      throw const ZoneApiException('demo mode has no zone service');
 }
 
 class _DemoSonosRepository extends SonosRepository {

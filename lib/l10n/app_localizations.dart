@@ -424,6 +424,12 @@ abstract class AppLocalizations {
   /// **'Sonos reported an error. See the raw log for details.'**
   String get errSonosGeneric;
 
+  /// No description provided for @errBondRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'Sonos refused the change to this bonding setup ({reason}). See the raw log for details.'**
+  String errBondRefused(String reason);
+
   /// No description provided for @errAborted.
   ///
   /// In en, this message translates to:
@@ -574,12 +580,6 @@ abstract class AppLocalizations {
   /// **'Separate + restore room names'**
   String get stepSeparateRestore;
 
-  /// No description provided for @stepDetach.
-  ///
-  /// In en, this message translates to:
-  /// **'Detach from playback group'**
-  String get stepDetach;
-
   /// No description provided for @stepFreeFromBond.
   ///
   /// In en, this message translates to:
@@ -615,12 +615,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wait for Sonos to confirm'**
   String get stepWaitForConfirm;
-
-  /// No description provided for @stepWaitingConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'waiting for Sonos to confirm'**
-  String get stepWaitingConfirm;
 
   /// No description provided for @stepApplyingSettle.
   ///

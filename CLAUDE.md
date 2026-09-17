@@ -391,13 +391,16 @@ node-sonos and the svrooij docs — so **feature-detect, never version-gate**: o
   Note `channelMapSet` here is an **array of `{id, channels[]}`**, NOT the `:1400`
   `UUID:CH;…` string, and `name` is required. WS frames are **fragmented** — a
   client that assumes one frame per message will truncate `zoneDefinitionsChange`.
-- **`activateZone` is a one-call bond.** Hardware-tested: it switched a whole HT
-  layout and converged in ~16–32s, **first try, no re-assert loop** — versus the 4–6
-  re-asserts a from-bare `AddHTSatellite` rebuild needs. Creating a fresh definition
-  and activating it also works (all six members went connected). **`deactivateZone`
-  is a real unbond** — it freed the fronts to standalone and Sonos auto-renamed them
-  ("Woonkamer 2"), exactly like `RemoveHTSatellite`; it also can't be removed while
-  active (`zone currently active`), so deactivate → settle → `removeZoneDefinition`.
+- **`activateZone` is a one-call bond** — for a GROUP: it applies a whole layout
+  in one write that converges in ~16–32s with no re-assert loop, versus the 4–6
+  re-asserts a from-bare SOAP rebuild needs. ⚠️ The same call on a **home theater**
+  only makes the zone-service bookkeeping agree (all six members went *connected*),
+  which is NOT the same as applying a layout: it does not change
+  `HTSatChanMapSet`, so it cannot add, drop or move a satellite — measured, see
+  *In the engine today*. **`deactivateZone` is a real unbond** — it freed the
+  fronts to standalone and Sonos auto-renamed them ("Woonkamer 2"), exactly like
+  `RemoveHTSatellite`; a definition also can't be removed while active (`zone
+  currently active`), so deactivate → settle → `removeZoneDefinition`.
 - **add/remove never touch live state, so they are a FREE OFFLINE VALIDATOR** for a
   bond shape. A 13-shape battery (each added then removed; 17 definitions before and
   after) accepted **every** unofficial config Sonority builds: 6-box fronts+rears+sub,
@@ -420,11 +423,11 @@ node-sonos and the svrooij docs — so **feature-detect, never version-gate**: o
 
   | Sonority op today | :1400 cost today | zones API | result |
   |---|---|---|---|
-  | HT create / rebuild | `AddHTSatellite` + 4–6 re-asserts | `add` + `activateZone` | ✅ 1 call, ~12s |
+  | HT create / rebuild | `AddHTSatellite` + 4–6 re-asserts | `add` + `activateZone` | ❌ **can't** — see below |
   | Group create | `AddBondedZones` + poll-verify | `add` + `activateZone` | ✅ 1 call |
   | Group **add** member | `reassertGroup` re-assert loop | `updateZoneDefinition` | ✅ 1 call, in place |
   | Group **remove** member | **full dissolve + recreate** | `updateZoneDefinition` | ✅ 1 call, in place |
-  | Channel reassign / shape change | `reassertGroup` / `_applyHtTarget` | `add` + `activateZone` | ✅ 1 call |
+  | Group channel reassign / shape change | `reassertGroup` | `add` + `activateZone` | ✅ 1 call |
   | Dissolve a group | detach → `SeparateStereoPair` → restore names | `deactivateZone` | ✅ 1 call, **no detach step** |
   | `freeSpeaker` (conflict) | detach + settle + separate | *nothing* for a speaker moving between zone-API bonds; **still needed** to pull one out of a legacy HT bond | ⚠️ partly |
 
@@ -464,9 +467,10 @@ node-sonos and the svrooij docs — so **feature-detect, never version-gate**: o
   without it), so a legacy HT bond does NOT yield to a zone activation. Pull it out
   with `RemoveHTSatellite` first. (Speakers moving between *zone-API* bonds need no
   such step.)
-- **Still untested:** audio (needs ears), what any of this does to **Trueplay**
-  (blocked — see below), and HT add/remove via `updateZoneDefinition` (only proven
-  on a group).
+- **Still untested:** audio (needs ears) and what any of this does to **Trueplay**
+  (blocked — see below). HT reconfiguration *was* tested and **does not work**
+  (`tool/ht_zone_check.dart`; the detail is under *In the engine today*), so the
+  op-by-op row above is a ❌ rather than an assumption.
 - **Trueplay retention under this API is UNMEASURED and the blocker is authoring a
   tuning.** This household has `RoomCalibrationAvailable=0` on all nine speakers, so
   there is nothing whose survival could be observed. PR #90's
@@ -478,21 +482,48 @@ node-sonos and the svrooij docs — so **feature-detect, never version-gate**: o
   standalone speaker and on a bonded pair. A 200 is not an apply, so the delta is
   silent. Whatever else a successful apply needs lives in `SpeakerEqController`;
   resolve that first, then the retention test is quick.
-- **Don't build on it blind.** It is undocumented and could change; keep
-  `AddHTSatellite`/`AddBondedZones` as the fallback path.
+- **Don't build on it blind.** It is undocumented and could change. The :1400
+  bonding calls therefore stay in the engine as a **separate legacy path** — not
+  as an automatic mid-operation fallback (see *In the engine today* below for why
+  chaining them is worse than failing), and `AddHTSatellite` remains the ONLY way
+  to reconfigure a home theater at all.
 - **In the engine today:** `zone_api.dart` (barrel + `_io`/`_web` stub, same
-  conditional-import shape as `trueplay_apply.dart`) exposes `supported()` /
-  `activeZones()` / `updateDefinition()`, injected into `SonosRepository`
-  (`zoneApi:`, stubbed in `demoOverrides()` — it is HTTP, not SOAP, so it needs its
-  own demo stub or a demo build eats an 8s TEST-NET timeout).
-  **Every SPEAKER-GROUP path now tries it first**, through two repository
-  primitives, with the SOAP path as the fallback everywhere. A refused zones
-  command changes no state, so falling back is always free.
-  **Home theaters are deliberately excluded** (`_applyHtTarget` still calls
-  `bondAndVerify`): `AddHTSatellite` *mutates* the bond, so a Trueplay tuning
-  survives an in-place HT change (measured), whereas `addZoneDefinition` +
-  `activateZone` creates a NEW bond object — the shape that destroys tunings —
-  and retention through this API is still unmeasured. Flip HT over once it is.
+  conditional-import shape as `trueplay_apply.dart`) exposes `activeZones()` plus
+  `withSession()`, injected into `SonosRepository` (`zoneApi:`, stubbed in
+  `demoOverrides()` — it is HTTP, not SOAP, so it needs its own demo stub or a demo
+  build eats an 8s TEST-NET timeout).
+  **Every SPEAKER-GROUP bonding path IS this API** — create, edit (add / channel
+  change / member drop / coordinator change), dissolve, and profile apply. The
+  :1400 bonding calls (`bondAndVerify`, `createGroup`, `separateGroup`,
+  `reassertGroup`, `detachFromGroup`) stay in the engine as the **legacy path**:
+  split off, **NOT chained behind the zones path as a fallback**. Chaining them
+  would fire a second live write on top of a change already in flight, and a named
+  refusal is something the user should be told about (`ZoneApiException` →
+  `errBondRefused`, quoting Sonos' own wording) rather than have papered over. A
+  settings toggle to force the legacy path is the planned escape hatch; detection
+  can never cover "namespace present but misbehaving", which is the case a toggle
+  is actually for.
+  **There is deliberately no capability probe.** Measured: an absent namespace
+  refuses the subscribe **by name** (`ERROR_UNSUPPORTED_NAMESPACE`) in **~4ms**, and
+  a websocket connect is ~68ms — so opening the session IS the detection, and a
+  separate REST probe bought nothing but latency. (An earlier note here claimed an
+  unsupported household would *time out*; it does not.)
+  - **⚠️ HOME THEATERS STAY ON SOAP — measured, not assumed**
+    (`tool/ht_zone_check.dart`, self-restoring). The zones API **cannot
+    reconfigure an `AddHTSatellite` home theater**: activating a definition that
+    dropped the Sub reported success and changed `HTSatChanMapSet` **not at all**
+    (the Sub stayed bonded and ended up held by a *second* active zone, the two
+    models straddling); activating any other definition over that — including the
+    one previously active — was then refused outright (`activateZone failed`) and
+    did not clear on retry; only `deactivateZone` moved it, and that is a teardown,
+    not a reconfigure (it freed the fronts to standalone and Sonos auto-renamed
+    them "Woonkamer 2"). An HT built by `AddHTSatellite` and a zone definition are
+    **parallel records of the same bond**, and only the SOAP call mutates the one
+    that decides the audio. A speaker GROUP is different — its bond *is* the
+    definition, which is why every group path went over. (This also supersedes the
+    earlier *Trueplay* rationale for excluding HT: the real blocker is that it
+    doesn't work, which is a stronger reason and no longer waiting on a
+    measurement.)
   - `applyBondViaZoneApi(ip, roomName, targetMap)` — find-or-create a definition,
     then `activateZone`. **Reuses** a stored definition whose map AND name already
     match (the namespace does no dedupe, so adding blindly would grow the household
@@ -500,15 +531,31 @@ node-sonos and the svrooij docs — so **feature-detect, never version-gate**: o
     `roomName` becomes the definition name and therefore the room name on
     activation, so always pass the name the room should END UP with. NB a
     pre-existing definition with a stale name is deliberately *not* reused — that
-    is what would rename a real room.
+    is what would rename a real room. An activation refused **while a different
+    definition is live over the same coordinator** is recovered in place
+    (`deactivateZone` the live one, then activate); the recovery keys on "something
+    else is live", not on the message, because two wordings have been seen
+    (`new primary activation failed` and a bare `activateZone failed`).
+  - `dropGroupMembersViaZoneApi(ip, coordinatorUuid, targetMap)` — one
+    `updateZoneDefinition`, in place, keeping the definition's `zoneId`. Preferred
+    for a **pure removal** (the case `AddBondedZones` faults on outright). Returns
+    **false** meaning "not this primitive" — no live zone is coordinated by that
+    speaker, so the caller activates the target layout instead. Both are the zones
+    path; this picks the cheaper primitive, it is not a fallback.
   - `dissolveBondViaZoneApi(ip, coordinatorUuid)` — one `deactivateZone` instead of
-    detach → `SeparateStereoPair`.
-  - Controller wrappers `_zoneApiBond` / `_zoneApiDissolve` add the poll-verify and
-    return null to mean "carry on with SOAP", which is what every call site
-    branches on: `_applyHtTarget` (HT), `editGroup` (in-place, rebuild **and** the
-    `groupEditIsPureDrop` fast path via `dropGroupMembersViaZoneApi`, which is tried
-    first because `updateZoneDefinition` mutates the definition in place instead of
-    storing a new one), group create, the dissolve action, and profile apply.
+    detach → `SeparateStereoPair` → restore every name.
+  - Only a **TimeoutException** is swallowed (`_zoneApiRun`), on the same rule this
+    engine already applies to `AddHTSatellite`/`AddBondedZones`: a timed-out write
+    very often applied anyway, so it means "go verify" and the caller poll-verifies.
+  - Zone lookup (`_activeZoneOf`) requires the speaker to be the zone's **first,
+    connected** member. Membership alone is not safe — an active zone lists
+    speakers it does not drive (this household's unofficial fronts appear with
+    `disconnected: true`), so a membership match could write to another room's bond.
+  - Controller: `_zoneApi` writes then polls until the topology reports the end
+    state, with `onWritten` marking the caller's "wait for Sonos to confirm" step;
+    `_zoneApiBond` / `_zoneApiDissolve` wrap it. Call sites: `createGroup`,
+    `editGroup` (one write for every edit shape now), the dissolve action, and
+    profile apply. `_applyHtTarget` is the one that does **not** go here.
 
 ### Reading firmware + update state (`/status/*` debug pages, :1400)
 Plain HTTP, read-only, handy in diagnostics: `/status` indexes them.
@@ -683,6 +730,25 @@ Run on the same Wi-Fi as the Sonos system:
   touching the live system** (add+remove round-trip); `--create/--update/--activate/
   --deactivate/--remove` (all `--confirm`-gated) and `--roundtrip` (self-restoring
   create→activate→verify→remove). Takes the same `UUID:CH;…` map string the engine builds.
+- `tool/ht_zone_check.dart` — the experiment that **kept home theaters on SOAP**:
+  activates a definition that drops the HT's Sub, then tries to activate the full
+  layout back, reporting what `HTSatChanMapSet` and the active-zone list say after
+  each. Answer: the zones API can't reconfigure an HT (findings in the file header
+  and under the `zones` section above). Self-restoring — each restore step is
+  independently guarded, because an activation CAN refuse mid-restore, which is
+  finding ② itself. Dry-run by default, `--confirm` runs the writes. ⚠️ unbonds and
+  re-bonds a real home theater.
+- `tool/bond_timing.dart` — benchmarks the **legacy SOAP path vs the :1443 zones
+  API**, op for op, on real hardware: add / remove a member, channel-shape change,
+  dissolve, create, each timed from just-before-the-write to the moment :1400
+  topology reports the end state (so the number is what a user waits for) and each
+  reporting the **write attempts** needed — the robustness half. `--rounds N`
+  (default 3) → min/median/max + rounds-failed per op per path, plus a
+  ready-to-paste PR table. `--group`/`--spare` pick the group and the speaker moved
+  in and out (default: first group + first free zoneable speaker; home theaters and
+  Subs are never touched). Self-restoring (map, member set, room names, and the
+  zone definitions it created / the one originally active); dry-run by default,
+  `--confirm` runs the writes.
 - `tool/lr_audiotest.dart` — plays an L/R voice track on a group to verify Sonos
   honours per-speaker channel assignment (play/stop/snapshot/freesat/addht).
 - `tool/chirp.dart <room|uuid|ip>` — play the identify chime on one speaker.

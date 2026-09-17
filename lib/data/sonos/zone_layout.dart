@@ -105,20 +105,29 @@ bool _sameTokens(List<String> a, List<String> b) {
   return true;
 }
 
-/// True when two raw channel maps describe the same bond: same entries in the
-/// same order (the first entry is the coordinator, so order is significant) with
-/// the same channel tokens, ignoring token order within an entry.
+/// True when two raw channel maps describe the same bond.
 ///
-/// Used to reuse an existing stored zone definition instead of adding a new one
-/// on every apply — the `zones` namespace does no dedupe, so without this a
-/// household's definition library would grow without bound.
+/// The FIRST entry is the coordinator, so it must match exactly. The remaining
+/// entries are compared **unordered**, because which order Sonos lists the rest
+/// in is not part of the bond's identity — and it does not preserve ours.
+/// Requiring the whole list to match positionally cost a real failure: the map
+/// we asked for didn't match the definition Sonos had already stored for it, so
+/// we added a duplicate, Sonos deduped it onto the existing one, and nothing new
+/// appeared for us to activate (1 of 3 rounds in `tool/bond_timing.dart`).
+///
+/// Token order *within* an entry is likewise irrelevant, but token multiplicity
+/// is not — see [_sameTokens].
 bool sameChannelMap(String a, String b) {
   final x = ChannelMap.parse(a).entries;
   final y = ChannelMap.parse(b).entries;
   if (x.length != y.length || x.isEmpty) return false;
-  for (var i = 0; i < x.length; i++) {
-    if (x[i].uuid != y[i].uuid) return false;
-    if (!_sameTokens(x[i].tokens, y[i].tokens)) return false;
+  if (x.first.uuid != y.first.uuid) return false;
+  if (!_sameTokens(x.first.tokens, y.first.tokens)) return false;
+  final rest = {for (final e in y.skip(1)) e.uuid: e.tokens};
+  if (rest.length != y.length - 1) return false; // a duplicated member uuid
+  for (final e in x.skip(1)) {
+    final other = rest[e.uuid];
+    if (other == null || !_sameTokens(e.tokens, other)) return false;
   }
   return true;
 }

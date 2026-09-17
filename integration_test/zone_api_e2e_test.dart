@@ -69,7 +69,7 @@ void main() {
     );
 
     final ip = group.ip;
-    if (ip == null || !await const ZoneApiClient().supported(ip)) {
+    if (ip == null || await const ZoneApiClient().activeZones(ip) == null) {
       markTestSkipped('household has no zones API');
       return;
     }
@@ -134,7 +134,7 @@ void main() {
     final name = group.zoneName;
     final size = group.channelMapUuids.length;
     final ip = group.ip;
-    if (ip == null || !await const ZoneApiClient().supported(ip)) {
+    if (ip == null || await const ZoneApiClient().activeZones(ip) == null) {
       markTestSkipped('household has no zones API');
       return;
     }

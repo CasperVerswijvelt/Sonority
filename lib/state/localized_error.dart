@@ -6,6 +6,7 @@ import '../data/sonos/friendly_error.dart';
 import '../data/sonos/identify_errors.dart';
 import '../data/sonos/soap_client.dart';
 import '../data/sonos/sonority_error.dart';
+import '../data/sonos/zone_api.dart';
 
 /// Words an engine/state error for on-screen display, translated via
 /// [AppLocalizations]. The counterpart to the engine's English `friendlyError`
@@ -50,6 +51,7 @@ String localizedError(AppLocalizations l10n, Object e) {
   if (e is OperationCancelled) return l10n.errAborted;
   if (e is SpeakerUnreachable) return l10n.errChimeUnreachable;
   if (e is TimeoutException) return l10n.errTimeout;
+  if (e is ZoneApiException) return l10n.errBondRefused(e.reason);
   if (e is SonosSoapException) {
     switch (e.faultCode) {
       case '800':
