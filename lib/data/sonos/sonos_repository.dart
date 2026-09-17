@@ -97,17 +97,43 @@ class SonosRepository {
         '${groups.expand((g) => g.members).length} member(s) in ${groups.length} group(s)');
 
     // Topology is authoritative; SSDP and the per-device description fetch are
-    // both lossy. Re-fetch any visible member we don't yet have a description
-    // for, straight from its topology-provided Location — this recovers a
-    // transient fetch failure and any device SSDP's multicast missed entirely.
-    final missing = [
+    // both lossy. Re-fetch anything we don't yet have a description for,
+    // straight from its topology-provided Location. This recovers a transient
+    // fetch failure and any device SSDP's multicast missed entirely.
+    //
+    // SATELLITES COUNT. They are `<Satellite>` children, not members, so a
+    // members-only sweep left an SSDP-missed Sub absent from `devicesByUuid`
+    // and every consumer resolved it to null. The HT page showing "Speaker" for
+    // it and the setup flow reporting no free subwoofer are the cosmetic half;
+    // the other half is not: the flow builds its target map from resolved
+    // devices, so an apply would have dropped the SW channel and
+    // `RemoveHTSatellite`'d the user's Sub with no warning — which also wipes
+    // the Trueplay of the whole bonded set, since Sonos invalidates it whenever
+    // that set changes. Seen live on hardware.
+    //
+    // INVISIBLE MEMBERS COUNT for the same reason. A stereo-pair half and every
+    // non-coordinator zone member is its own `Invisible="1"` member, and a
+    // group edit builds its target from resolved devices too: an SSDP-missed
+    // one silently left the group on a rename. Re-fetching is by `Location`, so
+    // hidden or not makes no difference; `allMembers` filters Invisible where it
+    // belongs, at the topology, not by leaving the device unresolvable. It also
+    // gets a standalone Sub (Invisible as well) a real description.
+    //
+    // Keyed by uuid: mid-settle (the ~15s lag) one speaker can read BOTH as a
+    // member and as some coordinator's `<Satellite>`, and fetching it twice is
+    // pointless. Which of the two Locations wins is document order — they come
+    // from one `GetZoneGroupState`, so they agree in practice.
+    final missing = {
       for (final g in groups)
         for (final m in g.members)
-          if (!m.invisible &&
-              m.location != null &&
-              !devicesByUuid.containsKey(m.uuid))
-            m,
-    ];
+          for (final e in [
+            (uuid: m.uuid, name: m.zoneName, location: m.location, ip: m.ip),
+            for (final s in m.satellites)
+              (uuid: s.uuid, name: s.zoneName, location: s.location, ip: s.ip),
+          ])
+            if (e.location != null && !devicesByUuid.containsKey(e.uuid))
+              e.uuid: e,
+    }.values;
     if (missing.isNotEmpty) {
       final recovered = await Future.wait(missing.map((m) async {
         try {
@@ -119,7 +145,7 @@ class SonosRepository {
           // silently.
           return SonosDevice(
             uuid: m.uuid,
-            roomName: m.zoneName,
+            roomName: m.name,
             modelName: '',
             ip: m.ip,
             reachable: false,
