@@ -18,6 +18,10 @@ const _two = SonosDevice(uuid: 'B', roomName: 'Office', modelName: 'Sonos One');
 const _bar =
     SonosDevice(uuid: 'BAR', roomName: 'Living', modelName: 'Sonos Beam');
 const _sub = SonosDevice(uuid: 'SUB', roomName: 'Sub', modelName: 'Sonos Sub');
+/// Description unreadable, so its model/capabilities are unknown — the group
+/// flow won't offer it, so nothing that counts candidates may count it.
+const _unreachable = SonosDevice(
+    uuid: 'U', roomName: 'Attic', modelName: '', reachable: false);
 
 void main() {
   group('canGroupSpeaker', () {
@@ -35,6 +39,12 @@ void main() {
       // Two Ones exist, but a soundbar itself can't join a zone.
       expect(canGroupSpeaker(_standalone([_bar, _one, _two]), 'BAR'), isFalse);
     });
+
+    test('an unreachable speaker is not the second candidate', () {
+      // Would send the user into a flow offering one speaker — the dead end
+      // this gate exists to prevent.
+      expect(canGroupSpeaker(_standalone([_one, _unreachable]), 'A'), isFalse);
+    });
   });
 
   group('canGroupSub', () {
@@ -49,6 +59,10 @@ void main() {
 
     test('a soundbar does not count toward the two speakers', () {
       expect(canGroupSub(_standalone([_sub, _bar, _one])), isFalse);
+    });
+
+    test('unreachable speakers do not make up the two', () {
+      expect(canGroupSub(_standalone([_sub, _one, _unreachable])), isFalse);
     });
   });
 }

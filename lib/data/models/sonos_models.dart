@@ -448,8 +448,15 @@ class SonosSystem {
   /// excluded by [bondableSpeakers]). Hardware-confirmed that Play:1 (not on
   /// Sonos' official list) zones fine, so we don't gate on the model list —
   /// create polls to confirm and surfaces a clear error if Sonos rejects it.
+  ///
+  /// Unreachable is excluded here but NOT in [bondableSpeakers], and the
+  /// difference is deliberate: the HT picker shows an unreachable speaker as a
+  /// disabled row explaining itself, whereas the group flow omits it. Counting
+  /// what the flow won't offer is what made the room page's "Group with another
+  /// speaker" shortcut dead-end on one candidate — so the gate and the flow read
+  /// this one list.
   List<SonosDevice> get zoneableSpeakers =>
-      bondableSpeakers.where((d) => !d.isAmp).toList();
+      bondableSpeakers.where((d) => !d.isAmp && d.reachable).toList();
 
   /// Standalone Sonos Subs free to bond as the `SW` channel of a home theater.
   List<SonosDevice> get bondableSubs {

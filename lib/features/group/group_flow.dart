@@ -131,9 +131,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     // them back in so they show selected and deselecting is reversible (mirrors
     // the HT flow's `avail`/`freeSubs`).
     final existing = _editing ? system.memberByUuid(widget.editUuid!) : null;
-    final candidates = system.zoneableSpeakers
-        .where((d) => d.reachable)
-        .toList();
+    final candidates = system.zoneableSpeakers.toList();
     final subs = system.bondableSubs.where((d) => d.reachable).toList();
     if (existing != null) {
       for (final u in existing.groupChannels.keys) {
