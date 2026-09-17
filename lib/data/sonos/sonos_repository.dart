@@ -103,12 +103,12 @@ class SonosRepository {
     //
     // SATELLITES COUNT. They are `<Satellite>` children, not members, so a
     // members-only sweep left an SSDP-missed Sub absent from `devicesByUuid`
-    // and every consumer resolved it to null: the HT page showed "Speaker" for
-    // it, the setup flow said "no free subwoofer found", and: the reason this
-    // is not cosmetic: the flow builds its target map from resolved devices,
-    // so an apply would have dropped the SW channel and `RemoveHTSatellite`'d
-    // the user's Sub with no warning (which per EXP-23 also wipes the bond's
-    // Trueplay). Seen live on hardware.
+    // and every consumer resolved it to null. The HT page showing "Speaker" for
+    // it and the setup flow reporting no free subwoofer are the cosmetic half;
+    // the other half is not: the flow builds its target map from resolved
+    // devices, so an apply would have dropped the SW channel and
+    // `RemoveHTSatellite`'d the user's Sub with no warning (which per EXP-23
+    // also wipes the bond's Trueplay). Seen live on hardware.
     //
     // INVISIBLE MEMBERS COUNT for the same reason. A stereo-pair half and every
     // non-coordinator zone member is its own `Invisible="1"` member, and a
@@ -117,16 +117,30 @@ class SonosRepository {
     // hidden or not makes no difference; `allMembers` filters Invisible where it
     // belongs, at the topology, not by leaving the device unresolvable. It also
     // gets a standalone Sub (Invisible as well) a real description.
-    final missing = [
+    //
+    // Keyed by uuid: mid-settle the same speaker can show up BOTH as a member
+    // and as some coordinator's `<Satellite>` (the topology lag behind
+    // `dropSelfConflictingSingles`), and fetching it twice is pointless.
+    final missing = {
       for (final g in groups)
-        for (final m in g.members) ...[
+        for (final m in g.members) ...{
           if (m.location != null && !devicesByUuid.containsKey(m.uuid))
-            (uuid: m.uuid, name: m.zoneName, location: m.location!, ip: m.ip),
+            m.uuid: (
+              uuid: m.uuid,
+              name: m.zoneName,
+              location: m.location!,
+              ip: m.ip
+            ),
           for (final s in m.satellites)
             if (s.location != null && !devicesByUuid.containsKey(s.uuid))
-              (uuid: s.uuid, name: s.zoneName, location: s.location!, ip: s.ip),
-        ],
-    ];
+              s.uuid: (
+                uuid: s.uuid,
+                name: s.zoneName,
+                location: s.location!,
+                ip: s.ip
+              ),
+        },
+    }.values;
     if (missing.isNotEmpty) {
       final recovered = await Future.wait(missing.map((m) async {
         try {

@@ -125,6 +125,26 @@ class _FakeSatelliteTopology extends ZoneTopologyClient {
       ];
 }
 
+/// Mid-settle (the ~15s topology lag): the Sub reads BOTH as the bar's
+/// `<Satellite>` and as its own member, the same double-listing behind
+/// `dropSelfConflictingSingles`.
+class _FakeDoubleListedTopology extends ZoneTopologyClient {
+  _FakeDoubleListedTopology() : super(SonosSoapClient());
+
+  @override
+  Future<List<ZoneGroup>> getZoneGroups(String ip) async => [
+        ...await _FakeSatelliteTopology().getZoneGroups(ip),
+        const ZoneGroup(coordinatorUuid: 'RINCON_SUB01400', members: [
+          ZoneGroupMember(
+            uuid: 'RINCON_SUB01400',
+            zoneName: 'Sub',
+            location: _subUrl,
+            invisible: true,
+          ),
+        ]),
+      ];
+}
+
 void main() {
   // A satellite is a `<Satellite>` child, not a member, so a members-only
   // recovery sweep left an SSDP-missed Sub absent from `devicesByUuid`, and
@@ -144,6 +164,18 @@ void main() {
     expect(sub, isNotNull, reason: 'the Sub must resolve, or an apply silently drops it');
     expect(sub!.modelName, 'Sonos Sub');
     expect(sub.reachable, isTrue);
+  });
+
+  test('a speaker listed twice mid-settle is fetched once', () async {
+    final descriptions = _FakeDescriptions();
+    await SonosRepository(
+      ssdp: _FakeSsdp(),
+      descriptions: descriptions,
+      topology: _FakeDoubleListedTopology(),
+    ).discover();
+
+    expect(descriptions.calls[_subUrl], 1,
+        reason: 'member + satellite are the same speaker, one Location');
   });
 
   test('an undescribable satellite is kept, flagged unreachable', () async {

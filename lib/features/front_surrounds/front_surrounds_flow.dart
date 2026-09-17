@@ -154,7 +154,15 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         if (system.device(id) case final d?) out.add(d);
       }
 
-      for (final d in system.bondableSpeakers) {
+      // Free candidates must be reachable, because this picker's card
+      // (`SelectableSpeakerCard`) has no disabled-unreachable state — unlike the
+      // sub picker's `BondableSpeakerTile` below, which renders one, so free
+      // subs stay unfiltered. A device whose description couldn't be read has an
+      // unknown model, so `isSub` reads false on it and a Sub would offer itself
+      // as a front. Mirrors `GroupFlow`'s filter. This HT's OWN speakers are
+      // added below regardless — a satellite refusing :1400 right after bonding
+      // is normal, and dropping it would make a pre-selection unrecoverable.
+      for (final d in system.bondableSpeakers.where((d) => d.reachable)) {
         consider(d.uuid);
       }
       for (final id in htOwn) {
