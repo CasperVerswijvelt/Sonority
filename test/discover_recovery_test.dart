@@ -162,10 +162,11 @@ class _FakeStaleLocationDescriptions extends _FakeDescriptions {
   }
 }
 
-/// Some firmwares omit `Location` on a `<Satellite>` (see the fixture in
-/// zone_topology_test) — then there is nothing to re-fetch from. The Sub is ALSO
-/// listed as its own Invisible member here (no Location either), the mid-settle
-/// double-listing the sweep dedupes: it must be named once, not twice.
+/// `Location` is an optional attribute in the XML we parse, so a `<Satellite>`
+/// can arrive without one — then there is nothing to re-fetch from. The Sub is
+/// ALSO listed as its own Invisible member here (no Location either), the
+/// mid-settle double-listing the sweep dedupes: it must be stubbed once, and
+/// named once in the log, not twice.
 class _FakeLocationlessSatelliteTopology extends ZoneTopologyClient {
   _FakeLocationlessSatelliteTopology() : super(SonosSoapClient());
 
@@ -221,18 +222,22 @@ void main() {
     expect(DiagnosticsLog.lines.join('\n'), contains('stale Location'));
   });
 
-  test('a satellite with no Location is reported, not silently forgotten', () async {
+  test('a satellite with no Location is stubbed, not silently forgotten', () async {
     final system = await SonosRepository(
       ssdp: _FakeSsdpAOnly(),
       descriptions: _FakeDescriptions(),
       topology: _FakeLocationlessSatelliteTopology(),
     ).discover();
 
-    expect(system.device('RINCON_SUB01400'), isNull,
-        reason: 'nothing to fetch from — unchanged, but it must be diagnosable');
-    // Named exactly once, even though the topology lists it twice.
-    expect(DiagnosticsLog.lines.join('\n'),
-        contains('no description and no Location for RINCON_SUB01400 — left'));
+    // Nothing to fetch from, but resolving to null is exactly the failure this
+    // sweep exists to prevent: the HT flow builds its target map from resolved
+    // devices, so an unresolved Sub is silently dropped from the bond.
+    final sub = system.device('RINCON_SUB01400');
+    expect(sub, isNotNull, reason: 'kept: it IS in the authoritative topology');
+    expect(sub!.reachable, isFalse);
+    expect(sub.ip, isNull, reason: 'no Location means no address either');
+    // Stubbed once and logged once, even though the topology lists it twice.
+    expect(DiagnosticsLog.lines.where((l) => l.contains('no Location')), hasLength(1));
   });
   // A satellite is a `<Satellite>` child, not a member, so a members-only
   // recovery sweep left an SSDP-missed Sub absent from `devicesByUuid`, and
