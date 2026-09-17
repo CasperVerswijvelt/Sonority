@@ -1,6 +1,10 @@
-/// Recipes for Sonos **speaker groups** — the channel-map bonds (`AddBondedZones`)
-/// behind stereo pairs, zones, and custom L/R layouts. 2–16 individual speakers
-/// bond into one room; each plays a chosen channel; an optional Sub joins on `SW`.
+/// Recipes for Sonos **speaker groups** — the channel maps behind stereo pairs,
+/// zones, and custom L/R layouts. 2–16 individual speakers bond into one room;
+/// each plays a chosen channel; an optional Sub joins on `SW`.
+///
+/// The maps here are wire-format-neutral: the same `UUID:CH,CH;…` string feeds
+/// the `zones` namespace on :1443 (which is how groups bond now) and the legacy
+/// `AddBondedZones` SOAP call.
 ///
 /// Pure (no Flutter / repository deps) so the CLI tools can reuse it — same
 /// reason `front_layout.dart` exists separately.
@@ -48,12 +52,16 @@ String buildGroupMap(
 
 /// Whether an edit of a live group (from [currentUuids] — its bonded members
 /// incl. any Sub, coordinator first — to [targetUuids] with coordinator
-/// [targetCoordUuid]) can apply IN PLACE via a single `AddBondedZones` re-assert,
-/// vs. needing a dissolve-then-recreate. In place iff the coordinator is
-/// unchanged AND no current member is dropped (adds + channel reassignments only).
-/// Hardware-confirmed (`tool/group_reassert_spike.dart`): `AddBondedZones`
-/// adds/reassigns a live group in place, but faults on any map that drops a
-/// currently-bonded member — so a removal (or a coordinator change) must dissolve.
+/// [targetCoordUuid]) keeps every current member under the same coordinator, i.e.
+/// it only adds members and/or reassigns channels.
+///
+/// ⚠️ This no longer selects a code path. It USED to: the legacy `AddBondedZones`
+/// path could re-assert such an edit in place but faulted on any map that dropped
+/// a member, so anything else had to dissolve-and-recreate
+/// (`tool/group_reassert_spike.dart`). The zones API applies every shape in one
+/// write, so `SonosController.editGroup` keeps this only to pick the
+/// progress-step label ("Apply changes" vs "Bond speakers"). [groupEditIsPureDrop]
+/// is the one that still picks a primitive.
 bool groupEditIsInPlace({
   required List<String> currentUuids,
   required List<String> targetUuids,

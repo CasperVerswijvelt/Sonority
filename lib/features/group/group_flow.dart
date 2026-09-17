@@ -24,9 +24,8 @@ enum _Mode { stereo, zone, custom }
 ///
 /// When [editUuid] is set the flow reconfigures that existing group instead of
 /// creating one: it seeds its selection from the live group and applies via
-/// `SonosController.editGroup` (in-place re-assert for adds/channel changes,
-/// dissolve-then-recreate only when a member is dropped). Mirrors the HT
-/// "Configure" flow (`FrontSurroundsFlow`).
+/// `SonosController.editGroup` (one write for every edit shape — see there).
+/// Mirrors the HT "Configure" flow (`FrontSurroundsFlow`).
 class GroupFlow extends ConsumerStatefulWidget {
   /// When set, reconfigure this existing group instead of creating one.
   final String? editUuid;

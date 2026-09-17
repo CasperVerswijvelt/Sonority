@@ -199,7 +199,6 @@
   "stepEditGroup": "Update group",
   "stepUpdateGroup": "Apply changes",
   "stepSeparateGroup": "Separate group",
-  "stepSeparateRestore": "Separate + restore room names",
   "stepFreeFromBond": "Free from its current bond",
   "stepFreeConflicting": "Free conflicting speakers",
   "stepFreeing": "Freeing {name}",
@@ -604,7 +603,7 @@
     }
   },
   "groupSeparateConfirmTitle": "Separate group?",
-  "groupSeparateConfirmMessage": "The speakers become standalone rooms again. Their original room names will be restored.",
+  "groupSeparateConfirmMessage": "The speakers become standalone rooms again, each under its own room name.",
   "groupSeparateProgressTitle": "Separate group",
   "groupFlowTitle": "Group speakers",
   "groupEditTitle": "Configure group",

@@ -70,6 +70,13 @@ Flutter is **not on PATH**; this machine uses **fvm, Flutter 3.44.6**:
 ~/fvm/versions/3.44.6/bin/dart run tool/<x>.dart
 ```
 - `flutter analyze` and `flutter test` must stay green before committing.
+- **NEVER run `dart format` on this repo** — it is not format-clean, so a single
+  run rewrote **~600 lines of untouched code** and buried the actual change. Cost
+  a full manual recovery (save the edited copies, `git checkout` the originals,
+  re-apply every edit by hand). Match the surrounding style by hand instead.
+- **A `python3` patch script that `assert`s mid-way silently loses the
+  replacements it already made** (they were only in memory; the write never
+  happened). Cost two redone edits. Assert every match FIRST, then write once.
 - **Android build (AGP 9 / Gradle 9 gotchas, cost real debugging):** on AGP 9
   `android.newDsl=true` is the default and breaks the old `android { kotlinOptions {} }`
   block — `build.gradle.kts` uses the new DSL (top-level `kotlin { compilerOptions {} }`,
@@ -154,8 +161,12 @@ interpolated) then use it.
   renderers: `friendlyError()` (engine, English — for CLI tools + the diagnostics
   bundle, and the fallback) and `localizedError(AppLocalizations, e)`
   (`lib/state/localized_error.dart` — the UI wording chokepoint; also maps
-  Timeout/SOAP-fault/`OperationCancelled`/`SpeakerUnreachable`, falls back to
-  `friendlyError`). The raw op log + diagnostics bundle stay English by design.
+  Timeout/SOAP-fault/`OperationCancelled`/`SpeakerUnreachable`/`ZoneApiException`,
+  falls back to `friendlyError`). The raw op log + diagnostics bundle stay English
+  by design. **`ZoneApiException` is the one that quotes rather than translates**:
+  the zones namespace names its own refusals (`zone def not found`, `update only
+  allows add or remove, not both`), which is far more use to a reporter than a
+  paraphrase, so `errBondRefused` interpolates Sonos' wording verbatim.
 - Model-layer English getters (`kindLabel`, `groupKindLabel`, `groupChannelShort`)
   stay English (CLI/pure); the UI maps the enum to `entityKind*` keys at the call
   site (`_kindLabel` in the controller, `groupKindL10n` in `entity_cards.dart`).
@@ -368,8 +379,12 @@ current firmware runs a **newer, structured bond model** on the players' HTTPS p
 `X-Sonos-Api-Key: 123e4567-e89b-12d3-a456-426655440000`; self-signed cert):
 `https://<ip>:1443/api/v1/...` (REST) and `wss://<ip>:1443/websocket/api`
 (subprotocol `v1.api.smartspeaker.audio`). It is **undocumented** — absent from SoCo,
-node-sonos and the svrooij docs — so **feature-detect, never version-gate**: one
-`GET /api/v1/households/local/zones` returning an `activeZoneList` is the probe.
+node-sonos and the svrooij docs — so **feature-detect, never version-gate**. The
+cheapest detection is not a dedicated probe at all: opening a session refuses by
+name in ~4ms when the namespace is absent (see *In the engine today*). A REST
+`GET /api/v1/households/local/zones` returning an `activeZoneList` (~55ms) is the
+read to use when you only want a look, as the e2e gate and
+`tool/bond_timing.dart` do.
 - **Two objects.** A **`zoneDefinition`** is a *stored* bond config
   (`{zoneId(uuid), name, primaryId, members:[{id, channelMap, settings.gainTrimDB}]}`)
   — the household keeps a whole library of them (17 on the dev rig, including old
@@ -431,8 +446,21 @@ node-sonos and the svrooij docs — so **feature-detect, never version-gate**: o
   | Dissolve a group | detach → `SeparateStereoPair` → restore names | `deactivateZone` | ✅ 1 call, **no detach step** |
   | `freeSpeaker` (conflict) | detach + settle + separate | *nothing* for a speaker moving between zone-API bonds; **still needed** to pull one out of a legacy HT bond | ⚠️ partly |
 
+  **It is NOT uniformly faster, and the table's "1 call" hides that**
+  (`tool/bond_timing.dart`, medians of 3 rounds on the Beam rig, timed to the
+  moment :1400 topology reports the end state): remove a member **14.4s → 5.0s**
+  (2.9×) and dissolve **9.8s → 3.9s** (2.5×), but the three ops that were already
+  a single SOAP write come out ~2s SLOWER — add 5.7s → 8.7s, channel change
+  3.4s → 5.5s, create 3.7s → 5.6s. A zones op is a TLS handshake plus a websocket
+  subscribe before the write where SOAP is one HTTP POST; per-command connecting
+  was far worse again (four handshakes for one apply) and is already gone, so the
+  residual gap is the protocol shape, not waste. **The robustness column is the
+  real argument** and it doesn't trade off: every op converges in ONE attempt with
+  a named error on refusal, versus a re-assert loop against `UPnPError 800`
+  (SOAP needed 2 attempts every round for a removal).
+
   Member **removal in place** is the standout: `AddBondedZones` 800s on any map
-  that drops a member (hence `editGroup`'s dissolve-then-recreate), and
+  that drops a member (hence `editGroup`'s old dissolve-then-recreate), and
   `updateZoneDefinition` just does it — Gym left the live Eetkamer zone in one
   call, keeping its room name.
 - **Limits found (all clean, named, non-destructive — the failed call changes
@@ -442,15 +470,27 @@ node-sonos and the svrooij docs — so **feature-detect, never version-gate**: o
     reassignment (even for a single member) and refuses add+remove in one call.
     Reassignment goes through `add` a new definition + `activateZone` instead.
   - `addZoneDefinition` rejects a **single-member** definition.
-  - Definitions **accumulate** — there is no dedupe, so anything created must be
-    `removeZoneDefinition`'d, and a definition can't be removed while active.
-  - **`activateZone` can refuse with `new primary activation failed`** when a
-    DIFFERENT definition is already active over the same coordinator — observed
-    repeatedly while switching back to a previous definition, and it does not
-    clear on retry; `deactivateZone` the live one first and it activates
-    immediately. Not universal (activating over a live group usually works, which
-    is what the app relies on), so treat it as one more reason the fallback
-    exists rather than a rule.
+  - Definitions **accumulate** — `addZoneDefinition` does no dedupe *by name*, so
+    anything created must be `removeZoneDefinition`'d, and a definition can't be
+    removed while active. ⚠️ But it is not a blind append either, and the two
+    behaviours look contradictory until you separate them: an add can legitimately
+    store **nothing new**, because Sonos folds it onto an equivalent definition it
+    already has. Identifying what you just stored by set difference alone therefore
+    reports a false failure — measured, it broke **1 of 3** timed rounds
+    (`zones API stored no definition`). Match again after the add as a fallback;
+    whatever it deduped onto is usable. The same run showed the *match* has to
+    treat member ORDER as insignificant (coordinator exact, the rest unordered,
+    token multiplicity preserved — `sameChannelMap` in `zone_layout.dart`), or the
+    reuse check misses and you end up in exactly that false-failure path.
+  - **`activateZone` can refuse when a DIFFERENT definition is already active
+    over the same coordinator**, and it does not clear on retry; `deactivateZone`
+    the live one first and it activates immediately. **Two wordings seen**:
+    `new primary activation failed` and a bare `activateZone failed`, which is why
+    the engine keys its recovery on "something else is live over this coordinator"
+    — the actual precondition — rather than on the message. Not universal:
+    activating over a live group usually works, which is the common case. The
+    engine recovers from this in place (`_activateZone`); it is NOT a reason for a
+    fallback, and there isn't one.
 - **`activateZone` applies the definition's `name` as the ROOM NAME.** Cuts both
   ways: profile name-restore could come free, but a stale definition name renames
   a real room (activating this household's `f5153841` renamed "Eetkamer" →
@@ -500,9 +540,11 @@ node-sonos and the svrooij docs — so **feature-detect, never version-gate**: o
   would fire a second live write on top of a change already in flight, and a named
   refusal is something the user should be told about (`ZoneApiException` →
   `errBondRefused`, quoting Sonos' own wording) rather than have papered over. A
-  settings toggle to force the legacy path is the planned escape hatch; detection
-  can never cover "namespace present but misbehaving", which is the case a toggle
-  is actually for.
+  settings toggle to force the legacy path is a **candidate future improvement,
+  not planned work** — build it only if user reports actually show it is needed.
+  What makes it the right shape *if* they do: detection can answer "is the
+  namespace there?" but never "is it working properly on this household?", and
+  that second case is the only one a manual override helps with.
   **There is deliberately no capability probe.** Measured: an absent namespace
   refuses the subscribe **by name** (`ERROR_UNSUPPORTED_NAMESPACE`) in **~4ms**, and
   a websocket connect is ~68ms — so opening the session IS the detection, and a
@@ -562,7 +604,9 @@ Plain HTTP, read-only, handy in diagnostics: `/status` indexes them.
 - **`/status/zp`** — `<BuildType>` is the update channel (**`beta`** vs **`release`**)
   and `<ZoneName>` includes the device's own channel role, e.g. `Woonkamer (LF)`.
   The dev household is **enrolled in the Sonos beta programme**, mixed per model
-  (Beam/One/One SL `96.1-78270` beta; Play:1/Sub `86.8-78270` release).
+  (Beam/One/One SL `96.1-78270` beta; Play:1/Sub `86.8-78270` release). Opt-out was
+  started 2026-09-16 and had NOT taken effect as of 2026-09-17 — `CheckForUpdate`
+  still offers `97.2-81110` from a `releases/beta/` URL.
 - **`/status/wireless`** — `STATION_SATELLITE_MODE` for a bonded satellite.
   ⚠️ **`BusyClients: NO_PRIMARY` is NOT a "this satellite is unbonded" signal** — it
   appears on every device including the coordinator (it's about SonosNet peers).
@@ -720,8 +764,12 @@ Run on the same Wi-Fi as the Sonos system:
   existing group via Configure and removes it again, asserting BOTH the resulting
   topology **and** that `operationLogProvider` says the zones API did it — a SOAP
   fallback would land the identical end state while proving nothing. Self-restoring;
-  skips itself on a household with no zone service or no spare speaker. Two traps it
-  encodes: the flow's `Stepper` renders its control row for EVERY step (so
+  skips itself on a household with no zone service or no spare speaker. NB it
+  restores the *topology* but not the definition library: the recreate stores a
+  definition under the room's real name rather than reusing one with a stale name
+  (deliberate — a stale name renames a real room), so a household whose group was
+  driven by a stale-named definition gains **one** entry the first time this runs.
+  Self-limiting: later runs reuse it. Two traps it encodes: the flow's `Stepper` renders its control row for EVERY step (so
   `find.text('Continue')` is ambiguous — tap only the `hitTestable()` one), and the
   review step sits below the fold (`ensureVisible` first).
 - `tool/zone_api_probe.dart` — the **newer :1443 `zones` bond model** (see above):
@@ -884,20 +932,21 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   `SonosSystem.isStandalone` (a bonded member blinks only — a chime plays the
   whole bond).
 - ✅ **Speaker groups** (`features/group/group_flow.dart`, `zone_layout.dart`) —
-  one unified "Group speakers" page (Stereo / Zone / Custom segmented control)
-  over a single `AddBondedZones` path: stereo pair (L/R), full-range zone (2–16),
-  custom per-speaker L/R/Both, each with an optional Sub (`UUID:SW`). Separate via
-  detach → `SeparateStereoPair` on the live map; names restored. Overview shows
-  them in one "Speaker groups" section (`groupKind`-labelled); captured in
-  profiles (`EntityKind.stereoPair/zone/custom`). Not gated to Sonos' official
-  model list (Play:1 + Sub-in-group confirmed on hardware; audio routing verified).
+  one unified "Group speakers" page (Stereo / Zone / Custom segmented control):
+  stereo pair (L/R), full-range zone (2–16), custom per-speaker L/R/Both, each with
+  an optional Sub (`UUID:SW`). Overview shows them in one "Speaker groups" section
+  (`groupKind`-labelled); captured in profiles
+  (`EntityKind.stereoPair/zone/custom`). Not gated to Sonos' official model list
+  (Play:1 + Sub-in-group confirmed on hardware; audio routing verified).
+  **Bonding goes through the `zones` namespace on :1443**, not `AddBondedZones` —
+  create, dissolve and every edit are one call each (see that section above; the
+  SOAP calls remain as the separate legacy path).
   **Reconfigurable:** a "Configure" button on the group detail page reopens the
   same flow seeded from the live group (`GroupFlow(editUuid:)`, nested in-shell
-  route `/group/:uuid/edit`) and applies via the diff-based
-  `SonosController.editGroup` — in-place `AddBondedZones` re-assert for adds +
-  channel changes (no teardown), dissolve-then-recreate only when a member is
-  dropped (hardware-confirmed; see the AddBondedZones notes above). Mirrors the HT
-  "Configure" action.
+  route `/group/:uuid/edit`) and applies via `SonosController.editGroup` — one
+  write for every edit shape (add, channel change, member drop, coordinator
+  change); a pure drop prefers `updateZoneDefinition`, everything else activates
+  the target layout. Mirrors the HT "Configure" action.
 - ✅ **Full in-app HT setup** — the guided flow now bonds fronts **+ rear surrounds
   (LR/RR) + a sub (SW)**, each optional, applied via the **diff-based**
   `_applyHtTarget` (no-op when unchanged, else add what's missing) + a live
@@ -984,6 +1033,17 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 - ✅ CI release pipeline.
 - Candidate next: channel-level/height trim (overlaps the app — weak). Discovery
   now recovers topology-only speakers when a description fetch fails (done upstream).
+- **Possible future improvement, REPORT-DRIVEN — a "use the legacy bonding path"
+  toggle.** Group bonding runs on the undocumented `zones` namespace with no
+  automatic fallback (deliberate — see that section). A Diagnostics-tab switch
+  forcing the legacy `AddBondedZones`/`SeparateStereoPair` path would cover the one
+  failure mode feature detection structurally cannot: the namespace being *present
+  but misbehaving* on some firmware/hardware mix we've never seen. **Don't build it
+  speculatively** — the legacy path is intact in the engine, so it stays cheap to
+  wire up, and it should only be wired if diagnostics bundles / user reports
+  actually show bonding failing where the legacy path would have worked. Absent
+  such a report this is YAGNI, and a second bonding path users can toggle is also
+  a second path to support.
 
 ## Recurring workflows
 

@@ -1,12 +1,21 @@
 // Bonding-cost benchmark: the LEGACY :1400 SOAP path vs the NEWER `zones`
 // namespace on :1443, op for op, on real hardware.
 //
-// CLAUDE.md claims the zones API does in ONE call what the SOAP path needs a
-// re-assert loop (or a full dissolve-and-rebuild) for. That claim is currently
-// backed by single observations. This tool measures both paths for the five
-// group-bonding operations Sonority actually performs, repeatedly, and reports
-// min/median/max wall time plus the number of write attempts each needed — the
-// robustness half, which a stopwatch alone hides.
+// Measures both paths for the five group-bonding operations Sonority performs,
+// repeatedly, reporting min/median/max wall time plus the number of write
+// attempts each needed — the robustness half, which a stopwatch alone hides.
+//
+// WHAT IT FOUND (medians of 3 rounds, Beam rig, 2026-09-17) — the zones API is
+// NOT uniformly faster, which is worth knowing before quoting it as "faster":
+//   remove a member  14.4s → 5.0s   (2.9× faster, and 2 SOAP attempts → 1)
+//   dissolve          9.8s → 3.9s   (2.5× faster)
+//   add a member      5.7s → 8.7s   (SLOWER)
+//   channel change    3.4s → 5.5s   (SLOWER)
+//   create from bare  3.7s → 5.6s   (SLOWER)
+// The two multi-step ops win big; the three that were already one SOAP POST lose
+// ~2s to a TLS handshake plus a websocket subscribe. The robustness column is the
+// real argument: every zones op converged in ONE attempt with a named error on
+// refusal, versus re-asserting against `UPnPError 800`.
 //
 //   dart run tool/bond_timing.dart                            # dry run (plan only)
 //   dart run tool/bond_timing.dart --confirm                  # LIVE, self-restoring
@@ -465,13 +474,11 @@ Future<int> _until(
   throw StateError('never verified after $_maxAttempts attempt(s)');
 }
 
-/// The zones-API primitives return false for "can't do it — fall back to SOAP"
-/// instead of throwing. For a benchmark that is a hard failure of the path under
-/// test, not something to retry.
-/// `dropGroupMembersViaZoneApi` is the one entry point that still answers with a
-/// bool: false means "no live zone definition to mutate", i.e. the app would
-/// activate the target layout instead. Here that is a declined round, since the
-/// point is to time THAT primitive.
+/// `dropGroupMembersViaZoneApi` is the one entry point that answers with a bool
+/// rather than throwing: false means "no live zone definition to mutate", so the
+/// app would activate the target layout instead (still the zones path — there is
+/// no SOAP fallback). For a benchmark that is a declined round, since the point is
+/// to time THAT primitive.
 Future<void> _zones(Future<bool> Function() call) async {
   if (!await call()) throw const _Declined('no live zone to update in place');
 }

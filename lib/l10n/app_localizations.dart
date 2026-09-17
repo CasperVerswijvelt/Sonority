@@ -574,12 +574,6 @@ abstract class AppLocalizations {
   /// **'Separate group'**
   String get stepSeparateGroup;
 
-  /// No description provided for @stepSeparateRestore.
-  ///
-  /// In en, this message translates to:
-  /// **'Separate + restore room names'**
-  String get stepSeparateRestore;
-
   /// No description provided for @stepFreeFromBond.
   ///
   /// In en, this message translates to:
@@ -1621,7 +1615,7 @@ abstract class AppLocalizations {
   /// No description provided for @groupSeparateConfirmMessage.
   ///
   /// In en, this message translates to:
-  /// **'The speakers become standalone rooms again. Their original room names will be restored.'**
+  /// **'The speakers become standalone rooms again, each under its own room name.'**
   String get groupSeparateConfirmMessage;
 
   /// No description provided for @groupSeparateProgressTitle.

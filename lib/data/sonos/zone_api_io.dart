@@ -6,10 +6,12 @@
 /// reconfigures a live bond in ONE call. See CLAUDE.md ("The `zones` namespace on
 /// :1443") for the hardware findings behind every method here.
 ///
-/// This is **the** bonding path. The :1400 SOAP bonding calls are kept in the
-/// engine as the legacy path (`bondAndVerify`, `createGroup`, `separateGroup`,
-/// `reassertGroup`) — split off, NOT wired as a mid-operation fallback, so a
-/// refusal here is an error rather than a second write on top of the first.
+/// This is **the** bonding path for speaker GROUPS. The :1400 SOAP bonding calls
+/// are kept in the engine as the legacy path (`bondAndVerify`, `createGroup`,
+/// `separateGroup`, `reassertGroup`) — split off, NOT wired as a mid-operation
+/// fallback, so a refusal here is an error rather than a second write on top of
+/// the first. A home theater is the exception and still bonds over SOAP: an
+/// activation cannot change `HTSatChanMapSet` (measured — `tool/ht_zone_check.dart`).
 /// There is deliberately no capability probe either: an absent namespace refuses
 /// the subscribe by name (`ERROR_UNSUPPORTED_NAMESPACE`) in ~4ms, so the
 /// operation itself is the detection.
@@ -21,10 +23,12 @@
 /// websocket, so a multi-step operation runs inside [withSession]: ONE socket and
 /// ONE household lookup for the whole burst. That is not a micro-optimisation —
 /// connecting per command made `applyBondViaZoneApi` pay four TLS handshakes and
-/// measured SLOWER than the SOAP path it replaces (`tool/bond_timing.dart`:
-/// add 3.8s SOAP vs 7.3s zones). Subscribing also delivers the active zones and
-/// the definition library, and Sonos pushes a fresh copy after any change, so
-/// reads inside a session cost no extra round trip.
+/// measured SLOWER than the SOAP path it replaces (`tool/bond_timing.dart`, in
+/// that superseded per-command run: add 3.8s SOAP vs 7.3s zones — the current
+/// medians for the sessioned version are the ones in CLAUDE.md, not these).
+/// Subscribing also delivers the active zones and the definition library, and
+/// Sonos pushes a fresh copy after any change, so reads inside a session cost no
+/// extra round trip.
 /// Reached through the `zone_api.dart` barrel so the screenshot-only web/demo
 /// build gets a throwing stub instead.
 library;

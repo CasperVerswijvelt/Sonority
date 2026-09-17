@@ -1,7 +1,8 @@
 // Probe for the NEWER Sonos bond model: the `zones` namespace on port 1443.
 //
 // Current firmware runs a second, structured bond model alongside the :1400
-// HTSatChanMapSet/ChannelMapSet SOAP world Sonority uses today. It is
+// HTSatChanMapSet/ChannelMapSet SOAP world. Sonority's speaker-group bonding now
+// runs on this namespace; only home theaters still use the SOAP calls. It is
 // guest-accessible (no auth, well-known API key), gives *named* errors instead of
 // `UPnPError 800`, and applies a whole layout in ONE call. See CLAUDE.md
 // ("The `zones` namespace on :1443").

@@ -957,7 +957,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       tracker.start('ungroup');
       final ph = _phases(tracker, 'ungroup');
       ph.seed([
-        ('separate', l10n.stepSeparateRestore),
+        ('separate', l10n.stepUnbondN(members.length)),
         ('settle', l10n.stepWaitForSettle),
       ]);
       try {
@@ -965,7 +965,7 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         // coordinator out of its playback group first (which `SeparateStereoPair`
         // silently no-ops without), and no per-member name restore (members keep
         // their room names — hardware-confirmed).
-        ph.phase('separate', l10n.stepSeparateRestore);
+        ph.phase('separate', l10n.stepUnbondN(members.length));
         await _zoneApiDissolve(
           ip: coord.ip,
           coordinatorUuid: coord.uuid,
@@ -1001,12 +1001,17 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   }
 
   /// Reconfigures an [existing] bonded group to the target [members] (+ optional
-  /// [sub] / [name]). Diff-based (hardware-confirmed, `tool/group_reassert_spike`):
-  /// if the target keeps every current member and the coordinator is unchanged,
-  /// re-asserts the new map IN PLACE (adds + channel changes — no teardown, no
-  /// audio interruption); otherwise (a member/sub is dropped, or the coordinator
-  /// changes) dissolves the group and recreates it, since `AddBondedZones` faults
-  /// on any map that drops a bonded member. Mirrors the HT `_applyHtTarget` split.
+  /// [sub] / [name]) in ONE zones-API write, whatever the shape of the edit: an
+  /// added member, a channel reassignment, a dropped member, or a different
+  /// coordinator. A pure removal prefers `updateZoneDefinition` (it mutates the
+  /// live definition, keeping its `zoneId`); everything else activates the target
+  /// layout. A no-op edit (e.g. name-only) writes nothing.
+  ///
+  /// The legacy SOAP path needed three shapes here — an in-place `AddBondedZones`
+  /// re-assert for adds/channel changes, and detach → dissolve → recreate →
+  /// restore every name when a member was dropped, because `AddBondedZones`
+  /// faults on any map that drops a bonded speaker. `inPlace` survives only to
+  /// pick the progress-step label.
   Future<void> editGroup({
     required ZoneGroupMember existing,
     required List<({SonosDevice device, GroupChannel channel})> members,

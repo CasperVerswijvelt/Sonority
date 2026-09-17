@@ -663,11 +663,15 @@ class SonosRepository {
     return mine;
   }
 
-  /// Apply a whole bond — home theater, stereo pair, zone, custom layout — in ONE
-  /// call, instead of `AddHTSatellite`'s 4–6 re-assert loop or `AddBondedZones` +
-  /// poll-verify. The target map is applied verbatim, so it also handles the
-  /// satellites a layout DROPS, which is why no `RemoveHTSatellite` step precedes
-  /// it any more.
+  /// Apply a whole GROUP bond — stereo pair, zone, custom layout — in ONE call,
+  /// instead of `AddBondedZones` + poll-verify, a re-assert loop for a channel
+  /// change, or a dissolve-and-recreate when a member is dropped. The target map
+  /// is applied verbatim, so one activation covers every edit shape.
+  ///
+  /// ⚠️ NOT for home theaters, even though the map format is the same: an
+  /// activation does not change `HTSatChanMapSet` at all (measured — see
+  /// `SonosController._applyHtTarget` and `tool/ht_zone_check.dart`), so an HT
+  /// goes through `bondAndVerify` on the legacy path instead.
   ///
   /// Reuses a stored definition whose map AND name already match, else stores a
   /// new one: the namespace does **no dedupe**, so blindly adding on every apply
