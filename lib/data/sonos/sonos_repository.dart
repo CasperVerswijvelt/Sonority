@@ -121,8 +121,12 @@ class SonosRepository {
     //
     // Keyed by uuid: mid-settle (the ~15s lag) one speaker can read BOTH as a
     // member and as some coordinator's `<Satellite>`, and fetching it twice is
-    // pointless. Which of the two Locations wins is document order — they come
-    // from one `GetZoneGroupState`, so they agree in practice.
+    // pointless. Normally both carry a `Location` and they agree — one
+    // `GetZoneGroupState`, so document order is a fine tie-break. But only one
+    // of the two needs an address for the re-fetch to work, and a map literal
+    // is LAST-write-wins, so a location-less duplicate listed second would
+    // otherwise silently beat a usable one and cost us the fetch entirely.
+    // Hence two passes, location-less first.
     final entries = [
       for (final g in groups)
         for (final m in g.members) ...[
@@ -133,7 +137,9 @@ class SonosRepository {
     ];
     final missing = {
       for (final e in entries)
-        if (!devicesByUuid.containsKey(e.uuid)) e.uuid: e,
+        if (e.location == null && !devicesByUuid.containsKey(e.uuid)) e.uuid: e,
+      for (final e in entries)
+        if (e.location != null && !devicesByUuid.containsKey(e.uuid)) e.uuid: e,
     }.values;
     if (missing.isNotEmpty) {
       final recovered = await Future.wait(missing.map((m) async {
@@ -152,10 +158,11 @@ class SonosRepository {
             );
         final location = m.location;
         if (location == null) {
-          // Nothing to re-fetch from. Not known to happen on any firmware we've
-          // tested — every `<Satellite>` in a real `GetZoneGroupState` has
-          // carried a `Location` — but the attribute is optional in the XML we
-          // parse, so the stub costs one line and removes the question.
+          // Nothing to re-fetch from. We've never seen this on hardware, and
+          // we're not claiming a firmware omits `Location` — only that we read
+          // it with `getAttribute`, which yields null when it's absent, and a
+          // speaker that resolves to null is the failure this sweep exists to
+          // prevent. The stub costs one line and removes the question.
           DiagnosticsLog.add(
               'discovery: no Location for ${m.uuid} — unresolved, kept from '
               'topology');
@@ -178,10 +185,11 @@ class SonosRepository {
               'expected ${m.uuid} — stale Location, ignoring');
           return stub();
         } catch (_) {
-          // Re-fetch failed: absence of evidence, not evidence against — most
-          // often the documented ~20-30s in which a just-(un)bonded speaker
-          // refuses :1400. So the address is kept; only a uuid mismatch
-          // disproves it.
+          // Re-fetch failed: absence of evidence, not evidence against. One
+          // known-transient cause is the documented ~20-30s in which a
+          // just-(un)bonded speaker refuses :1400, and nulling the address
+          // would disable identify for every speaker in that window. So the
+          // address is kept; only a uuid mismatch actually disproves it.
           return stub(ip: m.ip);
         }
       }));

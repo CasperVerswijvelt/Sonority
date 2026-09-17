@@ -145,6 +145,26 @@ class _FakeDoubleListedTopology extends ZoneTopologyClient {
       ];
 }
 
+/// The mid-settle double-listing where only ONE of the two entries carries a
+/// `Location` — the `<Satellite>` has it, the Invisible member listed AFTER it
+/// does not. Deduping by uuid must keep the entry we can actually fetch from,
+/// whichever order they arrive in.
+class _FakeHalfLocatedDoubleListing extends ZoneTopologyClient {
+  _FakeHalfLocatedDoubleListing() : super(SonosSoapClient());
+
+  @override
+  Future<List<ZoneGroup>> getZoneGroups(String ip) async => [
+        ...await _FakeSatelliteTopology().getZoneGroups(ip),
+        const ZoneGroup(coordinatorUuid: 'RINCON_SUB01400', members: [
+          ZoneGroupMember(
+            uuid: 'RINCON_SUB01400',
+            zoneName: 'Sub',
+            invisible: true,
+          ),
+        ]),
+      ];
+}
+
 /// The Sub's `<Satellite>` Location has gone stale — DHCP handed .12 to another
 /// player, which is what answers there now.
 class _FakeStaleLocationDescriptions extends _FakeDescriptions {
@@ -284,6 +304,29 @@ void main() {
     final sub = system.device('RINCON_SUB01400');
     expect(sub, isNotNull);
     expect(sub!.reachable, isFalse);
+    // The address is KEPT here, unlike the stale-Location case above: a fetch
+    // that merely failed hasn't disproved it, and the commonest transient cause
+    // is the ~20-30s in which a just-(un)bonded speaker refuses :1400. Nulling
+    // it on this path too would disable identify for every speaker in that
+    // window.
+    expect(sub.ip, '192.168.1.12');
+  });
+
+  test('deduping a double-listed speaker keeps the entry that has a Location',
+      () async {
+    final descriptions = _FakeDescriptions();
+    final system = await SonosRepository(
+      ssdp: _FakeSsdpAOnly(),
+      descriptions: descriptions,
+      topology: _FakeHalfLocatedDoubleListing(),
+    ).discover();
+
+    // The location-less duplicate must not win: it would cost us the fetch
+    // entirely and leave a fully reachable Sub as an unreachable stub.
+    expect(descriptions.calls[_subUrl], 1, reason: 'the fetch must still happen');
+    final sub = system.device('RINCON_SUB01400');
+    expect(sub?.reachable, isTrue);
+    expect(sub?.isSub, isTrue, reason: 'a real description, not a blank stub');
   });
 
   // A hidden pair half / zone member is an `Invisible="1"` MEMBER, and the
