@@ -132,7 +132,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     // the HT flow's `avail`/`freeSubs`).
     final existing = _editing ? system.memberByUuid(widget.editUuid!) : null;
     final candidates = system.zoneableSpeakers.toList();
-    final subs = system.bondableSubs.where((d) => d.reachable).toList();
+    final subs = system.bondableSubs.toList();
     if (existing != null) {
       for (final u in existing.groupChannels.keys) {
         final d = system.device(u);

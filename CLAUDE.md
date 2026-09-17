@@ -274,7 +274,10 @@ interpolated) then use it.
       actually work, against the whole point of the app.
     - **Assumed, NOT yet hardware-verified:** Amp, Sub, and soundbars are
       excluded as zone candidates (`SonosSystem.zoneableSpeakers` drops
-      amps/subs/soundbars) per Sonos' stated limits — but we never probed an Amp
+      amps/subs/soundbars — and, unrelated to eligibility, any speaker whose
+      description couldn't be read, so the shortcuts that gate on this list
+      can't count a candidate the picker won't offer) per Sonos' stated limits
+      — but we never probed an Amp
       (none on the test system) or a Sub/soundbar reject, so those exclusions are
       defensive policy, not a confirmed finding. The real backstop is runtime:
       `createZone` polls and throws "a speaker may be incompatible" if Sonos
