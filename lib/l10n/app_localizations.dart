@@ -1663,7 +1663,7 @@ abstract class AppLocalizations {
   /// No description provided for @groupNeedTwoSpeakers.
   ///
   /// In en, this message translates to:
-  /// **'Need at least two standalone speakers (not soundbars, subs, amps, or already bonded).'**
+  /// **'Need at least two standalone speakers (not soundbars, subs, amps, already bonded, or unreachable).'**
   String get groupNeedTwoSpeakers;
 
   /// No description provided for @groupModeStereo.

@@ -1002,7 +1002,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get groupNeedTwoSpeakers =>
-      'Need at least two standalone speakers (not soundbars, subs, amps, or already bonded).';
+      'Need at least two standalone speakers (not soundbars, subs, amps, already bonded, or unreachable).';
 
   @override
   String get groupModeStereo => 'Stereo';

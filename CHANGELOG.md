@@ -19,7 +19,7 @@ section into the GitHub Release notes regardless of the build suffix
 - Emailing a diagnostics bundle now asks what went wrong first (at least 20 characters) and puts that description in the mail body and in the bundle as `user_note.txt`, so a report never arrives without an explanation. Share and save-to-disk are unchanged.
 
 ### Fixed
-- A room page no longer offers "Group with another speaker", and a Sub page no longer offers "Add to a group", when every other candidate is a speaker the app couldn't reach — the group flow omits those, so the shortcut only led to a screen saying there was nobody to group with.
+- A room page no longer offers "Group with another speaker", and a Sub page no longer offers "Add to a group", when every other candidate is a speaker the app couldn't reach — the group flow omits those, so the shortcut only led to a screen saying at least two speakers are needed.
 - A bonded speaker the app failed to spot on the network is now recovered from the topology like any other: a home theater satellite (typically a Sub), or the hidden half of a pair or group. Left unresolved, a Sub showed as a generic "Speaker" and would have been silently unbonded by the next apply, and renaming a group dropped its hidden speaker out of it without a word.
 
 ## [0.7.0] - 2026-08-18

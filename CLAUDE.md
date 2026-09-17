@@ -274,15 +274,18 @@ interpolated) then use it.
       actually work, against the whole point of the app.
     - **Assumed, NOT yet hardware-verified:** Amp, Sub, and soundbars are
       excluded as zone candidates (`SonosSystem.zoneableSpeakers` drops
-      amps/subs/soundbars — and, unrelated to eligibility, any speaker whose
-      description couldn't be read, so the shortcuts that gate on this list
-      can't count a candidate the picker won't offer) per Sonos' stated limits
-      — but we never probed an Amp
+      amps/subs/soundbars) per Sonos' stated limits — but we never probed an Amp
       (none on the test system) or a Sub/soundbar reject, so those exclusions are
       defensive policy, not a confirmed finding. The real backstop is runtime:
       `createZone` polls and throws "a speaker may be incompatible" if Sonos
       silently no-ops the bond. If an Amp/Sub/soundbar ever needs revisiting,
       probe it with `tool/zone_probe.dart --members …` first.
+    - Separately from eligibility, `zoneableSpeakers` also drops any speaker
+      whose description couldn't be read (`reachable: false`) — a group needs
+      two *selectable* speakers, so a candidate the picker can't offer must not
+      be counted by the shortcuts that gate the flow. `bondableSpeakers`
+      deliberately keeps them: HT fronts are optional, so the picker shows them
+      as an explained disabled row instead.
   - **`AddBondedZones` accepts almost ANY channel map (API-only finding,
     `tool/zone_probe.dart --explore`):** a 19-config hardware battery (2–8
     speakers) was accepted 19/19 and stored verbatim — symmetric, **asymmetric**
