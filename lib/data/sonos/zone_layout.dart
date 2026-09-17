@@ -70,8 +70,8 @@ bool groupEditIsInPlace({
 /// namespace allows **add or remove, one direction per call, membership only**
 /// (hardware-confirmed; a channel change or a simultaneous add+remove is refused
 /// with `update only allows add or remove, not both`). It is also the shape
-/// `AddBondedZones` faults on, which is why the SOAP path has to dissolve the
-/// whole group and rebuild it. Both maps are raw `UUID:CH,CH;…` strings.
+/// `AddBondedZones` faults on, which is why the legacy SOAP path had to dissolve
+/// the whole group and rebuild it. Both maps are raw `UUID:CH,CH;…` strings.
 bool groupEditIsPureDrop({
   required String currentMap,
   required String targetMap,

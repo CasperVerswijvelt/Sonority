@@ -1032,9 +1032,10 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       [for (final m in members) (uuid: m.device.uuid, channel: m.channel)],
       subUuid: sub?.uuid,
     );
-    // A pure member removal is the one edit `AddBondedZones` can't do, so the
-    // SOAP path dissolves the whole group and rebuilds it. `updateZoneDefinition`
-    // does it in place — see [tryZoneApi] below.
+    // A pure member removal is the one edit `AddBondedZones` can't do, which is
+    // why the legacy path had to dissolve the whole group and rebuild it.
+    // `updateZoneDefinition` does it in place, keeping the definition's zoneId,
+    // so the bond phase below prefers that primitive when the edit is one.
     final pureDrop =
         !inPlace && groupEditIsPureDrop(currentMap: cms, targetMap: targetMap);
     // Verify the FULL target applied — per-member channel + Sub, not just the
