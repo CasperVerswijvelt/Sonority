@@ -85,4 +85,39 @@ void main() {
     final issues = preflightProfile(profileOf(snap), system);
     expect(issues.single.conflicts, [devices[pairR]!.roomName]);
   });
+
+  test('an unreachable speaker is reported missing, not also as a conflict', () {
+    // Same shape as the test above — pairR is bonded into the Beam's HT, so it
+    // genuinely conflicts — but its description couldn't be read. "Missing" and
+    // "will be freed" are two different stories about one speaker; only the
+    // first is true, since apply can't free what it can't resolve.
+    const wantedMap = '$pairL:LF,LF;$pairR:RF,RF';
+    final system = SonosSystem(
+      groups: [
+        ZoneGroup(coordinatorUuid: pairL, members: [
+          ZoneGroupMember(uuid: pairL, zoneName: 'Zolder'),
+        ]),
+        ZoneGroup(coordinatorUuid: beam, members: [
+          ZoneGroupMember(
+              uuid: beam,
+              zoneName: 'Woonkamer',
+              htSatChanMapSet: '$beam:CC;$pairR:RF'),
+        ]),
+      ],
+      devicesByUuid: {
+        ...devices,
+        pairR: const SonosDevice(
+            uuid: pairR, roomName: 'Zolder', modelName: '', reachable: false),
+      },
+    );
+    const snap = EntitySnapshot(
+      kind: EntityKind.stereoPair,
+      primaryUuid: pairL,
+      mapSet: wantedMap,
+      names: {pairL: 'Zolder'},
+    );
+    final issues = preflightProfile(profileOf(snap), system);
+    expect(issues.single.missing, ['Zolder']);
+    expect(issues.single.conflicts, isEmpty);
+  });
 }

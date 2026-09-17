@@ -132,10 +132,15 @@ List<EntityIssue> preflightProfile(Profile profile, SonosSystem system) {
         // already bonded to this entity's own coordinator is NOT a conflict
         // (apply is a no-op for it). Mirrors the exact owner checks in
         // [SonosController._applyEntity] so pre-flight and apply agree.
+        //
+        // Exactly complementary to `missing` above: a speaker we can't resolve
+        // or reach isn't one apply will "auto-free", which is what this list
+        // promises, so reporting the same name under both headings would be
+        // telling the user two different stories about one speaker.
         conflicts: [
           for (final u in e.involvedUuids)
             if (u != e.primaryUuid &&
-                system.device(u) != null &&
+                system.device(u)?.reachable == true &&
                 switch (system.ownerOf(u)) {
                   null => false,
                   final owner => !e.involvedUuids.contains(owner),
