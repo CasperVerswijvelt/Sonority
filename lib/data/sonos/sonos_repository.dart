@@ -97,21 +97,40 @@ class SonosRepository {
         '${groups.expand((g) => g.members).length} member(s) in ${groups.length} group(s)');
 
     // Topology is authoritative; SSDP and the per-device description fetch are
-    // both lossy. Re-fetch any visible member we don't yet have a description
-    // for, straight from its topology-provided Location — this recovers a
-    // transient fetch failure and any device SSDP's multicast missed entirely.
+    // both lossy. Re-fetch anything we don't yet have a description for,
+    // straight from its topology-provided Location. This recovers a transient
+    // fetch failure and any device SSDP's multicast missed entirely.
+    //
+    // SATELLITES COUNT. They are `<Satellite>` children, not members, so a
+    // members-only sweep left an SSDP-missed Sub absent from `devicesByUuid`
+    // and every consumer resolved it to null: the HT page showed "Speaker" for
+    // it, the setup flow said "no free subwoofer found", and: the reason this
+    // is not cosmetic: the flow builds its target map from resolved devices,
+    // so an apply would have dropped the SW channel and `RemoveHTSatellite`'d
+    // the user's Sub with no warning (which per EXP-23 also wipes the bond's
+    // Trueplay). Seen live on hardware.
+    //
+    // INVISIBLE MEMBERS COUNT for the same reason. A stereo-pair half and every
+    // non-coordinator zone member is its own `Invisible="1"` member, and a
+    // group edit builds its target from resolved devices too: an SSDP-missed
+    // one silently left the group on a rename. Re-fetching is by `Location`, so
+    // hidden or not makes no difference; `allMembers` filters Invisible where it
+    // belongs, at the topology, not by leaving the device unresolvable. It also
+    // gets a standalone Sub (Invisible as well) a real description.
     final missing = [
       for (final g in groups)
-        for (final m in g.members)
-          if (!m.invisible &&
-              m.location != null &&
-              !devicesByUuid.containsKey(m.uuid))
-            m,
+        for (final m in g.members) ...[
+          if (m.location != null && !devicesByUuid.containsKey(m.uuid))
+            (uuid: m.uuid, name: m.zoneName, location: m.location!, ip: m.ip),
+          for (final s in m.satellites)
+            if (s.location != null && !devicesByUuid.containsKey(s.uuid))
+              (uuid: s.uuid, name: s.zoneName, location: s.location!, ip: s.ip),
+        ],
     ];
     if (missing.isNotEmpty) {
       final recovered = await Future.wait(missing.map((m) async {
         try {
-          return await _descriptions.fetch(m.location!);
+          return await _descriptions.fetch(m.location);
         } catch (_) {
           // Re-fetch failed too. Keep the device — it's in the authoritative
           // topology — but flag it unreachable (model/capabilities unknown) so
@@ -119,7 +138,7 @@ class SonosRepository {
           // silently.
           return SonosDevice(
             uuid: m.uuid,
-            roomName: m.zoneName,
+            roomName: m.name,
             modelName: '',
             ip: m.ip,
             reachable: false,

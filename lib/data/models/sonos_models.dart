@@ -145,11 +145,18 @@ class SonosSatellite {
   final List<SonosChannel> channels;
   final String? ip;
 
+  /// The satellite's description URL from the topology. Kept (not just the
+  /// derived [ip]) so discovery can re-fetch a satellite that SSDP missed,
+  /// see `SonosRepository.discover`, where a missing Sub silently cost the
+  /// whole HT its sub channel on the next apply.
+  final String? location;
+
   const SonosSatellite({
     required this.uuid,
     required this.zoneName,
     required this.channels,
     this.ip,
+    this.location,
   });
 
   bool get isSub => channels.contains(SonosChannel.sub);
