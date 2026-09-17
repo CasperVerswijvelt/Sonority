@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/max_width_body.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/busy_view.dart';
@@ -47,7 +48,9 @@ class GroupDetailScreen extends ConsumerWidget {
       return AppScaffold(
         title: context.l10n.groupSheetTitle,
         body: const Padding(
-            padding: EdgeInsets.all(24), child: MissingRoomView()),
+          padding: EdgeInsets.all(24),
+          child: MissingRoomView(),
+        ),
       );
     }
 
@@ -65,45 +68,53 @@ class GroupDetailScreen extends ConsumerWidget {
       ],
       // Separate is pinned to the bottom (via ScrollFooter) — always the last
       // thing on the page, whether the member list fits or has to scroll.
-      body: ScrollFooter(
-        padding: const EdgeInsets.fromLTRB(kPageGutter, 20, kPageGutter, 20),
-        footer: DestructiveButton(
-          icon: Icons.link_off,
-          label: context.l10n.groupSeparate,
-          onPressed: () => _confirmSeparate(context, ref, group),
-        ),
-        children: [
-          SectionHeader(context.l10n.sectionSpeakers),
-          CardGrid([
-            for (final e in group.groupChannels.entries)
-              MemberChannelCard(
-                icon: Icons.speaker,
-                type: system.device(e.key)?.typeLabel ?? context.l10n.widgetsSpeaker,
-                channel: groupChannelShort(e.value),
-                // Bonded member → LED only (chiming one plays the whole group).
-                trailing: speakerIdentifyButton(system.device(e.key)),
-              ),
-            if (group.subUuid != null)
-              MemberChannelCard(
-                icon: Icons.graphic_eq,
-                type: system.device(group.subUuid!)?.typeLabel ?? context.l10n.widgetsSub,
-                channel: context.l10n.widgetsSub,
-                trailing: speakerIdentifyButton(system.device(group.subUuid!)),
-              ),
-          ]),
-          Gap.l,
-          // Reconfigure the group (add/remove speakers, change L/R/Both, sub,
-          // name) — mirrors the home-theater "Configure" action. Icons.settings
-          // (not tune, which is reserved for audio/Trueplay surfaces).
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () => context.push('/group/${group.uuid}/edit'),
-              icon: const Icon(Icons.settings),
-              label: Text(context.l10n.groupConfigure),
-            ),
+      body: MaxWidthBody(
+        child: ScrollFooter(
+          padding: const EdgeInsets.fromLTRB(kPageGutter, 20, kPageGutter, 20),
+          footer: DestructiveButton(
+            icon: Icons.link_off,
+            label: context.l10n.groupSeparate,
+            onPressed: () => _confirmSeparate(context, ref, group),
           ),
-        ],
+          children: [
+            SectionHeader(context.l10n.sectionSpeakers),
+            CardGrid([
+              for (final e in group.groupChannels.entries)
+                MemberChannelCard(
+                  icon: Icons.speaker,
+                  type:
+                      system.device(e.key)?.typeLabel ??
+                      context.l10n.widgetsSpeaker,
+                  channel: groupChannelShort(e.value),
+                  // Bonded member → LED only (chiming one plays the whole group).
+                  trailing: speakerIdentifyButton(system.device(e.key)),
+                ),
+              if (group.subUuid != null)
+                MemberChannelCard(
+                  icon: Icons.graphic_eq,
+                  type:
+                      system.device(group.subUuid!)?.typeLabel ??
+                      context.l10n.widgetsSub,
+                  channel: context.l10n.widgetsSub,
+                  trailing: speakerIdentifyButton(
+                    system.device(group.subUuid!),
+                  ),
+                ),
+            ]),
+            Gap.l,
+            // Reconfigure the group (add/remove speakers, change L/R/Both, sub,
+            // name) — mirrors the home-theater "Configure" action. Icons.settings
+            // (not tune, which is reserved for audio/Trueplay surfaces).
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => context.push('/group/${group.uuid}/edit'),
+                icon: const Icon(Icons.settings),
+                label: Text(context.l10n.groupConfigure),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -125,8 +136,9 @@ Future<void> _rename(
         .renameRoom(device: device, name: name);
     messenger.showSnackBar(SnackBar(content: Text(l10n.groupRenamedTo(name))));
   } catch (e) {
-    messenger.showSnackBar(SnackBar(
-        content: Text(l10n.groupRenameFailed(localizedError(l10n, e)))));
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.groupRenameFailed(localizedError(l10n, e)))),
+    );
   }
 }
 

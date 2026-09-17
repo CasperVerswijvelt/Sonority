@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
+import '../widgets/max_width_body.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/identify_controls.dart';
@@ -33,7 +34,9 @@ class RoomScreen extends ConsumerWidget {
       return AppScaffold(
         title: context.l10n.roomTitle,
         body: const Padding(
-            padding: EdgeInsets.all(24), child: MissingRoomView()),
+          padding: EdgeInsets.all(24),
+          child: MissingRoomView(),
+        ),
       );
     }
 
@@ -57,59 +60,67 @@ class RoomScreen extends ConsumerWidget {
       // The speaker sits at the top; the shortcuts + Trueplay float to the
       // bottom of the page (via ScrollFooter), matching the group page's
       // Separate button.
-      body: ScrollFooter(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        footer: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
+      body: MaxWidthBody(
+        child: ScrollFooter(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          footer: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Put this speaker to use: shortcuts into the bonding flows so a
+              // standalone room isn't a dead end (the flows do their own
+              // validation). Descriptive rows (title + what it does), not bare
+              // buttons.
+              if (canGroupSpeaker(system, uuid))
+                ActionRow(
+                  icon: Icons.speaker_group_outlined,
+                  title: context.l10n.roomGroupWith,
+                  subtitle: context.l10n.roomGroupWithSubtitle,
+                  onTap: () => leaveTo(context, '/group?speaker=$uuid'),
+                ),
+              if (soundbars.isNotEmpty)
+                ActionRow(
+                  icon: Icons.surround_sound,
+                  title: context.l10n.roomAddToHomeTheater,
+                  subtitle: context.l10n.roomAddToHomeTheaterSubtitle,
+                  onTap: () =>
+                      addToHomeTheater(context, soundbars, speaker: uuid),
+                ),
+              Gap.s,
+              // Settings: a flat, sectioned Trueplay row, not another card. The
+              // section is skipped when there is no device to report on,
+              // `SettingsSection` always leads with a `Divider`, so an empty one
+              // renders a hairline with nothing under it. Reachable: a topology
+              // member that never resolved to a device.
+              if (devices.isNotEmpty)
+                SettingsSection(children: [TrueplayControl(devices: devices)]),
+            ],
+          ),
           children: [
-            // Put this speaker to use: shortcuts into the bonding flows so a
-            // standalone room isn't a dead end (the flows do their own
-            // validation). Descriptive rows (title + what it does), not bare
-            // buttons.
-            if (canGroupSpeaker(system, uuid))
-              ActionRow(
-                icon: Icons.speaker_group_outlined,
-                title: context.l10n.roomGroupWith,
-                subtitle: context.l10n.roomGroupWithSubtitle,
-                onTap: () => leaveTo(context, '/group?speaker=$uuid'),
+            // Content: the speaker itself — a standalone speaker has no channel,
+            // so no chip (parallels the group's per-speaker cards).
+            if (device != null) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  kPageGutter,
+                  4,
+                  kPageGutter,
+                  0,
+                ),
+                child: SectionHeader(context.l10n.sectionSpeakers),
               ),
-            if (soundbars.isNotEmpty)
-              ActionRow(
-                icon: Icons.surround_sound,
-                title: context.l10n.roomAddToHomeTheater,
-                subtitle: context.l10n.roomAddToHomeTheaterSubtitle,
-                onTap: () => addToHomeTheater(context, soundbars, speaker: uuid),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
+                child: MemberChannelCard(
+                  icon: Icons.speaker,
+                  type: device.typeLabel,
+                  // Standalone speaker → both LED blink and the chime apply.
+                  trailing: speakerIdentifyButton(device, allowChime: true),
+                ),
               ),
-            Gap.s,
-            // Settings: a flat, sectioned Trueplay row, not another card. The
-            // section is skipped when there is no device to report on,
-            // `SettingsSection` always leads with a `Divider`, so an empty one
-            // renders a hairline with nothing under it. Reachable: a topology
-            // member that never resolved to a device.
-            if (devices.isNotEmpty)
-              SettingsSection(children: [TrueplayControl(devices: devices)]),
+            ],
           ],
         ),
-        children: [
-          // Content: the speaker itself — a standalone speaker has no channel,
-          // so no chip (parallels the group's per-speaker cards).
-          if (device != null) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(kPageGutter, 4, kPageGutter, 0),
-              child: SectionHeader(context.l10n.sectionSpeakers),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
-              child: MemberChannelCard(
-                icon: Icons.speaker,
-                type: device.typeLabel,
-                // Standalone speaker → both LED blink and the chime apply.
-                trailing: speakerIdentifyButton(device, allowChime: true),
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }
@@ -132,6 +143,7 @@ Future<void> _rename(
     messenger.showSnackBar(SnackBar(content: Text(l10n.roomRenamedTo(name))));
   } catch (e) {
     messenger.showSnackBar(
-        SnackBar(content: Text(l10n.roomRenameFailed(localizedError(l10n, e)))));
+      SnackBar(content: Text(l10n.roomRenameFailed(localizedError(l10n, e)))),
+    );
   }
 }

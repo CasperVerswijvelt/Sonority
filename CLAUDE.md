@@ -1218,10 +1218,18 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   → `Icons.check`); edge auto-scroll + screen-reader move actions; reorder persists
   order via `ProfilesController.reorder` (SharedPreferences only, no Sonos write).
   The three tabs (System / Profiles / **Diagnostics**) share
-  one `_destinations` list so the rail and bar can't drift. **Forms clamp,
-  everything else fills**: the modal wizards (group flow + bonding screen) and any
-  form-shaped page clamp to `kContentMaxWidth` via `MaxWidthBody` (a full-window
-  form stays readable); every other tab/detail page fills the width.
+  one `_destinations` list so the rail and bar can't drift. **Forms and the three
+  ENTITY DETAIL pages clamp, everything else fills**: the modal wizards (group
+  flow + bonding screen), any form-shaped page, and `HomeTheaterScreen` /
+  `GroupDetailScreen` / `RoomScreen` clamp to `kContentMaxWidth` via
+  `MaxWidthBody`; the TAB pages (overview, profiles, diagnostics) still fill.
+  The detail pages were added to the clamp after a tablet shot: at 1707dp the HT
+  speaker diagram stretched its L/R to the far corners, and the Trueplay
+  breakdown put a speaker's name and its state most of a screen apart, which
+  stops reading as one row. Their `CardGrid` therefore drops to one column when
+  wide, which is the accepted trade: a detail page is one entity, so a readable
+  column beats filling the glass. `MaxWidthBody` no-ops below the breakpoint, so
+  phones are untouched.
 - **Writing style: concise, human, no em dashes.** Applies to everything we
   write: app copy (ARB values), CHANGELOG entries, PR bodies, commit messages,
   comments and these docs.

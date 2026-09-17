@@ -15,6 +15,7 @@ import '../widgets/confirm_dialog.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/destructive_button.dart';
 import '../widgets/diagram_labels.dart';
+import '../widgets/max_width_body.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
 import '../widgets/scroll_footer.dart';
@@ -78,29 +79,37 @@ class HomeTheaterScreen extends ConsumerWidget {
           ),
         RefreshIconButton(onRefresh: refreshAll),
       ],
-      body: state.isLoading
-          ? BusyView(
-              title: context.l10n.htUpdatingTitle,
-              subtitle: context.l10n.htUpdatingSubtitle,
-            )
-          : (member == null || device == null)
-          ? const MissingRoomView()
-          : _Content(
-              system: system!,
-              member: member,
-              bonded: bonded,
-              onRemoveGroup: (channels, label, {bool separateAll = false}) =>
-                  _confirmRemoveGroup(
-                    context,
-                    ref,
-                    member,
-                    device,
-                    channels,
-                    label,
-                    separateAll: separateAll,
-                  ),
-              onConfigure: () => context.push('/theater/$soundbarUuid/fronts'),
-            ),
+      // Clamped, not full-bleed, unlike the other detail pages' default: at
+      // 1707dp the diagram stretched its L/R to the far corners and the
+      // Trueplay breakdown put each speaker's name and its state a screen
+      // apart, which stops reading as one row. Below the breakpoint
+      // MaxWidthBody returns the child untouched, so phones are unchanged.
+      body: MaxWidthBody(
+        child: state.isLoading
+            ? BusyView(
+                title: context.l10n.htUpdatingTitle,
+                subtitle: context.l10n.htUpdatingSubtitle,
+              )
+            : (member == null || device == null)
+            ? const MissingRoomView()
+            : _Content(
+                system: system!,
+                member: member,
+                bonded: bonded,
+                onRemoveGroup: (channels, label, {bool separateAll = false}) =>
+                    _confirmRemoveGroup(
+                      context,
+                      ref,
+                      member,
+                      device,
+                      channels,
+                      label,
+                      separateAll: separateAll,
+                    ),
+                onConfigure: () =>
+                    context.push('/theater/$soundbarUuid/fronts'),
+              ),
+      ),
     );
   }
 
@@ -120,8 +129,9 @@ class HomeTheaterScreen extends ConsumerWidget {
           .renameRoom(device: device, name: name);
       messenger.showSnackBar(SnackBar(content: Text(l10n.htRenamedTo(name))));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(
-          content: Text(l10n.htRenameFailed(localizedError(l10n, e)))));
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.htRenameFailed(localizedError(l10n, e)))),
+      );
     }
   }
 
@@ -141,8 +151,7 @@ class HomeTheaterScreen extends ConsumerWidget {
       title: separateAll
           ? l10n.htSeparateConfirmTitle
           : l10n.htRemoveConfirmTitle(label),
-      message:
-          separateAll ? l10n.htSeparateMessage : l10n.htRemoveMessage,
+      message: separateAll ? l10n.htSeparateMessage : l10n.htRemoveMessage,
       confirmLabel: separateAll ? l10n.htSeparate : l10n.actionRemove,
     );
     if (!ok || !context.mounted) return;
@@ -173,16 +182,16 @@ class _Group {
 }
 
 List<_Group> _htGroupsFor(AppLocalizations l10n) => [
-      _Group(l10n.htGroupFronts, Icons.speaker, {
-        SonosChannel.leftFront,
-        SonosChannel.rightFront,
-      }),
-      _Group(l10n.htGroupSurrounds, Icons.surround_sound, {
-        SonosChannel.leftRear,
-        SonosChannel.rightRear,
-      }),
-      _Group(l10n.htGroupSubwoofer, Icons.graphic_eq, {SonosChannel.sub}),
-    ];
+  _Group(l10n.htGroupFronts, Icons.speaker, {
+    SonosChannel.leftFront,
+    SonosChannel.rightFront,
+  }),
+  _Group(l10n.htGroupSurrounds, Icons.surround_sound, {
+    SonosChannel.leftRear,
+    SonosChannel.rightRear,
+  }),
+  _Group(l10n.htGroupSubwoofer, Icons.graphic_eq, {SonosChannel.sub}),
+];
 
 class _Content extends StatelessWidget {
   final SonosSystem system;
@@ -238,24 +247,36 @@ class _Content extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          SettingsSection(children: [
-            TrueplayControl(
-              devices: bonded,
-              // Bonded speakers have no name of their own, and two matched
-              // surrounds have the same TYPE, so the breakdown's "5/6" would
-              // still name nobody. The card title already qualifies a bonded
-              // speaker by its channel ("One SL · Surround L").
-              label: (d) => bondedCardTitle(l10n, system, device: d),
-            ),
-          ]),
+          SettingsSection(
+            children: [
+              TrueplayControl(
+                devices: bonded,
+                // Bonded speakers have no name of their own, and two matched
+                // surrounds have the same TYPE, so the breakdown's "5/6" would
+                // still name nobody. The card title already qualifies a bonded
+                // speaker by its channel ("One SL · Surround L").
+                label: (d) => bondedCardTitle(l10n, system, device: d),
+              ),
+            ],
+          ),
           if (member.hasDedicatedFronts)
             Padding(
-              padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),
+              padding: const EdgeInsets.fromLTRB(
+                kPageGutter,
+                8,
+                kPageGutter,
+                0,
+              ),
               child: Text(l10n.htTrueplayNote, style: theme.mutedText),
             ),
           if (present.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(kPageGutter, 20, kPageGutter, 0),
+              padding: const EdgeInsets.fromLTRB(
+                kPageGutter,
+                20,
+                kPageGutter,
+                0,
+              ),
               child: DestructiveButton(
                 icon: Icons.link_off,
                 label: l10n.htSeparate,
@@ -287,10 +308,7 @@ class _Content extends StatelessWidget {
               Gap.l,
               SectionHeader(l10n.htBondedSpeakers),
               if (present.isEmpty)
-                Text(
-                  l10n.htNoBonded,
-                  style: theme.mutedText,
-                )
+                Text(l10n.htNoBonded, style: theme.mutedText)
               else
                 CardGrid([
                   for (final g in present)
@@ -328,7 +346,9 @@ class _GroupCard extends StatelessWidget {
       child: ListTile(
         leading: Icon(group.icon, color: theme.colorScheme.primary),
         title: Text(group.label),
-        subtitle: Text(models.isEmpty ? context.l10n.htBonded : models.join(', ')),
+        subtitle: Text(
+          models.isEmpty ? context.l10n.htBonded : models.join(', '),
+        ),
         trailing: TextButton(
           onPressed: onRemove,
           style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
