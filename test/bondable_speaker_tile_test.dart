@@ -29,18 +29,16 @@ Future<CheckboxListTile> _pump(WidgetTester tester,
 }
 
 void main() {
-  testWidgets('an unreachable speaker that IS selected shows ticked and can be '
-      'unticked', (tester) async {
+  testWidgets('an unreachable speaker that IS bonded shows ticked',
+      (tester) async {
     final tile = await _pump(tester, selected: true);
-    // Drawing this unticked claimed the speaker was out of the group, while
+    // Drawing this unticked claimed the speaker was out of the bond, while
     // saving would have re-asserted it straight back in.
     expect(tile.value, isTrue);
-    // And it must stay removable, or a speaker that has died can never be
-    // dropped from its group.
-    expect(tile.onChanged, isNotNull);
+    expect(tile.onChanged, isNull, reason: 'still not editable here');
   });
 
-  testWidgets('an unreachable speaker that is NOT selected cannot be added',
+  testWidgets('an unreachable speaker that is NOT bonded shows unticked',
       (tester) async {
     final tile = await _pump(tester, selected: false);
     expect(tile.value, isFalse);

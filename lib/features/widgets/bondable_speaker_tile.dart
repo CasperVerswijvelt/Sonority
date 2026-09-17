@@ -8,23 +8,22 @@ import '../../data/models/sonos_models.dart';
 /// and stereo-pair flows).
 ///
 /// When the speaker is [SonosDevice.reachable] == false we couldn't read its
-/// device_description.xml: it's still shown (it exists in the topology) with a
-/// warning icon + subtitle, and it can't be *added*, since we can't safely bond
-/// a player whose model/capabilities we don't know.
+/// device_description.xml: it's shown (it exists in the topology) but disabled,
+/// with a warning icon + subtitle, since we can't safely bond a player whose
+/// model/capabilities we don't know.
 ///
-/// It can still be **removed**, though, and it renders with its true [selected]
-/// value. An unreachable speaker is routinely already in a bond — the group
-/// edit flow merges a group's own members back into the picker — and drawing
-/// that one unticked said it was out of the group when saving would have
-/// re-asserted it right back in. Untickable-and-unticked is also a dead end:
-/// there'd be no way left to drop a speaker that has died.
+/// Disabled, but drawn with its TRUE [selected] value. An unreachable speaker
+/// is routinely already bonded — both the group edit flow and the HT configure
+/// flow merge a bond's own members back into the picker — and drawing one of
+/// those unticked claimed it was out of the bond while saving would have
+/// re-asserted it right back in. Dropping such a speaker is done by dissolving
+/// the bond, not by unticking it here.
 class BondableSpeakerTile extends StatelessWidget {
   final SonosDevice device;
   final bool selected;
 
   /// Selection handler; pass null to disable (e.g. the two-speaker cap is hit).
-  /// Ignored when the device is unreachable AND not currently selected — such a
-  /// speaker can be removed but not added.
+  /// Ignored entirely when the device is unreachable.
   final ValueChanged<bool?>? onChanged;
 
   /// Normal subtitle (model name, or an Amp note). Replaced by the warning
@@ -54,7 +53,7 @@ class BondableSpeakerTile extends StatelessWidget {
     final Widget tile = !device.reachable
         ? CheckboxListTile(
             value: selected,
-            onChanged: selected ? onChanged : null,
+            onChanged: null,
             title: Text(device.roomName),
             subtitle: Text(
               context.l10n.widgetsUnreachableSpeakerHint,
