@@ -256,19 +256,26 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
       throw const SonorityError(SonorityErrorCode.nothingTunable);
     }
 
-    for (final e in tunings.entries) {
-      final status = await _apply.applySpectral(
-        ip: e.key.ip!,
-        rincon: e.key.uuid,
-        tuning: e.value,
-        live: true,
-      );
+    // All at once. These were sequential on the theory that concurrent writes to
+    // a bonded set were untested and this endpoint drops silently — but a
+    // six-member home theater took a parallel batch twice, each as the first
+    // write a freshly cleared set saw, so the oracle really did observe the new
+    // store. Worth ~2.3s of a ~5s apply. A bad batch is still not silent here:
+    // every member is polled below and nothing is enabled unless all of them
+    // stored.
+    final codes = await Future.wait(tunings.entries.map((e) async =>
+        (e.key, await _apply.applySpectral(
+          ip: e.key.ip!,
+          rincon: e.key.uuid,
+          tuning: e.value,
+          live: true,
+        ))));
+    for (final (d, status) in codes) {
       // A 200 is not success — but a non-200 IS failure, and it is the only
       // failure the transport can tell us about at all, so don't discard it.
       if (status != 200) {
         DiagnosticsLog.add(
-            '[eq] ${e.key.roomName} (${e.key.ip}) rejected the tuning: '
-            'HTTP $status');
+            '[eq] ${d.roomName} (${d.ip}) rejected the tuning: HTTP $status');
         throw const SonorityError(SonorityErrorCode.tuningNotStored);
       }
     }
