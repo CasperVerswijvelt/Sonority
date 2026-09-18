@@ -120,13 +120,15 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     if (targets.isEmpty) return false;
 
     final repo = ref.read(sonosRepositoryProvider);
-    for (final d in targets) {
+    // In parallel: independent reads of different speakers, and doing them one
+    // at a time makes the user wait for the sum of the round trips.
+    final verdicts = await Future.wait(targets.map((d) async {
       try {
         // Retried: a speaker refuses :1400 for ~20-30s after being bonded or
         // unbonded, and that is exactly when someone opens this page.
         final c = await retryUnreachable(() => repo.roomCalibration(d.ip!),
             attempts: 3, interval: const Duration(seconds: 2));
-        if (c.available) return true;
+        return c.available;
       } catch (e) {
         // "We couldn't ask" is not "there is nothing there". The honest verdict
         // for an unreadable member is unknown, and unknown has to warn — the
@@ -136,8 +138,8 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
             'warning rather than assuming it holds nothing');
         return true;
       }
-    }
-    return false;
+    }));
+    return verdicts.any((v) => v);
   }
 
   // ------------------------------------------------------------------ apply
@@ -202,14 +204,14 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     final session = _sessionId(targets.first, DateTime.now());
     final grid = eqGrid();
 
+    // Read every member's vocabulary AT ONCE. These are independent reads and a
+    // sequential loop costs the sum of the round trips — measured at 3.4s for a
+    // five-member home theatre, which is most of the time an apply takes.
+    final configs = await Future.wait(targets.map((d) async =>
+        (d, (await _apply.readDeviceConfig(ip: d.ip!, rincon: d.uuid)).config)));
+
     final tunings = <SonosDevice, SpectralTuning>{};
-    for (final d in targets) {
-      // Channel ids are re-read immediately before every apply and never cached:
-      // they track the channel ROLE a bond assigns, they are scoped per player,
-      // and a soundbar's list is not predictable from its layout at all. Wrong
-      // ids mean HTTP 200 with nothing stored and no error.
-      final cfg = (await _apply.readDeviceConfig(ip: d.ip!, rincon: d.uuid))
-          .config;
+    for (final (d, cfg) in configs) {
       // ABORT, never skip. A batch missing one bonded member is exactly the
       // incomplete set that stores nothing — and if the rest happened to commit,
       // enabling a partial set is the documented way to destroy the tunings on
@@ -230,7 +232,7 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
       }
 
       final correction = composeCorrection(
-        bandOffsetsDb: offsets[d.uuid] ?? List.filled(kEqBands.length, 0),
+        bandOffsetsDb: offsets[d.uuid] ?? flatCurve(),
         freqs: grid,
       );
       tunings[d] = SpectralTuning(
@@ -249,6 +251,7 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
         ],
       );
     }
+
     if (tunings.isEmpty) {
       throw const SonorityError(SonorityErrorCode.nothingTunable);
     }
@@ -275,10 +278,10 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     // silently didn't — `available` is already 1 either way. Poll every member
     // regardless: on a first apply that catches a satellite that failed to
     // commit while the coordinator did, which one-member polling misses.
-    for (final d in tunings.keys) {
-      if (!await _pollAvailable(d.ip!, want: true)) {
-        throw const SonorityError(SonorityErrorCode.tuningNotStored);
-      }
+    final stored = await Future.wait(
+        tunings.keys.map((d) => _pollAvailable(d.ip!, want: true)));
+    if (stored.any((ok) => !ok)) {
+      throw const SonorityError(SonorityErrorCode.tuningNotStored);
     }
 
     // Storing is not enabling — that is a separate call, which is also what
@@ -331,10 +334,10 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
       // Every member, not just the first: one that silently kept its
       // coefficients would otherwise be reported as cleared while still
       // filtering audio.
-      for (final d in targets) {
-        if (!await _pollAvailable(d.ip!, want: false)) {
-          throw const SonorityError(SonorityErrorCode.tuningNotCleared);
-        }
+      final cleared = await Future.wait(
+          targets.map((d) => _pollAvailable(d.ip!, want: false)));
+      if (cleared.any((ok) => !ok)) {
+        throw const SonorityError(SonorityErrorCode.tuningNotCleared);
       }
       // Switch the calibration flag back off too. Enabling it is part of
       // applying, so leaving it on after a clear hands back a speaker that
