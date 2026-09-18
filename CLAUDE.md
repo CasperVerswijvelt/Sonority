@@ -407,6 +407,13 @@ rest of the local API. `trueplay_codec.dart` / `trueplay_apply.dart` /
    which is what makes the existing Trueplay switch an instant A/B for the EQ.
 8. **`ClearAllTunings` only in a REMOVE path.** Disabling preserves the stored
    tuning; clearing is irreversible, and coefficients can never be read back.
+   ⚠️ **A cleared BONDED set then refuses to store anything for minutes.** Measured
+   on a six-member home theater: seven batches over ~8 minutes after a clear
+   (sequential and parallel alike) each returned HTTP 200 and stored nothing,
+   while the same batch minutes later stored first time. A **standalone** speaker
+   has no such window — cleared, then applied 1s later, it stored. So a
+   remove-then-reapply on a bonded entity fails in a way that looks exactly like
+   a bug, and clearing is not a way to "reset" a set before writing to it.
 9. **A lone unbonded Sub has no role**, so no channels and nothing to author.
 10. **The session id is NOT free-form** — it is parsed, and a bad one is another
     HTTP 200 that stores nothing. Measured: a player accepts only
