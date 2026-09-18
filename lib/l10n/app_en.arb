@@ -838,7 +838,7 @@
   "eqRemoveBody": "This clears the stored tuning from every speaker in this configuration. To switch it off without losing it, use the Trueplay toggle on the previous screen instead.",
   "eqRemoveConfirm": "Remove",
   "eqOverwriteTitle": "Replace the existing calibration?",
-  "eqOverwriteBody": "These speakers already hold a Trueplay calibration. Applying an EQ replaces it permanently: a speaker never gives its calibration back, so the only way to get it again is to measure it again in the Sonos app.",
+  "eqOverwriteBody": "These speakers already hold an EQ or Trueplay calibration. Applying an EQ replaces this permanently.",
   "eqOverwriteConfirm": "Replace",
   "eqEntryTitle": "EQ",
   "eqEntrySubtitle": "Shape the sound with a 10-band equaliser",

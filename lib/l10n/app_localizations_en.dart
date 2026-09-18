@@ -1425,7 +1425,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get eqOverwriteBody =>
-      'These speakers already hold a Trueplay calibration. Applying an EQ replaces it permanently: a speaker never gives its calibration back, so the only way to get it again is to measure it again in the Sonos app.';
+      'These speakers already hold an EQ or Trueplay calibration. Applying an EQ replaces this permanently.';
 
   @override
   String get eqOverwriteConfirm => 'Replace';

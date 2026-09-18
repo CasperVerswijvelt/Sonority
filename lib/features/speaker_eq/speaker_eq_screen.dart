@@ -10,6 +10,7 @@ import '../../state/sonos_controller.dart';
 import '../../state/speaker_eq_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/destructive_button.dart';
 import '../widgets/info_note.dart';
 import '../widgets/max_width_body.dart';
@@ -137,24 +138,13 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
         .wouldOverwrite(members: members);
     if (!mounted) return false;
     if (wouldOverwrite) {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l10n.eqOverwriteTitle),
-          content: Text(l10n.eqOverwriteBody),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.actionCancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l10n.eqOverwriteConfirm),
-            ),
-          ],
-        ),
+      final ok = await confirmDialog(
+        context,
+        title: l10n.eqOverwriteTitle,
+        message: l10n.eqOverwriteBody,
+        confirmLabel: l10n.eqOverwriteConfirm,
       );
-      if (ok != true) return false;
+      if (!ok) return false;
     }
     _overwriteConfirmed = true;
     return true;
@@ -174,24 +164,13 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
 
   Future<void> _remove(List<SonosDevice> members) async {
     final l10n = context.l10n;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.eqRemoveTitle),
-        content: Text(l10n.eqRemoveBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.actionCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.eqRemoveConfirm),
-          ),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      title: l10n.eqRemoveTitle,
+      message: l10n.eqRemoveBody,
+      confirmLabel: l10n.eqRemoveConfirm,
     );
-    if (ok != true || !mounted) return;
+    if (!ok || !mounted) return;
     final done = await ref
         .read(speakerEqControllerProvider.notifier)
         .remove(entityId: widget.uuid, members: members);
