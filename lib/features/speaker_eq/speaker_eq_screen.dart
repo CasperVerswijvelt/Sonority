@@ -453,14 +453,16 @@ class _Footer extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 8),
+          // Top gutter as well as the sides: the button is a separate thing
+          // from the card above it and was reading as attached to it.
+          padding: const EdgeInsets.fromLTRB(
+              kPageGutter, kPageGutter, kPageGutter, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Above the button, not below it: an error under a full-width
               // button sat below the fold until you scrolled.
               if (!status.busy && (status.error != null || status.applied)) ...[
-                Gap.s,
                 _StatusLine(status: status),
                 Gap.m,
               ],
