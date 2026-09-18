@@ -413,8 +413,12 @@ rest of the local API. `trueplay_codec.dart` / `trueplay_apply.dart` /
     `<anything>_<THAT PLAYER'S SERIAL>_<a.b.c.d>_<anything>`. The prefix and any
     trailing field are free (`sonority_…` works); **exactly four dot-separated
     numbers** are required (3 or 5 parts, a hyphen, or no version field at all
-    are each dropped), and the serial must be the target's own with `RINCON_`
+    are each dropped), and the serial field must carry a serial with `RINCON_`
     **stripped** — leaving it on adds an underscore and shifts every field.
+    On a standalone speaker the serial has to be its own (another player's is
+    dropped), but the whole batch shares ONE id per rule 3, and a 6-member home
+    theater stored on every member from an id carrying only the **coordinator's**
+    serial — so satellites accept their coordinator's, not just their own.
     ⚠️ Sonos' real firmware string (`86.8-78270`) is NOT four dotted numbers, so
     reshape it rather than passing it through. This contradicts the older
     "free-form label" note, which was true of the prefix only.

@@ -379,6 +379,11 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
   /// The prefix and any trailing field are genuinely free. A dropped id is the
   /// silent kind of failure: HTTP 200, nothing stored, no error.
   ///
+  /// The table is a STANDALONE sweep, which is why this is called once for the
+  /// whole batch rather than per member: a batch shares one id, and a six-member
+  /// home theater stored on every member from an id carrying only the
+  /// coordinator's serial. A satellite takes its coordinator's serial too.
+  ///
   /// The version field is built from the speaker's real firmware, because a real
   /// value survives a `>=` check if one exists — Sonos ships it as `86.8-78270`,
   /// which is not four dotted numbers, so it is re-shaped rather than used raw.
