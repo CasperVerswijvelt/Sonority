@@ -408,7 +408,17 @@ rest of the local API. `trueplay_codec.dart` / `trueplay_apply.dart` /
 8. **`ClearAllTunings` only in a REMOVE path.** Disabling preserves the stored
    tuning; clearing is irreversible, and coefficients can never be read back.
 9. **A lone unbonded Sub has no role**, so no channels and nothing to author.
-10. **Never offer to re-enable Trueplay after a bonding change** — enabling into
+10. **The session id is NOT free-form** — it is parsed, and a bad one is another
+    HTTP 200 that stores nothing. Measured: a player accepts only
+    `<anything>_<THAT PLAYER'S SERIAL>_<a.b.c.d>_<anything>`. The prefix and any
+    trailing field are free (`sonority_…` works); **exactly four dot-separated
+    numbers** are required (3 or 5 parts, a hyphen, or no version field at all
+    are each dropped), and the serial must be the target's own with `RINCON_`
+    **stripped** — leaving it on adds an underscore and shifts every field.
+    ⚠️ Sonos' real firmware string (`86.8-78270`) is NOT four dotted numbers, so
+    reshape it rather than passing it through. This contradicts the older
+    "free-form label" note, which was true of the prefix only.
+11. **Never offer to re-enable Trueplay after a bonding change** — enabling into
     an incomplete set destroys the surviving tunings.
 
 ⚠️ **Public-repo hygiene (standing rule: findings public, provenance private).**
