@@ -71,7 +71,6 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
   String?
   _editing; // the member whose sliders are on screen, in individual mode
 
-  bool _live = false;
   bool _overwriteConfirmed = false;
 
   /// Whether a tuning of ours is actually ON the speakers. Not "has the user
@@ -89,12 +88,6 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
     // slider would stomp it.
     final system = ref.read(sonosControllerProvider).value;
     if (system != null) _load(eqMembers(system, widget.uuid));
-  }
-
-  @override
-  void dispose() {
-    ref.read(speakerEqControllerProvider.notifier).cancelPending();
-    super.dispose();
   }
 
   /// Seed the sliders from whatever was last applied to this entity.
@@ -179,19 +172,6 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
     if (ok && mounted) setState(() => _applied = true);
   }
 
-  Future<void> _toggleLive(bool on, List<SonosDevice> members) async {
-    if (!on) {
-      ref.read(speakerEqControllerProvider.notifier).cancelPending();
-      setState(() => _live = false);
-      return;
-    }
-    // Confirm before arming, not after the first drag — the user should know
-    // what they are about to overwrite before they start moving sliders. Arming
-    // itself writes nothing.
-    if (!await _ensureConfirmed(members)) return;
-    if (mounted) setState(() => _live = true);
-  }
-
   Future<void> _remove(List<SonosDevice> members) async {
     final l10n = context.l10n;
     final ok = await showDialog<bool>(
@@ -265,8 +245,6 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
           padding: const EdgeInsets.symmetric(vertical: 16),
           footer: _Footer(
             status: status,
-            live: _live,
-            onLive: (v) => _toggleLive(v, members),
             onApply: () => _apply(members),
             onRemove: () => _remove(members),
             hasTuning: _applied || status.applied,
@@ -329,21 +307,7 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
                         curves: [EqCurve(curve, scheme.primary)],
                       ),
                       Gap.m,
-                      _Bands(
-                        gains: _current,
-                        onChanged: _setBand,
-                        onChangeEnd: () {
-                          if (_live) {
-                            ref
-                                .read(speakerEqControllerProvider.notifier)
-                                .requestLiveApply(
-                                  entityId: widget.uuid,
-                                  members: members,
-                                  offsets: _offsetsFor(members),
-                                );
-                          }
-                        },
-                      ),
+                      _Bands(gains: _current, onChanged: _setBand),
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
@@ -380,12 +344,7 @@ class _Gutter extends StatelessWidget {
 class _Bands extends StatelessWidget {
   final List<double> gains;
   final void Function(int index, double value) onChanged;
-  final VoidCallback onChangeEnd;
-  const _Bands({
-    required this.gains,
-    required this.onChanged,
-    required this.onChangeEnd,
-  });
+  const _Bands({required this.gains, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -424,7 +383,6 @@ class _Bands extends StatelessWidget {
                           '${l10n.eqBandSemantics(eqBandLabel(kEqBands[i]))}, '
                           '${l10n.eqGainDb(_fmt(v))}',
                       onChanged: (v) => onChanged(i, v),
-                      onChangeEnd: onChangeEnd,
                     ),
                   ),
                   Text(
@@ -495,8 +453,6 @@ class _MemberPicker extends StatelessWidget {
 
 class _Footer extends StatelessWidget {
   final SpeakerEqStatus status;
-  final bool live;
-  final ValueChanged<bool> onLive;
   final VoidCallback onApply;
   final VoidCallback onRemove;
 
@@ -505,8 +461,6 @@ class _Footer extends StatelessWidget {
   final bool hasTuning;
   const _Footer({
     required this.status,
-    required this.live,
-    required this.onLive,
     required this.onApply,
     required this.onRemove,
     required this.hasTuning,
@@ -519,31 +473,34 @@ class _Footer extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SwitchListTile(
-          shape: kFlatTileShape,
-          contentPadding: const EdgeInsets.symmetric(horizontal: kPageGutter),
-          secondary: const Icon(Icons.bolt_outlined),
-          title: Text(l10n.eqLiveApply),
-          subtitle: Text(l10n.eqLiveApplySubtitle),
-          value: live,
-          onChanged: status.busy ? null : onLive,
-        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Above the button, not below it: an error under a full-width
+              // button sat below the fold until you scrolled.
+              if (!status.busy && (status.error != null || status.applied)) ...[
+                Gap.s,
+                _StatusLine(status: status),
+                Gap.m,
+              ],
+              // Progress lives IN the button: the thing you pressed is the
+              // thing that should say it is working, and a separate line below
+              // it was off-screen until you scrolled.
               FilledButton.icon(
                 // Applying stays on this page — no progress route, no pop — so
                 // the sliders you just moved are still in front of you.
-                onPressed: (live || status.busy) ? null : onApply,
-                icon: const Icon(Icons.equalizer),
-                label: Text(l10n.eqApply),
+                onPressed: status.busy ? null : onApply,
+                icon: status.busy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.equalizer),
+                label: Text(status.busy ? l10n.eqApplying : l10n.eqApply),
               ),
-              if (status.busy || status.error != null || status.applied) ...[
-                Gap.s,
-                _StatusLine(status: status),
-              ],
             ],
           ),
         ),
@@ -573,23 +530,9 @@ class _StatusLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    if (status.busy) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          Gap.s,
-          Text(l10n.eqApplying, style: theme.textTheme.bodySmall),
-        ],
-      );
-    }
     final error = status.error;
     if (error != null) {
-      // No retry affordance: Apply sits directly above and is exactly that.
+      // No retry affordance: Apply sits directly below and is exactly that.
       return Text(
         localizedError(l10n, error),
         style: theme.textTheme.bodySmall?.copyWith(

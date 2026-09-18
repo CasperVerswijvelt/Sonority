@@ -2290,18 +2290,6 @@ abstract class AppLocalizations {
   /// **'Edited'**
   String get eqEdited;
 
-  /// No description provided for @eqLiveApply.
-  ///
-  /// In en, this message translates to:
-  /// **'Live apply'**
-  String get eqLiveApply;
-
-  /// No description provided for @eqLiveApplySubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Hear each change a moment after you let go.'**
-  String get eqLiveApplySubtitle;
-
   /// No description provided for @eqApply.
   ///
   /// In en, this message translates to:
@@ -2311,7 +2299,7 @@ abstract class AppLocalizations {
   /// No description provided for @eqApplying.
   ///
   /// In en, this message translates to:
-  /// **'Updating…'**
+  /// **'Applying…'**
   String get eqApplying;
 
   /// No description provided for @eqApplied.

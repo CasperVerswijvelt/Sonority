@@ -160,7 +160,7 @@ there if a different model/firmware ever needs it.
   from the pick-a-speaker flows and per-speaker in the room / group / home-theater detail views
 - ✅ **EQ** — a 10-band equaliser for any home theater, group or single speaker, applied to the
   speakers themselves as a real filter cascade (the official app offers only bass and treble);
-  one curve for the whole configuration or a separate curve per speaker, with live apply
+  one curve for the whole configuration or a separate curve per speaker
 - ✅ Trueplay read + toggle on speakers / pairs / home theaters
 - ✅ Diagnostics — a hide-nothing technical system view, packaged into a shareable zip for support
 - ✅ Responsive layout for iPad and desktop — a left navigation rail and multi-column content on

@@ -64,7 +64,7 @@ WHAT YOU CAN DO
 • Speaker groups the standard app won’t make — full-range zones of 2–16 speakers, stereo pairs (including mismatched models), or a custom per-speaker left/right/both layout, each with an optional sub.
 • Config profiles — snapshot your whole layout and rebuild it in one tap after moving speakers around. Each profile gets its own icon and colour, reorders with a drag, and opens a per-entity detail view showing exactly what it saved. A profile can also capture and restore per-speaker audio settings (bass, treble, loudness, night sound, speech enhancement, sub and surround levels, lip-sync) and, optionally, volume.
 • Apply a profile without opening the app — from a home-screen widget (small, medium or large) or a long-press on the app icon.
-• A 10-band equaliser for any home theater, group or single speaker — something the standard app doesn’t offer at all. Tune the whole configuration at once, or each speaker separately, and hear each change moments later.
+• A 10-band equaliser for any home theater, group or single speaker — something the standard app doesn’t offer at all. Tune the whole configuration at once, or each speaker separately.
 • Rename rooms, identify which physical speaker is which by blinking its status light (or a short chime on phones and tablets), and switch a speaker’s room-calibration tuning on or off.
 • Diagnostics — a technical, hide-nothing view of your system when something isn’t working, which you can share with support or email to the developer to get help.
 • Works on phones, tablets and desktops, with a layout that adapts to the screen — a roomy side navigation and multi-column view on big screens, the familiar single column on phones.

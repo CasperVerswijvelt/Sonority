@@ -502,40 +502,39 @@ void main() {
     });
   });
 
-  group('live apply scheduling', () {
-    test('a burst of slider releases collapses to one write', () async {
+  // Measured on hardware: a player stores a tuning only when the session id is
+  // `<anything>_<its own serial>_<a.b.c.d>_<anything>`. Anything else is an
+  // HTTP 200 with nothing stored and no error, so nothing else would catch it.
+  group('session id', () {
+    test('carries the target serial and a four-part version', () async {
       final apply = _FakeApply();
-      final c = _container(apply, repo: _FakeRepo(foreign: true));
-      final n = c.read(speakerEqControllerProvider.notifier);
+      final c = _container(apply);
+      await c.read(speakerEqControllerProvider.notifier).apply(
+          entityId: 'E', members: const [_bar], offsets: {'RINCON_BAR': _cut(4)});
 
-      for (var i = 1; i <= 6; i++) {
-        n.requestLiveApply(
-          entityId: 'RINCON_BAR',
-          members: const [_bar],
-          offsets: {'RINCON_BAR': _cut(i % kEqBands.length)},
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 1200));
-
-      expect(apply.posts, 1, reason: 'dragging must not hammer the speakers');
-      // And it carried the LAST value, not the first.
-      expect(await n.loadStored('RINCON_BAR'),
-          {'RINCON_BAR': _cut(6 % kEqBands.length)});
+      final id = apply.applied['RINCON_BAR']!.deviceId;
+      final parts = id.split('_');
+      expect(parts.length, greaterThanOrEqualTo(4), reason: id);
+      expect(parts[1], 'BAR', reason: 'the serial, RINCON_ stripped: $id');
+      expect(parts[2], matches(r'^\d+\.\d+\.\d+\.\d+$'),
+          reason: 'exactly four dot-separated numbers: $id');
+      expect(id, isNot(contains('RINCON_')),
+          reason: 'the RINCON_ prefix adds an underscore and shifts every field');
     });
 
-    test('cancelling a pending apply writes nothing', () async {
+    test('a firmware that is not four dotted numbers is re-shaped', () async {
+      // Sonos ships e.g. 86.8-78270, which the player rejects verbatim.
+      const d = SonosDevice(
+          uuid: 'RINCON_X',
+          roomName: 'X',
+          modelName: 'Sonos One',
+          ip: '1.1.1.9',
+          softwareVersion: '86.8-78270');
       final apply = _FakeApply();
-      final c = _container(apply, repo: _FakeRepo(foreign: true));
-      final n = c.read(speakerEqControllerProvider.notifier);
-      n.requestLiveApply(
-        entityId: 'RINCON_BAR',
-        members: const [_bar],
-        offsets: {'RINCON_BAR': _cut(2)},
-      );
-      n.cancelPending();
-      await Future<void>.delayed(const Duration(milliseconds: 1000));
-      expect(apply.posts, 0);
+      final c = _container(apply);
+      await c.read(speakerEqControllerProvider.notifier).apply(
+          entityId: 'E', members: const [d], offsets: {'RINCON_X': _cut(4)});
+      expect(apply.applied['RINCON_X']!.deviceId.split('_')[2], '86.8.78270.0');
     });
   });
 

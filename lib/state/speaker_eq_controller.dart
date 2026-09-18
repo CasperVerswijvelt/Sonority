@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -57,22 +56,10 @@ final speakerEqControllerProvider =
 /// the user left flat still get a passthrough blob — skipping them would silently
 /// drop the whole apply.
 class SpeakerEqController extends Notifier<SpeakerEqStatus> {
-  /// Live-apply scheduling: at most one apply in flight, and at most one queued.
-  /// A newer value replaces the queued one rather than joining a backlog, so
-  /// dragging a slider can never build up a burst of writes to real speakers.
-  Timer? _debounce;
-  _EqRequest? _pending;
   bool _inFlight = false;
-  DateTime _lastApply = DateTime.fromMillisecondsSinceEpoch(0);
-
-  static const _debounceDelay = Duration(milliseconds: 600);
-  static const _minInterval = Duration(milliseconds: 1500);
 
   @override
-  SpeakerEqStatus build() {
-    ref.onDispose(() => _debounce?.cancel());
-    return const SpeakerEqStatus();
-  }
+  SpeakerEqStatus build() => const SpeakerEqStatus();
 
   TrueplayApplyClient get _apply => ref.read(trueplayApplyProvider);
   KeyValueStore get _store => ref.read(eqStoreProvider);
@@ -155,59 +142,6 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
 
   // ------------------------------------------------------------------ apply
 
-  /// Debounced, coalesced apply for live mode. Safe to call on every slider
-  /// release; only the latest value is ever written.
-  void requestLiveApply({
-    required String entityId,
-    required List<SonosDevice> members,
-    required Map<String, List<double>> offsets,
-  }) {
-    _pending = _EqRequest(entityId, members, offsets);
-    _debounce?.cancel();
-    _debounce = Timer(_debounceDelay, _drain);
-  }
-
-  /// Cancels a queued live apply (leaving the screen, switching live mode off).
-  void cancelPending() {
-    _debounce?.cancel();
-    _debounce = null;
-    _pending = null;
-  }
-
-  Future<void> _drain() async {
-    // Re-arm rather than return: the in-flight run only picks `_pending` up if
-    // it IS a drain. `apply()` is also called straight from the Apply button,
-    // and a value stranded behind one of those is never rescheduled — the
-    // sliders and the speakers then disagree, silently, with storage recording
-    // the older value.
-    if (_inFlight) {
-      _debounce?.cancel();
-      _debounce = Timer(_minInterval, _drain);
-      return;
-    }
-    final req = _pending;
-    if (req == null) return;
-    _pending = null;
-
-    final since = DateTime.now().difference(_lastApply);
-    if (since < _minInterval) {
-      _pending = req;
-      _debounce?.cancel();
-      _debounce = Timer(_minInterval - since, _drain);
-      return;
-    }
-
-    await apply(
-      entityId: req.entityId,
-      members: req.members,
-      offsets: req.offsets,
-    );
-    if (_pending != null) {
-      _debounce?.cancel();
-      _debounce = Timer(_minInterval, _drain);
-    }
-  }
-
   /// Compose, fit and write the EQ to every member, then enable it.
   ///
   /// Returns true when the speakers confirm the tuning is stored. An HTTP 200 is
@@ -232,7 +166,6 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
       return false;
     } finally {
       _inFlight = false;
-      _lastApply = DateTime.now();
     }
   }
 
@@ -257,10 +190,16 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     }
     final targets = members;
 
-    // One session id for the whole batch. It is a free-form label, but a member
-    // declaring a different session than the rest of the set is dropped.
-    final session = 'sonority_${entityId}_'
-        '${DateTime.now().millisecondsSinceEpoch}';
+    // One session id for the whole batch: a member declaring a different session
+    // than the rest of the set is dropped.
+    //
+    // ⚠️ SHAPE MATTERS, or at least has never been shown not to. Every apply
+    // that has ever been accepted used `trueplay_<serial>_<firmware>_<stamp>`,
+    // with the `RINCON_` prefix stripped off the serial. A different shape is
+    // the kind of thing this endpoint answers with a 200 and silently drops, so
+    // keep to the one that is known to work rather than the one that reads
+    // nicer.
+    final session = _sessionId(targets.first, DateTime.now());
     final grid = eqGrid();
 
     final tunings = <SonosDevice, SpectralTuning>{};
@@ -373,7 +312,6 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     required String entityId,
     required List<SonosDevice> members,
   }) async {
-    cancelPending();
     if (_inFlight) return false;
     _inFlight = true;
     state = SpeakerEqStatus(entityId: entityId, busy: true);
@@ -398,8 +336,15 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
           throw const SonorityError(SonorityErrorCode.tuningNotCleared);
         }
       }
+      // Switch the calibration flag back off too. Enabling it is part of
+      // applying, so leaving it on after a clear hands back a speaker that
+      // reads "calibration on" with nothing stored — not the state we found it
+      // in. It is a no-op on an empty slot, which is exactly why it is cheap to
+      // put right.
+      await ref
+          .read(trueplayControllerProvider.notifier)
+          .setEnabled(targets, false);
       await _store.setString(_key(entityId), jsonEncode({'v': 1}));
-      await ref.read(trueplayControllerProvider.notifier).load(targets);
       state = const SpeakerEqStatus();
       return true;
     } catch (e) {
@@ -409,6 +354,52 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     } finally {
       _inFlight = false;
     }
+  }
+
+  /// The session id every member of a batch declares.
+  ///
+  /// ⚠️ **NOT a free-form label, whatever the shape of it suggests.** Measured on
+  /// hardware, a player stores the tuning only when the id is
+  /// `<anything>_<THAT PLAYER'S SERIAL>_<a.b.c.d>_<anything>`:
+  ///
+  /// | id                                   | result  |
+  /// |--------------------------------------|---------|
+  /// | `x_<serial>_1.2.3.4_<stamp>`         | stored  |
+  /// | `x_<serial>_86.8.78270.0_<stamp>`    | stored  |
+  /// | `x_<serial>_1.2.3_<stamp>` (3 parts) | DROPPED |
+  /// | `x_<serial>_1.2.3.4.5_<stamp>` (5)   | DROPPED |
+  /// | `x_<serial>_86.8-78270_<stamp>`      | DROPPED |
+  /// | `x_<serial>_<stamp>` (no version)    | DROPPED |
+  /// | `x_<OTHER serial>_1.2.3.4_<stamp>`   | DROPPED |
+  /// | `hello world`                        | DROPPED |
+  ///
+  /// The prefix and any trailing field are genuinely free. A dropped id is the
+  /// silent kind of failure: HTTP 200, nothing stored, no error.
+  ///
+  /// The version field is built from the speaker's real firmware, because a real
+  /// value survives a `>=` check if one exists — Sonos ships it as `86.8-78270`,
+  /// which is not four dotted numbers, so it is re-shaped rather than used raw.
+  static String _sessionId(SonosDevice d, DateTime now) {
+    String p(int v) => v.toString().padLeft(2, '0');
+    final stamp = '${now.year}-${p(now.month)}-${p(now.day)}_'
+        '${p(now.hour)}-${p(now.minute)}-${p(now.second)}';
+    final serial = d.uuid.startsWith('RINCON_')
+        ? d.uuid.substring('RINCON_'.length)
+        : d.uuid;
+    return 'sonority_${serial}_${_fourPartVersion(d.softwareVersion)}_$stamp';
+  }
+
+  /// Any digit groups in [firmware], padded or truncated to exactly four parts.
+  /// `86.8-78270` becomes `86.8.78270.0`; anything unparseable becomes `1.0.0.0`.
+  static String _fourPartVersion(String? firmware) {
+    final parts = RegExp(r'\d+')
+        .allMatches(firmware ?? '')
+        .map((m) => m.group(0)!)
+        .toList();
+    while (parts.length < 4) {
+      parts.add('0');
+    }
+    return parts.take(4).join('.');
   }
 
   Future<bool> _pollAvailable(String ip, {required bool want}) async {
@@ -423,12 +414,4 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     }
     return false;
   }
-}
-
-@immutable
-class _EqRequest {
-  final String entityId;
-  final List<SonosDevice> members;
-  final Map<String, List<double>> offsets;
-  const _EqRequest(this.entityId, this.members, this.offsets);
 }

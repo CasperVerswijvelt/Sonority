@@ -16,7 +16,6 @@ class EqSlider extends StatelessWidget {
   final String label;
   final String Function(double) semanticFormatter;
   final ValueChanged<double> onChanged;
-  final VoidCallback onChangeEnd;
 
   const EqSlider({
     super.key,
@@ -27,7 +26,6 @@ class EqSlider extends StatelessWidget {
     required this.label,
     required this.semanticFormatter,
     required this.onChanged,
-    required this.onChangeEnd,
   });
 
   @override
@@ -56,10 +54,7 @@ class EqSlider extends StatelessWidget {
           divisions: divisions,
           label: label,
           semanticFormatterCallback: semanticFormatter,
-          // Writes go on release, never on drag: one apply is N network writes
-          // to real speakers.
           onChanged: onChanged,
-          onChangeEnd: (_) => onChangeEnd(),
         ),
       ),
     );

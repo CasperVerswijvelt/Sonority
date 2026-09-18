@@ -1399,17 +1399,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eqEdited => 'Edited';
 
   @override
-  String get eqLiveApply => 'Live apply';
-
-  @override
-  String get eqLiveApplySubtitle =>
-      'Hear each change a moment after you let go.';
-
-  @override
   String get eqApply => 'Apply';
 
   @override
-  String get eqApplying => 'Updating…';
+  String get eqApplying => 'Applying…';
 
   @override
   String get eqApplied => 'Applied';
