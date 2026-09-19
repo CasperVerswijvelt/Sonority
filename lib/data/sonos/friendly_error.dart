@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'soap_client.dart';
 import 'sonority_error.dart';
+import 'zone_api.dart';
 
 /// Turns a raw engine exception into a short, plain-English sentence for the
 /// failed-step text on the apply/bond progress screen. The full technical
@@ -21,6 +22,13 @@ String friendlyError(Object e) {
   if (e is TimeoutException) {
     return 'The speaker didn’t respond in time. It may still be settling — '
         'try again in a moment.';
+  }
+  // The zones namespace names its own refusals ("zone def not found", "update
+  // only allows add or remove, not both"), which is far more use in the log than
+  // in a sentence — so quote it rather than trying to translate each one.
+  if (e is ZoneApiException) {
+    return 'Sonos refused the change to this bonding setup (${e.reason}). '
+        'See the raw log for details.';
   }
   if (e is SonosSoapException) {
     // Sonos UPnP fault codes we've confirmed on hardware (see CLAUDE.md).

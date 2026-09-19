@@ -424,6 +424,12 @@ abstract class AppLocalizations {
   /// **'Sonos reported an error. See the raw log for details.'**
   String get errSonosGeneric;
 
+  /// No description provided for @errBondRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'Sonos refused the change to this bonding setup ({reason}). See the raw log for details.'**
+  String errBondRefused(String reason);
+
   /// No description provided for @errAborted.
   ///
   /// In en, this message translates to:
@@ -568,18 +574,6 @@ abstract class AppLocalizations {
   /// **'Separate group'**
   String get stepSeparateGroup;
 
-  /// No description provided for @stepSeparateRestore.
-  ///
-  /// In en, this message translates to:
-  /// **'Separate + restore room names'**
-  String get stepSeparateRestore;
-
-  /// No description provided for @stepDetach.
-  ///
-  /// In en, this message translates to:
-  /// **'Detach from playback group'**
-  String get stepDetach;
-
   /// No description provided for @stepFreeFromBond.
   ///
   /// In en, this message translates to:
@@ -615,12 +609,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wait for Sonos to confirm'**
   String get stepWaitForConfirm;
-
-  /// No description provided for @stepWaitingConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'waiting for Sonos to confirm'**
-  String get stepWaitingConfirm;
 
   /// No description provided for @stepApplyingSettle.
   ///
@@ -1627,7 +1615,7 @@ abstract class AppLocalizations {
   /// No description provided for @groupSeparateConfirmMessage.
   ///
   /// In en, this message translates to:
-  /// **'The speakers become standalone rooms again. Their original room names will be restored.'**
+  /// **'The speakers become standalone rooms again, each under its own room name.'**
   String get groupSeparateConfirmMessage;
 
   /// No description provided for @groupSeparateProgressTitle.

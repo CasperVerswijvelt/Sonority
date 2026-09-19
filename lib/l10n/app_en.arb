@@ -125,6 +125,14 @@
     }
   },
   "errSonosGeneric": "Sonos reported an error. See the raw log for details.",
+  "errBondRefused": "Sonos refused the change to this bonding setup ({reason}). See the raw log for details.",
+  "@errBondRefused": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "errAborted": "Aborted",
   "errChimeUnreachable": "The speaker could not reach your phone to play the sound. Make sure your phone and speakers are on the same Wi‑Fi network. (Android emulators can’t reach speakers on your LAN — use a real device.)",
   "entityKindHomeTheater": "Home theater",
@@ -191,8 +199,6 @@
   "stepEditGroup": "Update group",
   "stepUpdateGroup": "Apply changes",
   "stepSeparateGroup": "Separate group",
-  "stepSeparateRestore": "Separate + restore room names",
-  "stepDetach": "Detach from playback group",
   "stepFreeFromBond": "Free from its current bond",
   "stepFreeConflicting": "Free conflicting speakers",
   "stepFreeing": "Freeing {name}",
@@ -206,7 +212,6 @@
   "stepWaitForSettle": "Wait for Sonos to settle",
   "stepWaitingSettle": "waiting for Sonos to settle",
   "stepWaitForConfirm": "Wait for Sonos to confirm",
-  "stepWaitingConfirm": "waiting for Sonos to confirm",
   "stepApplyingSettle": "Applying — Sonos can take up to a minute to settle.",
   "stepNameUnchanged": "name unchanged — nothing to do",
   "stepAlreadyFormed": "already formed — nothing to do",
@@ -598,7 +603,7 @@
     }
   },
   "groupSeparateConfirmTitle": "Separate group?",
-  "groupSeparateConfirmMessage": "The speakers become standalone rooms again. Their original room names will be restored.",
+  "groupSeparateConfirmMessage": "The speakers become standalone rooms again, each under its own room name.",
   "groupSeparateProgressTitle": "Separate group",
   "groupFlowTitle": "Group speakers",
   "groupEditTitle": "Configure group",

@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
-import 'package:sonority/data/sonos/zone_layout.dart';
 import 'package:sonority/features/profiles/profile.dart';
 
 ZoneGroupMember _m(String cms) =>

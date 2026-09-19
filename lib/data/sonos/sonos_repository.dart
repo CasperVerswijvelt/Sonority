@@ -14,6 +14,7 @@ import 'room_calibration.dart';
 import 'soap_client.dart';
 import 'sonority_error.dart';
 import 'ssdp_discovery.dart';
+import 'zone_api.dart';
 import 'zone_layout.dart';
 import 'zone_topology.dart';
 
@@ -29,6 +30,7 @@ class SonosRepository {
   final RoomCalibrationClient _calibration;
   final AvTransportClient _avTransport;
   final KeyValueStore _store;
+  final ZoneApiClient _zoneApi;
 
   SonosRepository({
     SsdpDiscovery? ssdp,
@@ -38,13 +40,15 @@ class SonosRepository {
     RoomCalibrationClient? calibration,
     AvTransportClient? avTransport,
     KeyValueStore? store,
+    ZoneApiClient? zoneApi,
   })  : _ssdp = ssdp ?? SsdpDiscovery(),
         _descriptions = descriptions ?? DeviceDescriptionClient(),
         _topology = topology ?? ZoneTopologyClient(SonosSoapClient()),
         _deviceProps = deviceProps ?? DevicePropertiesClient(SonosSoapClient()),
         _calibration = calibration ?? RoomCalibrationClient(SonosSoapClient()),
         _avTransport = avTransport ?? AvTransportClient(SonosSoapClient()),
-        _store = store ?? InMemoryKeyValueStore();
+        _store = store ?? InMemoryKeyValueStore(),
+        _zoneApi = zoneApi ?? const ZoneApiClient();
 
   /// Full discovery: find players, read their descriptions, then read the
   /// system topology from any one of them.
@@ -653,5 +657,200 @@ class SonosRepository {
         ),
     };
   }
+
+
+  /// Runs one `zones`-namespace bonding operation on a live session.
+  ///
+  /// There is **no SOAP fallback**. The zones namespace is the bonding path; the
+  /// SOAP bonding calls above are the legacy path, split off rather than chained
+  /// behind this one. Chaining them would fire a second live write on top of a
+  /// change already in flight, and a named refusal here (the namespace is
+  /// absent, the shape is illegal, the definition is gone) is something the user
+  /// should be told about rather than have papered over.
+  ///
+  /// The one swallowed failure is a TIMEOUT — the same rule this engine already
+  /// applies to `AddHTSatellite`/`AddBondedZones`: a timed-out write very often
+  /// applied anyway, so it means "go verify", and every caller poll-verifies.
+  Future<void> _zoneApiRun(
+    void Function(String)? onNote,
+    Future<void> Function() body,
+  ) async {
+    try {
+      await body();
+    } on TimeoutException {
+      onNote?.call('zones API timed out — verifying');
+    }
+  }
+
+  /// The live bond COORDINATED by [coordinatorUuid], or null when no zone is led
+  /// by that speaker. Reads [ZoneSession.activeZones], which the subscribe
+  /// already delivered — no round trip.
+  ///
+  /// ⚠️ Matching on membership alone is NOT safe: an active zone can list
+  /// speakers it does not really drive (this household's unofficial fronts show
+  /// up as members with `disconnected: true`), so a membership match could return
+  /// ANOTHER room's bond — and the callers then write to it, past the confirm
+  /// dialog, on an entity the user never touched. Requiring the speaker to be the
+  /// zone's first, connected member keeps the edit where the user asked for it.
+  ActiveZone? _activeZoneOf(ZoneSession s, String coordinatorUuid) => s.activeZones
+      .where((z) =>
+          z.members.firstOrNull?.uuid == coordinatorUuid &&
+          !z.members.first.disconnected)
+      .firstOrNull;
+
+  /// Remove members from a LIVE bond in one call (`updateZoneDefinition`). This
+  /// is the case `AddBondedZones` faults on — the legacy path has to detach,
+  /// dissolve the whole group, re-create it and restore every member's name, so a
+  /// removal was by far the most expensive edit we did. Hardware-confirmed: one
+  /// call, applied in place, the freed speaker keeps its room name.
+  ///
+  /// Preferred over [applyBondViaZoneApi] for a pure removal because it mutates
+  /// the live definition in place, keeping its `zoneId`, instead of storing a new
+  /// one. Returns **false** when this speaker coordinates no live zone, meaning
+  /// "not this primitive" — the caller applies the target layout with
+  /// [applyBondViaZoneApi] instead. Both are the zones path: this picks the
+  /// cheaper primitive, it does not fall back to SOAP.
+  Future<bool> dropGroupMembersViaZoneApi({
+    required String ip,
+    required String coordinatorUuid,
+    required String targetMap,
+    void Function(String)? onNote,
+  }) async {
+    var mine = false;
+    await _zoneApiRun(
+      onNote,
+      () => _zoneApi.withSession(ip, live: true, (s) async {
+        final zone = _activeZoneOf(s, coordinatorUuid);
+        if (zone == null) return;
+        // Claimed BEFORE the write: a timed-out update means "go verify", so the
+        // caller must not follow it with an activation on top of it.
+        mine = true;
+        await s.updateDefinition(zoneId: zone.zoneId, rawMap: targetMap);
+        onNote?.call('zones API: removed member(s) in place');
+      }),
+    );
+    return mine;
+  }
+
+  /// Apply a whole GROUP bond — stereo pair, zone, custom layout — in ONE call,
+  /// instead of `AddBondedZones` + poll-verify, a re-assert loop for a channel
+  /// change, or a dissolve-and-recreate when a member is dropped. The target map
+  /// is applied verbatim, so one activation covers every edit shape.
+  ///
+  /// ⚠️ NOT for home theaters, even though the map format is the same: an
+  /// activation does not change `HTSatChanMapSet` at all (measured — see
+  /// `SonosController._applyHtTarget` and `tool/ht_zone_check.dart`), so an HT
+  /// goes through `bondAndVerify` on the legacy path instead.
+  ///
+  /// Reuses a stored definition whose map AND name already match, else stores a
+  /// new one: the namespace does **no dedupe**, so blindly adding on every apply
+  /// would grow the household's definition library without bound.
+  ///
+  /// [roomName] becomes the definition's name and therefore the ROOM NAME on
+  /// activation — always pass the name the room should end up with (normally its
+  /// current one), or activating renames it. A pre-existing definition carrying a
+  /// stale name is deliberately not reused for the same reason.
+  ///
+  /// ⚠️ A speaker held by ANOTHER room's active bond is not taken by an activation
+  /// (hardware-confirmed with a Sub bonded into a home theater) — free it first,
+  /// exactly as the legacy path already does.
+  Future<void> applyBondViaZoneApi({
+    required String ip,
+    required String roomName,
+    required String targetMap,
+    void Function(String)? onNote,
+  }) =>
+      _zoneApiRun(
+        onNote,
+        () => _zoneApi.withSession(ip, live: true, (s) async {
+          // The subscribe already delivered the library — no probe, no read.
+          String? match(List<ZoneDefinition> defs) => defs
+              .where((d) =>
+                  d.name == roomName && sameChannelMap(d.rawMap, targetMap))
+              .lastOrNull
+              ?.zoneId;
+          final before = s.definitions;
+          var zoneId = match(before);
+          if (zoneId == null) {
+            await s.addDefinition(name: roomName, rawMap: targetMap);
+            // Sonos pushes the updated library; identify what we stored by SET
+            // DIFFERENCE, because it is free to normalise the name or the map.
+            final after = await s.nextDefinitions();
+            final known = {for (final d in before) d.zoneId};
+            zoneId = after
+                    .where((d) => !known.contains(d.zoneId))
+                    .lastOrNull
+                    ?.zoneId ??
+                // Measured: an add can legitimately store NOTHING NEW — Sonos
+                // dedupes onto an equivalent definition. Whatever it deduped
+                // onto is usable, so match again rather than report failure.
+                match(after);
+            if (zoneId == null) {
+              throw const ZoneApiException('stored no definition');
+            }
+            onNote?.call('zones API: stored a new definition');
+          } else {
+            onNote?.call('zones API: reusing the stored definition');
+          }
+          await _activateZone(s, zoneId, targetMap, onNote);
+        }),
+      );
+
+  /// `activateZone`, with the refusal that never clears on retry handled.
+  ///
+  /// Hardware-observed while switching between definitions over the same
+  /// coordinator: an activation is refused while a DIFFERENT definition is live,
+  /// and repeating it never succeeds — `deactivateZone` the live one first and it
+  /// activates immediately. Two wordings have been seen for it (`new primary
+  /// activation failed` and a bare `activateZone failed`), so the recovery is
+  /// keyed on "a different definition is live over this coordinator", which is
+  /// the actual precondition, rather than on matching the message. Recovering
+  /// here is what lets the path own its own failure instead of handing the
+  /// operation to a legacy SOAP write.
+  ///
+  /// ⚠️ Only for a bond whose live zone IS a definition (every speaker group).
+  /// A home theater straddles the two models and is not driven from here at all —
+  /// see `SonosController._applyHtTarget`.
+  Future<void> _activateZone(ZoneSession s, String zoneId, String targetMap,
+      void Function(String)? onNote) async {
+    try {
+      await s.activate(zoneId);
+    } on ZoneApiException catch (e) {
+      final coordinator = ChannelMap.parse(targetMap).primary?.uuid;
+      final live = coordinator == null ? null : _activeZoneOf(s, coordinator);
+      // Nothing else is live, so deactivating can't be what it wants: the
+      // refusal is about the request itself and the caller should hear it.
+      if (live == null || live.zoneId == zoneId) rethrow;
+      onNote?.call('zones API: deactivating the live bond first (${e.reason})');
+      await s.deactivate(live.zoneId);
+      await s.activate(zoneId);
+    }
+    onNote?.call('zones API: activated the layout in one call');
+  }
+
+  /// Dissolve a live bond in one call (`deactivateZone`) instead of the legacy
+  /// detach → `SeparateStereoPair` dance. Members become standalone rooms.
+  ///
+  /// ⚠️ Hardware-confirmed asymmetry: group members keep their room names, but
+  /// freed HOME-THEATER satellites are auto-renamed by Sonos (`"<Room> 2"`), just
+  /// as `RemoveHTSatellite` leaves them — so callers still restore names
+  /// themselves.
+  Future<void> dissolveBondViaZoneApi({
+    required String ip,
+    required String coordinatorUuid,
+    void Function(String)? onNote,
+  }) =>
+      _zoneApiRun(
+        onNote,
+        () => _zoneApi.withSession(ip, live: true, (s) async {
+          final zone = _activeZoneOf(s, coordinatorUuid);
+          if (zone == null) {
+            throw ZoneApiException(
+                'no live bond is coordinated by $coordinatorUuid');
+          }
+          await s.deactivate(zone.zoneId);
+          onNote?.call('zones API: dissolved the bond in one call');
+        }),
+      );
 
 }

@@ -13,7 +13,7 @@ import '../data/sonos/room_calibration.dart';
 import '../data/sonos/soap_client.dart';
 import '../data/sonos/sonos_repository.dart';
 import '../data/sonos/speaker_settings.dart';
-import '../data/sonos/zone_layout.dart' show buildGroupMap;
+import '../data/sonos/zone_api.dart';
 import '../data/sonos/zone_topology.dart';
 import '../features/profiles/profile.dart';
 import '../features/profiles/profile_controller.dart';
@@ -75,6 +75,21 @@ class _DemoHttpClient extends http.BaseClient {
 // fail fast on _DemoSoapClient instead of succeeding against fake state. Fake
 // the write semantics (mutate demoSystem) if a demo of a full apply is ever
 // needed.
+/// The zones API is HTTP, not SOAP, so it needs its own stub: without one a demo
+/// build would sit out a real 8s timeout against an unroutable TEST-NET IP.
+/// Refusing by name is the same fail-fast shape as `_DemoSoapClient` — a demo
+/// build emits no network I/O, and bonding taps stop rather than hang.
+class _DemoZoneApiClient extends ZoneApiClient {
+  const _DemoZoneApiClient();
+  @override
+  Future<List<ActiveZone>?> activeZones(String ip) async => null;
+  @override
+  Future<T> withSession<T>(
+          String ip, Future<T> Function(ZoneSession session) body,
+          {bool live = false}) async =>
+      throw const ZoneApiException('demo mode has no zone service');
+}
+
 class _DemoSonosRepository extends SonosRepository {
   _DemoSonosRepository()
       : super(
@@ -83,6 +98,7 @@ class _DemoSonosRepository extends SonosRepository {
           deviceProps: DevicePropertiesClient(_demoSoap),
           calibration: RoomCalibrationClient(_demoSoap),
           avTransport: AvTransportClient(_demoSoap),
+          zoneApi: const _DemoZoneApiClient(),
         );
 
   @override
