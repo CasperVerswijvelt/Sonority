@@ -11,24 +11,24 @@
 </p>
 
 <p align="center">
-  <sub><i>iOS &amp; macOS on the <a href="https://apps.apple.com/us/app/sonority-for-sonos/id6785994018">App Store</a>, Android on <a href="https://play.google.com/store/apps/details?id=be.casperverswijvelt.sonority">Google Play</a> — or manual installation, see <a href="https://github.com/CasperVerswijvelt/Sonority/releases">Releases</a>.</i></sub>
+  <sub><i>iOS &amp; macOS on the <a href="https://apps.apple.com/us/app/sonority-for-sonos/id6785994018">App Store</a>, Android on <a href="https://play.google.com/store/apps/details?id=be.casperverswijvelt.sonority">Google Play</a>, or manual installation, see <a href="https://github.com/CasperVerswijvelt/Sonority/releases">Releases</a>.</i></sub>
 </p>
 
 # Sonority
 
 A clean, cross-platform (iPhone + iPad + Android + macOS) Flutter app that unlocks Sonos speaker
-configurations the official app refuses to create — **dedicated front left/right surround
-speakers** on a home theater, a **full in-app home-theater setup** (fronts + rear surrounds +
-sub), **speaker groups** — one page to bond 2–16 speakers as a stereo pair, a zone, or a
-custom per‑speaker L/R/Both layout (mismatched models + an optional Sub, no model‑list
-restriction) — and **config profiles** that snapshot a layout and re-apply it in one tap — via Sonos'
-undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr*.
+configurations the official app refuses to create, over Sonos' undocumented local UPnP API.
+It builds **dedicated front left/right speakers** on a home theater, a **full in-app
+home-theater setup** (fronts + rear surrounds + sub), **speaker groups** (2-16 speakers as a
+stereo pair, a zone, or a custom per-speaker L/R/Both layout, mismatched models and an optional
+Sub included, with no model-list restriction), and **config profiles** that snapshot a layout and
+re-apply it in one tap. A focused, better-UX alternative to *SonoSequencr*.
 
 > [!NOTE]
 > **Built with AI-assisted programming.** I'm a software engineer, and I directed this
 > project end to end: I decided what to build and why, specified exactly what each
 > change had to do, reviewed and revised every one of them, and validated the behaviour
-> against my own Sonos hardware — an AI coding agent did the typing. I worked to keep it
+> against my own Sonos hardware. An AI coding agent did the typing. I worked to keep it
 > from becoming "AI slop": exhaustive testing against real speakers, deliberate
 > attention to code quality and architecture, unit tests, and thorough documentation
 > throughout. Sharing this openly for transparency.
@@ -47,41 +47,41 @@ undocumented local UPnP API. A focused, better‑UX alternative to *SonoSequencr
 
 ## Install (prebuilt)
 
-**iOS & macOS — App Store (recommended)**
-- Get it on the **[App Store](https://apps.apple.com/us/app/sonority-for-sonos/id6785994018)** — the same
+**iOS & macOS: App Store (recommended)**
+- Get it on the **[App Store](https://apps.apple.com/us/app/sonority-for-sonos/id6785994018)**. The same
   listing installs on both iPhone/iPad and Mac.
 
 Or grab a direct download from [**Releases**](https://github.com/CasperVerswijvelt/Sonority/releases):
 
-**Android — `Sonority-*.apk`** (release-signed)
+**Android: `Sonority-*.apk`** (release-signed)
 - On your phone: download the APK, allow “install unknown apps” for your browser/files app, then open it.
 - Or via adb: `adb install -r Sonority-*.apk`
 
-**macOS — `Sonority-*-macos.dmg`** (Developer ID-signed & notarized)
+**macOS: `Sonority-*-macos.dmg`** (Developer ID-signed & notarized)
 - Prefer the [App Store](https://apps.apple.com/us/app/sonority-for-sonos/id6785994018) above. To install
   the direct download instead, open the `.dmg`, drag **Sonority** to Applications, and launch it. No
-  Gatekeeper workaround needed — it’s notarized by Apple.
+  Gatekeeper workaround needed, it’s notarized by Apple.
 
-**iOS — `Sonority-*-ios-unsigned.ipa`** (unsigned; sideload only)
+**iOS: `Sonority-*-ios-unsigned.ipa`** (unsigned; sideload only)
 - Prefer the App Store above. To sideload the raw `.ipa`, re-sign it with
-  [AltStore](https://altstore.io) or [Sideloadly](https://sideloadly.io) using your Apple ID —
-  a plain install isn’t possible without signing.
+  [AltStore](https://altstore.io) or [Sideloadly](https://sideloadly.io) using your Apple ID.
+  A plain install isn’t possible without signing.
 
-> On every platform, keep the device on the **same Wi‑Fi** as your Sonos. iOS and macOS prompt for **local network** access on the first scan — allow it, or discovery finds nothing.
+> On every platform, keep the device on the **same Wi‑Fi** as your Sonos. iOS and macOS prompt for **local network** access on the first scan. Allow it, or discovery finds nothing.
 
 ## How it works
 
 Sonos players expose an undocumented **local UPnP/SOAP API** on port `1400`. Sonority does no
 audio processing; it simply issues the bonding call the official app won't:
 
-1. **Discovery** — SSDP `M-SEARCH` to `239.255.255.250:1900`, then each player's
+1. **Discovery**: SSDP `M-SEARCH` to `239.255.255.250:1900`, then each player's
    `http://<ip>:1400/xml/device_description.xml`. → `lib/data/sonos/ssdp_discovery.dart`,
    `device_description.dart`
-2. **Topology** — `ZoneGroupTopology.GetZoneGroupState` for the full system layout.
+2. **Topology**: `ZoneGroupTopology.GetZoneGroupState` for the full system layout.
    → `lib/data/sonos/zone_topology.dart`
-3. **The unlock** — `DeviceProperties.AddHTSatellite` with a `HTSatChanMapSet` mapping the
+3. **The unlock**: `DeviceProperties.AddHTSatellite` with a `HTSatChanMapSet` mapping the
    chosen speakers to channels (fronts `LF`/`RF`, rears `LR`/`RR`, sub `SW`). `RemoveHTSatellite`
-   undoes it. Bonding is eventually-consistent, so writes are **staged and re-asserted** until the
+   undoes it. Bonding is eventually-consistent, so writes are **re-asserted** until the
    topology converges. → `lib/data/sonos/device_properties.dart`, `channel_map.dart`,
    `sonos_repository.dart` (`bondAndVerify`)
 
@@ -95,7 +95,7 @@ tap. → `lib/features/profiles/`
 lib/
   core/        result + theme
   data/        models + sonos/ (ssdp, descriptions, soap, topology, device props, channel map,
-               front_layout, zone_layout, apply_progress, repository — staged bondAndVerify)
+               front_layout, zone_layout, apply_progress, repository: bondAndVerify)
   state/       Riverpod controllers (system + apply-progress)
   features/    discovery / home_theater / front_surrounds (full HT setup) /
                group (unified Stereo/Zone/Custom) / profiles / room / widgets
@@ -114,7 +114,7 @@ flutter analyze
 flutter run           # on a physical device on the same Wi-Fi as your Sonos
 ```
 
-> Use a **physical** device — simulators/emulators can't reliably reach the LAN, and iOS 14+
+> Use a **physical** device. Simulators and emulators can't reliably reach the LAN, and iOS 14+
 > shows a one-time local-network permission prompt on first scan.
 
 ## Validate against your hardware first (read-only)
@@ -127,52 +127,52 @@ dart run tool/spike.dart
 
 This discovers your system and prints every home theater's raw `HTSatChanMapSet`. The dedicated-front
 recipe (soundbar stays `CC`, added speakers map to `LF`/`RF`, rears/sub preserved) is **confirmed on a
-real Beam** and built by `buildLayoutMap` (`lib/data/sonos/front_layout.dart`) — adjust
-there if a different model/firmware ever needs it.
+real Beam** and built by `buildLayoutMap` (`lib/data/sonos/front_layout.dart`). Adjust it
+there if a different model or firmware ever needs it.
 
 ## Tools
 
-- `tool/spike.dart` — read-only discovery + topology dump
-- `tool/roundtrip.dart` — live AddHTSatellite/RemoveHTSatellite (dry-run by default; `--confirm`, `--apply-only`, `--remove-only`)
-- `tool/full_layout.dart` — strip to bare → rebuild a full HT map → verify each channel (dry-run by default; `--confirm`)
-- `tool/zone_probe.dart` — speaker-group probe: dump zone/bond SCPD actions + round-trip a group (`--members a,b,c [--confirm]`, `--separate`, `--explore`); confirmed the `ChannelMapSet` format on hardware
-- `tool/lr_audiotest.dart` — play an L/R voice track on a group to verify per-speaker channel routing
-- `tool/chirp.dart` — play the identify chime on one speaker (validates `IdentifyService`)
-- `tool/led_probe.dart` — blink a speaker's status LED (the macOS-safe identify; read-only/self-reverting)
-- `tool/trueplay_probe.dart` — read/toggle per-speaker Trueplay status
+- `tool/spike.dart`: read-only discovery + topology dump
+- `tool/roundtrip.dart`: live AddHTSatellite/RemoveHTSatellite (dry-run by default; `--confirm`, `--apply-only`, `--remove-only`)
+- `tool/full_layout.dart`: strip to bare → rebuild a full HT map → verify each channel (dry-run by default; `--confirm`)
+- `tool/zone_probe.dart`: speaker-group probe, dumps zone/bond SCPD actions and round-trips a group (`--members a,b,c [--confirm]`, `--separate`, `--explore`); confirmed the `ChannelMapSet` format on hardware
+- `tool/lr_audiotest.dart`: play an L/R voice track on a group to verify per-speaker channel routing
+- `tool/chirp.dart`: play the identify chime on one speaker (validates `IdentifyService`)
+- `tool/led_probe.dart`: blink a speaker's status LED (the macOS-safe identify; read-only/self-reverting)
+- `tool/trueplay_probe.dart`: read and toggle per-speaker Trueplay status
 
 ## Status
 
 - ✅ Discovery + home-theater topology UI (Material 3, dark mode)
-- ✅ Dedicated front surrounds — guided add flow (+ Identify), one-tap remove
-- ✅ Full in-app home-theater setup — fronts + rear surrounds + one or two subs (each
-  optional), staged bonding with a live per-step progress timeline
-- ✅ Config profiles — snapshot a layout (maps + room names, optionally per-speaker audio
+- ✅ Dedicated front surrounds: guided add flow (+ Identify), one-tap remove
+- ✅ Full in-app home-theater setup: fronts + rear surrounds + one or two subs (each
+  optional), re-asserted bonding with a live per-step progress timeline
+- ✅ Config profiles: snapshot a layout (maps + room names, optionally per-speaker audio
   settings/EQ and volume) and re-apply in one tap; each profile has its own icon & colour,
   drag-to-reorder, and a per-entity detail view of what it captured
 - ✅ Apply a profile from a home-screen widget (small/medium/large) or a long-press app-icon shortcut
 - ✅ Room renaming from the room / home-theater detail pages
-- ✅ Speaker groups — one page (Stereo / Zone / Custom) to bond 2–16 speakers as a stereo
+- ✅ Speaker groups: one page (Stereo / Zone / Custom) to bond 2-16 speakers as a stereo
   pair, a full-range zone, or a custom per-speaker L/R/Both layout, each with an optional Sub;
   reconfigure an existing group in place (add/remove/re-channel); separate with name restore,
   captured in profiles; not restricted to Sonos' official model list
 - ✅ Identify a speaker by blinking its status LED (default; macOS-safe) or a chime (mobile),
   from the pick-a-speaker flows and per-speaker in the room / group / home-theater detail views
 - ✅ Trueplay read + toggle on speakers / pairs / home theaters
-- ✅ Diagnostics — a hide-nothing technical system view, packaged into a shareable zip for support
-- ✅ Responsive layout for iPad and desktop — a left navigation rail and multi-column content on
+- ✅ Diagnostics: a hide-nothing technical system view, packaged into a shareable zip for support
+- ✅ Responsive layout for iPad and desktop: a left navigation rail and multi-column content on
   wide screens (resizable macOS window), the single-column phone layout unchanged
 - ✅ Recipe confirmed on real hardware (Beam stays `CC`; fronts = `LF`/`RF`)
 - ✅ CI release pipeline on `v*` tags: release-signed APK, unsigned iOS `.ipa`, notarized macOS `.dmg`, plus iOS/macOS → TestFlight
 
 ## Contributing / architecture
 
-See **[CONTRIBUTING.md](CONTRIBUTING.md)** first — pull requests carry a licensing
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** first. Pull requests carry a licensing
 grant, and it explains why.
 
-For the code itself see **[CLAUDE.md](CLAUDE.md)** — the product principle (don't
-duplicate Sonos-app features), the pure-Dart engine vs. UI split, the local UPnP API
-details, and the critical gotchas (≈15s topology lag, poll-until-settled, authoritative
+For the code itself see **[CLAUDE.md](CLAUDE.md)**. It covers the product principle
+(don't duplicate Sonos-app features), the pure-Dart engine vs. UI split, the local UPnP
+API details, and the critical gotchas (≈15s topology lag, poll-until-settled, authoritative
 channel-map parsing, firmware-gated pairs, the macOS-sandbox chime limitation).
 
 ## License
@@ -184,13 +184,13 @@ build on this must be renamed and rebranded.
 **Brand and marketing assets are excluded from the code license** and are all rights
 reserved: `assets/brand/`, `design/`, `docs/screenshots/`, `docs/badges/`.
 
-**The code** is source-available under the **[PolyForm Perimeter License 1.0.1](LICENSE)**
-— Copyright © 2026 Casper Verswijvelt. In plain terms: read it, build it, run it, modify
-it for yourself, and contribute changes back — all fine, commercial setting included.
+**The code** is source-available under the **[PolyForm Perimeter License 1.0.1](LICENSE)**,
+Copyright © 2026 Casper Verswijvelt. In plain terms: read it, build it, run it, modify it
+for yourself, and contribute changes back. All of that is fine, commercial setting included.
 What you may not do is provide other people a product that competes with Sonority. Per
 the license that holds however it's built or deployed, "even if it is ported to a
 different platform or programming language, and even if it is provided free of charge".
 
 This is deliberately not an open-source license. The source is public so you can audit
 exactly what an app that reconfigures your speakers does, build it yourself, and improve
-it — not so it can be repackaged and shipped by someone else.
+it. Not so it can be repackaged and shipped by someone else.

@@ -50,11 +50,11 @@ class SonorityError implements Exception {
       case SonorityErrorCode.didNotForm:
         return 'Sonos did not form “$a”.';
       case SonorityErrorCode.didNotCreateGroup:
-        return 'Sonos did not create the group — a speaker may be incompatible.';
+        return 'Sonos did not create the group. A speaker may be incompatible.';
       case SonorityErrorCode.didNotSeparate:
-        return 'Sonos did not separate the group — try again.';
+        return 'Sonos did not separate the group. Try again.';
       case SonorityErrorCode.didNotRemove:
-        return 'Sonos did not remove the $a — try again.';
+        return 'Sonos did not remove the $a. Try again.';
       case SonorityErrorCode.groupNeedsTwo:
         return 'A group needs at least 2 speakers.';
       case SonorityErrorCode.speakerIpUnknown:
@@ -64,7 +64,7 @@ class SonorityError implements Exception {
       case SonorityErrorCode.coordinatorIpUnknown:
         return 'Coordinator IP unknown; rescan and retry.';
       case SonorityErrorCode.bondingIncomplete:
-        return 'Bonding did not complete — these channels never joined: $a. '
+        return 'Bonding did not complete. These channels never joined: $a. '
             'Try again, or finish in the Sonos app.';
       case SonorityErrorCode.noLanIpForChime:
         return 'No LAN IP found to serve the chime from.';

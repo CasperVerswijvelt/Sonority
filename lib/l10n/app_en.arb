@@ -25,7 +25,7 @@
   "bondingShowRawLog": "Show raw log",
   "bondingLogsCopied": "Logs copied to clipboard.",
   "bondingNoLogOutput": "No log output yet.",
-  "bondingSafeStateNote": "It’s safe to retry — re-applying picks up where it left off and finishes the layout.",
+  "bondingSafeStateNote": "It’s safe to retry. Re-applying picks up where it left off and finishes the layout.",
   "errSystemNotFound": "Couldn’t find your Sonos system on the network.",
   "errNoDevicesFound": "No Sonos devices found. Check Wi-Fi and local network access.",
   "errDescriptionsUnreadable": "Found Sonos players but could not read their descriptions.",
@@ -88,9 +88,9 @@
       }
     }
   },
-  "errDidNotCreateGroup": "Sonos did not create the group — a speaker may be incompatible.",
-  "errDidNotSeparate": "Sonos did not separate the group — try again.",
-  "errDidNotRemove": "Sonos did not remove the {label} — try again.",
+  "errDidNotCreateGroup": "Sonos did not create the group. A speaker may be incompatible.",
+  "errDidNotSeparate": "Sonos did not separate the group. Try again.",
+  "errDidNotRemove": "Sonos did not remove the {label}. Try again.",
   "@errDidNotRemove": {
     "placeholders": {
       "label": {
@@ -102,7 +102,7 @@
   "errSpeakerIpUnknown": "Speaker IP unknown; rescan and retry.",
   "errSoundbarIpUnknown": "Soundbar IP unknown; rescan and retry.",
   "errCoordinatorIpUnknown": "Coordinator IP unknown; rescan and retry.",
-  "errBondingIncomplete": "Bonding did not complete — these channels never joined: {channels}. Try again, or finish in the Sonos app.",
+  "errBondingIncomplete": "Bonding did not complete. These channels never joined: {channels}. Try again, or finish in the Sonos app.",
   "@errBondingIncomplete": {
     "placeholders": {
       "channels": {
@@ -112,7 +112,7 @@
   },
   "errNoLanIpForChime": "No LAN IP found to serve the chime from.",
   "errCannotBlinkLight": "Could not reach the speaker to blink its light.",
-  "errTimeout": "The speaker didn’t respond in time. It may still be settling — try again in a moment.",
+  "errTimeout": "The speaker didn’t respond in time. It may still be settling, so try again in a moment.",
   "errSonosBusy": "Sonos is busy rearranging speakers right now. Wait a moment and try again.",
   "errUnsupportedCombo": "Sonos wouldn’t bond these speakers this way (unsupported combination).",
   "errInvalidRequest": "Sonos rejected the request as invalid.",
@@ -126,7 +126,7 @@
   },
   "errSonosGeneric": "Sonos reported an error. See the raw log for details.",
   "errAborted": "Aborted",
-  "errChimeUnreachable": "The speaker could not reach your phone to play the sound. Make sure your phone and speakers are on the same Wi‑Fi network. (Android emulators can’t reach speakers on your LAN — use a real device.)",
+  "errChimeUnreachable": "The speaker could not reach your phone to play the sound. Make sure your phone and speakers are on the same Wi‑Fi network. (Android emulators can’t reach speakers on your LAN, so use a real device.)",
   "entityKindHomeTheater": "Home theater",
   "entityKindStereoPair": "Stereo pair",
   "entityKindZone": "Zone",
@@ -207,11 +207,11 @@
   "stepWaitingSettle": "waiting for Sonos to settle",
   "stepWaitForConfirm": "Wait for Sonos to confirm",
   "stepWaitingConfirm": "waiting for Sonos to confirm",
-  "stepApplyingSettle": "Applying — Sonos can take up to a minute to settle.",
-  "stepNameUnchanged": "name unchanged — nothing to do",
-  "stepAlreadyFormed": "already formed — nothing to do",
-  "stepLayoutUnchanged": "layout unchanged — nothing to do",
-  "stepSkippedMissing": "skipped — {names} not on the network",
+  "stepApplyingSettle": "Applying. Sonos can take up to a minute to settle.",
+  "stepNameUnchanged": "name unchanged, nothing to do",
+  "stepAlreadyFormed": "already formed, nothing to do",
+  "stepLayoutUnchanged": "layout unchanged, nothing to do",
+  "stepSkippedMissing": "skipped: {names} not on the network",
   "@stepSkippedMissing": {
     "placeholders": {
       "names": {
@@ -219,8 +219,8 @@
       }
     }
   },
-  "stepSkippingSettingsOffline": "Skipping settings — not on the network",
-  "stepRestoring": "Restoring {what} — {type}",
+  "stepSkippingSettingsOffline": "Skipping settings: not on the network",
+  "stepRestoring": "Restoring {what} on {type}",
   "@stepRestoring": {
     "placeholders": {
       "what": {
@@ -244,11 +244,11 @@
       }
     }
   },
-  "widgetsSomethingWentWrong": "Something went wrong — see the step below.",
-  "widgetsBondingTakesTime": "Bonding can take ~15–20s per step while Sonos applies and re-reads the layout.",
+  "widgetsSomethingWentWrong": "Something went wrong. See the step below.",
+  "widgetsBondingTakesTime": "Bonding can take ~15-20s per step while Sonos applies and re-reads the layout.",
   "widgetsStepFailed": "Failed.",
   "widgetsStepWorking": "Working…",
-  "widgetsUnreachableSpeakerHint": "Couldn’t read this speaker’s details — check it’s powered on and on the same network.",
+  "widgetsUnreachableSpeakerHint": "Couldn’t read this speaker’s details. Check it’s powered on and on the same network.",
   "widgetsUnreachable": "Unreachable",
   "widgetsSoundbar": "Soundbar",
   "widgetsFronts": "Fronts",
@@ -310,7 +310,7 @@
   "widgetsRoomNameLabel": "Room name",
   "widgetsTvSoundbar": "TV / Soundbar",
   "widgetsTrueplayChecking": "Checking…",
-  "widgetsTrueplayNotTuned": "Not tuned — run Trueplay once in the Sonos app (iOS).",
+  "widgetsTrueplayNotTuned": "Not tuned. Run Trueplay once in the Sonos app (iOS).",
   "widgetsTrueplayActive": "Active",
   "widgetsTrueplayTunedOff": "Tuned · off",
   "widgetsTrueplayActiveCount": "{enabled}/{total} active",
@@ -366,7 +366,7 @@
     }
   },
   "profileEmptyTitle": "No profiles yet",
-  "profileEmptyBody": "A profile snapshots your current home theaters, stereo pairs and rooms so you can rebuild them in one tap — handy after moving speakers away. Tap “New profile” to capture your setup now.",
+  "profileEmptyBody": "A profile snapshots your current home theaters, stereo pairs and rooms so you can rebuild them in one tap, handy after moving speakers away. Tap “New profile” to capture your setup now.",
   "profileApplyConfirmTitle": "Apply “{name}”?",
   "@profileApplyConfirmTitle": {
     "placeholders": {
@@ -376,7 +376,7 @@
     }
   },
   "profileApplyConfirmBody": "This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle). Trueplay may need re-tuning afterward.",
-  "profileIssueMissing": "Missing: {speakers} — will be skipped",
+  "profileIssueMissing": "Missing and will be skipped: {speakers}",
   "@profileIssueMissing": {
     "placeholders": {
       "speakers": {
@@ -392,7 +392,7 @@
       }
     }
   },
-  "profileNothingApplicable": "Nothing can be applied — all entities are missing speakers.",
+  "profileNothingApplicable": "Nothing can be applied. All entities are missing speakers.",
   "profileApplySummary": "Will apply {applicable} of {total} entities; {skipped} skipped.",
   "@profileApplySummary": {
     "placeholders": {
@@ -413,7 +413,7 @@
   "profileUseSnapshot": "Use snapshot",
   "profileCreate": "Create profile",
   "profileResnapshotNote": "Recapture your current setup, then review and save it on the profile screen.",
-  "profileApplyPrimer": "Applying a profile later rebuilds these speakers into this layout. Any speaker that’s part of a different setup at that time is removed from it first — which can dissolve another stereo pair or zone and free its other speakers.",
+  "profileApplyPrimer": "Applying a profile later rebuilds these speakers into this layout. Any speaker that’s part of a different setup at that time is removed from it first. That can dissolve another stereo pair or zone and free its other speakers.",
   "profileIncludeHeader": "Include",
   "profileIncludeHelper": "Pick which of your current home theaters, pairs and rooms to capture in this profile.",
   "profileSaveAudio": "Save audio settings",
@@ -424,7 +424,7 @@
   "profileTitle": "Profile",
   "profileResnapshotTooltip": "Re-snapshot from current setup",
   "profileIncludedHeader": "Included",
-  "profileRecapturedNote": "Recaptured from your current setup — press Save to keep it.",
+  "profileRecapturedNote": "Recaptured from your current setup. Press Save to keep it.",
   "profileCapturedNote": "Captured when the profile was created.",
   "profileResnapshotAction": "Re-capture from current setup",
   "profileSaved": "Profile saved",
@@ -525,7 +525,7 @@
   },
   "profileAppearance": "Appearance",
   "profileWidgetPickTitle": "Pick profiles",
-  "profileWidgetEmpty": "No profiles yet — create one in Sonority first.",
+  "profileWidgetEmpty": "No profiles yet. Create one in Sonority first.",
   "profileWidgetPickHelper": "Pick the profiles to show. Reorder them in the Profiles tab.",
   "profileWidgetSelectAtLeastOne": "Select at least one",
   "profileWidgetAddCount": "Add {count} to widget",
@@ -618,10 +618,10 @@
   "groupCreateStereo": "Create stereo pair",
   "groupCreateZone": "Create zone",
   "groupCreateCustom": "Create custom group",
-  "groupCreateFailed": "Couldn’t create the group — Sonos may not allow one of these speakers. See the log for details.",
-  "groupHintStereo": "Pick two speakers — one plays left, the other right (swap below). Mismatched models are fine.",
-  "groupHintZone": "Pick 2–16 speakers. They all play full stereo (L+R) as one room.",
-  "groupHintCustom": "Pick 2–16 speakers and set each to Left, Right, or Both.",
+  "groupCreateFailed": "Couldn’t create the group. Sonos may not allow one of these speakers. See the log for details.",
+  "groupHintStereo": "Pick two speakers: one plays left, the other right (swap below). Mismatched models are fine.",
+  "groupHintZone": "Pick 2-16 speakers. They all play full stereo (L+R) as one room.",
+  "groupHintCustom": "Pick 2-16 speakers and set each to Left, Right, or Both.",
   "groupChannelLeft": "Left",
   "groupChannelBoth": "Both",
   "groupChannelRight": "Right",
@@ -645,17 +645,6 @@
       }
     }
   },
-  "groupReviewMemberLine": "{room} — {channel}",
-  "@groupReviewMemberLine": {
-    "placeholders": {
-      "room": {
-        "type": "String"
-      },
-      "channel": {
-        "type": "String"
-      }
-    }
-  },
   "groupReviewName": "Name: {name}",
   "@groupReviewName": {
     "placeholders": {
@@ -672,7 +661,7 @@
       }
     }
   },
-  "groupReviewNote": "Bonded speakers play as one room. Larger or mixed-model groups can drop out briefly — play something to confirm it works for you. Original room names are restored when you separate the group.",
+  "groupReviewNote": "Bonded speakers play as one room. Larger or mixed-model groups can drop out briefly. Play something to confirm it works for you. Original room names are restored when you separate the group.",
   "htHomeTheater": "Home theater",
   "htRenameRoomTooltip": "Rename room",
   "htUpdatingTitle": "Updating your home theater…",
@@ -719,9 +708,9 @@
   "htGroupSubwoofer": "Subwoofer",
   "htConfigure": "Configure",
   "htBondedSpeakers": "Bonded speakers",
-  "htNoBonded": "Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure” to add some.",
+  "htNoBonded": "Just the soundbar. No fronts, surrounds or sub bonded yet. Tap “Configure” to add some.",
   "htSpeakerFallback": "Speaker",
-  "htTrueplayNote": "Trueplay can only be measured from the Sonos app on iOS — tune the home theater, and the fronts separately as a stereo pair. Heads-up: Sonos often clears a tuning when speakers are bonded/unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.",
+  "htTrueplayNote": "Trueplay can only be measured from the Sonos app on iOS. Tune the home theater, and the fronts separately as a stereo pair. Sonos often clears a tuning when speakers are bonded or unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.",
   "htAllExtraSpeakers": "all extra speakers",
   "htBonded": "Bonded",
   "frontSurroundsTitle": "Configure home theater",
@@ -751,8 +740,8 @@
   "frontSurroundsUnbond": "Unbond",
   "frontSurroundsNoFreeSpeakers": "No free speakers available. They must be standalone (not already part of a home theater or stereo pair).",
   "frontSurroundsPickWithAmp": "Pick two speakers (ideally identical), or a single Sonos Amp or Port that feeds both front speakers.",
-  "frontSurroundsPickExactlyTwo": "Pick exactly two — ideally an identical pair.",
-  "frontSurroundsAmpSubtitle": "{type} — drives both fronts (L + R)",
+  "frontSurroundsPickExactlyTwo": "Pick exactly two, ideally an identical pair.",
+  "frontSurroundsAmpSubtitle": "{type}, drives both fronts (L + R)",
   "@frontSurroundsAmpSubtitle": {
     "placeholders": {
       "type": {
@@ -762,7 +751,7 @@
   },
   "frontSurroundsNoFreeSub": "No free subwoofer found. A Sonos Sub must be standalone (not already bonded to another home theater).",
   "frontSurroundsSubHint": "Pick one or two subwoofers to add as low-frequency channels.",
-  "frontSurroundsAmpWiring": "The {amp} drives both front channels. Wire your left & right speakers to its L/R outputs — there’s nothing to assign here.",
+  "frontSurroundsAmpWiring": "The {amp} drives both front channels. Wire your left & right speakers to its L/R outputs. There’s nothing to assign here.",
   "@frontSurroundsAmpWiring": {
     "placeholders": {
       "amp": {
@@ -772,9 +761,9 @@
   },
   "frontSurroundsChooseTwoFirst": "Choose two speakers first.",
   "frontSurroundsTapSwap": "Tap swap if the sides are reversed.",
-  "frontSurroundsNothingSelected": "Nothing selected yet — choose speakers above.",
+  "frontSurroundsNothingSelected": "Nothing selected yet. Choose speakers above.",
   "frontSurroundsReviewNote": "The chosen speakers become hidden satellites of the soundbar (which stays the center channel). Bonding runs in steps and can take a little while; Trueplay may need re-tuning afterward. You can change this anytime.",
-  "diagNoSystemToCollect": "No system to collect — scan first.",
+  "diagNoSystemToCollect": "No system to collect. Scan first.",
   "diagBuildFailed": "Could not build the diagnostics bundle: {error}",
   "@diagBuildFailed": {
     "placeholders": {
@@ -809,7 +798,7 @@
   "diagCollecting": "Collecting…",
   "diagEmailToDeveloper": "Email to developer",
   "diagShareDiagnostics": "Share diagnostics",
-  "diagEmailAttached": "——— the diagnostics bundle is attached below ———",
+  "diagEmailAttached": "--- the diagnostics bundle is attached below ---",
   "diagNoteTitle": "What went wrong?",
   "diagNoteHint": "What you tried, what you expected, what happened",
   "diagNoteHelper": "At least {min} characters",

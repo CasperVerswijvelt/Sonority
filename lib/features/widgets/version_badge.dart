@@ -150,7 +150,7 @@ List<ChangelogEntry> parseChangelog(String markdown) {
       final m = RegExp(r'^## \[(.+?)\](?:\s*-\s*(.+))?$').firstMatch(line);
       final text = m == null
           ? line.substring(3)
-          : (m[2] == null ? m[1]! : '${m[1]} — ${m[2]}');
+          : (m[2] == null ? m[1]! : '${m[1]} (${m[2]})');
       entries.add(ChangelogEntry(ChangelogKind.release, text));
     } else if (entries.isEmpty) {
       // Preamble before the first release header.

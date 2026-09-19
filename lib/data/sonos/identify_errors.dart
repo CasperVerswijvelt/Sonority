@@ -8,5 +8,5 @@ class SpeakerUnreachable implements Exception {
   String toString() =>
       'The speaker could not reach your phone to play the sound. Make sure '
       'your phone and speakers are on the same Wi‑Fi network. (Android '
-      'emulators can’t reach speakers on your LAN — use a real device.)';
+      'emulators can’t reach speakers on your LAN, so use a real device.)';
 }

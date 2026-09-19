@@ -1,4 +1,4 @@
-<title>Sonority — Play Store graphics</title>
+<title>Sonority Play Store graphics</title>
 <style>
   :root{color-scheme:dark}
   *{box-sizing:border-box}
@@ -42,13 +42,13 @@ function diagramSvg(scale=1.15){
 // required size, so the inner shot can be any size. See docs/MARKETING-ASSETS.md.
 const SHOTS = [
   { src:'shots/01-home-theater.png', head:'Dedicated<br>front speakers',
-    sub:'Add discrete front L / R to your soundbar — a home theater the Sonos app won’t build.' },
+    sub:'Add discrete front L / R to your soundbar, a home theater the Sonos app won’t build.' },
   { src:'shots/02-group.png', head:'Stereo pairs,<br>zones &amp; more',
-    sub:'Bond any speakers into one room — even mismatched models the app blocks.' },
+    sub:'Bond any speakers into one room, even mismatched models the app blocks.' },
   { src:'shots/03-profiles.png', head:'Save &amp; restore<br>your layouts',
     sub:'Snapshot your setup and rebuild fronts, surrounds and groups in one tap.' },
   { src:'shots/04-overview.png', head:'Your whole<br>Sonos system',
-    sub:'Home theaters, speaker groups and every room — at a glance.' },
+    sub:'Home theaters, speaker groups and every room, at a glance.' },
 ];
 
 const params = new URLSearchParams(location.search);
@@ -64,7 +64,7 @@ function featureGraphic(){
     <div style="position:absolute;left:80px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;width:560px">
       <div class="word" style="font-size:104px;line-height:1">Sonority</div>
       <div class="grey" style="font-size:31px;margin-top:22px;line-height:1.35;max-width:520px">
-        Home-theater layouts, speaker groups and one-tap profiles for Sonos —
+        Home-theater layouts, speaker groups and one-tap profiles for Sonos,
         the setups the official app won’t let you create.</div>
     </div>
     <div style="position:absolute;right:70px;top:50%;transform:translateY(-50%);width:300px;height:300px">
@@ -96,7 +96,7 @@ function framedPortrait(w,h,i){
 
 // Landscape framed shot for the responsive WIDE layout (caption on top, the
 // landscape app window below). One wide capture serves Play tablet, Mac and
-// iPad — only the canvas differs. Source is the *-wide.png shot (2560×1600,
+// iPad: only the canvas differs. Source is the *-wide.png shot (2560×1600,
 // tool/capture_shots.dart); the frame matches that aspect so cover doesn't crop.
 function framedLandscape(w,h,i){
   size(w,h);

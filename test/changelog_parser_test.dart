@@ -17,7 +17,7 @@ All notable changes are documented here. The format follows
 ## [0.5.0] - 2026-07-06
 
 ### Added
-- **Dual Subs** — a home theater can now bond **two Subs**, with both shown
+- **Dual Subs**: a home theater can now bond **two Subs**, with both shown
   in the layout diagram and re-applied from a profile.
 - Room renaming.
 
@@ -37,14 +37,14 @@ void main() {
     final rendered =
         entries.map((e) => '${e.kind.name}: ${e.text}').toList();
     expect(rendered, [
-      'release: 0.5.0 — 2026-07-06',
+      'release: 0.5.0 (2026-07-06)',
       'section: Added',
-      'bullet: Dual Subs — a home theater can now bond two Subs, with both '
+      'bullet: Dual Subs: a home theater can now bond two Subs, with both '
           'shown in the layout diagram and re-applied from a profile.',
       'bullet: Room renaming.',
       'section: Changed',
       'bullet: Discovery auto-scans on launch.',
-      'release: 0.4.0 — 2026-06-28',
+      'release: 0.4.0 (2026-06-28)',
       'section: Notes',
       'bullet: Sonos invalidates Trueplay when the bonded set changes.',
     ]);
@@ -88,8 +88,8 @@ void main() {
     expect(find.text('Changelog'), findsOneWidget);
     expect(find.text('v0.5.0-8'), findsOneWidget);
     // Real CHANGELOG.md asset loaded and parsed. Match the header shape, not a
-    // literal version/date — those change on every release cut.
-    expect(find.textContaining(RegExp(r'^\d+\.\d+\.\d+ — \d{4}-\d{2}-\d{2}$')),
+    // literal version/date, which change on every release cut.
+    expect(find.textContaining(RegExp(r'^\d+\.\d+\.\d+ \(\d{4}-\d{2}-\d{2}\)$')),
         findsWidgets);
     expect(find.text('GitHub'), findsOneWidget);
   });
