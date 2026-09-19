@@ -258,6 +258,31 @@ void main() {
       expect(cascadeMagnitudeDb(sub, [63], kSubSampleRate)[0], lessThan(-2));
     });
 
+    test('a band-limited channel gets NO high shelf, and stays silent above '
+        'the band it was fitted over', () {
+      // The shelf is chosen per channel (`highShelf: !narrow`), and dropping
+      // that choice was invisible to every other test here — they all fit at
+      // 44100, where the flag makes no difference. A sub is fitted only up to
+      // 200 Hz, so a high shelf sits entirely OUTSIDE the fitted range: the
+      // solver cannot see what it does, leaves its gain wherever it drifted,
+      // and the speaker then renders that boost for real. Measured: +1.26 dB at
+      // 3.5 kHz that nobody asked for, plus a fifth section against a budget
+      // that reserved room for one shelf.
+      final grid = eqGrid();
+      final corr =
+          composeCorrection(bandOffsetsDb: flatCurve()..[1] = -9, freqs: grid);
+      final sub =
+          sectionsForCorrection(corr, grid, fs: kSubSampleRate, maxSections: 8);
+
+      // Three peaking centres inside the band + exactly one (low) shelf.
+      expect(sub, hasLength(4), reason: 'one shelf, not two');
+      // Above the fitted band and below Nyquist (4069 Hz): nothing was asked
+      // for up here, so nothing may be applied up here.
+      for (final v in cascadeMagnitudeDb(sub, [1500, 2500, 3500], kSubSampleRate)) {
+        expect(v.abs(), lessThan(0.5), reason: 'unasked-for gain: $v dB');
+      }
+    });
+
     test('every emitted section is stable and finite, at the rails', () {
       final grid = eqGrid();
       for (final shape in [

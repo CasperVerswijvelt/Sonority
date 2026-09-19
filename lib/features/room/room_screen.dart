@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
+import '../speaker_eq/speaker_eq_screen.dart';
 import '../widgets/action_row.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
@@ -87,12 +87,7 @@ class RoomScreen extends ConsumerWidget {
             // One settings block: EQ then the calibration toggle, under a single
             // leading divider.
             SettingsSection(children: [
-              ActionRow(
-                icon: Icons.equalizer,
-                title: context.l10n.eqEntryTitle,
-                subtitle: context.l10n.eqEntrySubtitle,
-                onTap: () => context.push('/room/$uuid/eq'),
-              ),
+              EqEntryRow(uuid: uuid, route: '/room/$uuid/eq'),
               TrueplayControl(devices: devices),
             ]),
           ],

@@ -4,7 +4,7 @@
 //   dart run tool/spectral_probe.dart              # every discovered speaker
 //   dart run tool/spectral_probe.dart <room|uuid|ip>
 //
-// Why this exists: six of the ten rules in CLAUDE.md's "Spectral tuning" section
+// Why this exists: six of the eleven rules in CLAUDE.md's "Spectral tuning" section
 // fail with an **HTTP 200 and nothing stored**, so the app cannot tell you it got
 // them wrong. The two that are per-model and per-layout — the channel ids and the
 // per-channel sample rate — are exactly what this dumps. Anything surprising here

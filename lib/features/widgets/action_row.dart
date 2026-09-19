@@ -5,11 +5,15 @@ import '../../core/theme.dart';
 /// A flat, tappable "do something with this device" row: icon + title + a line
 /// describing where it leads, with a chevron. Reads as an action, distinct from
 /// the content card above and any settings section below.
+///
+/// A null [onTap] states the action exists but can't apply here (same treatment
+/// as `TrueplayControl`'s unsupported row): the subtitle carries the reason and
+/// the chevron goes, because there is nowhere to go.
 class ActionRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const ActionRow({
     super.key,
     required this.icon,
@@ -20,15 +24,19 @@ class ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return ListTile(
       // Full-bleed action row (not card-nested): square ink, not the rounded
       // listTileTheme default.
       shape: kFlatTileShape,
       contentPadding: const EdgeInsets.symmetric(horizontal: kPageGutter),
-      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      leading: Icon(
+        icon,
+        color: onTap == null ? scheme.onSurfaceVariant : scheme.primary,
+      ),
       title: Text(title),
       subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: onTap == null ? null : const Icon(Icons.chevron_right),
       onTap: onTap,
     );
   }

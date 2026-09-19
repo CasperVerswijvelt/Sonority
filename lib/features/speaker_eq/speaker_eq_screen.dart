@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/l10n.dart';
 import '../../core/theme.dart';
@@ -11,6 +12,7 @@ import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import '../../state/speaker_eq_controller.dart';
 import '../../state/trueplay_controller.dart';
+import '../widgets/action_row.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/confirm_dialog.dart';
@@ -56,6 +58,54 @@ List<String> eqUnresolved(SonosSystem system, String uuid) {
     for (final u in member.bondedUuids)
       if (system.device(u) == null) u,
   ];
+}
+
+/// Does this entity include a line-out box, and so have no tunable EQ at all?
+///
+/// An Amp / Port / Connect has no drivers of its own, so [eqMembers] has nothing
+/// to author for it and leaves it out — but a spectral-tuning batch that omits a
+/// bonded member stores NOTHING, with an HTTP 200 and no error. The apply would
+/// therefore fail its poll every time, and tell the user to "check every speaker
+/// is reachable", which can never help. Amp-driven fronts are a confirmed
+/// working layout (Playbase + Connect:Amp), so this is reachable: say the
+/// capability is missing rather than offering an action that cannot succeed.
+///
+/// Covers a standalone Amp room too — its own UUID is the line-out box.
+bool eqBlockedByLineOut(SonosSystem system, String uuid) {
+  final member = system.memberByUuid(uuid);
+  if (member == null) return false;
+  return member.bondedUuids
+      .map(system.device)
+      .whereType<SonosDevice>()
+      .any((d) => d.drivesExternalSpeakers);
+}
+
+/// The EQ entry row on an entity's detail page.
+///
+/// One widget for all three pages (home theater / group / room) so the
+/// untunable case above is stated once instead of three times.
+class EqEntryRow extends ConsumerWidget {
+  /// The entity the EQ would be written to.
+  final String uuid;
+
+  /// This entity's EQ route — `/theater/…/eq`, `/group/…/eq` or `/room/…/eq`.
+  final String route;
+
+  const EqEntryRow({super.key, required this.uuid, required this.route});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final system = ref.watch(sonosControllerProvider).value;
+    final blocked = system != null && eqBlockedByLineOut(system, uuid);
+    return ActionRow(
+      icon: Icons.equalizer,
+      title: context.l10n.eqEntryTitle,
+      subtitle: blocked
+          ? context.l10n.eqUnsupportedLineOut
+          : context.l10n.eqEntrySubtitle,
+      onTap: blocked ? null : () => context.push(route),
+    );
+  }
 }
 
 /// UUID → the speaker's role in this bond, for labelling. Two dedicated fronts
@@ -388,53 +438,78 @@ class _Bands extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    return SizedBox(
-      height: 210,
-      child: Row(
-        children: [
-          for (var i = 0; i < kEqBands.length; i++)
-            Expanded(
-              child: Column(
-                children: [
-                  // Ten columns is narrow enough that "-5.5 dB" wraps and
-                  // shoves its slider down; shrink to fit instead.
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      l10n.eqGainDb(_fmt(gains[i])),
-                      maxLines: 1,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: gains[i] == 0
-                            ? theme.colorScheme.onSurfaceVariant
-                            : theme.colorScheme.onSurface,
+    // The unit is said ONCE for the whole row, top and bottom, instead of ten
+    // times across ten narrow columns — the columns then carry only what
+    // differs between them. Muted, like every other caption on the page, so the
+    // values stay the thing you read.
+    final unitStyle = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(l10n.eqUnitDb, style: unitStyle),
+        SizedBox(
+          // Trimmed from 210 to pay for the two unit lines this row now has
+          // above and below it, so the card is the height it always was and the
+          // Apply button below it still lands on screen.
+          height: 190,
+          child: Row(
+            children: [
+              for (var i = 0; i < kEqBands.length; i++)
+                Expanded(
+                  child: Column(
+                    children: [
+                      // Ten columns is narrow enough that a long readout wraps
+                      // and shoves its slider down; shrink to fit instead.
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          _fmt(gains[i]),
+                          maxLines: 1,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: gains[i] == 0
+                                ? theme.colorScheme.onSurfaceVariant
+                                : theme.colorScheme.onSurface,
+                          ),
+                        ),
                       ),
-                    ),
+                      Expanded(
+                        child: EqSlider(
+                          value: gains[i],
+                          min: -kEqMaxCutDb,
+                          max: kEqMaxBoostDb,
+                          // Spoken, not shown: a screen reader gets no column
+                          // heading, so the unit has to travel with the value.
+                          semanticFormatter: (v) =>
+                              '${l10n.eqBandSemantics(eqBandLabel(kEqBands[i]))}, '
+                              '${l10n.eqGainDb(_fmt(v))}',
+                          onChanged: (v) => onChanged(i, v),
+                        ),
+                      ),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          eqBandLabel(kEqBands[i]),
+                          maxLines: 1,
+                          style: theme.textTheme.labelSmall,
+                        ),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: EqSlider(
-                      value: gains[i],
-                      min: -kEqMaxCutDb,
-                      max: kEqMaxBoostDb,
-                      semanticFormatter: (v) =>
-                          '${l10n.eqBandSemantics(eqBandLabel(kEqBands[i]))}, '
-                          '${l10n.eqGainDb(_fmt(v))}',
-                      onChanged: (v) => onChanged(i, v),
-                    ),
-                  ),
-                  Text(
-                    eqBandLabel(kEqBands[i]),
-                    style: theme.textTheme.labelSmall,
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
+                ),
+            ],
+          ),
+        ),
+        Text(l10n.eqUnitHz, style: unitStyle),
+      ],
     );
   }
 
+  /// Always one decimal: the column is a readout you watch while dragging, and
+  /// a width that changes between "3" and "3.5" makes it twitch.
   static String _fmt(double v) =>
-      '${v > 0 ? '+' : ''}${v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 1)}';
+      '${v > 0 ? '+' : ''}${v.toStringAsFixed(1)}';
 }
 
 class _MemberPicker extends StatelessWidget {
@@ -533,19 +608,18 @@ class _TrueplaySwitchState extends ConsumerState<_TrueplaySwitch> {
       // Line the switch up with the page gutter below it. A Switch carries its
       // own tap-target padding, so the inset here is the remainder.
       padding: const EdgeInsets.only(right: kPageGutter - 4),
+      // No Semantics wrapper: Switch already announces its name, role and
+      // toggled state, and Tooltip contributes the label for an icon-only
+      // control. Wrapping it only made a screen reader say it twice.
       child: Tooltip(
         message: l10n.eqTrueplayToggle,
-        child: Semantics(
-          label: l10n.eqTrueplayToggle,
-          toggled: on,
-          child: Switch(
-            value: on,
-            onChanged: !stored || busy
-                ? null
-                : (v) => ref
-                      .read(trueplayControllerProvider.notifier)
-                      .setEnabled(widget.devices, v),
-          ),
+        child: Switch(
+          value: on,
+          onChanged: !stored || busy
+              ? null
+              : (v) => ref
+                    .read(trueplayControllerProvider.notifier)
+                    .setEnabled(widget.devices, v),
         ),
       ),
     );

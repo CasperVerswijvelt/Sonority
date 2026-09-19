@@ -39,10 +39,13 @@ to volume, grouping, or the RenderingControl tone knobs.
 **Deliberate exception #2 — the SPECTRAL-TUNING path is ours (decided 2026-09-15).**
 The rule below used to read "there are no EQ/volume editing sliders in Sonority —
 keep it that way." That is now scoped to the **path**, not to the word "EQ":
-- **`RenderingControl`** (bass / treble / loudness / night / speech / sub /
-  surround / volume — the whole `eqTypes` list) stays **capture-and-restore only,
-  FOREVER**. Every one of those knobs is in the Sonos app; a slider for any of
-  them would be plain duplication.
+- **The tone/volume WRITE ACTIONS** — `SetEQ` (the whole `eqTypes` list: bass /
+  treble / loudness / night / speech / sub / surround), `SetBass`, `SetTreble`,
+  `SetVolume`, `SetMute` — stay **capture-and-restore only, FOREVER**. Every one
+  of those knobs is in the Sonos app; a slider for any of them would be plain
+  duplication. Scoped by ACTION, not by service: the EQ itself calls
+  `RenderingControl`'s `SetRoomCalibrationStatus` on every apply and every
+  remove, which is the calibration switch, not a tone control.
 - **Spectral tuning** (`:1443`, a biquad cascade per channel) is a capability the
   Sonos app exposes in **no** form — it offers two shelving knobs and no graphic
   or parametric EQ at all — and it works on the unofficial layouts Sonos refuses
@@ -56,9 +59,10 @@ a profile can *snapshot each speaker's current EQ (bass/treble/loudness/night/
 speech/sub/surround level) and optionally volume* and re-apply them — a
 save/restore capability the Sonos app has no equivalent for. This does NOT
 duplicate the app because we only **read the live values at snapshot and write
-them back on apply** — there are **no EQ/volume editing sliders** in Sonority
-(that WOULD duplicate the app). Keep it that way: capture+restore only, never
-standalone editing. (`speaker_settings.dart`, two per-profile toggles — EQ, and
+them back on apply** — there are **no `SetEQ`/`SetVolume` editing sliders** in
+Sonority (those WOULD duplicate the app; the spectral-tuning EQ is a different
+path — see exception #2 above). Keep it that way: capture+restore only, never
+standalone editing of the tone knobs. (`speaker_settings.dart`, two per-profile toggles — EQ, and
 volume separately since restoring volume is surprising, so it's opt-in.) **Volume
 capture is a wanted feature, not scope creep** — the motivating use case is a
 "night mode" profile: snapshot the whole HT with the volume turned down (and
@@ -396,7 +400,8 @@ rest of the local API. `trueplay_codec.dart` / `trueplay_apply.dart` /
 3. **POST the whole set, always.** A satellite commits iff the coordinator is in
    the same batch; the coordinator commits iff **every** member carries a tuning.
    Members the user left flat get a passthrough blob. One shared session id per
-   batch (a free-form label, but a member declaring a different one is dropped).
+   batch — a member declaring a different one is dropped, and the id itself is
+   parsed rather than free-form (rule 10).
 4. **≤ the reported `maxSections`** (16 everywhere seen). 17 stores nothing.
 5. **Validate before the POST — the player doesn't.** It accepts an unstable
    section (pole modulus > 1) and then runs it. Check `poleModulus < 1` and
@@ -621,7 +626,7 @@ Run on the same Wi-Fi as the Sonos system:
 - `tool/spectral_probe.dart` — **read-only** dump of the `:1443` spectral-tuning
   vocabulary per speaker (channel ids, per-channel sample rate, model,
   `maxSections`) plus its stored/enabled calibration state. Run this **before**
-  trusting an EQ apply on unfamiliar hardware: six of the ten rules above fail
+  trusting an EQ apply on unfamiliar hardware: six of the eleven rules above fail
   with an HTTP 200 and nothing stored, and the two that vary per model and per
   layout are exactly what this prints. Writes nothing.
 - `tool/trueplay_probe.dart` — read-only Trueplay/room-calibration status per

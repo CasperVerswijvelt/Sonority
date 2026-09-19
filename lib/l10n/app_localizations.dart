@@ -2368,11 +2368,29 @@ abstract class AppLocalizations {
   /// **'Shape the sound with a 10-band equaliser'**
   String get eqEntrySubtitle;
 
+  /// No description provided for @eqUnsupportedLineOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available — this setup includes an Amp or Port, and Sonos can only tune its own speakers.'**
+  String get eqUnsupportedLineOut;
+
   /// No description provided for @eqBandSemantics.
   ///
   /// In en, this message translates to:
   /// **'{hz} hertz'**
   String eqBandSemantics(String hz);
+
+  /// No description provided for @eqUnitDb.
+  ///
+  /// In en, this message translates to:
+  /// **'dB'**
+  String get eqUnitDb;
+
+  /// No description provided for @eqUnitHz.
+  ///
+  /// In en, this message translates to:
+  /// **'Hz'**
+  String get eqUnitHz;
 
   /// No description provided for @eqGainDb.
   ///

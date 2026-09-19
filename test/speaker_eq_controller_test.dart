@@ -3,166 +3,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sonority/data/models/sonos_models.dart';
 import 'package:sonority/data/sonos/custom_eq.dart';
 import 'package:sonority/data/sonos/key_value_store.dart';
-import 'package:sonority/data/sonos/room_calibration.dart';
-import 'package:sonority/data/sonos/sonos_repository.dart';
-import 'package:sonority/data/sonos/trueplay_apply.dart';
 import 'package:sonority/data/sonos/trueplay_codec.dart';
 import 'package:sonority/state/sonos_controller.dart'
     show sonosRepositoryProvider;
 import 'package:sonority/state/speaker_eq_controller.dart';
 
-const _bar = SonosDevice(
-    uuid: 'RINCON_BAR', roomName: 'Living', modelName: 'Sonos Beam', ip: '1.1.1.1');
-const _sub = SonosDevice(
-    uuid: 'RINCON_SUB', roomName: 'Living', modelName: 'Sonos Sub', ip: '1.1.1.2');
-const _rear = SonosDevice(
-    uuid: 'RINCON_REAR', roomName: 'Living', modelName: 'Sonos One', ip: '1.1.1.3');
+import 'eq_fakes.dart';
 
-/// Records every write; answers GetDeviceConfig with a plausible vocabulary.
-class _FakeApply extends TrueplayApplyClient {
-  final applied = <String, SpectralTuning>{};
-  final cleared = <String>[];
-  int posts = 0;
-
-  /// Per-RINCON override, so a test can make one member unreadable or
-  /// degenerate. `null` means "GetDeviceConfig returns no config".
-  final Map<String, TrueplayDeviceConfig?> configs = {};
-
-  /// HTTP status applySpectral returns.
-  int status = 200;
-
-  /// IPs written to, so the fake oracle can answer per speaker.
-  final appliedIps = <String>{};
-  final clearedIps = <String>{};
-
-  @override
-  Future<({int status, TrueplayDeviceConfig? config, String raw})>
-      readDeviceConfig({
-    required String ip,
-    required String rincon,
-    String apiKey = kSonosGuestApiKey,
-  }) async {
-    if (configs.containsKey(rincon)) {
-      return (status: 200, config: configs[rincon], raw: '');
-    }
-    // The sub reports its own single channel at its own (much lower) rate.
-    final cfg = rincon == 'RINCON_SUB'
-        ? const TrueplayDeviceConfig(
-            channels: [4],
-            sampleRates: [kSubSampleRate],
-            model: 'S13',
-            maxSections: 8)
-        : const TrueplayDeviceConfig(
-            channels: [1, 2, 3],
-            sampleRates: [44100, 44100, 44100],
-            model: 'S31',
-            maxSections: 16);
-    return (status: 200, config: cfg, raw: '');
-  }
-
-  @override
-  Future<int> applySpectral({
-    required String ip,
-    required String rincon,
-    required SpectralTuning tuning,
-    bool live = false,
-  }) async {
-    posts++;
-    applied[rincon] = tuning;
-    if (status == 200) appliedIps.add(ip);
-    return status;
-  }
-
-  @override
-  Future<int> clearAllTunings({
-    required String ip,
-    required String rincon,
-    bool live = false,
-  }) async {
-    cleared.add(rincon);
-    clearedIps.add(ip);
-    return 200;
-  }
-}
-
-/// Models the oracle honestly and PER SPEAKER: a tuning reads back as stored on
-/// the speakers it was actually written to, and `enabled` only flips when
-/// something calls `setRoomCalibration`. Both matter — a fake that ignores `ip`
-/// cannot catch a poll that checks one member, and one whose `setRoomCalibration`
-/// is an empty body cannot catch the enable step going missing entirely.
-class _FakeRepo implements SonosRepository {
-  final _FakeApply? apply;
-
-  /// A tuning Sonority did not author (measured in the Sonos app).
-  final bool foreign;
-
-  /// IPs whose enable call should fail, to exercise a partial enable.
-  final Set<String> refuseEnable;
-
-  final enabled = <String>{};
-  final enableCalls = <({String ip, bool on})>[];
-
-  _FakeRepo({this.apply, this.foreign = false, this.refuseEnable = const {}});
-
-  bool _availableAt(String ip) =>
-      foreign ||
-      (apply != null &&
-          apply!.appliedIps.contains(ip) &&
-          !apply!.clearedIps.contains(ip));
-
-  @override
-  Future<RoomCalibration> roomCalibration(String ip) async => RoomCalibration(
-        available: _availableAt(ip),
-        enabled: enabled.contains(ip),
-      );
-
-  @override
-  Future<void> setRoomCalibration(String ip, bool on) async {
-    enableCalls.add((ip: ip, on: on));
-    if (refuseEnable.contains(ip)) throw StateError('refused');
-    on ? enabled.add(ip) : enabled.remove(ip);
-  }
-
-  @override
-  noSuchMethod(Invocation i) => super.noSuchMethod(i);
-}
-
-ProviderContainer _container(_FakeApply apply, {SonosRepository? repo}) {
-  final c = ProviderContainer(overrides: [
-    trueplayApplyProvider.overrideWithValue(apply),
-    eqStoreProvider.overrideWithValue(InMemoryKeyValueStore()),
-    sonosRepositoryProvider.overrideWithValue(repo ?? _FakeRepo(apply: apply)),
-  ]);
-  addTearDown(c.dispose);
-  return c;
-}
-
-/// One nominated IP never reports a stored tuning, however many times it is
-/// written — a satellite that answers 200 and commits nothing.
-class _PartialStoreRepo implements SonosRepository {
-  final _FakeApply apply;
-  final String blindIp;
-  _PartialStoreRepo(this.apply, this.blindIp);
-
-  @override
-  Future<RoomCalibration> roomCalibration(String ip) async => RoomCalibration(
-        available: ip != blindIp && apply.appliedIps.contains(ip),
-        enabled: false,
-      );
-  @override
-  Future<void> setRoomCalibration(String ip, bool on) async {}
-  @override
-  noSuchMethod(Invocation i) => super.noSuchMethod(i);
-}
-
-/// Every calibration read throws, as a speaker does for ~20-30s after bonding.
-class _UnreadableRepo implements SonosRepository {
-  @override
-  Future<RoomCalibration> roomCalibration(String ip) async =>
-      throw StateError('connection refused');
-  @override
-  noSuchMethod(Invocation i) => super.noSuchMethod(i);
-}
+const _bar = barDevice;
+const _sub = subDevice;
+const _rear = rearDevice;
 
 List<double> _cut(int band) =>
     List<double>.filled(kEqBands.length, 0)..[band] = -9;
@@ -170,8 +20,8 @@ List<double> _cut(int band) =>
 void main() {
   group('apply', () {
     test('every member is written, including ones the user left flat', () async {
-      final apply = _FakeApply();
-      final c = _container(apply);
+      final apply = FakeApply();
+      final c = eqContainer(apply);
       final ok = await c.read(speakerEqControllerProvider.notifier).apply(
             entityId: 'RINCON_BAR',
             members: const [_bar, _sub, _rear],
@@ -192,8 +42,8 @@ void main() {
     });
 
     test('the whole batch shares one session id', () async {
-      final apply = _FakeApply();
-      final c = _container(apply);
+      final apply = FakeApply();
+      final c = eqContainer(apply);
       await c.read(speakerEqControllerProvider.notifier).apply(
             entityId: 'RINCON_BAR',
             members: const [_bar, _sub, _rear],
@@ -204,8 +54,8 @@ void main() {
 
     test('each channel is authored against its own reported vocabulary',
         () async {
-      final apply = _FakeApply();
-      final c = _container(apply);
+      final apply = FakeApply();
+      final c = eqContainer(apply);
       await c.read(speakerEqControllerProvider.notifier).apply(
             entityId: 'RINCON_BAR',
             members: const [_bar, _sub],
@@ -222,8 +72,8 @@ void main() {
 
     test('offsets are stored so the screen can reopen where it left off',
         () async {
-      final apply = _FakeApply();
-      final c = _container(apply);
+      final apply = FakeApply();
+      final c = eqContainer(apply);
       final n = c.read(speakerEqControllerProvider.notifier);
       await n.apply(
         entityId: 'RINCON_BAR',
@@ -234,9 +84,9 @@ void main() {
     });
 
     test('a tuning that never stores is reported as a failure', () async {
-      final apply = _FakeApply();
+      final apply = FakeApply();
       // The oracle never flips: exactly what a silent HTTP 200 looks like.
-      final c = _container(apply, repo: _FakeRepo());
+      final c = eqContainer(apply, repo: FakeRepo());
       final n = c.read(speakerEqControllerProvider.notifier);
       final ok = await n.apply(
         entityId: 'RINCON_BAR',
@@ -252,8 +102,8 @@ void main() {
   // store nothing, so a half-written batch looks exactly like a successful one.
   group('batch integrity', () {
     test('a member that reports no channels aborts before ANY write', () async {
-      final apply = _FakeApply()..configs['RINCON_REAR'] = null;
-      final c = _container(apply);
+      final apply = FakeApply()..configs['RINCON_REAR'] = null;
+      final c = eqContainer(apply);
       final ok = await c.read(speakerEqControllerProvider.notifier).apply(
             entityId: 'RINCON_BAR',
             members: const [_bar, _rear],
@@ -271,8 +121,8 @@ void main() {
       // speaker that is bonded but missing from discovery simply is not in the
       // list — and the batch that goes out is quietly one short, which stores
       // nothing. Seen on hardware while a speaker was rebooting.
-      final apply = _FakeApply();
-      final c = _container(apply);
+      final apply = FakeApply();
+      final c = eqContainer(apply);
       final ok = await c.read(speakerEqControllerProvider.notifier).apply(
             entityId: 'RINCON_BAR',
             members: const [_bar],
@@ -288,10 +138,10 @@ void main() {
         () async {
       // maxSections 0 would fit to a single passthrough — the oracle still
       // flips, so the user would be told "Applied" for a silent no-op.
-      final apply = _FakeApply()
+      final apply = FakeApply()
         ..configs['RINCON_BAR'] = const TrueplayDeviceConfig(
             channels: [1], sampleRates: [44100], model: 'S31', maxSections: 0);
-      final c = _container(apply);
+      final c = eqContainer(apply);
       final ok = await c.read(speakerEqControllerProvider.notifier).apply(
             entityId: 'RINCON_BAR',
             members: const [_bar],
@@ -302,10 +152,10 @@ void main() {
     });
 
     test('a zero sample rate aborts', () async {
-      final apply = _FakeApply()
+      final apply = FakeApply()
         ..configs['RINCON_BAR'] = const TrueplayDeviceConfig(
             channels: [1], sampleRates: [0], model: 'S31', maxSections: 16);
-      final c = _container(apply);
+      final c = eqContainer(apply);
       expect(
         await c.read(speakerEqControllerProvider.notifier).apply(
             entityId: 'RINCON_BAR',
@@ -318,8 +168,8 @@ void main() {
 
     test('a non-200 from the write is a failure, not a silent success',
         () async {
-      final apply = _FakeApply()..status = 499;
-      final c = _container(apply);
+      final apply = FakeApply()..status = 499;
+      final c = eqContainer(apply);
       expect(
         await c.read(speakerEqControllerProvider.notifier).apply(
             entityId: 'RINCON_BAR',
@@ -336,8 +186,8 @@ void main() {
   group('wire rules', () {
     test('rule 1: channel ids are re-read on EVERY apply, never cached',
         () async {
-      final apply = _FakeApply();
-      final c = _container(apply);
+      final apply = FakeApply();
+      final c = eqContainer(apply);
       final n = c.read(speakerEqControllerProvider.notifier);
       await n.apply(
           entityId: 'E', members: const [_bar], offsets: {'RINCON_BAR': _cut(4)});
@@ -354,8 +204,8 @@ void main() {
     });
 
     test('rule 2: the sub is authored at ITS rate, not 44100', () async {
-      final apply = _FakeApply();
-      final c = _container(apply);
+      final apply = FakeApply();
+      final c = eqContainer(apply);
       await c.read(speakerEqControllerProvider.notifier).apply(
             entityId: 'E',
             members: const [_bar, _sub],
@@ -369,13 +219,13 @@ void main() {
     });
 
     test('rule 4: a low section ceiling is respected per player', () async {
-      final apply = _FakeApply()
+      final apply = FakeApply()
         ..configs['RINCON_BAR'] = const TrueplayDeviceConfig(
             channels: [1, 2],
             sampleRates: [44100, 44100],
             model: 'S31',
             maxSections: 4);
-      final c = _container(apply);
+      final c = eqContainer(apply);
       await c.read(speakerEqControllerProvider.notifier).apply(
           entityId: 'E', members: const [_bar], offsets: {'RINCON_BAR': _cut(4)});
       for (final ch in apply.applied['RINCON_BAR']!.channels) {
@@ -386,8 +236,8 @@ void main() {
     test('rule 6: the oracle is polled on EVERY member, not just the first',
         () async {
       // The coordinator commits, a satellite silently doesn't.
-      final apply = _FakeApply();
-      final c = _container(apply, repo: _PartialStoreRepo(apply, '1.1.1.3'));
+      final apply = FakeApply();
+      final c = eqContainer(apply, repo: PartialStoreRepo(apply, '1.1.1.3'));
       final ok = await c.read(speakerEqControllerProvider.notifier).apply(
           entityId: 'E',
           members: const [_bar, _rear],
@@ -397,9 +247,9 @@ void main() {
     });
 
     test('rule 7: storing is followed by enabling, on every member', () async {
-      final apply = _FakeApply();
-      final repo = _FakeRepo(apply: apply);
-      final c = _container(apply, repo: repo);
+      final apply = FakeApply();
+      final repo = FakeRepo(apply: apply);
+      final c = eqContainer(apply, repo: repo);
       final ok = await c.read(speakerEqControllerProvider.notifier).apply(
           entityId: 'E',
           members: const [_bar, _rear],
@@ -413,9 +263,9 @@ void main() {
     });
 
     test('rule 7: a partial enable is a failure, not a success', () async {
-      final apply = _FakeApply();
-      final c = _container(apply,
-          repo: _FakeRepo(apply: apply, refuseEnable: {'1.1.1.3'}));
+      final apply = FakeApply();
+      final c = eqContainer(apply,
+          repo: FakeRepo(apply: apply, refuseEnable: {'1.1.1.3'}));
       expect(
         await c.read(speakerEqControllerProvider.notifier).apply(
             entityId: 'E',
@@ -425,9 +275,29 @@ void main() {
       );
     });
 
+    test('rule 7: a member that cannot be read back counts as NOT enabled',
+        () async {
+      // The speaker that drops off during the enable step is the same speaker
+      // whose enable fails, so it is simply absent from the calibration map.
+      // Reading that absence as "not false, therefore fine" reports a
+      // HALF-enabled home theater as Applied — audibly wrong on some members
+      // and right on others, which is worse than a clean failure.
+      final apply = FakeApply();
+      final c = eqContainer(apply,
+          repo: FakeRepo(apply: apply, vanishOnEnable: {'1.1.1.3'}));
+      expect(
+        await c.read(speakerEqControllerProvider.notifier).apply(
+            entityId: 'E',
+            members: const [_bar, _rear],
+            offsets: {'RINCON_BAR': _cut(4)}),
+        isFalse,
+        reason: '"we could not ask" is not "it is on"',
+      );
+    });
+
     test('rule 8: an apply never clears', () async {
-      final apply = _FakeApply();
-      final c = _container(apply);
+      final apply = FakeApply();
+      final c = eqContainer(apply);
       await c.read(speakerEqControllerProvider.notifier).apply(
           entityId: 'E', members: const [_bar], offsets: {'RINCON_BAR': _cut(4)});
       expect(apply.cleared, isEmpty);
@@ -438,8 +308,8 @@ void main() {
     test('a bonded member with no IP aborts before ANY write', () async {
       const noIp = SonosDevice(
           uuid: 'RINCON_GHOST', roomName: 'Ghost', modelName: 'Sonos One');
-      final apply = _FakeApply();
-      final c = _container(apply);
+      final apply = FakeApply();
+      final c = eqContainer(apply);
       final ok = await c.read(speakerEqControllerProvider.notifier).apply(
           entityId: 'E',
           members: const [_bar, noIp],
@@ -457,9 +327,9 @@ void main() {
       await store.setString('eq:E',
           '{"v":1,"offsets":{"RINCON_BAR":[1,2,3],"RINCON_REAR":[$right]}}');
       final c = ProviderContainer(overrides: [
-        trueplayApplyProvider.overrideWithValue(_FakeApply()),
+        trueplayApplyProvider.overrideWithValue(FakeApply()),
         eqStoreProvider.overrideWithValue(store),
-        sonosRepositoryProvider.overrideWithValue(_FakeRepo()),
+        sonosRepositoryProvider.overrideWithValue(FakeRepo()),
       ]);
       addTearDown(c.dispose);
       final loaded =
@@ -472,7 +342,7 @@ void main() {
 
   group('pre-flight', () {
     test('a foreign tuning must be confirmed before it is destroyed', () async {
-      final c = _container(_FakeApply(), repo: _FakeRepo(foreign: true));
+      final c = eqContainer(FakeApply(), repo: FakeRepo(foreign: true));
       expect(
         await c
             .read(speakerEqControllerProvider.notifier)
@@ -485,8 +355,8 @@ void main() {
       // Coefficients can never be read back, so "we wrote one once" is no
       // evidence that what is up there now is ours — the user may have measured
       // Trueplay in the Sonos app in between, and that is unrecoverable.
-      final apply = _FakeApply();
-      final c = _container(apply, repo: _FakeRepo(foreign: true));
+      final apply = FakeApply();
+      final c = eqContainer(apply, repo: FakeRepo(foreign: true));
       final n = c.read(speakerEqControllerProvider.notifier);
       await n.apply(
         entityId: 'RINCON_BAR',
@@ -498,7 +368,7 @@ void main() {
 
     test('a member we cannot read warns rather than assuming it is empty',
         () async {
-      final c = _container(_FakeApply(), repo: _UnreadableRepo());
+      final c = eqContainer(FakeApply(), repo: UnreadableRepo());
       expect(
         await c
             .read(speakerEqControllerProvider.notifier)
@@ -509,7 +379,7 @@ void main() {
 
     test('an unreachable speaker cannot be holding a tuning we would lose',
         () async {
-      final c = _container(_FakeApply());
+      final c = eqContainer(FakeApply());
       expect(
         await c.read(speakerEqControllerProvider.notifier).wouldOverwrite(
             members: const [
@@ -526,8 +396,8 @@ void main() {
   // HTTP 200 with nothing stored and no error, so nothing else would catch it.
   group('session id', () {
     test('carries the target serial and a four-part version', () async {
-      final apply = _FakeApply();
-      final c = _container(apply);
+      final apply = FakeApply();
+      final c = eqContainer(apply);
       await c.read(speakerEqControllerProvider.notifier).apply(
           entityId: 'E', members: const [_bar], offsets: {'RINCON_BAR': _cut(4)});
 
@@ -549,8 +419,8 @@ void main() {
           modelName: 'Sonos One',
           ip: '1.1.1.9',
           softwareVersion: '86.8-78270');
-      final apply = _FakeApply();
-      final c = _container(apply);
+      final apply = FakeApply();
+      final c = eqContainer(apply);
       await c.read(speakerEqControllerProvider.notifier).apply(
           entityId: 'E', members: const [d], offsets: {'RINCON_X': _cut(4)});
       expect(apply.applied['RINCON_X']!.deviceId.split('_')[2], '86.8.78270.0');
@@ -559,8 +429,8 @@ void main() {
 
   group('remove', () {
     test('clears every member and forgets the stored offsets', () async {
-      final apply = _FakeApply();
-      final c = _container(apply);
+      final apply = FakeApply();
+      final c = eqContainer(apply);
       final n = c.read(speakerEqControllerProvider.notifier);
       await n.apply(
         entityId: 'RINCON_BAR',
@@ -572,6 +442,28 @@ void main() {
       expect(ok, isTrue);
       expect(apply.cleared, ['RINCON_BAR', 'RINCON_REAR']);
       expect(await n.loadStored('RINCON_BAR'), isEmpty);
+    });
+
+    test('a member with no IP aborts the clear instead of clearing around it',
+        () async {
+      // Filtering it out clears everyone else, wipes the stored offsets and
+      // reports success — leaving a satellite inside the ~20-30s post-bond
+      // window holding a cascade that still filters its audio, which the user
+      // can no longer see, re-apply or remove.
+      const noIp = SonosDevice(
+          uuid: 'RINCON_GHOST', roomName: 'Ghost', modelName: 'Sonos One');
+      final apply = FakeApply();
+      final c = eqContainer(apply);
+      final n = c.read(speakerEqControllerProvider.notifier);
+      await n.apply(
+          entityId: 'E', members: const [_bar], offsets: {'RINCON_BAR': _cut(4)});
+
+      final ok = await n.remove(entityId: 'E', members: const [_bar, noIp]);
+      expect(ok, isFalse);
+      expect(apply.cleared, isEmpty,
+          reason: 'clearing a partial set hides the member left behind');
+      expect(await n.loadStored('E'), isNotEmpty,
+          reason: 'the stored offsets are the only record of what is up there');
     });
   });
 }

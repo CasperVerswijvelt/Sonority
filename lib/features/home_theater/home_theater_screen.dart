@@ -12,7 +12,7 @@ import '../widgets/bonding_progress_screen.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/card_grid.dart';
 import '../widgets/confirm_dialog.dart';
-import '../widgets/action_row.dart';
+import '../speaker_eq/speaker_eq_screen.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/destructive_button.dart';
 import '../widgets/diagram_labels.dart';
@@ -229,11 +229,9 @@ class _Content extends StatelessWidget {
           // One section: the divider leads the whole audio block rather than
           // splitting the EQ row off from the toggle it belongs with.
           SettingsSection(children: [
-            ActionRow(
-              icon: Icons.equalizer,
-              title: l10n.eqEntryTitle,
-              subtitle: l10n.eqEntrySubtitle,
-              onTap: () => context.push('/theater/${member.uuid}/eq'),
+            EqEntryRow(
+              uuid: member.uuid,
+              route: '/theater/${member.uuid}/eq',
             ),
             TrueplayControl(devices: bonded),
           ]),

@@ -224,6 +224,16 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     final configs = await Future.wait(targets.map((d) async =>
         (d, (await _apply.readDeviceConfig(ip: d.ip!, rincon: d.uuid)).config)));
 
+    // One fit per distinct (curve, rate, ceiling) — not per channel.
+    //
+    // Each fit is a ~25ms Levenberg-Marquardt solve on the UI isolate, and it
+    // was run once per CHANNEL: a three-channel soundbar solved the identical
+    // problem three times, and in combined mode every member of the set solved
+    // it again. A six-member home theater is seconds of synchronous compute for
+    // one answer. The cache lives only for this apply, and the key is everything
+    // the fit depends on — the curve is a pure function of the band offsets.
+    final fits = <String, List<BiquadSos>>{};
+
     final tunings = <SonosDevice, SpectralTuning>{};
     for (final (d, cfg) in configs) {
       // ABORT, never skip. A batch missing one bonded member is exactly the
@@ -245,21 +255,22 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
         throw const SonorityError(SonorityErrorCode.nothingTunable);
       }
 
-      final correction = composeCorrection(
-        bandOffsetsDb: offsets[d.uuid] ?? flatCurve(),
-        freqs: grid,
-      );
+      final bands = offsets[d.uuid] ?? flatCurve();
+      final correction = composeCorrection(bandOffsetsDb: bands, freqs: grid);
       tunings[d] = SpectralTuning(
         deviceId: session,
         channels: [
           for (var i = 0; i < cfg.channels.length; i++)
             ChannelTuning(
               channel: cfg.channels[i],
-              biquads: sectionsForCorrection(
-                correction,
-                grid,
-                fs: cfg.sampleRates[i],
-                maxSections: cfg.maxSections,
+              biquads: fits.putIfAbsent(
+                '${bands.join(",")}|${cfg.sampleRates[i]}|${cfg.maxSections}',
+                () => sectionsForCorrection(
+                  correction,
+                  grid,
+                  fs: cfg.sampleRates[i],
+                  maxSections: cfg.maxSections,
+                ),
               ),
             ),
         ],
@@ -316,7 +327,13 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     final calibration = ref.read(trueplayControllerProvider).byUuid;
     final notOn = [
       for (final d in tunings.keys)
-        if (calibration[d.uuid]?.enabled == false) d.roomName,
+        // `!= true`, NOT `== false`. A member whose read-back threw is simply
+        // absent from that map, and it is the same member whose enable just
+        // failed — a speaker that stopped answering fails both. Testing for an
+        // explicit `false` therefore passes exactly the half-enabled set this
+        // check exists to catch. Same reasoning as [wouldOverwrite]: "we
+        // couldn't ask" is not "it's fine".
+        if (calibration[d.uuid]?.enabled != true) d.roomName,
     ];
     if (notOn.isNotEmpty) {
       DiagnosticsLog.add('[eq] stored, but not enabled on: ${notOn.join(", ")}');
@@ -340,7 +357,19 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     _inFlight = true;
     state = SpeakerEqStatus(entityId: entityId, busy: true);
     try {
-      final targets = members.where((d) => d.ip != null).toList();
+      // ABORT on an unreachable member, never filter — the same rule as apply.
+      // A satellite inside the ~20-30s post-bond window has no IP yet; clearing
+      // around it leaves it holding a cascade that still filters its audio,
+      // while the UI resets the sliders and forgets the offsets, so the user can
+      // no longer see it, re-apply it, or remove it.
+      for (final d in members) {
+        if (d.ip == null) {
+          DiagnosticsLog.add('[eq] ${d.roomName} has no IP; aborting before any '
+              'clear rather than leaving it filtering audio');
+          throw const SonorityError(SonorityErrorCode.speakerIpUnknown);
+        }
+      }
+      final targets = members;
       for (final d in targets) {
         final status =
             await _apply.clearAllTunings(ip: d.ip!, rincon: d.uuid, live: true);

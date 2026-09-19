@@ -47,9 +47,12 @@ const kEqBands = <double>[31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000
 const kEqMaxBoostDb = 6.0;
 const kEqMaxCutDb = 12.0;
 
-/// The `SW` role reports this rate; every other channel reports 44100. It is the
-/// only signal available before an apply that a channel is the band-limited sub
-/// output, so it doubles as the "narrow band" discriminator.
+/// The `SW` role reports this rate; every other channel reports 44100. The
+/// sample rate is the only signal available before an apply that a channel is a
+/// band-limited sub output — but [sectionsForCorrection] tests it against a
+/// threshold rather than against this exact value, so a rate no speaker has
+/// reported yet is still treated as band-limited instead of being fitted as
+/// full-range.
 const kSubSampleRate = 8138.0;
 
 /// The log-frequency grid corrections are composed and fitted on.
@@ -164,6 +167,11 @@ List<BiquadSos> sectionsForCorrection(
   // A sub reproduces roughly 20–120 Hz, so fitting it against the full curve
   // spends every filter above its passband. Everything else fits its whole
   // range, bounded by a comfortable margin below Nyquist.
+  //
+  // A threshold, not `fs == kSubSampleRate`: any rate this far below full-band
+  // belongs to a channel that cannot reproduce the top of the curve, and the one
+  // such rate anyone has measured (8138) is no reason to fit an unseen 16 kHz
+  // sub as if it were full-range.
   final narrow = fs < 20000;
   final fitHi = math.min(narrow ? 200.0 : 20000.0, 0.4 * fs);
 

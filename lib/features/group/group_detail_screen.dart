@@ -17,7 +17,7 @@ import '../widgets/entity_cards.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
-import '../widgets/action_row.dart';
+import '../speaker_eq/speaker_eq_screen.dart';
 import '../widgets/scroll_footer.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/trueplay_control.dart';
@@ -55,12 +55,9 @@ class GroupDetailScreen extends ConsumerWidget {
     }
 
     final device = system.device(group.uuid);
-    // Every bonded speaker in the group — what the calibration toggle acts on.
-    final members = group.bondedUuids
-        .map(system.device)
-        .whereType<SonosDevice>()
-        .where((d) => !d.drivesExternalSpeakers)
-        .toList();
+    // Every bonded speaker in the group — what the calibration toggle acts on,
+    // and the same set the EQ writes to.
+    final members = eqMembers(system, group.uuid);
     return AppScaffold(
       title: group.zoneName,
       subtitle: groupKindL10n(context.l10n, group.groupKind),
@@ -84,11 +81,9 @@ class GroupDetailScreen extends ConsumerWidget {
             // (stereo pairs, zones and custom groups all accept a tuning), so
             // the EQ entry and the calibration toggle belong here as well.
             SettingsSection(children: [
-              ActionRow(
-                icon: Icons.equalizer,
-                title: context.l10n.eqEntryTitle,
-                subtitle: context.l10n.eqEntrySubtitle,
-                onTap: () => context.push('/group/${group.uuid}/eq'),
+              EqEntryRow(
+                uuid: group.uuid,
+                route: '/group/${group.uuid}/eq',
               ),
               TrueplayControl(devices: members),
             ]),

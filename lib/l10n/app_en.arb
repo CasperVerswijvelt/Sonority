@@ -843,10 +843,13 @@
   "eqOverwriteConfirm": "Replace",
   "eqEntryTitle": "EQ",
   "eqEntrySubtitle": "Shape the sound with a 10-band equaliser",
+  "eqUnsupportedLineOut": "Not available \u2014 this setup includes an Amp or Port, and Sonos can only tune its own speakers.",
   "eqBandSemantics": "{hz} hertz",
   "@eqBandSemantics": {
     "placeholders": { "hz": { "type": "String" } }
   },
+  "eqUnitDb": "dB",
+  "eqUnitHz": "Hz",
   "eqGainDb": "{gain} dB",
   "@eqGainDb": {
     "placeholders": { "gain": { "type": "String" } }

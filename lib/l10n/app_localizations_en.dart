@@ -1440,9 +1440,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eqEntrySubtitle => 'Shape the sound with a 10-band equaliser';
 
   @override
+  String get eqUnsupportedLineOut =>
+      'Not available — this setup includes an Amp or Port, and Sonos can only tune its own speakers.';
+
+  @override
   String eqBandSemantics(String hz) {
     return '$hz hertz';
   }
+
+  @override
+  String get eqUnitDb => 'dB';
+
+  @override
+  String get eqUnitHz => 'Hz';
 
   @override
   String eqGainDb(String gain) {
