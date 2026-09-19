@@ -280,6 +280,9 @@ interpolated) then use it.
       `createZone` polls and throws "a speaker may be incompatible" if Sonos
       silently no-ops the bond. If an Amp/Sub/soundbar ever needs revisiting,
       probe it with `tool/zone_probe.dart --members …` first.
+    - Nothing to do with eligibility, but same getter: `zoneableSpeakers` also
+      drops unreachable speakers while `bondableSpeakers` keeps them. Reasons in
+      the dartdoc — don't restate them here.
   - **`AddBondedZones` accepts almost ANY channel map (API-only finding,
     `tool/zone_probe.dart --explore`):** a 19-config hardware battery (2–8
     speakers) was accepted 19/19 and stored verbatim — symmetric, **asymmetric**

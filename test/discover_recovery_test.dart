@@ -376,5 +376,11 @@ void main() {
     expect(b.roomName, 'Bureau'); // name carried over from topology
     // Still present so the UI can render it (old code dropped it entirely).
     expect(system.bondableSpeakers.map((d) => d.uuid), contains('RINCON_B01400'));
+    // …but never as a SUB. We don't know what this speaker is, and the group
+    // flow's sub picker is the one picker that renders a plain enabled
+    // checkbox, so an unreachable candidate there would be selectable and
+    // bondable. That safety rests on a stub carrying no model, which is a fact
+    // about `discover`, not about `bondableSubs` — so pin it here.
+    expect(system.bondableSubs, isEmpty);
   });
 }

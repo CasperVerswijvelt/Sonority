@@ -8,9 +8,16 @@ import '../../data/models/sonos_models.dart';
 /// and stereo-pair flows).
 ///
 /// When the speaker is [SonosDevice.reachable] == false we couldn't read its
-/// device_description.xml: it's still shown (it exists in the topology) but
-/// disabled, with a warning icon + subtitle, since we can't safely bond a
-/// player whose model/capabilities we don't know.
+/// device_description.xml: it's shown (it exists in the topology) but disabled,
+/// with a warning icon + subtitle, since we can't safely bond a player whose
+/// model/capabilities we don't know.
+///
+/// Disabled, but drawn with its TRUE [selected] value. An unreachable speaker
+/// is routinely already bonded — both the group edit flow and the HT configure
+/// flow merge a bond's own members back into the picker — and drawing one of
+/// those unticked claimed it was out of the bond while saving would have
+/// re-asserted it right back in. Dropping such a speaker is done by dissolving
+/// the bond, not by unticking it here.
 class BondableSpeakerTile extends StatelessWidget {
   final SonosDevice device;
   final bool selected;
@@ -45,7 +52,7 @@ class BondableSpeakerTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final Widget tile = !device.reachable
         ? CheckboxListTile(
-            value: false,
+            value: selected,
             onChanged: null,
             title: Text(device.roomName),
             subtitle: Text(
