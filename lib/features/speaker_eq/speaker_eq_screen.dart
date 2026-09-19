@@ -182,8 +182,9 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
           entityId: widget.uuid,
           members: members,
           offsets: _offsetsFor(members),
-          unresolved:
-              system == null ? const [] : eqUnresolved(system, widget.uuid),
+          unresolved: system == null
+              ? const []
+              : eqUnresolved(system, widget.uuid),
         );
     if (ok && mounted) setState(() => _applied = true);
   }
@@ -266,31 +267,36 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
             _Gutter(child: InfoNote(l10n.eqTrueplayNote)),
             Gap.m,
             // Scope first: what you are editing, before what it looks like.
-            _Gutter(
-              child: SegmentedButton<bool>(
-                segments: [
-                  ButtonSegment(value: false, label: Text(l10n.eqModeAll)),
-                  ButtonSegment(
-                    value: true,
-                    label: Text(l10n.eqModeIndividual),
-                  ),
-                ],
-                selected: {_individual},
-                showSelectedIcon: false,
-                onSelectionChanged: (sel) => setState(() {
-                  // "Combined" means every member IS the shared curve —
-                  // that is what an apply from it writes. So switching to
-                  // per-speaker seeds every member from it rather than
-                  // reviving stale curves the user has since overridden.
-                  if (sel.first) {
-                    for (final d in members) {
-                      _perMember[d.uuid] = List.of(_shared);
+            // A single speaker has no scope to choose — "combined" and "per
+            // speaker" would name the same one speaker — so the control is not
+            // shown at all rather than shown with one meaningful option.
+            if (members.length > 1) ...[
+              _Gutter(
+                child: SegmentedButton<bool>(
+                  segments: [
+                    ButtonSegment(value: false, label: Text(l10n.eqModeAll)),
+                    ButtonSegment(
+                      value: true,
+                      label: Text(l10n.eqModeIndividual),
+                    ),
+                  ],
+                  selected: {_individual},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (sel) => setState(() {
+                    // "Combined" means every member IS the shared curve —
+                    // that is what an apply from it writes. So switching to
+                    // per-speaker seeds every member from it rather than
+                    // reviving stale curves the user has since overridden.
+                    if (sel.first) {
+                      for (final d in members) {
+                        _perMember[d.uuid] = List.of(_shared);
+                      }
                     }
-                  }
-                  _individual = sel.first;
-                }),
+                    _individual = sel.first;
+                  }),
+                ),
               ),
-            ),
+            ],
             // Grows and fades rather than appearing: the card below it would
             // otherwise jump down the screen the instant you tap the segment.
             AnimatedSwitcher(
@@ -533,8 +539,8 @@ class _TrueplaySwitchState extends ConsumerState<_TrueplaySwitch> {
             onChanged: !stored || busy
                 ? null
                 : (v) => ref
-                    .read(trueplayControllerProvider.notifier)
-                    .setEnabled(widget.devices, v),
+                      .read(trueplayControllerProvider.notifier)
+                      .setEnabled(widget.devices, v),
           ),
         ),
       ),
@@ -592,8 +598,8 @@ class _FooterState extends State<_Footer> {
   _ApplyPhase get _phase => widget.status.busy
       ? _ApplyPhase.busy
       : _showApplied
-          ? _ApplyPhase.applied
-          : _ApplyPhase.idle;
+      ? _ApplyPhase.applied
+      : _ApplyPhase.idle;
 
   @override
   Widget build(BuildContext context) {
@@ -608,7 +614,11 @@ class _FooterState extends State<_Footer> {
           // Top gutter as well as the sides: the button is a separate thing
           // from the card above it and was reading as attached to it.
           padding: const EdgeInsets.fromLTRB(
-              kPageGutter, kPageGutter, kPageGutter, 8),
+            kPageGutter,
+            kPageGutter,
+            kPageGutter,
+            8,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -645,19 +655,30 @@ class _FooterState extends State<_Footer> {
                 // shoves the icon sideways. As a single child they cross-fade
                 // centred on top of each other and nothing moves.
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
+                  // Out, THEN in: both curves confined to the back half of the
+                  // animation means the old label is fully gone before the new
+                  // one starts arriving, instead of the two overlapping.
+                  duration: const Duration(milliseconds: 260),
+                  switchInCurve: const Interval(0.5, 1),
+                  switchOutCurve: const Interval(0.5, 1),
                   child: Row(
                     key: ValueKey(phase),
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       switch (phase) {
                         _ApplyPhase.busy => const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        _ApplyPhase.applied => const Icon(Icons.check, size: 18),
-                        _ApplyPhase.idle => const Icon(Icons.equalizer, size: 18),
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        _ApplyPhase.applied => const Icon(
+                          Icons.check,
+                          size: 18,
+                        ),
+                        _ApplyPhase.idle => const Icon(
+                          Icons.equalizer,
+                          size: 18,
+                        ),
                       },
                       Gap.s,
                       Text(switch (phase) {
@@ -700,8 +721,9 @@ class _ErrorLine extends StatelessWidget {
     // No retry affordance: Apply sits directly below and is exactly that.
     return Text(
       localizedError(context.l10n, error),
-      style: theme.textTheme.bodySmall
-          ?.copyWith(color: theme.colorScheme.error),
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.error,
+      ),
     );
   }
 }
