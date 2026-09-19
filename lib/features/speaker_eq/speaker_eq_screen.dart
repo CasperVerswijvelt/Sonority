@@ -10,6 +10,7 @@ import '../../data/sonos/custom_eq.dart';
 import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
 import '../../state/speaker_eq_controller.dart';
+import '../../state/trueplay_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/confirm_dialog.dart';
@@ -237,6 +238,11 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
     return AppScaffold(
       title: member.zoneName,
       subtitle: l10n.eqTitle,
+      // The A/B lives here rather than only on the page below: the moment you
+      // want to hear what the curve did is the moment you just applied it, and
+      // that is this screen. Same switch, same call — it toggles the stored
+      // calibration on every bonded member.
+      actions: [_TrueplaySwitch(devices: members)],
       // No step header until the room-measurement stage actually ships: an
       // always-disabled step advertises a feature that doesn't exist yet. When
       // it lands, this becomes the second of two steps — the data model already
@@ -448,6 +454,69 @@ class _MemberPicker extends StatelessWidget {
             Gap.s,
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// The stored calibration's on/off switch, in the app bar.
+///
+/// Toggling is non-destructive and instant: it never re-measures, re-bonds or
+/// clears anything, so it is safe to leave in reach. It acts on every bonded
+/// member at once, because a home theater's separately-tuned fronts only engage
+/// when they are switched on too.
+///
+/// ⚠️ This A/Bs *calibrated vs not*, not *your curve vs flat* — a speaker
+/// changes audibly when calibration goes on even where its tuning is flat.
+class _TrueplaySwitch extends ConsumerStatefulWidget {
+  final List<SonosDevice> devices;
+  const _TrueplaySwitch({required this.devices});
+
+  @override
+  ConsumerState<_TrueplaySwitch> createState() => _TrueplaySwitchState();
+}
+
+class _TrueplaySwitchState extends ConsumerState<_TrueplaySwitch> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(trueplayControllerProvider.notifier).load(widget.devices);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final tp = ref.watch(trueplayControllerProvider);
+    final known = [
+      for (final d in widget.devices)
+        if (tp.byUuid[d.uuid] != null) tp.byUuid[d.uuid]!,
+    ];
+    final busy = widget.devices.any((d) => tp.busy.contains(d.uuid));
+    // Nothing stored means the switch has nothing to switch: Sonos accepts the
+    // call and no-ops, which would read as a broken control.
+    final stored = known.any((c) => c.available);
+    final on = known.any((c) => c.enabled);
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Tooltip(
+        message: l10n.eqTrueplayToggle,
+        child: Semantics(
+          label: l10n.eqTrueplayToggle,
+          toggled: on,
+          child: Switch(
+            value: on,
+            onChanged: !stored || busy
+                ? null
+                : (v) => ref
+                    .read(trueplayControllerProvider.notifier)
+                    .setEnabled(widget.devices, v),
+          ),
+        ),
       ),
     );
   }

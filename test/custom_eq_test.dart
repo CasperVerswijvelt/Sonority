@@ -17,14 +17,24 @@ double achievedAt(List<double> offsets, double f,
 
 void main() {
   group('composeCorrection', () {
-    test('a uniform slider move changes nothing', () {
+    test('the sliders are taken literally — no normalisation', () {
+      // Mean subtraction used to live here. It made one slider move every other
+      // band, so the numbers under the sliders no longer described the curve.
       final grid = eqGrid();
-      final flat = composeCorrection(bandOffsetsDb: flatCurve(), freqs: grid);
+      final one = flatCurve()..[1] = 6; // 63 Hz alone
+      final corr = composeCorrection(bandOffsetsDb: one, freqs: grid);
+      // Tolerance, not 1e-9: the plot grid is 96 log-spaced points, so the
+      // sample nearest a band centre is a few Hz off it.
+      expect(corr[_nearest(grid, 63)], closeTo(6, 0.02),
+          reason: 'the band you moved lands where you put it');
+      expect(corr[_nearest(grid, 1000)], closeTo(0, 1e-9),
+          reason: 'the bands you did not touch do not move');
+
       final lifted = composeCorrection(
           bandOffsetsDb: List.filled(kEqBands.length, 4.0), freqs: grid);
-      for (var i = 0; i < grid.length; i++) {
-        expect(lifted[i], closeTo(flat[i], 1e-9),
-            reason: 'a uniform move is a volume change, not a tonal one');
+      for (final v in lifted) {
+        expect(v, closeTo(4, 1e-9),
+            reason: 'a uniform move is a uniform boost, bounded by the clamp');
       }
     });
 
@@ -44,13 +54,12 @@ void main() {
         ..[0] = -6 // lowest band
         ..[kEqBands.length - 1] = 2; // highest band
       final corr = composeCorrection(bandOffsetsDb: o, freqs: grid);
-      final mean = (-6 + 2) / kEqBands.length;
       for (var i = 0; i < grid.length; i++) {
         if (grid[i] <= kEqBands.first) {
-          expect(corr[i], closeTo(-6 - mean, 1e-9), reason: '${grid[i]} Hz');
+          expect(corr[i], closeTo(-6, 1e-9), reason: '${grid[i]} Hz');
         }
         if (grid[i] >= kEqBands.last) {
-          expect(corr[i], closeTo(2 - mean, 1e-9), reason: '${grid[i]} Hz');
+          expect(corr[i], closeTo(2, 1e-9), reason: '${grid[i]} Hz');
         }
       }
     });
@@ -64,17 +73,16 @@ void main() {
         ..[4] = -10 // 500 Hz
         ..[5] = 8; // 1 kHz  (a deliberately brutal step)
       final corr = composeCorrection(bandOffsetsDb: o, freqs: grid);
-      final mean = (-10 + 8) / kEqBands.length;
       for (var i = 0; i < grid.length; i++) {
         if (grid[i] < kEqBands[4] || grid[i] > kEqBands[5]) continue;
-        expect(corr[i], lessThanOrEqualTo(8 - mean + 1e-9));
-        expect(corr[i], greaterThanOrEqualTo(-10 - mean - 1e-9));
+        expect(corr[i], lessThanOrEqualTo(8 + 1e-9));
+        expect(corr[i], greaterThanOrEqualTo(-10 - 1e-9));
       }
     });
 
     test('the composed curve is clamped, per frequency', () {
       final grid = eqGrid();
-      // Alternating extremes: after mean-removal these still exceed the rails.
+      // Alternating extremes, far outside the rails in both directions.
       final o = [for (var i = 0; i < kEqBands.length; i++) i.isEven ? 60.0 : -60.0];
       final corr = composeCorrection(bandOffsetsDb: o, freqs: grid);
       for (final v in corr) {
@@ -118,7 +126,7 @@ void main() {
           reason: 'must stay at the rail, not reach -18 dB');
     });
 
-    test('a uniform offset move still changes nothing over a base', () {
+    test('a uniform offset move shifts the base by exactly that much', () {
       final grid = eqGrid();
       final base = _syntheticBase(grid);
       final a = composeCorrection(
@@ -128,7 +136,9 @@ void main() {
           bandOffsetsDb: List.filled(kEqBands.length, -5.0),
           freqs: grid);
       for (var i = 0; i < grid.length; i++) {
-        expect(b[i], closeTo(a[i], 1e-9));
+        // Only where the clamp is not already holding one of them.
+        if (a[i] <= -kEqMaxCutDb + 5 || a[i] >= kEqMaxBoostDb - 1e-9) continue;
+        expect(b[i], closeTo(a[i] - 5, 1e-9));
       }
     });
   });

@@ -10,7 +10,7 @@
 ///   final(f) = base(f) + offsets(f)  →  clamp per frequency  →  fitBiquads
 ///              ↑          ↑
 ///   a measured correction  the sliders
-///   (null today)           (mean-subtracted)
+///   (null today)           (taken as set)
 /// ```
 ///
 /// [base] is null while the app has no room-measurement step, so today the
@@ -70,12 +70,14 @@ bool isFlat(List<double> bandOffsetsDb) =>
 
 /// `base + offsets`, clamped per frequency to [kEqMaxBoostDb]/[kEqMaxCutDb].
 ///
-/// [bandOffsetsDb] carries one value per [kEqBands] and is **mean-subtracted**
-/// first: a uniform slider move must do nothing. Otherwise it would be a
-/// broadband gain — a volume control by another name, which both duplicates the
-/// Sonos app and spends headroom for no tonal change. The mean is removed from
-/// the *offsets* only, never from the composed curve, because a measured [base]
-/// carries a deliberate reference level that has to survive.
+/// [bandOffsetsDb] carries one value per [kEqBands] and is used **as set**. It
+/// used to be mean-subtracted, so that a uniform move would be a no-op rather
+/// than a broadband gain — correct in theory, and wrong to use: moving one
+/// slider then shifted every other band by a tenth of the move, the readouts
+/// stopped matching the curve, and lopsided settings hit the rails from slider
+/// positions that were all individually legal. A graphic EQ should do what its
+/// sliders say. Uniform boosts are bounded by the clamp below, which is what
+/// protects headroom.
 Float64List composeCorrection({
   Float64List? base,
   required List<double> bandOffsetsDb,
@@ -84,12 +86,9 @@ Float64List composeCorrection({
   assert(bandOffsetsDb.length == kEqBands.length);
   assert(base == null || base.length == freqs.length);
 
-  final mean = bandOffsetsDb.reduce((a, b) => a + b) / bandOffsetsDb.length;
-  final g = [for (final v in bandOffsetsDb) v - mean];
-
   final out = Float64List(freqs.length);
   for (var i = 0; i < freqs.length; i++) {
-    out[i] = (base?[i] ?? 0) + _interpLog(freqs[i], g);
+    out[i] = (base?[i] ?? 0) + _interpLog(freqs[i], bandOffsetsDb);
     out[i] = out[i].clamp(-kEqMaxCutDb, kEqMaxBoostDb);
   }
   return out;

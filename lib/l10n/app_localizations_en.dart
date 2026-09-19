@@ -1383,6 +1383,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eqTitle => 'EQ';
 
   @override
+  String get eqTrueplayToggle => 'Trueplay';
+
+  @override
   String get eqTrueplayNote =>
       'Sonority’s EQ uses the Trueplay calibration slot on your speakers. Applying an EQ replaces your existing EQ or Trueplay calibration.';
 

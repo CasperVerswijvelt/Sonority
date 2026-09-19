@@ -825,6 +825,7 @@
   }
   ,
   "eqTitle": "EQ",
+  "eqTrueplayToggle": "Trueplay",
   "eqTrueplayNote": "Sonority\u2019s EQ uses the Trueplay calibration slot on your speakers. Applying an EQ replaces your existing EQ or Trueplay calibration.",
   "eqModeAll": "Combined EQ",
   "eqModeIndividual": "Per speaker EQ",

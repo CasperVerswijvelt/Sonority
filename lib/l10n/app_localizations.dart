@@ -2260,6 +2260,12 @@ abstract class AppLocalizations {
   /// **'EQ'**
   String get eqTitle;
 
+  /// No description provided for @eqTrueplayToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trueplay'**
+  String get eqTrueplayToggle;
+
   /// No description provided for @eqTrueplayNote.
   ///
   /// In en, this message translates to:
