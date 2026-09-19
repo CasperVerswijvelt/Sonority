@@ -19,8 +19,8 @@ String friendlyError(Object e) {
   // Our own coded engine/state errors carry their English in `message`.
   if (e is SonorityError) return e.message;
   if (e is TimeoutException) {
-    return 'The speaker didn’t respond in time. It may still be settling — '
-        'try again in a moment.';
+    return 'The speaker didn’t respond in time. It may still be settling, '
+        'so try again in a moment.';
   }
   if (e is SonosSoapException) {
     // Sonos UPnP fault codes we've confirmed on hardware (see CLAUDE.md).

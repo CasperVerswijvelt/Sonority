@@ -85,7 +85,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bondingSafeStateNote =>
-      'It’s safe to retry — re-applying picks up where it left off and finishes the layout.';
+      'It’s safe to retry. Re-applying picks up where it left off and finishes the layout.';
 
   @override
   String get errSystemNotFound =>
@@ -146,15 +146,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errDidNotCreateGroup =>
-      'Sonos did not create the group — a speaker may be incompatible.';
+      'Sonos did not create the group. A speaker may be incompatible.';
 
   @override
   String get errDidNotSeparate =>
-      'Sonos did not separate the group — try again.';
+      'Sonos did not separate the group. Try again.';
 
   @override
   String errDidNotRemove(String label) {
-    return 'Sonos did not remove the $label — try again.';
+    return 'Sonos did not remove the $label. Try again.';
   }
 
   @override
@@ -172,7 +172,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String errBondingIncomplete(String channels) {
-    return 'Bonding did not complete — these channels never joined: $channels. Try again, or finish in the Sonos app.';
+    return 'Bonding did not complete. These channels never joined: $channels. Try again, or finish in the Sonos app.';
   }
 
   @override
@@ -184,7 +184,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errTimeout =>
-      'The speaker didn’t respond in time. It may still be settling — try again in a moment.';
+      'The speaker didn’t respond in time. It may still be settling, so try again in a moment.';
 
   @override
   String get errSonosBusy =>
@@ -211,7 +211,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errChimeUnreachable =>
-      'The speaker could not reach your phone to play the sound. Make sure your phone and speakers are on the same Wi‑Fi network. (Android emulators can’t reach speakers on your LAN — use a real device.)';
+      'The speaker could not reach your phone to play the sound. Make sure your phone and speakers are on the same Wi‑Fi network. (Android emulators can’t reach speakers on your LAN, so use a real device.)';
 
   @override
   String get entityKindHomeTheater => 'Home theater';
@@ -352,29 +352,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stepApplyingSettle =>
-      'Applying — Sonos can take up to a minute to settle.';
+      'Applying. Sonos can take up to a minute to settle.';
 
   @override
-  String get stepNameUnchanged => 'name unchanged — nothing to do';
+  String get stepNameUnchanged => 'name unchanged, nothing to do';
 
   @override
-  String get stepAlreadyFormed => 'already formed — nothing to do';
+  String get stepAlreadyFormed => 'already formed, nothing to do';
 
   @override
-  String get stepLayoutUnchanged => 'layout unchanged — nothing to do';
+  String get stepLayoutUnchanged => 'layout unchanged, nothing to do';
 
   @override
   String stepSkippedMissing(String names) {
-    return 'skipped — $names not on the network';
+    return 'skipped: $names not on the network';
   }
 
   @override
   String get stepSkippingSettingsOffline =>
-      'Skipping settings — not on the network';
+      'Skipping settings: not on the network';
 
   @override
   String stepRestoring(String what, String type) {
-    return 'Restoring $what — $type';
+    return 'Restoring $what on $type';
   }
 
   @override
@@ -396,11 +396,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get widgetsSomethingWentWrong =>
-      'Something went wrong — see the step below.';
+      'Something went wrong. See the step below.';
 
   @override
   String get widgetsBondingTakesTime =>
-      'Bonding can take ~15–20s per step while Sonos applies and re-reads the layout.';
+      'Bonding can take ~15-20s per step while Sonos applies and re-reads the layout.';
 
   @override
   String get widgetsStepFailed => 'Failed.';
@@ -410,7 +410,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get widgetsUnreachableSpeakerHint =>
-      'Couldn’t read this speaker’s details — check it’s powered on and on the same network.';
+      'Couldn’t read this speaker’s details. Check it’s powered on and on the same network.';
 
   @override
   String get widgetsUnreachable => 'Unreachable';
@@ -500,7 +500,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get widgetsTrueplayNotTuned =>
-      'Not tuned — run Trueplay once in the Sonos app (iOS).';
+      'Not tuned. Run Trueplay once in the Sonos app (iOS).';
 
   @override
   String get widgetsTrueplayActive => 'Active';
@@ -557,7 +557,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileEmptyBody =>
-      'A profile snapshots your current home theaters, stereo pairs and rooms so you can rebuild them in one tap — handy after moving speakers away. Tap “New profile” to capture your setup now.';
+      'A profile snapshots your current home theaters, stereo pairs and rooms so you can rebuild them in one tap, handy after moving speakers away. Tap “New profile” to capture your setup now.';
 
   @override
   String profileApplyConfirmTitle(String name) {
@@ -570,7 +570,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String profileIssueMissing(String speakers) {
-    return 'Missing: $speakers — will be skipped';
+    return 'Missing and will be skipped: $speakers';
   }
 
   @override
@@ -580,7 +580,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileNothingApplicable =>
-      'Nothing can be applied — all entities are missing speakers.';
+      'Nothing can be applied. All entities are missing speakers.';
 
   @override
   String profileApplySummary(int applicable, int total, int skipped) {
@@ -609,7 +609,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileApplyPrimer =>
-      'Applying a profile later rebuilds these speakers into this layout. Any speaker that’s part of a different setup at that time is removed from it first — which can dissolve another stereo pair or zone and free its other speakers.';
+      'Applying a profile later rebuilds these speakers into this layout. Any speaker that’s part of a different setup at that time is removed from it first. That can dissolve another stereo pair or zone and free its other speakers.';
 
   @override
   String get profileIncludeHeader => 'Include';
@@ -646,7 +646,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileRecapturedNote =>
-      'Recaptured from your current setup — press Save to keep it.';
+      'Recaptured from your current setup. Press Save to keep it.';
 
   @override
   String get profileCapturedNote => 'Captured when the profile was created.';
@@ -854,7 +854,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileWidgetEmpty =>
-      'No profiles yet — create one in Sonority first.';
+      'No profiles yet. Create one in Sonority first.';
 
   @override
   String get profileWidgetPickHelper =>
@@ -1045,19 +1045,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get groupCreateFailed =>
-      'Couldn’t create the group — Sonos may not allow one of these speakers. See the log for details.';
+      'Couldn’t create the group. Sonos may not allow one of these speakers. See the log for details.';
 
   @override
   String get groupHintStereo =>
-      'Pick two speakers — one plays left, the other right (swap below). Mismatched models are fine.';
+      'Pick two speakers: one plays left, the other right (swap below). Mismatched models are fine.';
 
   @override
   String get groupHintZone =>
-      'Pick 2–16 speakers. They all play full stereo (L+R) as one room.';
+      'Pick 2-16 speakers. They all play full stereo (L+R) as one room.';
 
   @override
   String get groupHintCustom =>
-      'Pick 2–16 speakers and set each to Left, Right, or Both.';
+      'Pick 2-16 speakers and set each to Left, Right, or Both.';
 
   @override
   String get groupChannelLeft => 'Left';
@@ -1104,11 +1104,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String groupReviewMemberLine(String room, String channel) {
-    return '$room — $channel';
-  }
-
-  @override
   String groupReviewName(String name) {
     return 'Name: $name';
   }
@@ -1120,7 +1115,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get groupReviewNote =>
-      'Bonded speakers play as one room. Larger or mixed-model groups can drop out briefly — play something to confirm it works for you. Original room names are restored when you separate the group.';
+      'Bonded speakers play as one room. Larger or mixed-model groups can drop out briefly. Play something to confirm it works for you. Original room names are restored when you separate the group.';
 
   @override
   String get htHomeTheater => 'Home theater';
@@ -1189,14 +1184,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get htNoBonded =>
-      'Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure” to add some.';
+      'Just the soundbar. No fronts, surrounds or sub bonded yet. Tap “Configure” to add some.';
 
   @override
   String get htSpeakerFallback => 'Speaker';
 
   @override
   String get htTrueplayNote =>
-      'Trueplay can only be measured from the Sonos app on iOS — tune the home theater, and the fronts separately as a stereo pair. Heads-up: Sonos often clears a tuning when speakers are bonded/unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.';
+      'Trueplay can only be measured from the Sonos app on iOS. Tune the home theater, and the fronts separately as a stereo pair. Sonos often clears a tuning when speakers are bonded or unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.';
 
   @override
   String get htAllExtraSpeakers => 'all extra speakers';
@@ -1259,11 +1254,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get frontSurroundsPickExactlyTwo =>
-      'Pick exactly two — ideally an identical pair.';
+      'Pick exactly two, ideally an identical pair.';
 
   @override
   String frontSurroundsAmpSubtitle(String type) {
-    return '$type — drives both fronts (L + R)';
+    return '$type, drives both fronts (L + R)';
   }
 
   @override
@@ -1276,7 +1271,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String frontSurroundsAmpWiring(String amp) {
-    return 'The $amp drives both front channels. Wire your left & right speakers to its L/R outputs — there’s nothing to assign here.';
+    return 'The $amp drives both front channels. Wire your left & right speakers to its L/R outputs. There’s nothing to assign here.';
   }
 
   @override
@@ -1287,14 +1282,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get frontSurroundsNothingSelected =>
-      'Nothing selected yet — choose speakers above.';
+      'Nothing selected yet. Choose speakers above.';
 
   @override
   String get frontSurroundsReviewNote =>
       'The chosen speakers become hidden satellites of the soundbar (which stays the center channel). Bonding runs in steps and can take a little while; Trueplay may need re-tuning afterward. You can change this anytime.';
 
   @override
-  String get diagNoSystemToCollect => 'No system to collect — scan first.';
+  String get diagNoSystemToCollect => 'No system to collect. Scan first.';
 
   @override
   String diagBuildFailed(String error) {
@@ -1346,7 +1341,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get diagEmailAttached =>
-      '——— the diagnostics bundle is attached below ———';
+      '--- the diagnostics bundle is attached below ---';
 
   @override
   String get diagNoteTitle => 'What went wrong?';

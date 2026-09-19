@@ -247,7 +247,7 @@ abstract class AppLocalizations {
   /// No description provided for @bondingSafeStateNote.
   ///
   /// In en, this message translates to:
-  /// **'It’s safe to retry — re-applying picks up where it left off and finishes the layout.'**
+  /// **'It’s safe to retry. Re-applying picks up where it left off and finishes the layout.'**
   String get bondingSafeStateNote;
 
   /// No description provided for @errSystemNotFound.
@@ -331,19 +331,19 @@ abstract class AppLocalizations {
   /// No description provided for @errDidNotCreateGroup.
   ///
   /// In en, this message translates to:
-  /// **'Sonos did not create the group — a speaker may be incompatible.'**
+  /// **'Sonos did not create the group. A speaker may be incompatible.'**
   String get errDidNotCreateGroup;
 
   /// No description provided for @errDidNotSeparate.
   ///
   /// In en, this message translates to:
-  /// **'Sonos did not separate the group — try again.'**
+  /// **'Sonos did not separate the group. Try again.'**
   String get errDidNotSeparate;
 
   /// No description provided for @errDidNotRemove.
   ///
   /// In en, this message translates to:
-  /// **'Sonos did not remove the {label} — try again.'**
+  /// **'Sonos did not remove the {label}. Try again.'**
   String errDidNotRemove(String label);
 
   /// No description provided for @errGroupNeedsTwo.
@@ -373,7 +373,7 @@ abstract class AppLocalizations {
   /// No description provided for @errBondingIncomplete.
   ///
   /// In en, this message translates to:
-  /// **'Bonding did not complete — these channels never joined: {channels}. Try again, or finish in the Sonos app.'**
+  /// **'Bonding did not complete. These channels never joined: {channels}. Try again, or finish in the Sonos app.'**
   String errBondingIncomplete(String channels);
 
   /// No description provided for @errNoLanIpForChime.
@@ -391,7 +391,7 @@ abstract class AppLocalizations {
   /// No description provided for @errTimeout.
   ///
   /// In en, this message translates to:
-  /// **'The speaker didn’t respond in time. It may still be settling — try again in a moment.'**
+  /// **'The speaker didn’t respond in time. It may still be settling, so try again in a moment.'**
   String get errTimeout;
 
   /// No description provided for @errSonosBusy.
@@ -433,7 +433,7 @@ abstract class AppLocalizations {
   /// No description provided for @errChimeUnreachable.
   ///
   /// In en, this message translates to:
-  /// **'The speaker could not reach your phone to play the sound. Make sure your phone and speakers are on the same Wi‑Fi network. (Android emulators can’t reach speakers on your LAN — use a real device.)'**
+  /// **'The speaker could not reach your phone to play the sound. Make sure your phone and speakers are on the same Wi‑Fi network. (Android emulators can’t reach speakers on your LAN, so use a real device.)'**
   String get errChimeUnreachable;
 
   /// No description provided for @entityKindHomeTheater.
@@ -625,43 +625,43 @@ abstract class AppLocalizations {
   /// No description provided for @stepApplyingSettle.
   ///
   /// In en, this message translates to:
-  /// **'Applying — Sonos can take up to a minute to settle.'**
+  /// **'Applying. Sonos can take up to a minute to settle.'**
   String get stepApplyingSettle;
 
   /// No description provided for @stepNameUnchanged.
   ///
   /// In en, this message translates to:
-  /// **'name unchanged — nothing to do'**
+  /// **'name unchanged, nothing to do'**
   String get stepNameUnchanged;
 
   /// No description provided for @stepAlreadyFormed.
   ///
   /// In en, this message translates to:
-  /// **'already formed — nothing to do'**
+  /// **'already formed, nothing to do'**
   String get stepAlreadyFormed;
 
   /// No description provided for @stepLayoutUnchanged.
   ///
   /// In en, this message translates to:
-  /// **'layout unchanged — nothing to do'**
+  /// **'layout unchanged, nothing to do'**
   String get stepLayoutUnchanged;
 
   /// No description provided for @stepSkippedMissing.
   ///
   /// In en, this message translates to:
-  /// **'skipped — {names} not on the network'**
+  /// **'skipped: {names} not on the network'**
   String stepSkippedMissing(String names);
 
   /// No description provided for @stepSkippingSettingsOffline.
   ///
   /// In en, this message translates to:
-  /// **'Skipping settings — not on the network'**
+  /// **'Skipping settings: not on the network'**
   String get stepSkippingSettingsOffline;
 
   /// No description provided for @stepRestoring.
   ///
   /// In en, this message translates to:
-  /// **'Restoring {what} — {type}'**
+  /// **'Restoring {what} on {type}'**
   String stepRestoring(String what, String type);
 
   /// No description provided for @stepAudioSettings.
@@ -685,13 +685,13 @@ abstract class AppLocalizations {
   /// No description provided for @widgetsSomethingWentWrong.
   ///
   /// In en, this message translates to:
-  /// **'Something went wrong — see the step below.'**
+  /// **'Something went wrong. See the step below.'**
   String get widgetsSomethingWentWrong;
 
   /// No description provided for @widgetsBondingTakesTime.
   ///
   /// In en, this message translates to:
-  /// **'Bonding can take ~15–20s per step while Sonos applies and re-reads the layout.'**
+  /// **'Bonding can take ~15-20s per step while Sonos applies and re-reads the layout.'**
   String get widgetsBondingTakesTime;
 
   /// No description provided for @widgetsStepFailed.
@@ -709,7 +709,7 @@ abstract class AppLocalizations {
   /// No description provided for @widgetsUnreachableSpeakerHint.
   ///
   /// In en, this message translates to:
-  /// **'Couldn’t read this speaker’s details — check it’s powered on and on the same network.'**
+  /// **'Couldn’t read this speaker’s details. Check it’s powered on and on the same network.'**
   String get widgetsUnreachableSpeakerHint;
 
   /// No description provided for @widgetsUnreachable.
@@ -853,7 +853,7 @@ abstract class AppLocalizations {
   /// No description provided for @widgetsTrueplayNotTuned.
   ///
   /// In en, this message translates to:
-  /// **'Not tuned — run Trueplay once in the Sonos app (iOS).'**
+  /// **'Not tuned. Run Trueplay once in the Sonos app (iOS).'**
   String get widgetsTrueplayNotTuned;
 
   /// No description provided for @widgetsTrueplayActive.
@@ -943,7 +943,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileEmptyBody.
   ///
   /// In en, this message translates to:
-  /// **'A profile snapshots your current home theaters, stereo pairs and rooms so you can rebuild them in one tap — handy after moving speakers away. Tap “New profile” to capture your setup now.'**
+  /// **'A profile snapshots your current home theaters, stereo pairs and rooms so you can rebuild them in one tap, handy after moving speakers away. Tap “New profile” to capture your setup now.'**
   String get profileEmptyBody;
 
   /// No description provided for @profileApplyConfirmTitle.
@@ -961,7 +961,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileIssueMissing.
   ///
   /// In en, this message translates to:
-  /// **'Missing: {speakers} — will be skipped'**
+  /// **'Missing and will be skipped: {speakers}'**
   String profileIssueMissing(String speakers);
 
   /// No description provided for @profileIssueFree.
@@ -973,7 +973,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileNothingApplicable.
   ///
   /// In en, this message translates to:
-  /// **'Nothing can be applied — all entities are missing speakers.'**
+  /// **'Nothing can be applied. All entities are missing speakers.'**
   String get profileNothingApplicable;
 
   /// No description provided for @profileApplySummary.
@@ -1021,7 +1021,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileApplyPrimer.
   ///
   /// In en, this message translates to:
-  /// **'Applying a profile later rebuilds these speakers into this layout. Any speaker that’s part of a different setup at that time is removed from it first — which can dissolve another stereo pair or zone and free its other speakers.'**
+  /// **'Applying a profile later rebuilds these speakers into this layout. Any speaker that’s part of a different setup at that time is removed from it first. That can dissolve another stereo pair or zone and free its other speakers.'**
   String get profileApplyPrimer;
 
   /// No description provided for @profileIncludeHeader.
@@ -1087,7 +1087,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileRecapturedNote.
   ///
   /// In en, this message translates to:
-  /// **'Recaptured from your current setup — press Save to keep it.'**
+  /// **'Recaptured from your current setup. Press Save to keep it.'**
   String get profileRecapturedNote;
 
   /// No description provided for @profileCapturedNote.
@@ -1399,7 +1399,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileWidgetEmpty.
   ///
   /// In en, this message translates to:
-  /// **'No profiles yet — create one in Sonority first.'**
+  /// **'No profiles yet. Create one in Sonority first.'**
   String get profileWidgetEmpty;
 
   /// No description provided for @profileWidgetPickHelper.
@@ -1747,25 +1747,25 @@ abstract class AppLocalizations {
   /// No description provided for @groupCreateFailed.
   ///
   /// In en, this message translates to:
-  /// **'Couldn’t create the group — Sonos may not allow one of these speakers. See the log for details.'**
+  /// **'Couldn’t create the group. Sonos may not allow one of these speakers. See the log for details.'**
   String get groupCreateFailed;
 
   /// No description provided for @groupHintStereo.
   ///
   /// In en, this message translates to:
-  /// **'Pick two speakers — one plays left, the other right (swap below). Mismatched models are fine.'**
+  /// **'Pick two speakers: one plays left, the other right (swap below). Mismatched models are fine.'**
   String get groupHintStereo;
 
   /// No description provided for @groupHintZone.
   ///
   /// In en, this message translates to:
-  /// **'Pick 2–16 speakers. They all play full stereo (L+R) as one room.'**
+  /// **'Pick 2-16 speakers. They all play full stereo (L+R) as one room.'**
   String get groupHintZone;
 
   /// No description provided for @groupHintCustom.
   ///
   /// In en, this message translates to:
-  /// **'Pick 2–16 speakers and set each to Left, Right, or Both.'**
+  /// **'Pick 2-16 speakers and set each to Left, Right, or Both.'**
   String get groupHintCustom;
 
   /// No description provided for @groupChannelLeft.
@@ -1822,12 +1822,6 @@ abstract class AppLocalizations {
   /// **'{count, plural, one{Custom group ({count} speaker)} other{Custom group ({count} speakers)}}'**
   String groupKindCustom(int count);
 
-  /// No description provided for @groupReviewMemberLine.
-  ///
-  /// In en, this message translates to:
-  /// **'{room} — {channel}'**
-  String groupReviewMemberLine(String room, String channel);
-
   /// No description provided for @groupReviewName.
   ///
   /// In en, this message translates to:
@@ -1843,7 +1837,7 @@ abstract class AppLocalizations {
   /// No description provided for @groupReviewNote.
   ///
   /// In en, this message translates to:
-  /// **'Bonded speakers play as one room. Larger or mixed-model groups can drop out briefly — play something to confirm it works for you. Original room names are restored when you separate the group.'**
+  /// **'Bonded speakers play as one room. Larger or mixed-model groups can drop out briefly. Play something to confirm it works for you. Original room names are restored when you separate the group.'**
   String get groupReviewNote;
 
   /// No description provided for @htHomeTheater.
@@ -1957,7 +1951,7 @@ abstract class AppLocalizations {
   /// No description provided for @htNoBonded.
   ///
   /// In en, this message translates to:
-  /// **'Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure” to add some.'**
+  /// **'Just the soundbar. No fronts, surrounds or sub bonded yet. Tap “Configure” to add some.'**
   String get htNoBonded;
 
   /// No description provided for @htSpeakerFallback.
@@ -1969,7 +1963,7 @@ abstract class AppLocalizations {
   /// No description provided for @htTrueplayNote.
   ///
   /// In en, this message translates to:
-  /// **'Trueplay can only be measured from the Sonos app on iOS — tune the home theater, and the fronts separately as a stereo pair. Heads-up: Sonos often clears a tuning when speakers are bonded/unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.'**
+  /// **'Trueplay can only be measured from the Sonos app on iOS. Tune the home theater, and the fronts separately as a stereo pair. Sonos often clears a tuning when speakers are bonded or unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.'**
   String get htTrueplayNote;
 
   /// No description provided for @htAllExtraSpeakers.
@@ -2065,13 +2059,13 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsPickExactlyTwo.
   ///
   /// In en, this message translates to:
-  /// **'Pick exactly two — ideally an identical pair.'**
+  /// **'Pick exactly two, ideally an identical pair.'**
   String get frontSurroundsPickExactlyTwo;
 
   /// No description provided for @frontSurroundsAmpSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'{type} — drives both fronts (L + R)'**
+  /// **'{type}, drives both fronts (L + R)'**
   String frontSurroundsAmpSubtitle(String type);
 
   /// No description provided for @frontSurroundsNoFreeSub.
@@ -2089,7 +2083,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsAmpWiring.
   ///
   /// In en, this message translates to:
-  /// **'The {amp} drives both front channels. Wire your left & right speakers to its L/R outputs — there’s nothing to assign here.'**
+  /// **'The {amp} drives both front channels. Wire your left & right speakers to its L/R outputs. There’s nothing to assign here.'**
   String frontSurroundsAmpWiring(String amp);
 
   /// No description provided for @frontSurroundsChooseTwoFirst.
@@ -2107,7 +2101,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsNothingSelected.
   ///
   /// In en, this message translates to:
-  /// **'Nothing selected yet — choose speakers above.'**
+  /// **'Nothing selected yet. Choose speakers above.'**
   String get frontSurroundsNothingSelected;
 
   /// No description provided for @frontSurroundsReviewNote.
@@ -2119,7 +2113,7 @@ abstract class AppLocalizations {
   /// No description provided for @diagNoSystemToCollect.
   ///
   /// In en, this message translates to:
-  /// **'No system to collect — scan first.'**
+  /// **'No system to collect. Scan first.'**
   String get diagNoSystemToCollect;
 
   /// No description provided for @diagBuildFailed.
@@ -2203,7 +2197,7 @@ abstract class AppLocalizations {
   /// No description provided for @diagEmailAttached.
   ///
   /// In en, this message translates to:
-  /// **'——— the diagnostics bundle is attached below ———'**
+  /// **'--- the diagnostics bundle is attached below ---'**
   String get diagEmailAttached;
 
   /// No description provided for @diagNoteTitle.

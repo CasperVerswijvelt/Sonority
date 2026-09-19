@@ -965,6 +965,27 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
   everything else fills**: the modal wizards (group flow + bonding screen) and any
   form-shaped page clamp to `kContentMaxWidth` via `MaxWidthBody` (a full-window
   form stays readable); every other tab/detail page fills the width.
+- **Writing style: concise, human, no em dashes.** Applies to everything we
+  write: app copy (ARB values), CHANGELOG entries, PR bodies, commit messages,
+  comments and these docs.
+  - **No em dashes (`—`) and no en dashes in prose.** An em dash invites a
+    clause the sentence did not need, and two or three of them in a paragraph
+    turn it into a list of asides. Use a full stop, a comma or a colon, and if
+    it is really two thoughts, write two sentences. (A hyphen in a compound
+    word, or a range like `20-30s`, is fine.)
+  - **Say it once, in the shortest sentence that still carries the reason.** If
+    a sentence needs an aside to work, it is usually two shorter sentences, or
+    one shorter thought.
+  - **Don't tell the user what the screen already shows.** Reassurance about
+    something obvious ("this can be changed later") is noise that competes with
+    the line next to it that is NOT obvious, which is usually a warning.
+  - Plain words over formal ones. Write like a person explaining it, not like a
+    manual.
+  - ⚠️ **Older text is not a good example of the rule**, which arrived after
+    most of this repo was written. User-facing text is swept (app copy, README,
+    CHANGELOG, the store listing, the web pages, release notes); engine docs and
+    code comments are not. Apply it to what you write and to whatever you are
+    already editing.
 - **Names vs. types in the UI.** Once a speaker is bonded into an HT or stereo
   entity its individual room name stops mattering — Sonos absorbs it into the
   entity name (a satellite/hidden half just echoes the HT/pair name), so showing

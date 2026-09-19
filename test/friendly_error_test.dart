@@ -43,8 +43,8 @@ void main() {
     });
 
     test('a bare exception drops the noisy "Exception: " prefix', () {
-      expect(friendlyError(Exception('Sonos did not remove the Surrounds — try again.')),
-          'Sonos did not remove the Surrounds — try again.');
+      expect(friendlyError(Exception('Sonos did not remove the Surrounds. Try again.')),
+          'Sonos did not remove the Surrounds. Try again.');
     });
 
     test('a coded SonorityError renders its English message', () {
@@ -53,7 +53,7 @@ void main() {
       expect(
           friendlyError(
               const SonorityError(SonorityErrorCode.didNotRemove, 'Surrounds')),
-          'Sonos did not remove the Surrounds — try again.');
+          'Sonos did not remove the Surrounds. Try again.');
       expect(
           friendlyError(
               const SonorityError(SonorityErrorCode.entityNotOnNetwork, 'Den')),
