@@ -154,12 +154,16 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     required String entityId,
     required List<SonosDevice> members,
     required Map<String, List<double>> offsets,
+
+    /// Bonded members discovery could not resolve. Non-empty means the batch
+    /// would be incomplete before it is even built.
+    List<String> unresolved = const [],
   }) async {
     if (_inFlight) return false;
     _inFlight = true;
     state = SpeakerEqStatus(entityId: entityId, busy: true);
     try {
-      final ok = await _applyInner(entityId, members, offsets);
+      final ok = await _applyInner(entityId, members, offsets, unresolved);
       state = SpeakerEqStatus(entityId: entityId, applied: ok);
       return ok;
     } catch (e) {
@@ -175,9 +179,19 @@ class SpeakerEqController extends Notifier<SpeakerEqStatus> {
     String entityId,
     List<SonosDevice> members,
     Map<String, List<double>> offsets,
+    List<String> unresolved,
   ) async {
     if (members.isEmpty) {
       throw const SonorityError(SonorityErrorCode.nothingTunable);
+    }
+    // Same rule as the IP-less member below, one step earlier: a bonded speaker
+    // discovery never resolved is still part of the set, and a set with a hole
+    // in it stores nothing. Refusing here costs the user a rescan; not refusing
+    // costs them an apply that fails with no explanation.
+    if (unresolved.isNotEmpty) {
+      DiagnosticsLog.add('[eq] ${unresolved.length} bonded member(s) '
+          'unresolved (${unresolved.join(", ")}); aborting before any write');
+      throw const SonorityError(SonorityErrorCode.speakerIpUnknown);
     }
     // ABORT, never filter. An IP-less member is a bonded speaker we simply
     // can't reach right now; dropping it produces the incomplete set that

@@ -265,6 +265,25 @@ void main() {
               'destroys the tunings on the members left out');
     });
 
+    test('a bonded member discovery never resolved aborts before ANY write',
+        () async {
+      // The screen can only hand over the members it could resolve, so a
+      // speaker that is bonded but missing from discovery simply is not in the
+      // list — and the batch that goes out is quietly one short, which stores
+      // nothing. Seen on hardware while a speaker was rebooting.
+      final apply = _FakeApply();
+      final c = _container(apply);
+      final ok = await c.read(speakerEqControllerProvider.notifier).apply(
+            entityId: 'RINCON_BAR',
+            members: const [_bar],
+            offsets: {'RINCON_BAR': _cut(4)},
+            unresolved: const ['RINCON_REAR'],
+          );
+      expect(ok, isFalse);
+      expect(apply.posts, 0,
+          reason: 'an incomplete set stores nothing; refuse before writing');
+    });
+
     test('a degenerate device config aborts rather than applying nothing',
         () async {
       // maxSections 0 would fit to a single passthrough — the oracle still

@@ -37,6 +37,23 @@ List<SonosDevice> eqMembers(SonosSystem system, String uuid) {
       .toList();
 }
 
+/// Bonded speakers that discovery has not resolved to a device.
+///
+/// [eqMembers] drops these, because it has nothing to return for them — and a
+/// batch missing one bonded member is exactly the incomplete set that stores
+/// nothing at all. Seen twice on real hardware while speakers were rebooting:
+/// the apply failed the poll and reported "the speakers did not store the EQ",
+/// with no hint that one of them was simply missing. So the apply refuses up
+/// front instead, and says to rescan.
+List<String> eqUnresolved(SonosSystem system, String uuid) {
+  final member = system.memberByUuid(uuid);
+  if (member == null) return const [];
+  return [
+    for (final u in member.bondedUuids)
+      if (system.device(u) == null) u,
+  ];
+}
+
 /// UUID → the speaker's role in this bond, for labelling. Two dedicated fronts
 /// are both "Era 100", so the type alone cannot identify a speaker. Covers both
 /// bond kinds; empty for a standalone speaker, which needs no role.
@@ -152,12 +169,15 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
 
   Future<void> _apply(List<SonosDevice> members) async {
     if (!await _ensureConfirmed(members)) return;
+    final system = ref.read(sonosControllerProvider).value;
     final ok = await ref
         .read(speakerEqControllerProvider.notifier)
         .apply(
           entityId: widget.uuid,
           members: members,
           offsets: _offsetsFor(members),
+          unresolved:
+              system == null ? const [] : eqUnresolved(system, widget.uuid),
         );
     if (ok && mounted) setState(() => _applied = true);
   }
