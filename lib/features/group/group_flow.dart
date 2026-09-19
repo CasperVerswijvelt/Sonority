@@ -137,19 +137,13 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     // them back in so they show selected and deselecting is reversible (mirrors
     // the HT flow's `avail`/`freeSubs`).
     final existing = _editing ? system.memberByUuid(widget.editUuid!) : null;
-    // `zoneableSpeakers` already drops unreachable speakers, so a group picker
-    // never lists one it can't tick.
-    final candidates = system.zoneableSpeakers.toList();
-    // Speakers bonded into ANOTHER entity are offered too, so a user need not
+    // Free speakers plus those bonded into ANOTHER entity, so a user need not
     // unbond by hand first. ⚠️ Unlike a home theater, every group write costs
     // the calibration of the whole source bond (EXP-23: `AddBondedZones`
     // rebuilds a bond even on an unchanged map), which is what the note under
-    // the list spells out.
-    for (final d in system.stealableSpeakers(exceptPrimary: widget.editUuid)) {
-      if (d.reachable && !d.isAmp && !candidates.any((x) => x.uuid == d.uuid)) {
-        candidates.add(d);
-      }
-    }
+    // the list spells out. The shortcuts that gate this flow count the same
+    // list, so they can't offer a flow with one candidate in it.
+    final candidates = system.groupCandidates(exceptPrimary: widget.editUuid);
     final subs = system.bondableSubs.toList();
     if (existing != null) {
       for (final u in existing.groupChannels.keys) {

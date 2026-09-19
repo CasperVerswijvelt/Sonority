@@ -6,9 +6,11 @@ import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
+import '../../state/trueplay_controller.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/confirm_dialog.dart';
+import '../widgets/info_note.dart';
 import '../widgets/reorderable_card_grid.dart';
 import 'profile.dart';
 import 'profile_controller.dart';
@@ -25,6 +27,15 @@ class ProfilesScreen extends ConsumerStatefulWidget {
 class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
   /// Reorder mode: cards become drag-only (no apply / delete / open).
   bool _editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Apply prices what it could cost in Trueplay, and a speaker nobody has
+    // read counts as at risk, so read up front exactly as the setup flows do.
+    // Without it every confirm here would name every speaker it touches.
+    loadTrueplayForPickers(ref);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -163,9 +174,14 @@ Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Profile p) asyn
 }
 
 /// In-app apply (the tile's Apply button): the system is already discovered, so
-/// pre-flight runs immediately and the confirm dialog shows ONLY when there are
-/// issues (missing / conflicting speakers) — a clean apply goes straight to the
-/// progress screen.
+/// pre-flight runs immediately.
+///
+/// The confirm shows when there are issues (missing / conflicting speakers) OR
+/// when the apply writes a bond at all, since re-bonding clears the Trueplay of
+/// every speaker it touches (CLAUDE.md, Q20) and that was the one destructive
+/// path in the app that asked nothing. An UNCHANGED re-apply writes nothing, so
+/// it still goes straight to the progress screen. That is the common case, and
+/// a dialog there would be a toll on a no-op.
 Future<void> applyProfileInteractive(
   BuildContext context,
   WidgetRef ref,
@@ -182,17 +198,23 @@ Future<void> applyProfileInteractive(
   final hasIssues = issues.any(
     (i) => i.missing.isNotEmpty || i.conflicts.isNotEmpty,
   );
-  if (hasIssues) {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => _ApplyConfirmDialog(profile: profile, issues: issues),
-    );
-    if (ok != true || !context.mounted) return;
-  }
   final skip = {
     for (final i in issues)
       if (i.blocked) i.entity.primaryUuid,
   };
+  if (hasIssues || profileApplyWrites(profile, system, skip: skip)) {
+    final tp = ref.read(trueplayControllerProvider);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => _ApplyConfirmDialog(
+        profile: profile,
+        issues: issues,
+        cost: profileTuningCost(ctx.l10n, profile, system, tp.byUuid,
+            skip: skip, busy: tp.busy),
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+  }
   final ctrl = ref.read(sonosControllerProvider.notifier);
   // No success toast — the progress screen already shows the outcome.
   await showBondingProgress(
@@ -218,12 +240,23 @@ Future<void> applyProfileFromLaunch(
     title: context.l10n.profileApplying(profile.name),
     run: () => ctrl.scanAndApplyProfile(
       profile,
-      confirmIssues: (issues) async {
+      // The gate stays "issues only" here: a home-screen tap shouldn't grow a
+      // confirm it never had. When one does show, it prices the same way.
+      confirmIssues: (issues, scanned) async {
         if (!context.mounted) return false;
+        final tp = ref.read(trueplayControllerProvider);
         final ok = await showDialog<bool>(
           context: context,
-          builder: (ctx) =>
-              _ApplyConfirmDialog(profile: profile, issues: issues),
+          builder: (ctx) => _ApplyConfirmDialog(
+            profile: profile,
+            issues: issues,
+            cost: profileTuningCost(ctx.l10n, profile, scanned, tp.byUuid,
+                skip: {
+                  for (final i in issues)
+                    if (i.blocked) i.entity.primaryUuid,
+                },
+                busy: tp.busy),
+          ),
         );
         return ok == true;
       },
@@ -269,7 +302,12 @@ class _EmptyState extends StatelessWidget {
 class _ApplyConfirmDialog extends StatelessWidget {
   final Profile profile;
   final List<EntityIssue> issues;
-  const _ApplyConfirmDialog({required this.profile, required this.issues});
+
+  /// Speakers that could lose their Trueplay tuning, named by the shared cost
+  /// model. Empty when nothing tuned is at stake, and then nothing is said.
+  final ({List<String> names, int count}) cost;
+  const _ApplyConfirmDialog(
+      {required this.profile, required this.issues, required this.cost});
 
   @override
   Widget build(BuildContext context) {
@@ -288,6 +326,13 @@ class _ApplyConfirmDialog extends StatelessWidget {
               context.l10n.profileApplyConfirmBody,
               style: theme.textTheme.bodySmall,
             ),
+            // Named, not the old blanket "Trueplay may need re-tuning": the
+            // same sentence, over the same list, as the setup flows.
+            if (cost.names.isNotEmpty) ...[
+              Gap.m,
+              InfoNote(context.l10n
+                  .speakerStealTrueplayWarning(cost.names.join(', '), cost.count)),
+            ],
             Gap.m,
             for (final i in issues)
               ListTile(

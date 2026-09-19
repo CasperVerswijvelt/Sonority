@@ -1012,10 +1012,10 @@ abstract class AppLocalizations {
   /// **'Apply “{name}”?'**
   String profileApplyConfirmTitle(String name);
 
-  /// No description provided for @profileApplyConfirmBody.
+  /// Body of the apply-a-profile confirm. It used to end with a blanket 'Trueplay may need re-tuning afterward', which was shown whether or not anything was tuned and named nobody. The cost line below it now names the speakers, through the same model the setup flows use, and says nothing when nothing is at stake.
   ///
   /// In en, this message translates to:
-  /// **'This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle). Trueplay may need re-tuning afterward.'**
+  /// **'This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle).'**
   String get profileApplyConfirmBody;
 
   /// No description provided for @profileIssueMissing.

@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
+import '../../state/trueplay_controller.dart';
 import '../widgets/max_width_body.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
@@ -20,6 +21,7 @@ import '../widgets/member_channel_card.dart';
 import '../widgets/rename_dialog.dart';
 import '../widgets/scroll_footer.dart';
 import '../widgets/section_header.dart';
+import '../widgets/speaker_picker.dart';
 
 /// A bonded speaker group (stereo pair / zone / custom) shown as a pushed page:
 /// the group kind, one card per member speaker (type + channel), a rename action,
@@ -28,12 +30,27 @@ import '../widgets/section_header.dart';
 /// A page (not a sheet), matching the home-theater detail — both are bonded
 /// configs, so "tap a bonded thing" always opens a page, and Separate can push
 /// the bonding progress screen without stacking a page over a sheet.
-class GroupDetailScreen extends ConsumerWidget {
+class GroupDetailScreen extends ConsumerStatefulWidget {
   final String uuid;
   const GroupDetailScreen({super.key, required this.uuid});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GroupDetailScreen> createState() => _GroupDetailScreenState();
+}
+
+class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // The Separate confirm prices what un-bonding costs, and an unread speaker
+    // counts as at risk, so read the members up front rather than stalling the
+    // tap on a SOAP round-trip. This page carries no TrueplayControl to do it.
+    loadTrueplayForPickers(ref);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final uuid = widget.uuid;
     final state = ref.watch(sonosControllerProvider);
     final system = state.value;
     final group = system?.memberByUuid(uuid);
@@ -147,12 +164,21 @@ Future<void> _confirmSeparate(
   WidgetRef ref,
   ZoneGroupMember group,
 ) async {
+  final l10n = context.l10n;
+  final system = ref.read(sonosControllerProvider).value;
+  // Separating clears the tuning of EVERY member, not just one (CLAUDE.md,
+  // Q20), priced by the same helper the setup flows use. Read in initState.
+  final tp = ref.read(trueplayControllerProvider);
+  final cost = system == null
+      ? null
+      : removalTuningWarning(l10n, system, tp.byUuid, group, busy: tp.busy);
+  final base = l10n.groupSeparateConfirmMessage;
   final ok = await confirmDialog(
     context,
     icon: Icons.link_off,
-    title: context.l10n.groupSeparateConfirmTitle,
-    message: context.l10n.groupSeparateConfirmMessage,
-    confirmLabel: context.l10n.groupSeparate,
+    title: l10n.groupSeparateConfirmTitle,
+    message: cost == null ? base : '$base\n\n$cost',
+    confirmLabel: l10n.groupSeparate,
   );
   if (!ok || !context.mounted) return;
   final controller = ref.read(sonosControllerProvider.notifier);

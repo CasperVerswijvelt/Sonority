@@ -16,16 +16,20 @@ List<ZoneGroupMember> homeTheaterTargets(SonosSystem system) => system.allMember
     .toList();
 
 /// Whether the standalone speaker [uuid] can start a group — it must itself be
-/// groupable AND have at least one other groupable speaker to pair with, so the
-/// group flow can't dead-end on a single speaker.
+/// groupable AND have at least one other candidate to pair with, so the group
+/// flow can't dead-end on a single speaker.
+///
+/// Counts what the flow actually offers ([SonosSystem.groupCandidates]), which
+/// includes speakers it would take out of another bond. Counting only the free
+/// ones hid the shortcut on a system whose second candidate was stealable.
 bool canGroupSpeaker(SonosSystem system, String uuid) {
-  final z = system.zoneableSpeakers;
+  final z = system.groupCandidates();
   return z.length >= 2 && z.any((d) => d.uuid == uuid);
 }
 
 /// Whether a standalone Sub can join a new group — a group needs ≥2 speakers
 /// (the Sub rides along as the SW channel), so there must be two to bond.
-bool canGroupSub(SonosSystem system) => system.zoneableSpeakers.length >= 2;
+bool canGroupSub(SonosSystem system) => system.groupCandidates().length >= 2;
 
 /// Pops the current page, then pushes [location] — pop-then-push so that after
 /// the guided flow completes we land back on the overview (the device is no

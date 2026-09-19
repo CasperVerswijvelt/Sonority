@@ -43,6 +43,66 @@ bool groupApplyWrites({
     !existing.matchesGroupLayout(channels,
         subUuid: subUuid, coordUuid: coordUuid);
 
+/// Who loses a Trueplay tuning when [selected] is bonded into the entity
+/// [exceptPrimary], given whether the apply [writes] a bond at all.
+///
+/// THE cost rule, as a free function. The pickers reach it through
+/// [PickerContext]; a profile apply prices several entities in one go and a
+/// removal confirm prices a bond with nothing selected, and neither has a
+/// picker to hang it on. A second expression of this is the defect that keeps
+/// coming back here: two screens naming different speakers for the same write.
+///
+/// What the DESTINATION costs is the configured entity's own current members
+/// plus everything [selected], the speakers joining the new bond. Every member,
+/// not only a dropped one: a purely additive `AddHTSatellite` was measured
+/// dropping the bar and both rears to `available=0` with nothing removed
+/// (CLAUDE.md, Q20), `AddBondedZones` rebuilds the bond even on an unchanged
+/// map (Q8a), and which satellites survive is not predictable. The selection is
+/// in there because a bonding change costs the bond it creates, not just the
+/// ones it empties: two freshly tuned standalone speakers paired together lose
+/// both tunings, and that used to be priced at zero.
+Set<String> tuningLostByApply({
+  required SonosSystem system,
+  required Set<String> selected,
+  required bool writes,
+  String? exceptPrimary,
+}) {
+  final live = !writes || exceptPrimary == null
+      ? null
+      : system.memberByUuid(exceptPrimary);
+  return system.tuningLostBySelection(
+    selected: selected,
+    exceptPrimary: exceptPrimary,
+    alsoLosing: {
+      if (writes) ...selected,
+      if (live != null) ...system.bondMemberUuids(live),
+    },
+  );
+}
+
+/// What un-bonding [bond] could cost, as one sentence, or null when nothing
+/// tuned is at stake.
+///
+/// A removal clears the tuning of the WHOLE bonded set, not just what leaves
+/// (CLAUDE.md, Q20), so the cost is every member: the same rule the flows price
+/// a change with, asked with nothing selected. Untuned sets get no sentence,
+/// which is why a Separate confirm can carry this without becoming a permanent
+/// scare line.
+String? removalTuningWarning(
+  AppLocalizations l10n,
+  SonosSystem system,
+  Map<String, RoomCalibration> calibration,
+  ZoneGroupMember bond, {
+  Set<String> busy = const {},
+}) =>
+    PickerContext(
+      system: system,
+      calibration: calibration,
+      exceptPrimary: bond.uuid,
+      writes: true,
+      busy: busy,
+    ).warning(l10n, const {});
+
 /// One block of a speaker picker: a heading plus the speakers under it.
 ///
 /// [source] IS the discriminator. Null means "free to use", set means "bonded
@@ -337,27 +397,6 @@ class PickerContext {
     this.busy = const {},
   });
 
-  /// What the DESTINATION costs, which no source bond can know about: the
-  /// configured entity's own current members, plus everything [selected],
-  /// the speakers joining the new bond.
-  ///
-  /// Every member, not only a dropped one: a purely additive `AddHTSatellite`
-  /// was measured dropping the bar and both rears to `available=0` with nothing
-  /// removed (CLAUDE.md, Q20), `AddBondedZones` rebuilds the bond even on an
-  /// unchanged map (Q8a), and which satellites survive is not predictable. The
-  /// selection is in there because a bonding change costs the bond it creates,
-  /// not just the ones it empties: two freshly tuned standalone speakers
-  /// paired together lose both tunings, and that used to be priced at zero.
-  Set<String> _destinationCost(Set<String> selected) {
-    if (!writes) return const {};
-    final live =
-        exceptPrimary == null ? null : system.memberByUuid(exceptPrimary!);
-    return {
-      ...selected,
-      if (live != null) ...system.bondMemberUuids(live),
-    };
-  }
-
   List<PickerSection> sections(List<SonosDevice> candidates) => pickerSections(
         system: system,
         candidates: candidates,
@@ -392,15 +431,20 @@ class PickerContext {
   /// Takes the [AppLocalizations] rather than a `BuildContext`: this is pure
   /// text, so it stays callable (and testable) without an element tree.
   ({List<String> names, int count}) tuningCost(
-      AppLocalizations l10n, Set<String> selected) {
-    final losing = system.tuningLostBySelection(
-      selected: selected,
-      exceptPrimary: exceptPrimary,
-      alsoLosing: _destinationCost(selected),
-    );
-    return tunedSpeakers(l10n, system, losing, calibration,
-        ownBond: exceptPrimary, busy: busy);
-  }
+          AppLocalizations l10n, Set<String> selected) =>
+      tunedSpeakers(l10n, system, tuningLost(selected), calibration,
+          ownBond: exceptPrimary, busy: busy);
+
+  /// The uuid half of [tuningCost], before any naming.
+  ///
+  /// Split out so a caller pricing SEVERAL entities at once (a profile apply)
+  /// can union the uuids and name them once, instead of writing the rule again.
+  Set<String> tuningLost(Set<String> selected) => tuningLostByApply(
+        system: system,
+        selected: selected,
+        writes: writes,
+        exceptPrimary: exceptPrimary,
+      );
 
   /// The source groups this selection DISSOLVES, as a sentence, or null.
   ///

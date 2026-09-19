@@ -385,7 +385,8 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
   /// entities. Runs behind the same progress screen as [applyProfile].
   Future<void> scanAndApplyProfile(
     Profile profile, {
-    Future<bool> Function(List<EntityIssue> issues)? confirmIssues,
+    Future<bool> Function(List<EntityIssue> issues, SonosSystem scanned)?
+        confirmIssues,
   }) async {
     if (_activeOp != null) return; // don't stack bonding ops
     // Set the cancel token BEFORE the scan so Abort works during the scan step
@@ -441,7 +442,9 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
         (i) => i.missing.isNotEmpty || i.conflicts.isNotEmpty,
       );
       if (hasIssues && confirmIssues != null) {
-        final proceed = await confirmIssues(issues);
+        // The scanned system goes with the issues: the dialog prices this
+        // apply's Trueplay cost off it, and only this scan is fresh enough.
+        final proceed = await confirmIssues(issues, scanned);
         if (!proceed) throw const OperationCancelled();
       }
       cancel.throwIfCancelled();

@@ -616,7 +616,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileApplyConfirmBody =>
-      'This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle). Trueplay may need re-tuning afterward.';
+      'This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle).';
 
   @override
   String profileIssueMissing(String speakers) {

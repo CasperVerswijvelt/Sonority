@@ -608,6 +608,28 @@ class SonosSystem {
                 if (device(id) case final d? when !d.isSoundbar && !d.isSub) d,
       ];
 
+  /// Every speaker the group flow offers: the free ones, plus the ones it can
+  /// take out of another bond.
+  ///
+  /// ONE list, because a gate that counts differently from the picker it gates
+  /// breaks in both directions. Counting only [zoneableSpeakers] denied the
+  /// "Group with another speaker" shortcut on a system whose only other
+  /// candidate was stealable; counting the raw [stealableSpeakers] instead
+  /// would offer the flow and then hand it a row it can't tick, which is the
+  /// dead end [zoneableSpeakers] documents.
+  List<SonosDevice> groupCandidates({String? exceptPrimary}) {
+    final out = zoneableSpeakers.toList();
+    for (final d in stealableSpeakers(exceptPrimary: exceptPrimary)) {
+      // The same two filters [zoneableSpeakers] applies: an Amp has no drivers
+      // of its own to group, and an unreachable speaker renders as a row that
+      // can't be selected.
+      if (d.reachable && !d.isAmp && !out.any((x) => x.uuid == d.uuid)) {
+        out.add(d);
+      }
+    }
+    return out;
+  }
+
   /// Which speakers lose their Trueplay tuning when [selected] is bonded into a
   /// destination: the WHOLE of every bond the selection takes from, plus
   /// [alsoLosing].

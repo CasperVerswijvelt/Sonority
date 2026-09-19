@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n.dart';
 import '../../data/models/sonos_models.dart';
 import '../../data/sonos/channel_map.dart';
 import '../../data/sonos/front_layout.dart';
+import '../../data/sonos/room_calibration.dart';
+import '../widgets/speaker_picker.dart';
 import 'profile.dart';
 import 'profile_store.dart';
 
@@ -106,6 +109,88 @@ bool entityIsActive(EntitySnapshot e, SonosSystem system) {
 /// they cover disjoint entities; that's truthful, not a bug.
 bool profileIsActive(Profile p, SonosSystem system) =>
     p.entities.isNotEmpty && p.entities.every((e) => entityIsActive(e, system));
+
+/// Whether applying [e] against the live [system] writes a BOND at all, as
+/// opposed to just a room name. Only a bond write costs Trueplay.
+///
+/// The same engine diffs the setup flows gate on ([htApplyWrites] /
+/// [groupApplyWrites]), so a profile apply and a flow can never price the same
+/// change differently. An unchanged re-apply is the common case and writes
+/// nothing, which is exactly why it must cost nothing.
+bool entityApplyWrites(EntitySnapshot e, SonosSystem system) {
+  final map = e.mapSet;
+  final live = system.memberByUuid(e.primaryUuid);
+  switch (e.kind) {
+    // Standing a room back up writes no bond of its own. Freeing it out of one
+    // does cost that bond its tuning, which [profileTuningLost] prices from the
+    // source side.
+    case EntityKind.single:
+      return false;
+    case EntityKind.homeTheater:
+      // Apply throws malformedHomeTheater before writing anything.
+      if (map == null) return false;
+      // Nothing bonded to diff against ⇒ the apply builds the whole thing.
+      if (live == null || !live.isHomeTheater) return true;
+      return htApplyWrites(
+          diffHtLayout(current: live, target: ChannelMap.parse(map)));
+    case EntityKind.stereoPair:
+    case EntityKind.zone:
+    case EntityKind.custom:
+      if (map == null) return false; // apply throws malformedGroup
+      final snap = e.toMember();
+      return groupApplyWrites(
+        existing: live,
+        channels: snap.groupChannels,
+        subUuid: snap.subUuid,
+        coordUuid: e.primaryUuid,
+      );
+  }
+}
+
+/// Whether applying [p] writes any bond at all, skipping the entities in [skip]
+/// (the ones pre-flight found unapplicable). False for an unchanged re-apply.
+bool profileApplyWrites(Profile p, SonosSystem system,
+        {Set<String> skip = const {}}) =>
+    p.entities.any(
+        (e) => !skip.contains(e.primaryUuid) && entityApplyWrites(e, system));
+
+/// Who this apply could cost their Trueplay tuning: the union over every entity
+/// that writes, plus every bond it frees a speaker out of.
+///
+/// Routed through [tuningLostByApply], the same rule the two setup flows price
+/// a bonding change with, once per entity. A profile with several entities is
+/// the only caller that unions, which is why the uuid half of the rule is
+/// exposed separately from the naming half.
+Set<String> profileTuningLost(Profile p, SonosSystem system,
+    {Set<String> skip = const {}}) {
+  final lost = <String>{};
+  for (final e in p.entities) {
+    if (skip.contains(e.primaryUuid)) continue;
+    lost.addAll(tuningLostByApply(
+      system: system,
+      selected: e.involvedUuids,
+      writes: entityApplyWrites(e, system),
+      // A single room has no destination bond of its own. It must ALSO not pass
+      // its own uuid: `ownerOf` answers a group coordinator with itself, so
+      // `exceptPrimary` would hide the very group that freeing it dissolves.
+      exceptPrimary: e.kind == EntityKind.single ? null : e.primaryUuid,
+    ));
+  }
+  return lost;
+}
+
+/// [profileTuningLost], named for display by the same [tunedSpeakers] the
+/// pickers use. Empty names ⇒ nothing tuned is at stake.
+({List<String> names, int count}) profileTuningCost(
+  AppLocalizations l10n,
+  Profile p,
+  SonosSystem system,
+  Map<String, RoomCalibration> calibration, {
+  Set<String> skip = const {},
+  Set<String> busy = const {},
+}) =>
+    tunedSpeakers(l10n, system, profileTuningLost(p, system, skip: skip),
+        calibration, busy: busy);
 
 /// What a profile apply would FREE for entity [e] against the live [system],
 /// the exact arguments `SonosController._applyEntity` hands `_freeConflicts`.

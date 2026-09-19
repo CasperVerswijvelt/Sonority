@@ -145,13 +145,24 @@ class HomeTheaterScreen extends ConsumerWidget {
     bool separateAll = false,
   }) async {
     final l10n = context.l10n;
+    final base = separateAll ? l10n.htSeparateMessage : l10n.htRemoveMessage;
+    // Removing ANY satellite clears the tuning of the whole home theater, not
+    // just what leaves (CLAUDE.md, Q20), so both confirms price the full set,
+    // through the same helper the setup flow prices a change with. The page's
+    // TrueplayControl has already read the members, so nothing tuned means
+    // nothing said.
+    final system = ref.read(sonosControllerProvider).value;
+    final tp = ref.read(trueplayControllerProvider);
+    final cost = system == null
+        ? null
+        : removalTuningWarning(l10n, system, tp.byUuid, member, busy: tp.busy);
     final ok = await confirmDialog(
       context,
       icon: Icons.link_off,
       title: separateAll
           ? l10n.htSeparateConfirmTitle
           : l10n.htRemoveConfirmTitle(label),
-      message: separateAll ? l10n.htSeparateMessage : l10n.htRemoveMessage,
+      message: cost == null ? base : '$base\n\n$cost',
       confirmLabel: separateAll ? l10n.htSeparate : l10n.actionRemove,
     );
     if (!ok || !context.mounted) return;
