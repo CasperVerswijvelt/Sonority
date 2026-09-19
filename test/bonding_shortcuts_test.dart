@@ -24,6 +24,28 @@ const _sub = SonosDevice(uuid: 'SUB', roomName: 'Sub', modelName: 'Sonos Sub');
 const _unreachable = SonosDevice(
     uuid: 'U', roomName: 'Attic', modelName: '', reachable: false);
 
+/// A live stereo pair of two Ones, plus whatever else [extra] adds. Its members
+/// are bonded, so they are absent from `zoneableSpeakers` but ARE offered by the
+/// group picker, which takes a speaker straight out of another bond.
+SonosSystem _withPair(List<SonosDevice> extra) {
+  const l = SonosDevice(uuid: 'PL', roomName: 'Eetkamer', modelName: 'Sonos One');
+  const r =
+      SonosDevice(uuid: 'PR', roomName: 'Eetkamer', modelName: 'Sonos One SL');
+  return SonosSystem(
+    groups: [
+      const ZoneGroup(coordinatorUuid: 'PL', members: [
+        ZoneGroupMember(
+            uuid: 'PL', zoneName: 'Eetkamer', channelMapSet: 'PL:LF,LF;PR:RF,RF'),
+      ]),
+      for (final d in extra)
+        ZoneGroup(coordinatorUuid: d.uuid, members: [
+          ZoneGroupMember(uuid: d.uuid, zoneName: d.roomName),
+        ]),
+    ],
+    devicesByUuid: {l.uuid: l, r.uuid: r, for (final d in extra) d.uuid: d},
+  );
+}
+
 void main() {
   group('canGroupSpeaker', () {
     test('false when it is the only groupable speaker (would dead-end)', () {
@@ -39,6 +61,13 @@ void main() {
     test('false for a speaker that cannot be grouped (a soundbar)', () {
       // Two Ones exist, but a soundbar itself can't join a zone.
       expect(canGroupSpeaker(_standalone([_bar, _one, _two]), 'BAR'), isFalse);
+    });
+
+    // The mirror image of the dead-end bug: the gate counted only free
+    // speakers, so the one system where the picker DOES offer a second
+    // candidate (it takes it out of another bond) had the shortcut hidden.
+    test('a speaker bonded elsewhere IS the second candidate', () {
+      expect(canGroupSpeaker(_withPair([_one]), 'A'), isTrue);
     });
 
     test('an unreachable speaker is not the second candidate', () {
@@ -64,6 +93,10 @@ void main() {
 
     test('unreachable speakers do not make up the two', () {
       expect(canGroupSub(_standalone([_sub, _one, _unreachable])), isFalse);
+    });
+
+    test('speakers bonded elsewhere make up the two', () {
+      expect(canGroupSub(_withPair([_sub])), isTrue);
     });
   });
 }

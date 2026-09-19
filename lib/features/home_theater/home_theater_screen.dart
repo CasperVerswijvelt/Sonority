@@ -15,12 +15,31 @@ import '../widgets/confirm_dialog.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/destructive_button.dart';
 import '../widgets/diagram_labels.dart';
+import '../widgets/max_width_body.dart';
 import '../widgets/refresh_icon_button.dart';
 import '../widgets/rename_dialog.dart';
 import '../widgets/scroll_footer.dart';
 import '../widgets/section_header.dart';
 import '../widgets/settings_section.dart';
+import '../widgets/speaker_picker.dart';
 import '../widgets/trueplay_control.dart';
+
+/// The native speakers bonded into [member]'s home theater: the bar plus every
+/// satellite, minus any line-out box (an Amp/Port holds no tuning of its own).
+///
+/// Via [SonosSystem.bondMemberUuids], NOT `channelAssignments.values`. That map
+/// is keyed by CHANNEL, so a dual-sub HT (`...:SW;...:SW`) collapses to one uuid
+/// and the second Sub left BOTH the numerator and the denominator of the
+/// Trueplay count: an incomplete set read complete, and the destructive-enable
+/// confirm never fired. Same class of hole as the no-IP one the denominator
+/// already covers. Pulled out of `build` so that stays pinnable by a test.
+List<SonosDevice> htBondedDevices(SonosSystem system, ZoneGroupMember member) =>
+    system
+        .bondMemberUuids(member)
+        .map((u) => system.device(u))
+        .whereType<SonosDevice>()
+        .where((d) => !d.drivesExternalSpeakers)
+        .toList();
 
 /// Shows one home theater's current layout and the add/remove-fronts actions.
 class HomeTheaterScreen extends ConsumerWidget {
@@ -36,13 +55,8 @@ class HomeTheaterScreen extends ConsumerWidget {
     final member = system?.memberByUuid(soundbarUuid);
     final device = system?.device(soundbarUuid);
 
-    // Bonded native members (bar + fronts + rears + sub); Amp fronts excluded.
     final bonded = (system != null && member != null)
-        ? <String>{member.uuid, ...member.channelAssignments.values}
-              .map((u) => system.device(u))
-              .whereType<SonosDevice>()
-              .where((d) => !d.drivesExternalSpeakers)
-              .toList()
+        ? htBondedDevices(system, member)
         : <SonosDevice>[];
 
     Future<void> refreshAll() async {
@@ -65,29 +79,37 @@ class HomeTheaterScreen extends ConsumerWidget {
           ),
         RefreshIconButton(onRefresh: refreshAll),
       ],
-      body: state.isLoading
-          ? BusyView(
-              title: context.l10n.htUpdatingTitle,
-              subtitle: context.l10n.htUpdatingSubtitle,
-            )
-          : (member == null || device == null)
-          ? const MissingRoomView()
-          : _Content(
-              system: system!,
-              member: member,
-              bonded: bonded,
-              onRemoveGroup: (channels, label, {bool separateAll = false}) =>
-                  _confirmRemoveGroup(
-                    context,
-                    ref,
-                    member,
-                    device,
-                    channels,
-                    label,
-                    separateAll: separateAll,
-                  ),
-              onConfigure: () => context.push('/theater/$soundbarUuid/fronts'),
-            ),
+      // Clamped, not full-bleed, unlike the other detail pages' default: at
+      // 1707dp the diagram stretched its L/R to the far corners and the
+      // Trueplay breakdown put each speaker's name and its state a screen
+      // apart, which stops reading as one row. Below the breakpoint
+      // MaxWidthBody returns the child untouched, so phones are unchanged.
+      body: MaxWidthBody(
+        child: state.isLoading
+            ? BusyView(
+                title: context.l10n.htUpdatingTitle,
+                subtitle: context.l10n.htUpdatingSubtitle,
+              )
+            : (member == null || device == null)
+            ? const MissingRoomView()
+            : _Content(
+                system: system!,
+                member: member,
+                bonded: bonded,
+                onRemoveGroup: (channels, label, {bool separateAll = false}) =>
+                    _confirmRemoveGroup(
+                      context,
+                      ref,
+                      member,
+                      device,
+                      channels,
+                      label,
+                      separateAll: separateAll,
+                    ),
+                onConfigure: () =>
+                    context.push('/theater/$soundbarUuid/fronts'),
+              ),
+      ),
     );
   }
 
@@ -107,8 +129,9 @@ class HomeTheaterScreen extends ConsumerWidget {
           .renameRoom(device: device, name: name);
       messenger.showSnackBar(SnackBar(content: Text(l10n.htRenamedTo(name))));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(
-          content: Text(l10n.htRenameFailed(localizedError(l10n, e)))));
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.htRenameFailed(localizedError(l10n, e)))),
+      );
     }
   }
 
@@ -122,14 +145,24 @@ class HomeTheaterScreen extends ConsumerWidget {
     bool separateAll = false,
   }) async {
     final l10n = context.l10n;
+    final base = separateAll ? l10n.htSeparateMessage : l10n.htRemoveMessage;
+    // Removing ANY satellite clears the tuning of the whole home theater, not
+    // just what leaves (CLAUDE.md, Q20), so both confirms price the full set,
+    // through the same helper the setup flow prices a change with. The page's
+    // TrueplayControl has already read the members, so nothing tuned means
+    // nothing said.
+    final system = ref.read(sonosControllerProvider).value;
+    final tp = ref.read(trueplayControllerProvider);
+    final cost = system == null
+        ? null
+        : removalTuningWarning(l10n, system, tp.byUuid, member, busy: tp.busy);
     final ok = await confirmDialog(
       context,
       icon: Icons.link_off,
       title: separateAll
           ? l10n.htSeparateConfirmTitle
           : l10n.htRemoveConfirmTitle(label),
-      message:
-          separateAll ? l10n.htSeparateMessage : l10n.htRemoveMessage,
+      message: cost == null ? base : '$base\n\n$cost',
       confirmLabel: separateAll ? l10n.htSeparate : l10n.actionRemove,
     );
     if (!ok || !context.mounted) return;
@@ -160,16 +193,16 @@ class _Group {
 }
 
 List<_Group> _htGroupsFor(AppLocalizations l10n) => [
-      _Group(l10n.htGroupFronts, Icons.speaker, {
-        SonosChannel.leftFront,
-        SonosChannel.rightFront,
-      }),
-      _Group(l10n.htGroupSurrounds, Icons.surround_sound, {
-        SonosChannel.leftRear,
-        SonosChannel.rightRear,
-      }),
-      _Group(l10n.htGroupSubwoofer, Icons.graphic_eq, {SonosChannel.sub}),
-    ];
+  _Group(l10n.htGroupFronts, Icons.speaker, {
+    SonosChannel.leftFront,
+    SonosChannel.rightFront,
+  }),
+  _Group(l10n.htGroupSurrounds, Icons.surround_sound, {
+    SonosChannel.leftRear,
+    SonosChannel.rightRear,
+  }),
+  _Group(l10n.htGroupSubwoofer, Icons.graphic_eq, {SonosChannel.sub}),
+];
 
 class _Content extends StatelessWidget {
   final SonosSystem system;
@@ -225,15 +258,36 @@ class _Content extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          SettingsSection(children: [TrueplayControl(devices: bonded)]),
+          SettingsSection(
+            children: [
+              TrueplayControl(
+                devices: bonded,
+                // Bonded speakers have no name of their own, and two matched
+                // surrounds have the same TYPE, so the breakdown's "5/6" would
+                // still name nobody. The card title already qualifies a bonded
+                // speaker by its channel ("One SL · Surround L").
+                label: (d) => bondedCardTitle(l10n, system, device: d),
+              ),
+            ],
+          ),
           if (member.hasDedicatedFronts)
             Padding(
-              padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),
+              padding: const EdgeInsets.fromLTRB(
+                kPageGutter,
+                8,
+                kPageGutter,
+                0,
+              ),
               child: Text(l10n.htTrueplayNote, style: theme.mutedText),
             ),
           if (present.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(kPageGutter, 20, kPageGutter, 0),
+              padding: const EdgeInsets.fromLTRB(
+                kPageGutter,
+                20,
+                kPageGutter,
+                0,
+              ),
               child: DestructiveButton(
                 icon: Icons.link_off,
                 label: l10n.htSeparate,
@@ -265,10 +319,7 @@ class _Content extends StatelessWidget {
               Gap.l,
               SectionHeader(l10n.htBondedSpeakers),
               if (present.isEmpty)
-                Text(
-                  l10n.htNoBonded,
-                  style: theme.mutedText,
-                )
+                Text(l10n.htNoBonded, style: theme.mutedText)
               else
                 CardGrid([
                   for (final g in present)
@@ -306,7 +357,9 @@ class _GroupCard extends StatelessWidget {
       child: ListTile(
         leading: Icon(group.icon, color: theme.colorScheme.primary),
         title: Text(group.label),
-        subtitle: Text(models.isEmpty ? context.l10n.htBonded : models.join(', ')),
+        subtitle: Text(
+          models.isEmpty ? context.l10n.htBonded : models.join(', '),
+        ),
         trailing: TextButton(
           onPressed: onRemove,
           style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),

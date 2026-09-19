@@ -80,15 +80,7 @@
   },
   "errMalformedGroup": "Stored group is malformed.",
   "errMalformedHomeTheater": "Stored home theater is malformed.",
-  "errDidNotForm": "Sonos did not form “{name}”.",
-  "@errDidNotForm": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "errDidNotCreateGroup": "Sonos did not create the group — a speaker may be incompatible.",
+  "errDidNotCreateGroup": "Sonos did not create the group. Wait a moment and try again. If it keeps failing, one of the speakers may not be compatible.",
   "errDidNotSeparate": "Sonos did not separate the group — try again.",
   "errDidNotRemove": "Sonos did not remove the {label} — try again.",
   "@errDidNotRemove": {
@@ -203,10 +195,14 @@
       }
     }
   },
+  "stepFreeUnconfirmed": "Couldn’t confirm {name} was freed. Carrying on, and verifying at the bond",
+  "@stepFreeUnconfirmed": {
+    "description": "Timeline note when the settle poll after an unbond never converged. Not an error: the unbond usually applied and the bond write re-asserts until it verifies. Shown so the timeline names the real cause when that bond then fails, instead of leaving it only in the raw log.",
+    "placeholders": { "name": { "type": "String" } }
+  },
   "stepWaitForSettle": "Wait for Sonos to settle",
   "stepWaitingSettle": "waiting for Sonos to settle",
   "stepWaitForConfirm": "Wait for Sonos to confirm",
-  "stepWaitingConfirm": "waiting for Sonos to confirm",
   "stepApplyingSettle": "Applying — Sonos can take up to a minute to settle.",
   "stepNameUnchanged": "name unchanged — nothing to do",
   "stepAlreadyFormed": "already formed — nothing to do",
@@ -310,9 +306,66 @@
   "widgetsRoomNameLabel": "Room name",
   "widgetsTvSoundbar": "TV / Soundbar",
   "widgetsTrueplayChecking": "Checking…",
+  "@widgetsTrueplayChecking": {
+    "description": "Two contexts: the Trueplay tile subtitle before the first read lands, and one speaker's value in the per-speaker breakdown while that speaker's read is in flight. Deliberately distinct from 'Couldn't read', which asserts we asked and got nothing; this one says we have not asked yet. The distinction matters most in the 20-30s a just-bonded speaker refuses connections, which is exactly when the breakdown is on screen."
+  },
+  "widgetsTrueplayIncompleteSet": "turning it on could destroy the tunings that are left",
+  "@widgetsTrueplayIncompleteSet": {
+    "description": "Warning on the Trueplay row when some bonded speaker has no stored tuning. Measured (EXP-23) on one household: turning it on in that state destroyed the stored tunings of the others, unrecoverably. Hedged to 'could' on purpose, because four cells on one system and an undetermined mechanism do not support stating it as certain. NOT blocked, only warned and confirmed."
+  },
+  "widgetsTrueplayConfirmTitle": "Turn on Trueplay?",
+  "@widgetsTrueplayConfirmTitle": {
+    "description": "Confirm shown when switching Trueplay on while the bonded set is only partly tuned."
+  },
+  "widgetsTrueplayConfirmBody": "{count, plural, one{Only 1 speaker here is tuned, so turning it on could destroy that tuning.} other{Only {count} speakers here are tuned, so turning it on could destroy those tunings.}}",
+  "@widgetsTrueplayConfirmBody": {
+    "description": "Body of that confirm. Names how many tunings are at stake and that the loss is permanent.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetsTrueplayOneWay": "turning it off may be permanent",
+  "@widgetsTrueplayOneWay": {
+    "description": "Row warning when the set is short and Trueplay is currently ON. Turning off is not known to be destructive, but the only way back is the enable write, which is, so it is a one-way door."
+  },
+  "widgetsTrueplayConfirmOffTitle": "Turn off Trueplay?",
+  "@widgetsTrueplayConfirmOffTitle": {
+    "description": "Confirm shown when switching Trueplay off while the bonded set is only partly tuned."
+  },
+  "widgetsTrueplayConfirmOffBody": "Not every speaker here is tuned, so turning it back on later could destroy the tunings that are left.",
+  "@widgetsTrueplayConfirmOffBody": {
+    "description": "Body of that confirm. Turning off is not itself known to be destructive; the point is that the only way back is the enable, which can be."
+  },
+  "widgetsTrueplayConfirmOffAction": "Turn off anyway",
+  "@widgetsTrueplayConfirmOffAction": {
+    "description": "Confirm action for switching Trueplay off despite not being able to switch it back on safely."
+  },
+  "widgetsTrueplayConfirmAction": "Turn on anyway",
+  "@widgetsTrueplayConfirmAction": {
+    "description": "Confirm action for switching Trueplay on despite the cost."
+  },
   "widgetsTrueplayNotTuned": "Not tuned — run Trueplay once in the Sonos app (iOS).",
   "widgetsTrueplayActive": "Active",
   "widgetsTrueplayTunedOff": "Tuned · off",
+  "widgetsTrueplayRowNotTuned": "Not tuned",
+  "@widgetsTrueplayRowNotTuned": {
+    "description": "One speaker's state in the per-speaker Trueplay breakdown. Short form of widgetsTrueplayNotTuned, which carries the full 'run it in the Sonos app' instruction and is only shown when NO speaker is tuned."
+  },
+  "widgetsTrueplayRowUnread": "Couldn't read",
+  "@widgetsTrueplayRowUnread": {
+    "description": "One speaker's state in the per-speaker Trueplay breakdown: no IP, the speaker never answered discovery, or the calibration read faulted. Shown rather than omitting the speaker, so a set that reads x/y always says which speaker the gap is."
+  },
+  "widgetsTrueplayUnreadable": "{count, plural, one{Couldn't read Trueplay from this speaker.} other{Couldn't read Trueplay from these speakers.}}",
+  "@widgetsTrueplayUnreadable": {
+    "description": "Subtitle when NO speaker in the set answered its calibration read. Distinct from widgetsTrueplayNotTuned, which claims the speakers have no tuning: a claim that can't be made about speakers that were never successfully asked. count is how many speakers the message covers; a standalone room passes exactly one.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "widgetsTrueplayActiveCount": "{enabled}/{total} active",
   "@widgetsTrueplayActiveCount": {
     "placeholders": {
@@ -375,7 +428,10 @@
       }
     }
   },
-  "profileApplyConfirmBody": "This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle). Trueplay may need re-tuning afterward.",
+  "profileApplyConfirmBody": "This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle).",
+  "@profileApplyConfirmBody": {
+    "description": "Body of the apply-a-profile confirm. It used to end with a blanket 'Trueplay may need re-tuning afterward', which was shown whether or not anything was tuned and named nobody. The cost line below it now names the speakers, through the same model the setup flows use, and says nothing when nothing is at stake."
+  },
   "profileIssueMissing": "Missing: {speakers} — will be skipped",
   "@profileIssueMissing": {
     "placeholders": {
@@ -721,37 +777,22 @@
   "htBondedSpeakers": "Bonded speakers",
   "htNoBonded": "Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure” to add some.",
   "htSpeakerFallback": "Speaker",
-  "htTrueplayNote": "Trueplay can only be measured from the Sonos app on iOS — tune the home theater, and the fronts separately as a stereo pair. Heads-up: Sonos often clears a tuning when speakers are bonded/unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.",
+  "htTrueplayNote": "Trueplay can only be measured in the Sonos app on iOS; Sonority just reads and toggles a stored tuning. Any bonding change switches Trueplay off, and switching it back on may clear the tuning, so re-tune afterwards.",
   "htAllExtraSpeakers": "all extra speakers",
   "htBonded": "Bonded",
   "frontSurroundsTitle": "Configure home theater",
   "frontSurroundsStepFronts": "Front speakers",
   "frontSurroundsOptional": "Optional",
-  "frontSurroundsFrontsHint": "Pick two speakers (or a single Amp or Port) for the front left & right, then set which is which.",
+  "frontSurroundsFrontsHint": "Pick two speakers for the front left and right, ideally identical.",
+  "frontSurroundsFrontsHintAmp": "Pick two speakers for the front left and right, ideally identical. A single Amp or Port that feeds both works too.",
+  "@frontSurroundsFrontsHintAmp": {
+    "description": "Variant of frontSurroundsFrontsHint, shown only when an Amp or Port is actually on the network. Identical but for the last sentence, which offers that shortcut."
+  },
   "frontSurroundsStepSurrounds": "Rear surrounds",
-  "frontSurroundsSurroundsHint": "Pick two speakers for the rear left & right surrounds.",
+  "frontSurroundsSurroundsHint": "Pick two speakers for the rear left and right surrounds, ideally identical.",
   "frontSurroundsStepSub": "Subwoofer",
   "frontSurroundsStepReview": "Review & apply",
-  "frontSurroundsUnbondTitle": "{count, plural, one{Unbond {count} speaker?} other{Unbond {count} speakers?}}",
-  "@frontSurroundsUnbondTitle": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "frontSurroundsUnbondMessage": "{types} will be removed from this home theater and become standalone rooms again. The rest of your layout stays as it is.",
-  "@frontSurroundsUnbondMessage": {
-    "placeholders": {
-      "types": {
-        "type": "String"
-      }
-    }
-  },
-  "frontSurroundsUnbond": "Unbond",
-  "frontSurroundsNoFreeSpeakers": "No free speakers available. They must be standalone (not already part of a home theater or stereo pair).",
-  "frontSurroundsPickWithAmp": "Pick two speakers (ideally identical), or a single Sonos Amp or Port that feeds both front speakers.",
-  "frontSurroundsPickExactlyTwo": "Pick exactly two — ideally an identical pair.",
+  "frontSurroundsNoFreeSpeakers": "No speakers available to bond.",
   "frontSurroundsAmpSubtitle": "{type} — drives both fronts (L + R)",
   "@frontSurroundsAmpSubtitle": {
     "placeholders": {
@@ -773,7 +814,15 @@
   "frontSurroundsChooseTwoFirst": "Choose two speakers first.",
   "frontSurroundsTapSwap": "Tap swap if the sides are reversed.",
   "frontSurroundsNothingSelected": "Nothing selected yet — choose speakers above.",
-  "frontSurroundsReviewNote": "The chosen speakers become hidden satellites of the soundbar (which stays the center channel). Bonding runs in steps and can take a little while; Trueplay may need re-tuning afterward. You can change this anytime.",
+  "frontSurroundsTrueplayLoses": "Could lose Trueplay: {names}. Plan to re-tune in the Sonos app.",
+  "@frontSurroundsTrueplayLoses": {
+    "description": "Review-step line naming the speakers whose stored tuning this apply could clear. Hedged to 'could', identically to speakerStealTrueplayWarning: it renders the SAME tuningCost list two screens later, and that list deliberately includes speakers whose tuning could not be read. Worded without it/them so it needs no plural: two identical models share one label.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
   "diagNoSystemToCollect": "No system to collect — scan first.",
   "diagBuildFailed": "Could not build the diagnostics bundle: {error}",
   "@diagBuildFailed": {
@@ -816,6 +865,69 @@
   "@diagNoteHelper": {
     "placeholders": {
       "min": { "type": "int" }
+    }
+  },
+  "speakerStealTrueplayWarning": "{count, plural, one{{names} could lose its Trueplay tuning. Plan to re-tune it in the Sonos app.} other{{names} could lose their Trueplay tuning. Plan to re-tune them in the Sonos app.}}",
+  "@speakerStealTrueplayWarning": {
+    "description": "Warning shown when the chosen speakers must be taken out of another bond, naming the speakers whose tuning is at risk. Those that hold a stored tuning, plus any whose tuning could not be read. Hedged to 'could': the list deliberately includes speakers whose tuning could not be READ, and which members of a disturbed bond survive is not predictable anyway (CLAUDE.md, Q20). Same hedge as the Trueplay toggle's 'could destroy'.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pickerSectionAvailable": "Available",
+  "pickerCostZone": "Taking any of them breaks up the whole group.",
+  "@pickerCostZone": {
+    "description": "Section-header sentence for a bond whose members cannot be taken one at a time: absorbing any member dissolves the whole thing (EXP-23 Q12). Covers every speaker group, which in this app includes a stereo pair, a zone and a custom L/R/Both group. 'Group' here is the UI word for an AddBondedZones bond, not a playback group. Not shown for a home theater, which survives the take minus the speakers removed."
+  },
+  "pickerCostLeavesHt": "{hts, plural, =1{{names} loses} other{{names} lose}} {taken, plural, =1{the speaker you take} other{the speakers you take}}.",
+  "@pickerCostLeavesHt": {
+    "description": "Review-step sentence naming the home theater(s) a selection takes speakers out of. A home theater is not dissolved by the take, unlike a speaker group, but it is still modified and every one of ITS members loses its Trueplay tuning. The review card is the last gate before Apply and carries no section heading to say where the speakers came from. Two counts, because they differ: the verb agrees with the number of source home theaters, the noun with the number of speakers taken (one home theater can lose two).",
+    "placeholders": {
+      "names": {"type": "String"},
+      "hts": {"type": "int"},
+      "taken": {"type": "int"}
+    }
+  },
+  "pickerCostDissolves": "{names} {count, plural, =1{breaks up} other{break up}}. A group doesn't shrink when you take a speaker out of it.",
+  "@pickerCostDissolves": {
+    "description": "Review-step line naming the source groups this selection dissolves. Restated here because the review card is the only gate before Apply, and an untuned group otherwise made it silent about the dissolve.",
+    "placeholders": {
+      "names": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "pickerCostCleared": "Expect to re-tune all of them.",
+  "@pickerCostCleared": {
+    "description": "The Trueplay cost of taking a speaker out of any bond. One sentence for every source: a tuning that survives an absorb comes back switched off and cannot be switched on without being destroyed (EXP-23 Q15/Q16, no safe delay, role-preserving included), so nothing can promise retention."
+  },
+  "pickerSectionLeavesBond": "Picking one takes it out of this bond.",
+  "@pickerSectionLeavesBond": {
+    "description": "Section-header helper for a bond a speaker would be taken from."
+  },
+  "speakerBadgeTrueplay": "Trueplay",
+  "@speakerBadgeTrueplay": {
+    "description": "Pill on a picker card: Trueplay is active on this speaker (stored and enabled)."
+  },
+  "pickerRoleFrontL": "Front L",
+  "pickerRoleFrontR": "Front R",
+  "pickerRoleSurroundL": "Surround L",
+  "pickerRoleSurroundR": "Surround R",
+  "pickerRoleCenter": "Center",
+  "frontSurroundsDropNote": "{count, plural, one{{types} leaves this home theater and becomes a standalone room.} other{{types} leave this home theater and become standalone rooms.}}",
+  "@frontSurroundsDropNote": {
+    "description": "Review-step line when the selection drops current HT members. The Trueplay cost of that (RemoveHTSatellite wipes the whole bond, EXP-23) is named speaker by speaker in frontSurroundsTrueplayLoses.",
+    "placeholders": {
+      "types": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
     }
   }
 }

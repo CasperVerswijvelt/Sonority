@@ -66,4 +66,43 @@ void main() {
     final groups = ZoneTopologyClient.parseZoneGroupState(raw);
     expect(groups.first.coordinator!.hasDedicatedFronts, isTrue);
   });
+
+  test('a satellite carries its Location, which is how it is re-fetched', () {
+    // Discovery recovers an SSDP-missed satellite by GET-ing this URL. The test
+    // used to construct `SonosSatellite(location: …)` directly, so a typo in the
+    // attribute name would have kept the recovery tests green while the feature
+    // silently died on real XML.
+    const raw = '''
+<ZoneGroupState><ZoneGroups>
+  <ZoneGroup Coordinator="RINCON_BAR01400" ID="x">
+    <ZoneGroupMember UUID="RINCON_BAR01400" ZoneName="LR"
+      Location="http://192.168.1.10:1400/xml/device_description.xml"
+      HTSatChanMapSet="RINCON_BAR01400:CC;RINCON_SUB01400:SW">
+      <Satellite UUID="RINCON_SUB01400" ZoneName="LR (SUB)" Invisible="1"
+        Location="http://192.168.1.44:1400/xml/device_description.xml"/>
+    </ZoneGroupMember>
+  </ZoneGroup>
+</ZoneGroups></ZoneGroupState>''';
+    final sat =
+        ZoneTopologyClient.parseZoneGroupState(raw).first.coordinator!.satellites.single;
+    expect(sat.location,
+        'http://192.168.1.44:1400/xml/device_description.xml');
+    expect(sat.ip, '192.168.1.44', reason: 'derived from the same attribute');
+  });
+
+  test('a satellite with no Location parses to null, not a crash', () {
+    const raw = '''
+<ZoneGroupState><ZoneGroups>
+  <ZoneGroup Coordinator="RINCON_BAR01400" ID="x">
+    <ZoneGroupMember UUID="RINCON_BAR01400" ZoneName="LR"
+      HTSatChanMapSet="RINCON_BAR01400:CC;RINCON_SUB01400:SW">
+      <Satellite UUID="RINCON_SUB01400" ZoneName="LR (SUB)" Invisible="1"/>
+    </ZoneGroupMember>
+  </ZoneGroup>
+</ZoneGroups></ZoneGroupState>''';
+    final sat =
+        ZoneTopologyClient.parseZoneGroupState(raw).first.coordinator!.satellites.single;
+    expect(sat.location, isNull);
+    expect(sat.ip, isNull);
+  });
 }

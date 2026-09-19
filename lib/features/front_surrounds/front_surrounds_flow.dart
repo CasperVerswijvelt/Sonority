@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,16 +5,17 @@ import 'package:go_router/go_router.dart';
 import '../../core/l10n.dart';
 import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
+import '../../data/sonos/front_layout.dart';
 import '../../state/sonos_controller.dart';
+import '../../state/trueplay_controller.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/bondable_speaker_tile.dart';
-import '../widgets/card_grid.dart';
-import '../widgets/confirm_dialog.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/info_note.dart';
 import '../widgets/max_width_body.dart';
 import '../widgets/selectable_speaker_card.dart';
+import '../widgets/speaker_picker.dart';
 import '../widgets/speaker_diagram.dart';
 
 /// Seeds the configure-HT selectors from [member]'s current bond: front uuids
@@ -93,6 +93,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         .cast<ZoneGroupMember?>()
         .firstOrNull;
     if (member == null) return;
+    loadTrueplayForPickers(ref);
     final seed = seedHtRoles(member);
     _fronts.addAll(seed.fronts);
     _surrounds.addAll(seed.surrounds);
@@ -157,6 +158,16 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       for (final d in system.bondableSpeakers) {
         consider(d.uuid);
       }
+      // Speakers bonded into ANOTHER entity. `AddHTSatellite` absorbs one
+      // straight out of a live stereo pair without a separate unbond step
+      // (EXP-23), so making the user do it by hand first was unnecessary. NOT a
+      // retention claim: the coefficients survive in storage, which is not the
+      // same as keeping the tuning, and the bond still clears the set (Q20).
+      // What the take costs is tagged on the card and summarised by the note
+      // under the list.
+      for (final d in system.stealableSpeakers(exceptPrimary: member.uuid)) {
+        consider(d.uuid);
+      }
       for (final id in htOwn) {
         consider(id);
       }
@@ -175,6 +186,30 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
         if (!system.bondableSubs.any((d) => d.uuid == id))
           if (system.device(id) case final d?) d,
     ];
+
+    // What applying would do, asked once per build: it gates Apply, names what
+    // leaves on the review card, and decides whether this home theater's own
+    // members are part of the Trueplay cost.
+    final diff = _diff(system, member, soundbar);
+    // Trueplay per candidate: a speaker taken from another bond may hold a
+    // tuning the move would cost, and the picker says so before it happens.
+    final picker = PickerContext(
+      system: system,
+      calibration: ref.watch(trueplayControllerProvider).byUuid,
+      // A speaker still being READ is not one known to be untuned. Without
+      // this the flow opens claiming every bond loses its tuning, then
+      // retracts when the reads land.
+      busy: ref.watch(trueplayControllerProvider).busy,
+      exceptPrimary: member.uuid,
+      // Any write costs this bond its tuning, not just one that drops a
+      // satellite (CLAUDE.md, Q20: a pure add took the bar and both rears to
+      // `available=0`). A no-op writes nothing, so it costs nothing, which is
+      // also what keeps the flow from warning the moment it opens.
+      writes: htApplyWrites(diff),
+    );
+
+    // Built once: the hint below reads it too, and it walks the whole system.
+    final frontCandidates = avail(_fronts);
 
     // Chime only for a standalone speaker; an already-bonded pick (a current
     // satellite shown pre-selected) can only blink its LED.
@@ -222,7 +257,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
             type: StepperType.vertical,
             onStepTapped: (i) => setState(() => _step = i),
             controlsBuilder: (context, _) =>
-                _controls(context, system, member, soundbar),
+                _controls(context, member, soundbar, diff),
             steps: [
               Step(
                 title: Text(context.l10n.frontSurroundsStepFronts),
@@ -235,13 +270,20 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      context.l10n.frontSurroundsFrontsHint,
+                      // Only mention the Amp/Port shortcut when the user
+                      // actually has one. Otherwise it is advice about
+                      // hardware they don't own.
+                      frontCandidates.any((d) => d.drivesExternalSpeakers)
+                          ? context.l10n.frontSurroundsFrontsHintAmp
+                          : context.l10n.frontSurroundsFrontsHint,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Gap.s,
                     _ChooseSpeakers(
-                      candidates: avail(_fronts),
+                      candidates: frontCandidates,
                       selected: _fronts,
+                      allSelected: _allSelected,
+                      picker: picker,
                       onToggle: _toggleFront,
                       onSwap: () => setState(
                         () => _fronts.setAll(0, [_fronts[1], _fronts[0]]),
@@ -275,6 +317,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
                     Gap.s,
                     _ChooseSpeakers(
                       candidates: avail(_surrounds),
+                      picker: picker,
+                      allSelected: _allSelected,
                       selected: _surrounds,
                       onToggle: _toggleSurround,
                       onSwap: () => setState(
@@ -306,11 +350,13 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
               Step(
                 title: Text(context.l10n.frontSurroundsStepReview),
                 isActive: _step >= 3,
-                content: _Review(
+                content: HtReviewStep(
                   system: system,
                   member: member,
                   additions: _additions(system),
-                  subCount: _subs.length,
+                  subs: _subDevices(system),
+                  diff: diff,
+                  picker: picker,
                 ),
               ),
             ],
@@ -330,25 +376,29 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
   bool get _frontsValid => _fronts.isEmpty || _fronts.length == 2 || _ampMode;
   bool get _surroundsValid => _surrounds.isEmpty || _surrounds.length == 2;
 
-  /// The selection differs from what's currently bonded — the only case worth
-  /// applying (an unchanged layout is a zero-write no-op, so we disable Apply for
-  /// it). Compares fronts/surrounds channel→uuid and the sub set to the live map.
-  bool _differs(SonosSystem system, ZoneGroupMember member) {
-    final desired = {
-      for (final e in _additions(system).entries) e.key: e.value.uuid,
-    };
-    final current = {
-      for (final c in const [
-        SonosChannel.leftFront,
-        SonosChannel.rightFront,
-        SonosChannel.leftRear,
-        SonosChannel.rightRear,
-      ])
-        if (member.channelAssignments[c] case final u?) c: u,
-    };
-    if (!mapEquals(desired, current)) return true;
-    return !setEquals(_subs.toSet(), member.subUuids.toSet());
-  }
+  /// What applying this selection would do, from the engine: the very target
+  /// [SonosController.applyHomeTheaterLayout] builds (same arguments), diffed
+  /// against the live bond. `isNoOp` gates Apply: an unchanged layout writes
+  /// nothing, and `toRemove` is what leaves. Asking the engine (rather than
+  /// re-deriving it here) is what keeps the review card and the apply from
+  /// disagreeing, and gets the dual-sub / Amp-on-both-fronts shapes right.
+  HtDiff _diff(
+    SonosSystem system,
+    ZoneGroupMember member,
+    SonosDevice soundbar,
+  ) =>
+      diffHtLayout(
+        current: member,
+        target: buildLayoutMap(
+          soundbar: member,
+          soundbarDevice: soundbar,
+          desired: {
+            for (final e in _additions(system).entries) e.key: e.value.uuid,
+          },
+          subUuids: [for (final d in _subDevices(system)) d.uuid],
+          preserveExisting: false,
+        ),
+      );
 
   void _toggleFront(SonosDevice d) => setState(() {
     if (_fronts.contains(d.uuid)) {
@@ -417,9 +467,9 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
 
   Widget _controls(
     BuildContext context,
-    SonosSystem system,
     ZoneGroupMember member,
     SonosDevice soundbar,
+    HtDiff diff,
   ) {
     final canNext = switch (_step) {
       0 => _frontsValid,
@@ -427,8 +477,7 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
       _ => true,
     };
     final isLast = _step == 3;
-    final canApply =
-        _frontsValid && _surroundsValid && _differs(system, member);
+    final canApply = _frontsValid && _surroundsValid && htApplyWrites(diff);
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Row(
@@ -459,22 +508,6 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     final additions = _additions(system);
     final subs = _subDevices(system);
 
-    // Speakers bonded now but not in the new selection → they'll be unbonded.
-    // Live writes are destructive, so confirm before removing any (gotcha #3).
-    final desiredUuids = <String>{..._fronts, ..._surrounds, ..._subs};
-    final removed = <String>{
-      for (final c in const [
-        SonosChannel.leftFront,
-        SonosChannel.rightFront,
-        SonosChannel.leftRear,
-        SonosChannel.rightRear,
-      ])
-        ...member.uuidsForChannel(c),
-      ...member.subUuids,
-    }.difference(desiredUuids);
-    if (removed.isNotEmpty && !await _confirmRemoval(system, removed)) return;
-    if (!mounted) return;
-
     final controller = ref.read(sonosControllerProvider.notifier);
     final router = GoRouter.of(context);
     final outcome = await showBondingProgress(
@@ -491,21 +524,8 @@ class _FrontSurroundsFlowState extends ConsumerState<FrontSurroundsFlow>
     if (outcome == BondingOutcome.success) router.pop();
   }
 
-  /// Confirms unbonding the speakers the user deselected (they become standalone
-  /// rooms again). Shows their type since a bonded speaker's name is absorbed.
-  Future<bool> _confirmRemoval(SonosSystem system, Set<String> removed) async {
-    final types = [
-      for (final u in removed)
-        system.device(u)?.typeLabel ?? context.l10n.widgetsSpeaker,
-    ].join(', ');
-    return confirmDialog(
-      context,
-      icon: Icons.link_off,
-      title: context.l10n.frontSurroundsUnbondTitle(removed.length),
-      message: context.l10n.frontSurroundsUnbondMessage(types),
-      confirmLabel: context.l10n.frontSurroundsUnbond,
-    );
-  }
+  /// Every speaker the user has picked across all three steps.
+  Set<String> get _allSelected => {..._fronts, ..._surrounds, ..._subs};
 }
 
 class _ChooseSpeakers extends StatelessWidget {
@@ -518,6 +538,14 @@ class _ChooseSpeakers extends StatelessWidget {
   /// Swap which chosen speaker is left vs right (there are only two).
   final VoidCallback onSwap;
   final Widget Function(SonosDevice device) identifyControls;
+
+  final PickerContext picker;
+
+  /// Every speaker chosen across ALL steps: the Trueplay cost is the union
+  /// over every bond the selection touches, so pricing one step in isolation
+  /// named the wrong speakers.
+  final Set<String> allSelected;
+
   final bool allowAmp;
 
   const _ChooseSpeakers({
@@ -526,6 +554,8 @@ class _ChooseSpeakers extends StatelessWidget {
     required this.onToggle,
     required this.onSwap,
     required this.identifyControls,
+    required this.picker,
+    required this.allSelected,
     this.allowAmp = true,
   });
 
@@ -534,19 +564,11 @@ class _ChooseSpeakers extends StatelessWidget {
     if (candidates.isEmpty) {
       return Text(context.l10n.frontSurroundsNoFreeSpeakers);
     }
-    final hasAmp = allowAmp && candidates.any((d) => d.drivesExternalSpeakers);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          hasAmp
-              ? context.l10n.frontSurroundsPickWithAmp
-              : context.l10n.frontSurroundsPickExactlyTwo,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        Gap.s,
-        CardGrid([for (final d in candidates) _card(context, d)]),
-      ],
+    return SpeakerPickerSections(
+      ctx: picker,
+      candidates: candidates,
+      selected: allSelected,
+      card: (d) => _card(context, d),
     );
   }
 
@@ -565,10 +587,13 @@ class _ChooseSpeakers extends StatelessWidget {
       selected: isSel,
       enabled: !disabled,
       onToggle: () => onToggle(d),
-      subtitle: isAmp
-          ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel)
-          : d.typeLabel,
+      titleOverride: picker.titleOverride(context, d),
+      // Only the Amp note is worth saying; the plain type label is the card's
+      // own default (and is already the title under a bond heading).
+      subtitle:
+          isAmp ? context.l10n.frontSurroundsAmpSubtitle(d.typeLabel) : null,
       identify: identifyControls(d),
+      badges: [?trueplayBadge(context, picker.calibration[d.uuid])],
       showControl: showLR,
       control: showLR ? SideSelector(isRight: idx == 1, onSwap: onSwap) : null,
     );
@@ -643,23 +668,48 @@ class _AmpWiringNote extends StatelessWidget {
   }
 }
 
-class _Review extends StatelessWidget {
+/// Step 4: the review card, and the destructive-write gate: it names what
+/// leaves the home theater and whose Trueplay the apply costs, one tap before
+/// Apply. Public only so that gate can be widget-tested.
+@visibleForTesting
+class HtReviewStep extends StatelessWidget {
   final SonosSystem system;
   final ZoneGroupMember member;
   final Map<SonosChannel, SonosDevice> additions;
 
-  /// Resulting Sub count (existing ∪ newly picked) — for the diagram chip.
-  final int subCount;
-  const _Review({
+  /// Resulting Subs (existing ∪ newly picked). Up to two.
+  final List<SonosDevice> subs;
+
+  /// What applying would do, straight from the engine. `toRemove` names what
+  /// leaves. Same object that gates the Apply button, so the card can't
+  /// describe an apply different from the one that runs.
+  final HtDiff diff;
+
+  /// The same context the pickers used, so the review card and the note under
+  /// the speaker list can't price the same selection differently.
+  final PickerContext picker;
+
+  const HtReviewStep({
+    super.key,
     required this.system,
     required this.member,
     required this.additions,
-    required this.subCount,
+    required this.subs,
+    required this.diff,
+    required this.picker,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (additions.isEmpty && subCount == 0) {
+    final subCount = subs.length;
+    // Deselecting everything on a bonded home theater is not "nothing
+    // selected". It unbonds every satellite, and `RemoveHTSatellite` wipes
+    // the whole set's Trueplay. Only a genuine no-op gets the placeholder;
+    // anything that writes falls through to the diagram + cost card below,
+    // which is this flow's only gate. (A bare soundbar is exactly what the
+    // diagram then shows, which is the plainest way to say "everything
+    // leaves".)
+    if (additions.isEmpty && subCount == 0 && diff.isNoOp) {
       return Text(context.l10n.frontSurroundsNothingSelected);
     }
     // The diagram shows the DESIRED end state (the current selection), which is
@@ -678,9 +728,47 @@ class _Review extends StatelessWidget {
           rearRightLabel: label(SonosChannel.rightRear),
           subCount: subCount,
         ),
-        Gap.m,
-        InfoNote(context.l10n.frontSurroundsReviewNote),
+        // Gap only when there is something to separate from the diagram; the
+        // note is conditional, so an unconditional gap left dead space under a
+        // costless apply.
+        if (_warning(context) case final w?) ...[Gap.m, InfoNote(w)],
       ],
     );
+  }
+
+  /// What this apply COSTS. What leaves the home theater and who loses their
+  /// Trueplay, or null when it costs nothing. Never the reassurance: that is
+  /// rendered separately, on purpose.
+  String? _warning(BuildContext context) {
+    final l10n = context.l10n;
+    final dropped = [
+      for (final u in diff.toRemove)
+        if (system.device(u) case final d?) d,
+    ];
+    // What the HT holds after apply: the bar plus everything still selected.
+    // Priced by the SAME PickerContext the speaker lists used, so the two
+    // screens name the same speakers.
+    final selected = {
+      member.uuid,
+      for (final d in additions.values) d.uuid,
+      for (final d in subs) d.uuid,
+    };
+    final loses = picker.tuningCost(l10n, selected);
+    final lines = [
+      if (picker.dissolveNote(l10n, selected) case final n?) n,
+      if (dropped.isNotEmpty)
+        l10n.frontSurroundsDropNote(
+          // Named the same way as the Trueplay line directly below it,
+          // `bondedCardTitle`, not the bare type, or the same two speakers read
+          // as "Play:1, Play:1" above and "Play:1 · Surround L" beneath.
+          dropped
+              .map((d) => bondedCardTitle(l10n, system, device: d))
+              .join(', '),
+          dropped.length,
+        ),
+      if (loses.names.isNotEmpty)
+        l10n.frontSurroundsTrueplayLoses(loses.names.join(', ')),
+    ];
+    return lines.isEmpty ? null : lines.join('\n');
   }
 }

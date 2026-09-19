@@ -26,9 +26,15 @@ class BondableSpeakerTile extends StatelessWidget {
   /// Ignored entirely when the device is unreachable.
   final ValueChanged<bool?>? onChanged;
 
-  /// Normal subtitle (model name, or an Amp note). Replaced by the warning
-  /// text when the device is unreachable.
-  final String subtitle;
+  /// Normal subtitle (model name, or an Amp note). Replaced by the warning text
+  /// when the device is unreachable, and omitted entirely when null, which is
+  /// what a card titled by [titleOverride] does, since its title is already the
+  /// speaker type and repeating it below would say the same thing twice.
+  final String? subtitle;
+
+  /// Replaces [SonosDevice.roomName] as the title. See
+  /// [SelectableSpeakerCard.titleOverride].
+  final String? titleOverride;
 
   /// Trailing controls (identify buttons). Hidden when unreachable.
   final Widget? secondary;
@@ -42,7 +48,8 @@ class BondableSpeakerTile extends StatelessWidget {
     required this.device,
     required this.selected,
     required this.onChanged,
-    required this.subtitle,
+    this.subtitle,
+    this.titleOverride,
     this.secondary,
     this.outlined = false,
   });
@@ -54,7 +61,7 @@ class BondableSpeakerTile extends StatelessWidget {
         ? CheckboxListTile(
             value: selected,
             onChanged: null,
-            title: Text(device.roomName),
+            title: Text(titleOverride ?? device.roomName),
             subtitle: Text(
               context.l10n.widgetsUnreachableSpeakerHint,
               style: TextStyle(color: scheme.error),
@@ -65,8 +72,8 @@ class BondableSpeakerTile extends StatelessWidget {
         : CheckboxListTile(
             value: selected,
             onChanged: onChanged,
-            title: Text(device.roomName),
-            subtitle: Text(subtitle),
+            title: Text(titleOverride ?? device.roomName),
+            subtitle: subtitle == null ? null : Text(subtitle!),
             controlAffinity: ListTileControlAffinity.leading,
             secondary: secondary,
           );
