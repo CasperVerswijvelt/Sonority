@@ -297,39 +297,42 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
                   }),
                 ),
               ),
-            ],
-            // Grows and fades rather than appearing: the card below it would
-            // otherwise jump down the screen the instant you tap the segment.
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeIn,
-              transitionBuilder: (child, anim) => SizeTransition(
-                sizeFactor: anim,
-                alignment: Alignment.topCenter,
-                child: FadeTransition(opacity: anim, child: child),
+              // Grows and fades rather than appearing: the card below it would
+              // otherwise jump down the screen the instant you tap the segment.
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, anim) => SizeTransition(
+                  sizeFactor: anim,
+                  alignment: Alignment.topCenter,
+                  child: FadeTransition(opacity: anim, child: child),
+                ),
+                child: !_individual
+                    ? const SizedBox(width: double.infinity)
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Gap.s,
+                          _MemberPicker(
+                            members: members,
+                            roles: eqRoles(member),
+                            selected: _editing!,
+                            edited: {
+                              for (final e in _perMember.entries)
+                                if (!isFlat(e.value)) e.key,
+                            },
+                            onSelected: (u) => setState(() => _editing = u),
+                          ),
+                        ],
+                      ),
               ),
-              child: !_individual
-                  ? const SizedBox(width: double.infinity)
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Gap.s,
-                        _MemberPicker(
-                          members: members,
-                          roles: eqRoles(member),
-                          selected: _editing!,
-                          edited: {
-                            for (final e in _perMember.entries)
-                              if (!isFlat(e.value)) e.key,
-                          },
-                          onSelected: (u) => setState(() => _editing = u),
-                        ),
-                      ],
-                    ),
-            ),
-            Gap.m,
+              // Inside the conditional: with no scope control there is
+              // nothing between the note and the card, and two gaps would
+              // stack up.
+              Gap.m,
+            ],
             _Gutter(
               child: Card(
                 child: Padding(
