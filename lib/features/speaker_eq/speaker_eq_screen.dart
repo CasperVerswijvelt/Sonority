@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -140,7 +142,10 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
 
   void _setBand(int i, double v) {
     setState(() {
-      final next = List<double>.of(_current)..[i] = v;
+      // Quantise here rather than with the Slider's `divisions`, which would
+      // animate the thumb to each step and lag the finger. Half a dB is the
+      // finest step worth authoring.
+      final next = List<double>.of(_current)..[i] = (v * 2).roundToDouble() / 2;
       _individual ? _perMember[_editing!] = next : _shared = next;
     });
   }
@@ -376,8 +381,6 @@ class _Bands extends StatelessWidget {
                       value: gains[i],
                       min: -kEqMaxCutDb,
                       max: kEqMaxBoostDb,
-                      divisions: (kEqMaxCutDb + kEqMaxBoostDb).round() * 2,
-                      label: l10n.eqGainDb(_fmt(gains[i])),
                       semanticFormatter: (v) =>
                           '${l10n.eqBandSemantics(eqBandLabel(kEqBands[i]))}, '
                           '${l10n.eqGainDb(_fmt(v))}',
@@ -450,7 +453,10 @@ class _MemberPicker extends StatelessWidget {
   }
 }
 
-class _Footer extends StatelessWidget {
+/// The three things the button can say, in the order they happen.
+enum _ApplyPhase { idle, busy, applied }
+
+class _Footer extends StatefulWidget {
   final SpeakerEqStatus status;
   final VoidCallback onApply;
   final VoidCallback onRemove;
@@ -466,8 +472,45 @@ class _Footer extends StatelessWidget {
   });
 
   @override
+  State<_Footer> createState() => _FooterState();
+}
+
+class _FooterState extends State<_Footer> {
+  /// "Applied" is a transient state, not a place the UI stays: it confirms the
+  /// press and then gets out of the way, so the button reads "Apply" again.
+  static const _appliedFor = Duration(seconds: 2);
+  Timer? _appliedTimer;
+  bool _showApplied = false;
+
+  @override
+  void didUpdateWidget(_Footer old) {
+    super.didUpdateWidget(old);
+    if (widget.status.applied && !old.status.applied) {
+      setState(() => _showApplied = true);
+      _appliedTimer?.cancel();
+      _appliedTimer = Timer(_appliedFor, () {
+        if (mounted) setState(() => _showApplied = false);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _appliedTimer?.cancel();
+    super.dispose();
+  }
+
+  _ApplyPhase get _phase => widget.status.busy
+      ? _ApplyPhase.busy
+      : _showApplied
+          ? _ApplyPhase.applied
+          : _ApplyPhase.idle;
+
+  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final status = widget.status;
+    final phase = _phase;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -480,27 +523,57 @@ class _Footer extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Above the button, not below it: an error under a full-width
-              // button sat below the fold until you scrolled.
-              if (!status.busy && (status.error != null || status.applied)) ...[
-                _StatusLine(status: status),
-                Gap.m,
-              ],
-              // Progress lives IN the button: the thing you pressed is the
-              // thing that should say it is working, and a separate line below
-              // it was off-screen until you scrolled.
+              // Errors get their own line, above the button, not below it: one
+              // under a full-width button sat below the fold until you
+              // scrolled. It grows in rather than appearing, so the button does
+              // not jump under the finger that just pressed it.
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, anim) => SizeTransition(
+                  sizeFactor: anim,
+                  alignment: Alignment.bottomCenter,
+                  child: FadeTransition(opacity: anim, child: child),
+                ),
+                child: status.error == null || status.busy
+                    ? const SizedBox(width: double.infinity)
+                    : Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _ErrorLine(error: status.error!),
+                      ),
+              ),
+              // Progress and confirmation live IN the button: the thing you
+              // pressed is the thing that should say what it is doing, and a
+              // separate "Applied" line was both noise and off-screen until you
+              // scrolled.
               FilledButton.icon(
                 // Applying stays on this page — no progress route, no pop — so
                 // the sliders you just moved are still in front of you.
-                onPressed: status.busy ? null : onApply,
-                icon: status.busy
-                    ? const SizedBox(
+                onPressed: phase == _ApplyPhase.busy ? null : widget.onApply,
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: switch (phase) {
+                    _ApplyPhase.busy => const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.equalizer),
-                label: Text(status.busy ? l10n.eqApplying : l10n.eqApply),
+                      ),
+                    _ApplyPhase.applied => const Icon(Icons.check),
+                    _ApplyPhase.idle => const Icon(Icons.equalizer),
+                  },
+                ),
+                label: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(
+                    switch (phase) {
+                      _ApplyPhase.busy => l10n.eqApplying,
+                      _ApplyPhase.applied => l10n.eqApplied,
+                      _ApplyPhase.idle => l10n.eqApply,
+                    },
+                    key: ValueKey(phase),
+                  ),
+                ),
               ),
             ],
           ),
@@ -509,13 +582,13 @@ class _Footer extends StatelessWidget {
         // sits on the entity's detail page one level up, and a second copy under
         // a second name is just confusing. This page authors the tuning; the
         // detail page switches it.
-        if (hasTuning)
+        if (widget.hasTuning)
           Padding(
             padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 8),
             child: DestructiveButton(
               icon: Icons.delete_outline,
               label: l10n.eqRemove,
-              onPressed: status.busy ? null : onRemove,
+              onPressed: status.busy ? null : widget.onRemove,
             ),
           ),
       ],
@@ -523,31 +596,18 @@ class _Footer extends StatelessWidget {
   }
 }
 
-class _StatusLine extends StatelessWidget {
-  final SpeakerEqStatus status;
-  const _StatusLine({required this.status});
+class _ErrorLine extends StatelessWidget {
+  final Object error;
+  const _ErrorLine({required this.error});
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final theme = Theme.of(context);
-    final error = status.error;
-    if (error != null) {
-      // No retry affordance: Apply sits directly below and is exactly that.
-      return Text(
-        localizedError(l10n, error),
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.error,
-        ),
-      );
-    }
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
-        Gap.s,
-        Text(l10n.eqApplied, style: theme.textTheme.bodySmall),
-      ],
+    // No retry affordance: Apply sits directly below and is exactly that.
+    return Text(
+      localizedError(context.l10n, error),
+      style: theme.textTheme.bodySmall
+          ?.copyWith(color: theme.colorScheme.error),
     );
   }
 }

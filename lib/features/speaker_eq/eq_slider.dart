@@ -12,8 +12,6 @@ class EqSlider extends StatelessWidget {
   final double value;
   final double min;
   final double max;
-  final int divisions;
-  final String label;
   final String Function(double) semanticFormatter;
   final ValueChanged<double> onChanged;
 
@@ -22,8 +20,6 @@ class EqSlider extends StatelessWidget {
     required this.value,
     required this.min,
     required this.max,
-    required this.divisions,
-    required this.label,
     required this.semanticFormatter,
     required this.onChanged,
   });
@@ -44,15 +40,18 @@ class EqSlider extends StatelessWidget {
           inactiveTrackColor: scheme.outlineVariant,
           overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
           thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
-          // The tick marks of a 36-division slider are visual noise at this size.
-          tickMarkShape: SliderTickMarkShape.noTickMark,
         ),
+        // Continuous, NOT divisions — the caller quantises instead. A discrete
+        // Slider animates its thumb to each division over 75ms, which on a drag
+        // reads as the thumb lagging a little behind the finger. The step is
+        // unchanged; only the animation is gone.
+        //
+        // No `label` either: the value bubble it puts in an overlay duplicates
+        // the dB readout already sitting above every band.
         child: Slider(
           value: value,
           min: min,
           max: max,
-          divisions: divisions,
-          label: label,
           semanticFormatterCallback: semanticFormatter,
           onChanged: onChanged,
         ),
