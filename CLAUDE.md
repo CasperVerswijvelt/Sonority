@@ -33,17 +33,36 @@ unofficial fronts — never measure it. Both are called out again below.) Exampl
 and **room renaming** DO exist in the official app, but we now do them anyway —
 because profiles are only useful if a *complete* HT/stereo setup can be finished
 inside Sonority (otherwise you snapshot a half-config and still bounce to the
-Sonos app). Justified by "finish a setup in one app, then save it." Keep this the
-*only* exception; don't widen it to EQ/volume/grouping/etc.
+Sonos app). Justified by "finish a setup in one app, then save it." Don't widen *this* one
+to volume, grouping, or the RenderingControl tone knobs.
+
+**Deliberate exception #2 — the SPECTRAL-TUNING path is ours (decided 2026-09-15).**
+The rule below used to read "there are no EQ/volume editing sliders in Sonority —
+keep it that way." That is now scoped to the **path**, not to the word "EQ":
+- **The tone/volume WRITE ACTIONS** — `SetEQ` (the whole `eqTypes` list: bass /
+  treble / loudness / night / speech / sub / surround), `SetBass`, `SetTreble`,
+  `SetVolume`, `SetMute` — stay **capture-and-restore only, FOREVER**. Every one
+  of those knobs is in the Sonos app; a slider for any of them would be plain
+  duplication. Scoped by ACTION, not by service: the EQ itself calls
+  `RenderingControl`'s `SetRoomCalibrationStatus` on every apply and every
+  remove, which is the calibration switch, not a tone control.
+- **Spectral tuning** (`:1443`, a biquad cascade per channel) is a capability the
+  Sonos app exposes in **no** form — it offers two shelving knobs and no graphic
+  or parametric EQ at all — and it works on the unofficial layouts Sonos refuses
+  to tune. Sonority ships it as a user-editable **EQ** (`features/speaker_eq/`).
+An earlier design note argued the other way (a user-drawn curve is "a tone
+control"); that is **superseded** by this ruling. Don't re-litigate it, and don't
+widen it back to the RenderingControl knobs.
 
 **Same reasoning extends to profiles capturing EQ/volume (deliberate, narrow):**
 a profile can *snapshot each speaker's current EQ (bass/treble/loudness/night/
 speech/sub/surround level) and optionally volume* and re-apply them — a
 save/restore capability the Sonos app has no equivalent for. This does NOT
 duplicate the app because we only **read the live values at snapshot and write
-them back on apply** — there are **no EQ/volume editing sliders** in Sonority
-(that WOULD duplicate the app). Keep it that way: capture+restore only, never
-standalone editing. (`speaker_settings.dart`, two per-profile toggles — EQ, and
+them back on apply** — there are **no `SetEQ`/`SetVolume` editing sliders** in
+Sonority (those WOULD duplicate the app; the spectral-tuning EQ is a different
+path — see exception #2 above). Keep it that way: capture+restore only, never
+standalone editing of the tone knobs. (`speaker_settings.dart`, two per-profile toggles — EQ, and
 volume separately since restoring volume is surprising, so it's opt-in.) **Volume
 capture is a wanted feature, not scope creep** — the motivating use case is a
 "night mode" profile: snapshot the whole HT with the volume turned down (and
@@ -119,6 +138,8 @@ lib/
                        flat list, `parentId` nests phase sub-steps under entities)
                      identify_service (chime)
                      speaker_settings (RenderingControl EQ/volume read+apply for profiles)
+                     trueplay_codec · trueplay_apply (:1443 spectral-tuning write path)
+                     trueplay_fit (dB curve → biquad cascade) · custom_eq (the EQ model)
                      key_value_store (KeyValueStore port + in-memory default — durable
                        zone/pair name snapshots; keeps the engine Flutter-free)
                      sonos_repository (orchestrates; bondAndVerify write+retry;
@@ -127,6 +148,7 @@ lib/
   state/           sonos_controller.dart — AsyncNotifier<SonosSystem?>; applyHomeTheaterLayout,
                      applyProfile, _applyHtTarget (diff-based), renameRoom; applyProgressProvider
   features/        discovery / home_theater / front_surrounds (full HT setup) /
+                     speaker_eq (the 10-band EQ page) /
                      group (unified Stereo/Zone/Custom) / profiles / room / widgets
   app.dart, main.dart — go_router StatefulShellRoute (System|Profiles tabs), ProviderScope
 tool/              spike, roundtrip, full_layout, diff_apply_spike, chirp, dump_chime, zone_probe, lr_audiotest, eq_probe, capture_shots, gen_assets.sh (icon/wordmark/splash pipeline), gen_site (docs/ landing page)
@@ -346,9 +368,10 @@ interpolated) then use it.
     `RoomCalibrationEnabled` + `RoomCalibrationAvailable`; `SetRoomCalibrationStatus
     (InstanceID, RoomCalibrationEnabled)`. **available = a tuning is stored**
     (measured once in the **iOS** Sonos app — cloud DSP + Apple-only mic profiles,
-    **cannot** be done from Android); **enabled = applied**. We only read + toggle
-    (non-destructive, instant), which is the part the Sonos app won't expose for
-    the unofficial fronts config. Toggle ALL bonded members so the separately-tuned
+    **cannot** be done from Android); **enabled = applied**. Sonority reads and toggles this
+    (non-destructive, instant) — the part the Sonos app won't expose for the
+    unofficial fronts config — and, since the EQ shipped, also **writes and
+    clears** the same slot (see the spectral-tuning section). Toggle ALL bonded members so the separately-tuned
     fronts engage; **Amp-driven fronts can't be Trueplay'd** (native speakers only).
   - **Gotcha (A/B-tested on hardware):** Sonos **invalidates** Trueplay across the
     WHOLE bonded set when that set changes. Measured: a freshly-tuned Beam HT
@@ -359,6 +382,77 @@ interpolated) then use it.
     catch-22 (the official app refuses to tune the very fronts config you want).
     Reddit reports of it working are firmware/model-specific. Sonority reads and
     reports this honestly but cannot restore a tuning Sonos has cleared.
+
+### Spectral tuning — `:1443` REST (the EQ's write path)
+
+Not SOAP and not port 1400. `POST https://<ip>:1443/api/v1/players/<RINCON>/
+trueplay/config/audiocore`, body `{"trueplayConfig":{"id","encoded","_objectType"}}`,
+where `encoded` is base64 of a nanopb `audiocorerpc.Request` wrapping an
+`ApplySpectralTuning` (per channel: a gain plus a cascade of biquad SOS
+`[b0,b1,b2,a1,a2]`). Guest api-key only — no account, no OAuth, same tier as the
+rest of the local API. `trueplay_codec.dart` / `trueplay_apply.dart` /
+`trueplay_fit.dart` / `custom_eq.dart`.
+
+**The rules, each of which is a real failure mode:**
+1. **Never cache channel ids.** Re-read `GetDeviceConfig` per member immediately
+   before every apply. Ids track the channel ROLE the bond assigns, are scoped
+   per player, and a **soundbar's list is not predictable from its layout at
+   all**. Wrong ids → HTTP 200, nothing stored, no error.
+2. **Use each channel's own sample rate.** Everything is 44100 **except `SW`,
+   which reports 8138** — a filter designed at 44100 lands ~5× off on the sub.
+3. **POST the whole set, always.** A satellite commits iff the coordinator is in
+   the same batch; the coordinator commits iff **every** member carries a tuning.
+   Members the user left flat get a passthrough blob. One shared session id per
+   batch — a member declaring a different one is dropped, and the id itself is
+   parsed rather than free-form (rule 10).
+4. **≤ the reported `maxSections`** (16 everywhere seen). 17 stores nothing.
+5. **Validate before the POST — the player doesn't.** It accepts an unstable
+   section (pole modulus > 1) and then runs it. Check `poleModulus < 1` and
+   all-finite.
+6. **HTTP 200 is not a verdict.** The only oracle is `:1400
+   GetRoomCalibrationStatus` → `RoomCalibrationAvailable`. Poll it.
+7. **Storing is not enabling.** `SetRoomCalibrationStatus` is a second call —
+   which is what makes the existing Trueplay switch an instant A/B for the EQ.
+   ⚠️ **Enabling is audible on EVERY member, even ones carrying a flat tuning.**
+   Confirmed by ear on a six-member home theater with a per-speaker EQ set on one
+   front only: toggling changed all six. It is not our curve leaking — a member
+   left flat is sent exactly one unity biquad at unity gain (0.0000 dB deviation,
+   asserted in `test/custom_eq_test.dart`) — so the speaker evidently switches
+   processing mode when calibration goes on. Consequence: the Trueplay toggle is
+   an A/B of *calibrated vs not*, not of *your curve vs flat*, and per-speaker EQ
+   cannot be auditioned one speaker at a time this way.
+8. **`ClearAllTunings` only in a REMOVE path.** Disabling preserves the stored
+   tuning; clearing is irreversible, and coefficients can never be read back.
+   ⚠️ **Rapid clear/apply churn can put a set off writing for a while.** A
+   six-member home theater, cycled hard (clear → apply → clear → apply), went
+   through ~11 batches across ~15 minutes that each returned HTTP 200 and stored
+   nothing — parallel and sequential alike — then stored first time on every
+   attempt afterwards. Not reproducible on demand: a 2-member zone cleared and
+   re-applied in 1s, twelve times, and so did a standalone. So "stored nothing"
+   on a set that normally works is worth a retry after a pause before it is worth
+   debugging, and a clear is not a way to "reset" a set before writing to it.
+9. **A lone unbonded Sub has no role**, so no channels and nothing to author.
+10. **The session id is NOT free-form** — it is parsed, and a bad one is another
+    HTTP 200 that stores nothing. Measured: a player accepts only
+    `<anything>_<THAT PLAYER'S SERIAL>_<a.b.c.d>_<anything>`. The prefix and any
+    trailing field are free (`sonority_…` works); **exactly four dot-separated
+    numbers** are required (3 or 5 parts, a hyphen, or no version field at all
+    are each dropped), and the serial field must carry a serial with `RINCON_`
+    **stripped** — leaving it on adds an underscore and shifts every field.
+    On a standalone speaker the serial has to be its own (another player's is
+    dropped), but the whole batch shares ONE id per rule 3, and a 6-member home
+    theater stored on every member from an id carrying only the **coordinator's**
+    serial — so satellites accept their coordinator's, not just their own.
+    ⚠️ Sonos' real firmware string (`86.8-78270`) is NOT four dotted numbers, so
+    reshape it rather than passing it through. This contradicts the older
+    "free-form label" note, which was true of the prefix only.
+11. **Never offer to re-enable Trueplay after a bonding change** — enabling into
+    an incomplete set destroys the surviving tunings.
+
+⚠️ **Public-repo hygiene (standing rule: findings public, provenance private).**
+These files state protocol facts impersonally and must stay that way — no
+capture/instrumentation references, no private-doc paths, no research state, and
+nothing about how any of it was learned in shipped code, strings or marketing.
 
 ### Terminology (the same thing has three names — don't get lost)
 - **zone group** = Sonos' API/topology term (`ZoneGroupTopology`, `ZoneGroupMember`)
@@ -532,6 +626,12 @@ Run on the same Wi-Fi as the Sonos system:
   else). iOS/macOS additionally get a layered **glass-pane `.icon`** authored in
   Icon Composer (manual; PNG `AppIcon.appiconset` kept as the pre-26 fallback). See
   `docs/MARKETING-ASSETS.md`.
+- `tool/spectral_probe.dart` — **read-only** dump of the `:1443` spectral-tuning
+  vocabulary per speaker (channel ids, per-channel sample rate, model,
+  `maxSections`) plus its stored/enabled calibration state. Run this **before**
+  trusting an EQ apply on unfamiliar hardware: six of the eleven rules above fail
+  with an HTTP 200 and nothing stored, and the two that vary per model and per
+  layout are exactly what this prints. Writes nothing.
 - `tool/trueplay_probe.dart` — read-only Trueplay/room-calibration status per
   speaker (+ SCPD dump); `--enable/--disable <room|uuid>` to toggle (reversible).
 - `tool/eq_probe.dart` — read-only per-speaker EQ/audio settings dump
@@ -731,6 +831,16 @@ adb shell input swipe <x1> <y1> <x2> <y2> [ms]            # scroll/swipe
 - ✅ Trueplay read + toggle (`room_calibration.dart` + `trueplay_control.dart`) on
   all speakers/HTs — toggles the iOS-measured calibration the Sonos app won't
   expose for unofficial fronts. Measurement stays iOS-only (out of scope).
+- ✅ **EQ** (`features/speaker_eq/`, `data/sonos/custom_eq.dart`) — a 10-band
+  equaliser applied as a real biquad cascade over the `:1443` spectral-tuning
+  path, on any HT / group / single speaker, whole-entity or per-speaker. See the
+  spectral-tuning section for the rules it must obey. Shares the storage
+  slot with Trueplay (so the existing toggle is its on/off, and applying replaces
+  a Sonos-app calibration **irreversibly** — gated behind a confirm). The
+  measure-your-room step is **not shown at all** until it ships (an
+  always-disabled step advertises a feature that doesn't exist) — but the seam is
+  in place: the sliders are already **offsets on a base curve** that is null
+  today, so a measured correction drops in without the slider maths changing.
 - ✅ CI release pipeline.
 - Candidate next: channel-level/height trim (overlaps the app — weak). Discovery
   now recovers topology-only speakers when a description fetch fails (done upstream).

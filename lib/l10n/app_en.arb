@@ -112,6 +112,11 @@
   },
   "errNoLanIpForChime": "No LAN IP found to serve the chime from.",
   "errCannotBlinkLight": "Could not reach the speaker to blink its light.",
+  "errTuningNotStored": "The speakers didn\u2019t store the EQ. Try again; if it keeps failing, check every speaker is reachable.",
+  "errTuningNotCleared": "The EQ could not be removed from these speakers.",
+  "errNothingTunable": "These speakers don\u2019t report any tunable channels.",
+  "errTuningNotEnabled": "The EQ was stored but couldn\u2019t be switched on for every speaker. Try the Trueplay toggle, or apply again.",
+  "errTuningUnstable": "That EQ curve couldn\u2019t be turned into a safe filter. Nothing was sent to the speakers. Try a gentler curve.",
   "errTimeout": "The speaker didn’t respond in time. It may still be settling — try again in a moment.",
   "errSonosBusy": "Sonos is busy rearranging speakers right now. Wait a moment and try again.",
   "errUnsupportedCombo": "Sonos wouldn’t bond these speakers this way (unsupported combination).",
@@ -310,7 +315,7 @@
   "widgetsRoomNameLabel": "Room name",
   "widgetsTvSoundbar": "TV / Soundbar",
   "widgetsTrueplayChecking": "Checking…",
-  "widgetsTrueplayNotTuned": "Not tuned — run Trueplay once in the Sonos app (iOS).",
+  "widgetsTrueplayNotTuned": "Not tuned. Set an EQ above, or run Trueplay in the Sonos app on iOS.",
   "widgetsTrueplayActive": "Active",
   "widgetsTrueplayTunedOff": "Tuned · off",
   "widgetsTrueplayActiveCount": "{enabled}/{total} active",
@@ -375,7 +380,7 @@
       }
     }
   },
-  "profileApplyConfirmBody": "This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle). Trueplay may need re-tuning afterward.",
+  "profileApplyConfirmBody": "This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle). Any tuning will need redoing afterward.",
   "profileIssueMissing": "Missing: {speakers} — will be skipped",
   "@profileIssueMissing": {
     "placeholders": {
@@ -721,7 +726,7 @@
   "htBondedSpeakers": "Bonded speakers",
   "htNoBonded": "Just the soundbar — no fronts, surrounds or sub bonded yet. Tap “Configure” to add some.",
   "htSpeakerFallback": "Speaker",
-  "htTrueplayNote": "Trueplay can only be measured from the Sonos app on iOS — tune the home theater, and the fronts separately as a stereo pair. Heads-up: Sonos often clears a tuning when speakers are bonded/unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.",
+  "htTrueplayNote": "A speaker holds one tuning: either a Trueplay measurement or your EQ. Sonos clears it whenever speakers are bonded or unbonded, so expect to redo it after a layout change.",
   "htAllExtraSpeakers": "all extra speakers",
   "htBonded": "Bonded",
   "frontSurroundsTitle": "Configure home theater",
@@ -773,7 +778,7 @@
   "frontSurroundsChooseTwoFirst": "Choose two speakers first.",
   "frontSurroundsTapSwap": "Tap swap if the sides are reversed.",
   "frontSurroundsNothingSelected": "Nothing selected yet — choose speakers above.",
-  "frontSurroundsReviewNote": "The chosen speakers become hidden satellites of the soundbar (which stays the center channel). Bonding runs in steps and can take a little while; Trueplay may need re-tuning afterward. You can change this anytime.",
+  "frontSurroundsReviewNote": "The chosen speakers become hidden satellites of the soundbar, which stays the center channel. Bonding runs in steps and can take a little while. Any tuning will need redoing afterward. You can change this anytime.",
   "diagNoSystemToCollect": "No system to collect — scan first.",
   "diagBuildFailed": "Could not build the diagnostics bundle: {error}",
   "@diagBuildFailed": {
@@ -817,5 +822,36 @@
     "placeholders": {
       "min": { "type": "int" }
     }
+  }
+  ,
+  "eqTitle": "EQ",
+  "eqTrueplayToggle": "Trueplay",
+  "eqTrueplayNote": "Sonority\u2019s EQ uses the Trueplay calibration slot on your speakers. Applying an EQ replaces your existing EQ or Trueplay calibration.",
+  "eqModeAll": "Combined EQ",
+  "eqModeIndividual": "Per speaker EQ",
+  "eqReset": "Reset",
+  "eqEdited": "Edited",
+  "eqApply": "Apply",
+  "eqApplying": "Applying\u2026",
+  "eqApplied": "Applied",
+  "eqRemove": "Remove EQ",
+  "eqRemoveTitle": "Remove the EQ?",
+  "eqRemoveBody": "This clears the stored tuning from every speaker in this configuration. To switch it off without losing it, use the Trueplay toggle on the previous screen instead.",
+  "eqRemoveConfirm": "Remove",
+  "eqOverwriteTitle": "Replace the existing calibration?",
+  "eqOverwriteBody": "These speakers already hold an EQ or Trueplay calibration. Applying an EQ replaces this permanently.",
+  "eqOverwriteConfirm": "Replace",
+  "eqEntryTitle": "EQ",
+  "eqEntrySubtitle": "Shape the sound with a 10-band equaliser",
+  "eqUnsupportedLineOut": "Not available \u2014 this setup includes an Amp or Port, and Sonos can only tune its own speakers.",
+  "eqBandSemantics": "{hz} hertz",
+  "@eqBandSemantics": {
+    "placeholders": { "hz": { "type": "String" } }
+  },
+  "eqUnitDb": "dB",
+  "eqUnitHz": "Hz",
+  "eqGainDb": "{gain} dB",
+  "@eqGainDb": {
+    "placeholders": { "gain": { "type": "String" } }
   }
 }

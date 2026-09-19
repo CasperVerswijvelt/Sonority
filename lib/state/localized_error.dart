@@ -45,6 +45,11 @@ String localizedError(AppLocalizations l10n, Object e) {
       SonorityErrorCode.bondingIncomplete => l10n.errBondingIncomplete(a),
       SonorityErrorCode.noLanIpForChime => l10n.errNoLanIpForChime,
       SonorityErrorCode.cannotBlinkLight => l10n.errCannotBlinkLight,
+      SonorityErrorCode.tuningNotStored => l10n.errTuningNotStored,
+      SonorityErrorCode.tuningNotCleared => l10n.errTuningNotCleared,
+      SonorityErrorCode.nothingTunable => l10n.errNothingTunable,
+      SonorityErrorCode.tuningUnstable => l10n.errTuningUnstable,
+      SonorityErrorCode.tuningNotEnabled => l10n.errTuningNotEnabled,
     };
   }
   if (e is OperationCancelled) return l10n.errAborted;

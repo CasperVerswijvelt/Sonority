@@ -1,0 +1,807 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/l10n.dart';
+import '../../core/theme.dart';
+import '../../data/models/sonos_models.dart';
+import '../../data/sonos/custom_eq.dart';
+import '../../state/localized_error.dart';
+import '../../state/sonos_controller.dart';
+import '../../state/speaker_eq_controller.dart';
+import '../../state/trueplay_controller.dart';
+import '../widgets/action_row.dart';
+import '../widgets/app_scaffold.dart';
+import '../widgets/busy_view.dart';
+import '../widgets/confirm_dialog.dart';
+import '../widgets/destructive_button.dart';
+import '../widgets/fading_filled_button.dart';
+import '../widgets/info_note.dart';
+import '../widgets/max_width_body.dart';
+import '../widgets/scroll_footer.dart';
+import 'eq_curve_view.dart';
+import 'eq_slider.dart';
+
+/// Every native speaker an EQ would be written to for [uuid].
+///
+/// Reads [ZoneGroupMember.bondedUuids], which unions BOTH bond representations —
+/// a home theater's `HTSatChanMapSet` and a group's `ChannelMapSet`. Using only
+/// the HT map would silently reduce every stereo pair / zone / custom group to
+/// its coordinator, and a spectral-tuning apply that omits a bonded member
+/// stores nothing at all (with an HTTP 200 and no error).
+///
+/// Line-out boxes are excluded: they have no drivers of their own to tune.
+List<SonosDevice> eqMembers(SonosSystem system, String uuid) {
+  final member = system.memberByUuid(uuid);
+  if (member == null) return const [];
+  return member.bondedUuids
+      .map(system.device)
+      .whereType<SonosDevice>()
+      .where((d) => !d.drivesExternalSpeakers)
+      .toList();
+}
+
+/// Bonded speakers that discovery has not resolved to a device.
+///
+/// [eqMembers] drops these, because it has nothing to return for them — and a
+/// batch missing one bonded member is exactly the incomplete set that stores
+/// nothing at all. Seen twice on real hardware while speakers were rebooting:
+/// the apply failed the poll and reported "the speakers did not store the EQ",
+/// with no hint that one of them was simply missing. So the apply refuses up
+/// front instead, and says to rescan.
+List<String> eqUnresolved(SonosSystem system, String uuid) {
+  final member = system.memberByUuid(uuid);
+  if (member == null) return const [];
+  return [
+    for (final u in member.bondedUuids)
+      if (system.device(u) == null) u,
+  ];
+}
+
+/// Does this entity include a line-out box, and so have no tunable EQ at all?
+///
+/// An Amp / Port / Connect has no drivers of its own, so [eqMembers] has nothing
+/// to author for it and leaves it out — but a spectral-tuning batch that omits a
+/// bonded member stores NOTHING, with an HTTP 200 and no error. The apply would
+/// therefore fail its poll every time, and tell the user to "check every speaker
+/// is reachable", which can never help. Amp-driven fronts are a confirmed
+/// working layout (Playbase + Connect:Amp), so this is reachable: say the
+/// capability is missing rather than offering an action that cannot succeed.
+///
+/// Covers a standalone Amp room too — its own UUID is the line-out box.
+bool eqBlockedByLineOut(SonosSystem system, String uuid) {
+  final member = system.memberByUuid(uuid);
+  if (member == null) return false;
+  return member.bondedUuids
+      .map(system.device)
+      .whereType<SonosDevice>()
+      .any((d) => d.drivesExternalSpeakers);
+}
+
+/// The EQ entry row on an entity's detail page.
+///
+/// One widget for all three pages (home theater / group / room) so the
+/// untunable case above is stated once instead of three times.
+class EqEntryRow extends ConsumerWidget {
+  /// The entity the EQ would be written to.
+  final String uuid;
+
+  /// This entity's EQ route — `/theater/…/eq`, `/group/…/eq` or `/room/…/eq`.
+  final String route;
+
+  const EqEntryRow({super.key, required this.uuid, required this.route});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final system = ref.watch(sonosControllerProvider).value;
+    final blocked = system != null && eqBlockedByLineOut(system, uuid);
+    return ActionRow(
+      icon: Icons.equalizer,
+      title: context.l10n.eqEntryTitle,
+      subtitle: blocked
+          ? context.l10n.eqUnsupportedLineOut
+          : context.l10n.eqEntrySubtitle,
+      onTap: blocked ? null : () => context.push(route),
+    );
+  }
+}
+
+/// UUID → the speaker's role in this bond, for labelling. Two dedicated fronts
+/// are both "Era 100", so the type alone cannot identify a speaker. Covers both
+/// bond kinds; empty for a standalone speaker, which needs no role.
+Map<String, String> eqRoles(ZoneGroupMember member) => {
+  for (final c in SonosChannel.values)
+    for (final u in member.uuidsForChannel(c)) u: c.shortLabel,
+  for (final e in member.groupChannels.entries)
+    e.key: groupChannelShort(e.value),
+  for (final u in member.channelMapUuids)
+    if (member.groupChannels[u] == null) u: SonosChannel.sub.shortLabel,
+};
+
+/// The EQ page for one entity: adjust, then apply.
+///
+/// A room measurement, when it ships, produces a base correction and these
+/// sliders become offsets on top of it. With no measurement the base is simply
+/// flat and the sliders are the whole curve — which is why the measure stage is
+/// absent rather than stubbed: nothing here has to change to add it.
+class SpeakerEqScreen extends ConsumerStatefulWidget {
+  final String uuid;
+  const SpeakerEqScreen({super.key, required this.uuid});
+
+  @override
+  ConsumerState<SpeakerEqScreen> createState() => _SpeakerEqScreenState();
+}
+
+class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
+  /// Band offsets per member UUID. In "all speakers" mode every member shares
+  /// [_shared]; individual mode edits [_perMember].
+  List<double> _shared = flatCurve();
+  final Map<String, List<double>> _perMember = {};
+  bool _individual = false;
+  String?
+  _editing; // the member whose sliders are on screen, in individual mode
+
+  bool _overwriteConfirmed = false;
+
+  /// Whether a tuning of ours is actually ON the speakers. Not "has the user
+  /// moved a slider" — before an apply there is nothing to switch on or remove,
+  /// and an on/off row reading "nothing applied yet" is just noise.
+  bool _applied = false;
+
+  final _freqs = eqGrid();
+
+  @override
+  void initState() {
+    super.initState();
+    // Loaded once here rather than from build(): scheduling it per build needed
+    // a latch, and a second load landing after the user had already moved a
+    // slider would stomp it.
+    final system = ref.read(sonosControllerProvider).value;
+    if (system != null) _load(eqMembers(system, widget.uuid));
+  }
+
+  /// Seed the sliders from whatever was last applied to this entity.
+  Future<void> _load(List<SonosDevice> members) async {
+    final stored = await ref
+        .read(speakerEqControllerProvider.notifier)
+        .loadStored(widget.uuid);
+    if (!mounted) return;
+    setState(() {
+      if (stored.isEmpty) return;
+      _applied = true;
+      _perMember.addAll(stored);
+      final distinct = stored.values.map((v) => v.join(',')).toSet();
+      // One curve shared by everyone reopens as "all speakers"; anything else
+      // must reopen in individual mode or it would silently flatten the user's
+      // per-speaker work on the next apply.
+      if (distinct.length == 1 && stored.length == members.length) {
+        _shared = List.of(stored.values.first);
+      } else {
+        _individual = true;
+      }
+    });
+  }
+
+  Map<String, List<double>> _offsetsFor(List<SonosDevice> members) => {
+    for (final d in members)
+      d.uuid: _individual ? (_perMember[d.uuid] ?? flatCurve()) : _shared,
+  };
+
+  List<double> get _current =>
+      _individual ? (_perMember[_editing!] ??= flatCurve()) : _shared;
+
+  void _setBand(int i, double v) {
+    setState(() {
+      // Quantise here rather than with the Slider's `divisions`, which would
+      // animate the thumb to each step and lag the finger. Half a dB is the
+      // finest step worth authoring.
+      final next = List<double>.of(_current)..[i] = (v * 2).roundToDouble() / 2;
+      _individual ? _perMember[_editing!] = next : _shared = next;
+    });
+  }
+
+  /// Runs the destructive-overwrite check once per visit, whichever control
+  /// triggers it first. Returns false when the user backs out.
+  Future<bool> _ensureConfirmed(List<SonosDevice> members) async {
+    if (_overwriteConfirmed) return true;
+    final l10n = context.l10n;
+    final wouldOverwrite = await ref
+        .read(speakerEqControllerProvider.notifier)
+        .wouldOverwrite(members: members);
+    if (!mounted) return false;
+    if (wouldOverwrite) {
+      final ok = await confirmDialog(
+        context,
+        title: l10n.eqOverwriteTitle,
+        message: l10n.eqOverwriteBody,
+        confirmLabel: l10n.eqOverwriteConfirm,
+      );
+      if (!ok) return false;
+    }
+    _overwriteConfirmed = true;
+    return true;
+  }
+
+  Future<void> _apply(List<SonosDevice> members) async {
+    if (!await _ensureConfirmed(members)) return;
+    final system = ref.read(sonosControllerProvider).value;
+    final ok = await ref
+        .read(speakerEqControllerProvider.notifier)
+        .apply(
+          entityId: widget.uuid,
+          members: members,
+          offsets: _offsetsFor(members),
+          unresolved: system == null
+              ? const []
+              : eqUnresolved(system, widget.uuid),
+        );
+    if (ok && mounted) setState(() => _applied = true);
+  }
+
+  Future<void> _remove(List<SonosDevice> members) async {
+    final l10n = context.l10n;
+    final ok = await confirmDialog(
+      context,
+      title: l10n.eqRemoveTitle,
+      message: l10n.eqRemoveBody,
+      confirmLabel: l10n.eqRemoveConfirm,
+    );
+    if (!ok || !mounted) return;
+    final done = await ref
+        .read(speakerEqControllerProvider.notifier)
+        .remove(entityId: widget.uuid, members: members);
+    if (done && mounted) {
+      setState(() {
+        _shared = flatCurve();
+        _perMember.clear();
+        _applied = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final system = ref.watch(sonosControllerProvider).value;
+    final member = system?.memberByUuid(widget.uuid);
+    final members = system == null
+        ? const <SonosDevice>[]
+        : eqMembers(system, widget.uuid);
+
+    if (member == null || members.isEmpty) {
+      return AppScaffold(
+        title: l10n.eqTitle,
+        body: const Padding(
+          padding: EdgeInsets.all(24),
+          child: MissingRoomView(),
+        ),
+      );
+    }
+    _editing ??= members.first.uuid;
+
+    var status = ref.watch(speakerEqControllerProvider);
+    // The provider is global; ignore a result that belongs to another entity.
+    if (status.entityId != widget.uuid) status = const SpeakerEqStatus();
+    final curve = composeCorrection(bandOffsetsDb: _current, freqs: _freqs);
+    final scheme = Theme.of(context).colorScheme;
+
+    return AppScaffold(
+      title: member.zoneName,
+      subtitle: l10n.eqTitle,
+      // The A/B lives here rather than only on the page below: the moment you
+      // want to hear what the curve did is the moment you just applied it, and
+      // that is this screen. Same switch, same call — it toggles the stored
+      // calibration on every bonded member.
+      actions: [_TrueplaySwitch(devices: members)],
+      // No step header until the room-measurement stage actually ships: an
+      // always-disabled step advertises a feature that doesn't exist yet. When
+      // it lands, this becomes the second of two steps — the data model already
+      // treats the sliders as offsets on a (currently null) measured base.
+      // Clamped rather than full-bleed, unlike the other detail pages: this one
+      // is a form, and ten sliders spread across a landscape tablet are unusable.
+      // MaxWidthBody owns the breakpoint, so a phone is untouched.
+      body: MaxWidthBody(
+        child: ScrollFooter(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          footer: _Footer(
+            status: status,
+            onApply: () => _apply(members),
+            onRemove: () => _remove(members),
+            hasTuning: _applied || status.applied,
+          ),
+          children: [
+            // Leads the page: the EQ shares Trueplay's single storage slot,
+            // which is the one thing a user cannot discover from the UI and
+            // cannot undo once they hit Apply.
+            _Gutter(child: InfoNote(l10n.eqTrueplayNote)),
+            Gap.m,
+            // Scope first: what you are editing, before what it looks like.
+            // A single speaker has no scope to choose — "combined" and "per
+            // speaker" would name the same one speaker — so the control is not
+            // shown at all rather than shown with one meaningful option.
+            if (members.length > 1) ...[
+              _Gutter(
+                child: SegmentedButton<bool>(
+                  segments: [
+                    ButtonSegment(value: false, label: Text(l10n.eqModeAll)),
+                    ButtonSegment(
+                      value: true,
+                      label: Text(l10n.eqModeIndividual),
+                    ),
+                  ],
+                  selected: {_individual},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (sel) => setState(() {
+                    // "Combined" means every member IS the shared curve —
+                    // that is what an apply from it writes. So switching to
+                    // per-speaker seeds every member from it rather than
+                    // reviving stale curves the user has since overridden.
+                    if (sel.first) {
+                      for (final d in members) {
+                        _perMember[d.uuid] = List.of(_shared);
+                      }
+                    }
+                    _individual = sel.first;
+                  }),
+                ),
+              ),
+              // Grows and fades rather than appearing: the card below it would
+              // otherwise jump down the screen the instant you tap the segment.
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, anim) => SizeTransition(
+                  sizeFactor: anim,
+                  alignment: Alignment.topCenter,
+                  child: FadeTransition(opacity: anim, child: child),
+                ),
+                child: !_individual
+                    ? const SizedBox(width: double.infinity)
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Gap.s,
+                          _MemberPicker(
+                            members: members,
+                            roles: eqRoles(member),
+                            selected: _editing!,
+                            edited: {
+                              for (final e in _perMember.entries)
+                                if (!isFlat(e.value)) e.key,
+                            },
+                            onSelected: (u) => setState(() => _editing = u),
+                          ),
+                        ],
+                      ),
+              ),
+              // Inside the conditional: with no scope control there is
+              // nothing between the note and the card, and two gaps would
+              // stack up.
+              Gap.m,
+            ],
+            _Gutter(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      EqCurveView(
+                        freqs: _freqs,
+                        curves: [EqCurve(curve, scheme.primary)],
+                      ),
+                      Gap.m,
+                      _Bands(gains: _current, onChanged: _setBand),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => setState(() {
+                            _individual
+                                ? _perMember[_editing!] = flatCurve()
+                                : _shared = flatCurve();
+                          }),
+                          child: Text(l10n.eqReset),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Gutter extends StatelessWidget {
+  final Widget child;
+  const _Gutter({required this.child});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
+    child: child,
+  );
+}
+
+class _Bands extends StatelessWidget {
+  final List<double> gains;
+  final void Function(int index, double value) onChanged;
+  const _Bands({required this.gains, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    // The unit is said ONCE for the whole row, top and bottom, instead of ten
+    // times across ten narrow columns — the columns then carry only what
+    // differs between them. Muted, like every other caption on the page, so the
+    // values stay the thing you read.
+    final unitStyle = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(l10n.eqUnitDb, style: unitStyle),
+        SizedBox(
+          // Trimmed from 210 to pay for the two unit lines this row now has
+          // above and below it, so the card is the height it always was and the
+          // Apply button below it still lands on screen.
+          height: 190,
+          child: Row(
+            children: [
+              for (var i = 0; i < kEqBands.length; i++)
+                Expanded(
+                  child: Column(
+                    children: [
+                      // Ten columns is narrow enough that a long readout wraps
+                      // and shoves its slider down; shrink to fit instead.
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          _fmt(gains[i]),
+                          maxLines: 1,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: gains[i] == 0
+                                ? theme.colorScheme.onSurfaceVariant
+                                : theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: EqSlider(
+                          value: gains[i],
+                          min: -kEqMaxCutDb,
+                          max: kEqMaxBoostDb,
+                          // Spoken, not shown: a screen reader gets no column
+                          // heading, so the unit has to travel with the value.
+                          semanticFormatter: (v) =>
+                              '${l10n.eqBandSemantics(eqBandLabel(kEqBands[i]))}, '
+                              '${l10n.eqGainDb(_fmt(v))}',
+                          onChanged: (v) => onChanged(i, v),
+                        ),
+                      ),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          eqBandLabel(kEqBands[i]),
+                          maxLines: 1,
+                          style: theme.textTheme.labelSmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Text(l10n.eqUnitHz, style: unitStyle),
+      ],
+    );
+  }
+
+  /// Always one decimal: the column is a readout you watch while dragging, and
+  /// a width that changes between "3" and "3.5" makes it twitch.
+  static String _fmt(double v) =>
+      '${v > 0 ? '+' : ''}${v.toStringAsFixed(1)}';
+}
+
+class _MemberPicker extends StatelessWidget {
+  final List<SonosDevice> members;
+
+  /// UUID → its channel role in this bond, when it has one. Two dedicated
+  /// fronts are both "Era 100", so the type alone cannot identify a speaker.
+  final Map<String, String> roles;
+  final String selected;
+  final Set<String> edited;
+  final ValueChanged<String> onSelected;
+  const _MemberPicker({
+    required this.members,
+    required this.roles,
+    required this.selected,
+    required this.edited,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
+      child: Row(
+        children: [
+          for (final d in members) ...[
+            ChoiceChip(
+              selected: d.uuid == selected,
+              // The filled background already says "selected"; the default
+              // checkmark would collide with the edited pencil.
+              showCheckmark: false,
+              onSelected: (_) => onSelected(d.uuid),
+              avatar: edited.contains(d.uuid)
+                  ? const Icon(Icons.edit, size: 16)
+                  : null,
+              label: Text(
+                roles[d.uuid] == null
+                    ? d.typeLabel
+                    : '${d.typeLabel} · ${roles[d.uuid]}',
+              ),
+              tooltip: edited.contains(d.uuid) ? l10n.eqEdited : null,
+            ),
+            Gap.s,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The stored calibration's on/off switch, in the app bar.
+///
+/// Toggling is non-destructive and instant: it never re-measures, re-bonds or
+/// clears anything, so it is safe to leave in reach. It acts on every bonded
+/// member at once, because a home theater's separately-tuned fronts only engage
+/// when they are switched on too.
+///
+/// ⚠️ This A/Bs *calibrated vs not*, not *your curve vs flat* — a speaker
+/// changes audibly when calibration goes on even where its tuning is flat.
+class _TrueplaySwitch extends ConsumerStatefulWidget {
+  final List<SonosDevice> devices;
+  const _TrueplaySwitch({required this.devices});
+
+  @override
+  ConsumerState<_TrueplaySwitch> createState() => _TrueplaySwitchState();
+}
+
+class _TrueplaySwitchState extends ConsumerState<_TrueplaySwitch> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(trueplayControllerProvider.notifier).load(widget.devices);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final tp = ref.watch(trueplayControllerProvider);
+    final known = [
+      for (final d in widget.devices)
+        if (tp.byUuid[d.uuid] != null) tp.byUuid[d.uuid]!,
+    ];
+    final busy = widget.devices.any((d) => tp.busy.contains(d.uuid));
+    // Nothing stored means the switch has nothing to switch: Sonos accepts the
+    // call and no-ops, which would read as a broken control.
+    final stored = known.any((c) => c.available);
+    final on = known.any((c) => c.enabled);
+
+    return Padding(
+      // Line the switch up with the page gutter below it. A Switch carries its
+      // own tap-target padding, so the inset here is the remainder.
+      padding: const EdgeInsets.only(right: kPageGutter - 4),
+      // No Semantics wrapper: Switch already announces its name, role and
+      // toggled state, and Tooltip contributes the label for an icon-only
+      // control. Wrapping it only made a screen reader say it twice.
+      child: Tooltip(
+        message: l10n.eqTrueplayToggle,
+        child: Switch(
+          value: on,
+          onChanged: !stored || busy
+              ? null
+              : (v) => ref
+                    .read(trueplayControllerProvider.notifier)
+                    .setEnabled(widget.devices, v),
+        ),
+      ),
+    );
+  }
+}
+
+/// The three things the button can say, in the order they happen.
+enum _ApplyPhase { idle, busy, applied }
+
+class _Footer extends StatefulWidget {
+  final SpeakerEqStatus status;
+  final VoidCallback onApply;
+  final VoidCallback onRemove;
+
+  /// Whether a tuning of ours is on the speakers yet — before the first apply
+  /// there is nothing to remove.
+  final bool hasTuning;
+  const _Footer({
+    required this.status,
+    required this.onApply,
+    required this.onRemove,
+    required this.hasTuning,
+  });
+
+  @override
+  State<_Footer> createState() => _FooterState();
+}
+
+class _FooterState extends State<_Footer> {
+  /// "Applied" is a transient state, not a place the UI stays: it confirms the
+  /// press and then gets out of the way, so the button reads "Apply" again.
+  static const _appliedFor = Duration(seconds: 2);
+  Timer? _appliedTimer;
+  bool _showApplied = false;
+
+  @override
+  void didUpdateWidget(_Footer old) {
+    super.didUpdateWidget(old);
+    if (widget.status.applied && !old.status.applied) {
+      setState(() => _showApplied = true);
+      _appliedTimer?.cancel();
+      _appliedTimer = Timer(_appliedFor, () {
+        if (mounted) setState(() => _showApplied = false);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _appliedTimer?.cancel();
+    super.dispose();
+  }
+
+  _ApplyPhase get _phase => widget.status.busy
+      ? _ApplyPhase.busy
+      : _showApplied
+      ? _ApplyPhase.applied
+      : _ApplyPhase.idle;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final status = widget.status;
+    final phase = _phase;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          // Top gutter as well as the sides: the button is a separate thing
+          // from the card above it and was reading as attached to it.
+          padding: const EdgeInsets.fromLTRB(
+            kPageGutter,
+            kPageGutter,
+            kPageGutter,
+            8,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Errors get their own line, above the button, not below it: one
+              // under a full-width button sat below the fold until you
+              // scrolled. It grows in rather than appearing, so the button does
+              // not jump under the finger that just pressed it.
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, anim) => SizeTransition(
+                  sizeFactor: anim,
+                  alignment: Alignment.bottomCenter,
+                  child: FadeTransition(opacity: anim, child: child),
+                ),
+                child: status.error == null || status.busy
+                    ? const SizedBox(width: double.infinity)
+                    : Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _ErrorLine(error: status.error!),
+                      ),
+              ),
+              // Progress and confirmation live IN the button: the thing you
+              // pressed is the thing that should say what it is doing, and a
+              // separate "Applied" line was both noise and off-screen until you
+              // scrolled.
+              FadingFilledButton(
+                // Applying stays on this page — no progress route, no pop — so
+                // the sliders you just moved are still in front of you.
+                onPressed: phase == _ApplyPhase.busy ? null : widget.onApply,
+                // ONE switcher around icon+label together, not one each: fading
+                // them separately lets the label's width change mid-fade, which
+                // shoves the icon sideways. As a single child they cross-fade
+                // centred on top of each other and nothing moves.
+                child: AnimatedSwitcher(
+                  // Out, THEN in: both curves confined to the back half of the
+                  // animation means the old label is fully gone before the new
+                  // one starts arriving, instead of the two overlapping.
+                  duration: const Duration(milliseconds: 260),
+                  switchInCurve: const Interval(0.5, 1),
+                  switchOutCurve: const Interval(0.5, 1),
+                  child: Row(
+                    key: ValueKey(phase),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      switch (phase) {
+                        _ApplyPhase.busy => const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        _ApplyPhase.applied => const Icon(
+                          Icons.check,
+                          size: 18,
+                        ),
+                        _ApplyPhase.idle => const Icon(
+                          Icons.equalizer,
+                          size: 18,
+                        ),
+                      },
+                      Gap.s,
+                      Text(switch (phase) {
+                        _ApplyPhase.busy => l10n.eqApplying,
+                        _ApplyPhase.applied => l10n.eqApplied,
+                        _ApplyPhase.idle => l10n.eqApply,
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // No on/off switch here: it is the same Trueplay toggle that already
+        // sits on the entity's detail page one level up, and a second copy under
+        // a second name is just confusing. This page authors the tuning; the
+        // detail page switches it.
+        if (widget.hasTuning)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 8),
+            child: DestructiveButton(
+              icon: Icons.delete_outline,
+              label: l10n.eqRemove,
+              onPressed: status.busy ? null : widget.onRemove,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ErrorLine extends StatelessWidget {
+  final Object error;
+  const _ErrorLine({required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // No retry affordance: Apply sits directly below and is exactly that.
+    return Text(
+      localizedError(context.l10n, error),
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.error,
+      ),
+    );
+  }
+}

@@ -70,6 +70,19 @@ class SonorityError implements Exception {
         return 'No LAN IP found to serve the chime from.';
       case SonorityErrorCode.cannotBlinkLight:
         return 'Could not reach the speaker to blink its light.';
+      case SonorityErrorCode.tuningNotStored:
+        return 'The speakers did not store the EQ. '
+            'Try again; if it keeps failing, check every speaker is reachable.';
+      case SonorityErrorCode.tuningNotCleared:
+        return 'The EQ could not be removed from these speakers.';
+      case SonorityErrorCode.nothingTunable:
+        return 'These speakers do not report any tunable channels.';
+      case SonorityErrorCode.tuningNotEnabled:
+        return 'The EQ was stored but could not be switched on for every '
+            'speaker. Try the room calibration toggle, or apply again.';
+      case SonorityErrorCode.tuningUnstable:
+        return 'That EQ curve could not be turned into a safe filter. '
+            'Nothing was sent to the speakers — try a gentler curve.';
     }
   }
 
@@ -104,4 +117,9 @@ enum SonorityErrorCode {
   bondingIncomplete,
   noLanIpForChime,
   cannotBlinkLight,
+  tuningNotStored,
+  tuningNotCleared,
+  nothingTunable,
+  tuningUnstable,
+  tuningNotEnabled,
 }

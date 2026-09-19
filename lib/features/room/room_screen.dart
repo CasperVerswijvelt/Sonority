@@ -6,6 +6,8 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/localized_error.dart';
 import '../../state/sonos_controller.dart';
+import '../speaker_eq/speaker_eq_screen.dart';
+import '../widgets/action_row.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/identify_controls.dart';
@@ -82,8 +84,12 @@ class RoomScreen extends ConsumerWidget {
                 onTap: () => addToHomeTheater(context, soundbars, speaker: uuid),
               ),
             Gap.s,
-            // Settings: a flat, sectioned Trueplay row, not another card.
-            SettingsSection(children: [TrueplayControl(devices: devices)]),
+            // One settings block: EQ then the calibration toggle, under a single
+            // leading divider.
+            SettingsSection(children: [
+              EqEntryRow(uuid: uuid, route: '/room/$uuid/eq'),
+              TrueplayControl(devices: devices),
+            ]),
           ],
         ),
         children: [

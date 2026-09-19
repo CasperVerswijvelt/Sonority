@@ -388,6 +388,36 @@ abstract class AppLocalizations {
   /// **'Could not reach the speaker to blink its light.'**
   String get errCannotBlinkLight;
 
+  /// No description provided for @errTuningNotStored.
+  ///
+  /// In en, this message translates to:
+  /// **'The speakers didn’t store the EQ. Try again; if it keeps failing, check every speaker is reachable.'**
+  String get errTuningNotStored;
+
+  /// No description provided for @errTuningNotCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'The EQ could not be removed from these speakers.'**
+  String get errTuningNotCleared;
+
+  /// No description provided for @errNothingTunable.
+  ///
+  /// In en, this message translates to:
+  /// **'These speakers don’t report any tunable channels.'**
+  String get errNothingTunable;
+
+  /// No description provided for @errTuningNotEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'The EQ was stored but couldn’t be switched on for every speaker. Try the Trueplay toggle, or apply again.'**
+  String get errTuningNotEnabled;
+
+  /// No description provided for @errTuningUnstable.
+  ///
+  /// In en, this message translates to:
+  /// **'That EQ curve couldn’t be turned into a safe filter. Nothing was sent to the speakers. Try a gentler curve.'**
+  String get errTuningUnstable;
+
   /// No description provided for @errTimeout.
   ///
   /// In en, this message translates to:
@@ -853,7 +883,7 @@ abstract class AppLocalizations {
   /// No description provided for @widgetsTrueplayNotTuned.
   ///
   /// In en, this message translates to:
-  /// **'Not tuned — run Trueplay once in the Sonos app (iOS).'**
+  /// **'Not tuned. Set an EQ above, or run Trueplay in the Sonos app on iOS.'**
   String get widgetsTrueplayNotTuned;
 
   /// No description provided for @widgetsTrueplayActive.
@@ -955,7 +985,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileApplyConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle). Trueplay may need re-tuning afterward.'**
+  /// **'This re-bonds speakers on your live system and may take a while (each step waits for Sonos to settle). Any tuning will need redoing afterward.'**
   String get profileApplyConfirmBody;
 
   /// No description provided for @profileIssueMissing.
@@ -1969,7 +1999,7 @@ abstract class AppLocalizations {
   /// No description provided for @htTrueplayNote.
   ///
   /// In en, this message translates to:
-  /// **'Trueplay can only be measured from the Sonos app on iOS — tune the home theater, and the fronts separately as a stereo pair. Heads-up: Sonos often clears a tuning when speakers are bonded/unbonded, so you may see “Not tuned” after changing the layout and have to redo it. Sonority only toggles a stored tuning.'**
+  /// **'A speaker holds one tuning: either a Trueplay measurement or your EQ. Sonos clears it whenever speakers are bonded or unbonded, so expect to redo it after a layout change.'**
   String get htTrueplayNote;
 
   /// No description provided for @htAllExtraSpeakers.
@@ -2113,7 +2143,7 @@ abstract class AppLocalizations {
   /// No description provided for @frontSurroundsReviewNote.
   ///
   /// In en, this message translates to:
-  /// **'The chosen speakers become hidden satellites of the soundbar (which stays the center channel). Bonding runs in steps and can take a little while; Trueplay may need re-tuning afterward. You can change this anytime.'**
+  /// **'The chosen speakers become hidden satellites of the soundbar, which stays the center channel. Bonding runs in steps and can take a little while. Any tuning will need redoing afterward. You can change this anytime.'**
   String get frontSurroundsReviewNote;
 
   /// No description provided for @diagNoSystemToCollect.
@@ -2223,6 +2253,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'At least {min} characters'**
   String diagNoteHelper(int min);
+
+  /// No description provided for @eqTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'EQ'**
+  String get eqTitle;
+
+  /// No description provided for @eqTrueplayToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trueplay'**
+  String get eqTrueplayToggle;
+
+  /// No description provided for @eqTrueplayNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Sonority’s EQ uses the Trueplay calibration slot on your speakers. Applying an EQ replaces your existing EQ or Trueplay calibration.'**
+  String get eqTrueplayNote;
+
+  /// No description provided for @eqModeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Combined EQ'**
+  String get eqModeAll;
+
+  /// No description provided for @eqModeIndividual.
+  ///
+  /// In en, this message translates to:
+  /// **'Per speaker EQ'**
+  String get eqModeIndividual;
+
+  /// No description provided for @eqReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get eqReset;
+
+  /// No description provided for @eqEdited.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited'**
+  String get eqEdited;
+
+  /// No description provided for @eqApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get eqApply;
+
+  /// No description provided for @eqApplying.
+  ///
+  /// In en, this message translates to:
+  /// **'Applying…'**
+  String get eqApplying;
+
+  /// No description provided for @eqApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied'**
+  String get eqApplied;
+
+  /// No description provided for @eqRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove EQ'**
+  String get eqRemove;
+
+  /// No description provided for @eqRemoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the EQ?'**
+  String get eqRemoveTitle;
+
+  /// No description provided for @eqRemoveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This clears the stored tuning from every speaker in this configuration. To switch it off without losing it, use the Trueplay toggle on the previous screen instead.'**
+  String get eqRemoveBody;
+
+  /// No description provided for @eqRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get eqRemoveConfirm;
+
+  /// No description provided for @eqOverwriteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace the existing calibration?'**
+  String get eqOverwriteTitle;
+
+  /// No description provided for @eqOverwriteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'These speakers already hold an EQ or Trueplay calibration. Applying an EQ replaces this permanently.'**
+  String get eqOverwriteBody;
+
+  /// No description provided for @eqOverwriteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get eqOverwriteConfirm;
+
+  /// No description provided for @eqEntryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'EQ'**
+  String get eqEntryTitle;
+
+  /// No description provided for @eqEntrySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shape the sound with a 10-band equaliser'**
+  String get eqEntrySubtitle;
+
+  /// No description provided for @eqUnsupportedLineOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available — this setup includes an Amp or Port, and Sonos can only tune its own speakers.'**
+  String get eqUnsupportedLineOut;
+
+  /// No description provided for @eqBandSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'{hz} hertz'**
+  String eqBandSemantics(String hz);
+
+  /// No description provided for @eqUnitDb.
+  ///
+  /// In en, this message translates to:
+  /// **'dB'**
+  String get eqUnitDb;
+
+  /// No description provided for @eqUnitHz.
+  ///
+  /// In en, this message translates to:
+  /// **'Hz'**
+  String get eqUnitHz;
+
+  /// No description provided for @eqGainDb.
+  ///
+  /// In en, this message translates to:
+  /// **'{gain} dB'**
+  String eqGainDb(String gain);
 }
 
 class _AppLocalizationsDelegate
