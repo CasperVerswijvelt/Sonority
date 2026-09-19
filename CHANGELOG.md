@@ -21,6 +21,7 @@ section into the GitHub Release notes regardless of the build suffix
 ### Fixed
 - A room page no longer offers "Group with another speaker", and a Sub page no longer offers "Add to a group", when every other candidate is a speaker the app couldn't reach — the group flow omits those, so the shortcut only led to a screen saying at least two speakers are needed.
 - Reconfiguring a group or home theater that contains a speaker the app can't reach no longer shows that speaker as unticked while saving puts it straight back in — it now shows as part of the bond. The group flow's subwoofer picker also gained the unreachable warning the other pickers already had.
+- Discovery no longer trusts a stale address: if a speaker's description URL answers as a different player, that answer is discarded instead of being filed under the wrong speaker, and the speaker actually asked about is kept without the address that was just disproved. A speaker the topology gives no address for at all is kept too, rather than vanishing from the app.
 - A bonded speaker the app failed to spot on the network is now recovered from the topology like any other: a home theater satellite (typically a Sub), or the hidden half of a pair or group. Left unresolved, a Sub showed as a generic "Speaker" and would have been silently unbonded by the next apply, and renaming a group dropped its hidden speaker out of it without a word.
 
 ## [0.7.0] - 2026-08-18

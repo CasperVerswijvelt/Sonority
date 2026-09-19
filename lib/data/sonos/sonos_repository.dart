@@ -121,35 +121,78 @@ class SonosRepository {
     //
     // Keyed by uuid: mid-settle (the ~15s lag) one speaker can read BOTH as a
     // member and as some coordinator's `<Satellite>`, and fetching it twice is
-    // pointless. Which of the two Locations wins is document order — they come
-    // from one `GetZoneGroupState`, so they agree in practice.
-    final missing = {
+    // pointless. Normally both carry a `Location` and they agree — one
+    // `GetZoneGroupState`, so document order is a fine tie-break. But only one
+    // of the two needs an address for the re-fetch to work, and a map literal
+    // is LAST-write-wins, so a location-less duplicate listed second would
+    // otherwise silently beat a usable one and cost us the fetch entirely.
+    // Hence two passes, location-less first.
+    final entries = [
       for (final g in groups)
-        for (final m in g.members)
-          for (final e in [
-            (uuid: m.uuid, name: m.zoneName, location: m.location, ip: m.ip),
-            for (final s in m.satellites)
-              (uuid: s.uuid, name: s.zoneName, location: s.location, ip: s.ip),
-          ])
-            if (e.location != null && !devicesByUuid.containsKey(e.uuid))
-              e.uuid: e,
+        for (final m in g.members) ...[
+          (uuid: m.uuid, name: m.zoneName, location: m.location, ip: m.ip),
+          for (final s in m.satellites)
+            (uuid: s.uuid, name: s.zoneName, location: s.location, ip: s.ip),
+        ],
+    ];
+    final missing = {
+      for (final e in entries)
+        if (e.location == null && !devicesByUuid.containsKey(e.uuid)) e.uuid: e,
+      for (final e in entries)
+        if (e.location != null && !devicesByUuid.containsKey(e.uuid)) e.uuid: e,
     }.values;
     if (missing.isNotEmpty) {
       final recovered = await Future.wait(missing.map((m) async {
+        // Every failure below lands here: keep the speaker — it IS in the
+        // authoritative topology — but flag it unreachable (model/capabilities
+        // unknown) so the UI surfaces it disabled with a warning instead of
+        // dropping it silently, which is the failure this whole sweep exists to
+        // prevent. [ip] comes from `Location`, so it's only carried over when
+        // that URL hasn't been disproved.
+        SonosDevice stub({String? ip}) => SonosDevice(
+              uuid: m.uuid,
+              roomName: m.name,
+              modelName: '',
+              ip: ip,
+              reachable: false,
+            );
+        final location = m.location;
+        if (location == null) {
+          // Nothing to re-fetch from. We've never seen this on hardware, and
+          // we're not claiming a firmware omits `Location` — only that we read
+          // it with `getAttribute`, which yields null when it's absent, and a
+          // speaker that resolves to null is the failure this sweep exists to
+          // prevent. The stub costs one line and removes the question.
+          DiagnosticsLog.add(
+              'discovery: no Location for ${m.uuid} — unresolved, kept from '
+              'topology');
+          return stub();
+        }
         try {
-          return await _descriptions.fetch(m.location!);
+          final d = await _descriptions.fetch(location);
+          if (d.uuid == m.uuid) return d;
+          // The `Location` now answers as someone else. We haven't seen this
+          // on hardware and aren't claiming a cause (a replaced player, a
+          // reassigned lease — it doesn't matter); what IS certain is what the
+          // answer can't be used for. The speaker we were
+          // after is STILL unresolved and needs a stub. The stranger is dropped,
+          // not keyed in: nothing says it belongs to this topology, and
+          // `bondableSpeakers`/`bondableSubs` read straight
+          // off `devicesByUuid`, so it would be offered as a bonding candidate.
+          // And the stub must NOT keep the address we just disproved — the
+          // Trueplay read/toggle and the detail-page identify button gate on
+          // `ip != null` alone, not on `reachable`, so a write aimed there would
+          // hit a speaker the user never touched.
+          DiagnosticsLog.add('discovery: $location answered as ${d.uuid}, '
+              'expected ${m.uuid} — stale Location, ignoring');
+          return stub();
         } catch (_) {
-          // Re-fetch failed too. Keep the device — it's in the authoritative
-          // topology — but flag it unreachable (model/capabilities unknown) so
-          // the UI surfaces it disabled with a warning instead of dropping it
-          // silently.
-          return SonosDevice(
-            uuid: m.uuid,
-            roomName: m.name,
-            modelName: '',
-            ip: m.ip,
-            reachable: false,
-          );
+          // Re-fetch failed: absence of evidence, not evidence against. One
+          // known-transient cause is the documented ~20-30s in which a
+          // just-(un)bonded speaker refuses :1400, and nulling the address
+          // would disable identify for every speaker in that window. So the
+          // address is kept; only a uuid mismatch actually disproves it.
+          return stub(ip: m.ip);
         }
       }));
       for (final d in recovered) {
