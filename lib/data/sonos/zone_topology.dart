@@ -64,7 +64,6 @@ class ZoneTopologyClient {
             uuid: satUuid,
             zoneName: sat.getAttribute('ZoneName') ?? '',
             channels: channelsByUuid[satUuid] ?? const [],
-            ip: _ipFromLocation(sat.getAttribute('Location')),
             location: sat.getAttribute('Location'),
           ));
         }
@@ -85,10 +84,5 @@ class ZoneTopologyClient {
       }
     }
     return groups;
-  }
-
-  static String? _ipFromLocation(String? location) {
-    if (location == null) return null;
-    return Uri.tryParse(location)?.host;
   }
 }

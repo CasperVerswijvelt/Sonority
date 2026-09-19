@@ -51,6 +51,9 @@ section into the GitHub Release notes regardless of the build suffix
 - Rebuilding a group no longer aborts when one of its speakers is slow to answer after being unbonded, which could leave the old group dissolved and nothing in its place.
 - Separating a speaker group now restores every saved name even when one of its speakers was skipped or couldn't be resolved at all. Previously a single such member cost the whole group its names, and they came back as duplicates ("Living Room 2").
 - Creating or editing a speaker group now checks every speaker's address, including the group's outgoing coordinator, before it frees anything, so a speaker whose address is unknown can no longer leave a live group dissolved with nothing built in its place, and the error is now shown instead of leaving the progress screen spinning.
+- A room page no longer offers "Group with another speaker", and a Sub page no longer offers "Add to a group", when every other candidate is a speaker the app couldn't reach — the group flow omits those, so the shortcut only led to a screen saying at least two speakers are needed.
+- Reconfiguring a group or home theater that contains a speaker the app can't reach no longer shows that speaker as unticked while saving puts it straight back in — it now shows as part of the bond. The group flow's subwoofer picker also gained the unreachable warning the other pickers already had.
+- Discovery no longer trusts a stale address: if a speaker's description URL answers as a different player, that answer is discarded instead of being filed under the wrong speaker, and the speaker actually asked about is kept without the address that was just disproved. A speaker the topology gives no address for at all is kept too, rather than vanishing from the app.
 
 ## [0.7.0] - 2026-08-18
 

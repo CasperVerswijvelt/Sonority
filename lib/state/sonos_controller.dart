@@ -827,13 +827,22 @@ class SonosController extends AsyncNotifier<SonosSystem?> {
       return sys;
     }
     if (diff.toRemove.isNotEmpty) {
+      // The coordinator can be a discovery stub with no address (its `Location`
+      // went stale, or the topology gave it none). Only the remove step needs
+      // guarding — the bond step's `bondAndVerify` raises `coordinatorIpUnknown`
+      // itself, and the no-op case above writes nothing and must keep working
+      // without one.
+      final barIp = bar.ip;
+      if (barIp == null) {
+        throw SonorityError(SonorityErrorCode.soundbarNotOnNetwork, bar.roomName);
+      }
       // Only genuine leaves reach here (a dropped sub / a replaced speaker) —
       // a speaker that merely moves channel stays bonded and reassigns in place.
       ph.phase('remove', l10n.stepRemoveUnused(diff.toRemove.length));
       await _repo.removeHtSatellites(
-          soundbarIp: bar.ip!, uuids: diff.toRemove, cancel: _activeOp);
+          soundbarIp: barIp, uuids: diff.toRemove, cancel: _activeOp);
       ph.note(l10n.stepWaitingSettle);
-      sys = await _settleRead(sys, bar.ip!);
+      sys = await _settleRead(sys, barIp);
     }
     ph.phase('bond', bondLabel);
     // One calm, steady subtitle for the whole (re-)assert loop; the per-attempt

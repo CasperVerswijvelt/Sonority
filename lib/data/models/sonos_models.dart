@@ -143,21 +143,27 @@ class SonosSatellite {
   final String uuid;
   final String zoneName;
   final List<SonosChannel> channels;
-  final String? ip;
 
-  /// The satellite's description URL from the topology. Kept (not just the
-  /// derived [ip]) so discovery can re-fetch a satellite that SSDP missed,
-  /// see `SonosRepository.discover`, where a missing Sub silently cost the
-  /// whole HT its sub channel on the next apply.
+  /// The satellite's description URL from the topology. Stored rather than just
+  /// the derived [ip] so discovery can re-fetch a satellite SSDP missed (see
+  /// `SonosRepository.discover`, where an unresolved Sub silently cost the whole
+  /// HT its sub channel on the next apply).
   final String? location;
 
   const SonosSatellite({
     required this.uuid,
     required this.zoneName,
     required this.channels,
-    this.ip,
     this.location,
   });
+
+  /// Derived, never stored — same as [ZoneGroupMember.ip], so the two can't
+  /// drift from the one `Location` the topology gave us.
+  String? get ip {
+    final loc = location;
+    if (loc == null) return null;
+    return Uri.tryParse(loc)?.host;
+  }
 
   bool get isSub => channels.contains(SonosChannel.sub);
   bool get isFront =>
@@ -492,8 +498,21 @@ class SonosSystem {
   /// excluded by [bondableSpeakers]). Hardware-confirmed that Play:1 (not on
   /// Sonos' official list) zones fine, so we don't gate on the model list —
   /// create polls to confirm and surfaces a clear error if Sonos rejects it.
+  ///
+  /// Unreachable is excluded here but NOT in [bondableSpeakers], because the two
+  /// flows fail differently, not because the widgets differ — both pickers
+  /// render the same `BondableSpeakerTile`, which would show either one as an
+  /// explained disabled row. A home theater's fronts are optional additions to a
+  /// bar that already exists, so an unselectable row there blocks nothing. A
+  /// group needs two SELECTABLE speakers to exist at all, so listing one that
+  /// can't be ticked just moves the dead end from the shortcut to a picker with
+  /// a permanently disabled Continue. Better to not offer the flow and say why
+  /// (`groupNeedTwoSpeakers`).
+  ///
+  /// Both the flow and the shortcuts that gate it read this one list, so a gate
+  /// can't count a candidate the picker won't offer.
   List<SonosDevice> get zoneableSpeakers =>
-      bondableSpeakers.where((d) => !d.isAmp).toList();
+      bondableSpeakers.where((d) => !d.isAmp && d.reachable).toList();
 
   /// Standalone Sonos Subs free to bond as the `SW` channel of a home theater.
   List<SonosDevice> get bondableSubs {

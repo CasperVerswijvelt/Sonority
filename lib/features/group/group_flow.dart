@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../data/models/sonos_models.dart';
 import '../../state/sonos_controller.dart';
 import '../../state/trueplay_controller.dart';
+import '../widgets/bondable_speaker_tile.dart';
 import '../widgets/bonding_progress_screen.dart';
 import '../widgets/identify_controls.dart';
 import '../widgets/info_note.dart';
@@ -136,9 +137,9 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
     // them back in so they show selected and deselecting is reversible (mirrors
     // the HT flow's `avail`/`freeSubs`).
     final existing = _editing ? system.memberByUuid(widget.editUuid!) : null;
-    final candidates = system.zoneableSpeakers
-        .where((d) => d.reachable)
-        .toList();
+    // `zoneableSpeakers` already drops unreachable speakers, so a group picker
+    // never lists one it can't tick.
+    final candidates = system.zoneableSpeakers.toList();
     // Speakers bonded into ANOTHER entity are offered too, so a user need not
     // unbond by hand first. ⚠️ Unlike a home theater, every group write costs
     // the calibration of the whole source bond (EXP-23: `AddBondedZones`
@@ -149,7 +150,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
         candidates.add(d);
       }
     }
-    final subs = system.bondableSubs.where((d) => d.reachable).toList();
+    final subs = system.bondableSubs.toList();
     if (existing != null) {
       for (final u in existing.groupChannels.keys) {
         final d = system.device(u);
@@ -301,6 +302,7 @@ class _GroupFlowState extends ConsumerState<GroupFlow> with IdentifyMixin {
                               subs: subs,
                               selected: _subUuid,
                               onChanged: (u) => setState(() => _subUuid = u),
+                              identifyControls: idControls,
                             ),
                           ),
                           Step(
@@ -567,11 +569,13 @@ class _SubStep extends StatelessWidget {
   final List<SonosDevice> subs;
   final String? selected;
   final void Function(String? uuid) onChanged;
+  final Widget Function(SonosDevice device) identifyControls;
 
   const _SubStep({
     required this.subs,
     required this.selected,
     required this.onChanged,
+    required this.identifyControls,
   });
 
   @override
@@ -585,18 +589,17 @@ class _SubStep extends StatelessWidget {
         else ...[
           Text(context.l10n.groupAddSubHint, style: muted),
           Gap.s,
+          // The shared tile, as every other speaker picker uses (CLAUDE.md's
+          // selection grammar) — this was the one that rolled its own, so an
+          // unreachable Sub rendered as a normal enabled row with no warning.
           ...subs.map(
-            (s) => Card(
-              margin: const EdgeInsets.only(bottom: kCardGap),
-              clipBehavior: Clip.antiAlias,
-              child: CheckboxListTile(
-                value: selected == s.uuid,
-                onChanged: (v) => onChanged((v ?? false) ? s.uuid : null),
-                controlAffinity: ListTileControlAffinity.leading,
-                title: Text(context.l10n.groupSubwoofer),
-                subtitle: Text(s.typeLabel),
-                secondary: const Icon(Icons.graphic_eq),
-              ),
+            (s) => BondableSpeakerTile(
+              device: s,
+              selected: selected == s.uuid,
+              onChanged: (v) => onChanged((v ?? false) ? s.uuid : null),
+              subtitle: s.typeLabel,
+              secondary: identifyControls(s),
+              outlined: true,
             ),
           ),
         ],
