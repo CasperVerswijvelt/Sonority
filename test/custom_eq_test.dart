@@ -133,6 +133,32 @@ void main() {
     });
   });
 
+  group('a member left flat', () {
+    // Every apply writes to EVERY member of the bond, because a batch missing
+    // one stores nothing — so the members the user did not touch are sent a
+    // curve too. That curve has to be a true no-op, or per-speaker EQ would
+    // quietly alter the speakers it claims to leave alone.
+    for (final fs in [44100.0, 8138.0]) {
+      test('is sent one unity section at ${fs.toInt()} Hz, not a near-miss',
+          () {
+        final grid = eqGrid();
+        final flat = composeCorrection(bandOffsetsDb: flatCurve(), freqs: grid);
+        final sections =
+            sectionsForCorrection(flat, grid, fs: fs, maxSections: 16);
+
+        expect(sections, hasLength(1));
+        expect(sections.single.b0, 1);
+        expect(sections.single.b1, 0);
+        expect(sections.single.b2, 0);
+        expect(sections.single.a1, 0);
+        expect(sections.single.a2, 0);
+        for (final db in cascadeMagnitudeDb(sections, grid, fs)) {
+          expect(db, closeTo(0, 1e-9));
+        }
+      });
+    }
+  });
+
   group('sectionsForCorrection', () {
     test('a flat curve becomes a single passthrough section', () {
       final grid = eqGrid();

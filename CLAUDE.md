@@ -405,6 +405,14 @@ rest of the local API. `trueplay_codec.dart` / `trueplay_apply.dart` /
    GetRoomCalibrationStatus` → `RoomCalibrationAvailable`. Poll it.
 7. **Storing is not enabling.** `SetRoomCalibrationStatus` is a second call —
    which is what makes the existing Trueplay switch an instant A/B for the EQ.
+   ⚠️ **Enabling is audible on EVERY member, even ones carrying a flat tuning.**
+   Confirmed by ear on a six-member home theater with a per-speaker EQ set on one
+   front only: toggling changed all six. It is not our curve leaking — a member
+   left flat is sent exactly one unity biquad at unity gain (0.0000 dB deviation,
+   asserted in `test/custom_eq_test.dart`) — so the speaker evidently switches
+   processing mode when calibration goes on. Consequence: the Trueplay toggle is
+   an A/B of *calibrated vs not*, not of *your curve vs flat*, and per-speaker EQ
+   cannot be auditioned one speaker at a time this way.
 8. **`ClearAllTunings` only in a REMOVE path.** Disabling preserves the stored
    tuning; clearing is irreversible, and coefficients can never be read back.
    ⚠️ **Rapid clear/apply churn can put a set off writing for a while.** A
