@@ -15,6 +15,7 @@ import '../widgets/app_scaffold.dart';
 import '../widgets/busy_view.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/destructive_button.dart';
+import '../widgets/fading_filled_button.dart';
 import '../widgets/info_note.dart';
 import '../widgets/max_width_body.dart';
 import '../widgets/scroll_footer.dart';
@@ -646,7 +647,7 @@ class _FooterState extends State<_Footer> {
               // pressed is the thing that should say what it is doing, and a
               // separate "Applied" line was both noise and off-screen until you
               // scrolled.
-              FilledButton(
+              FadingFilledButton(
                 // Applying stays on this page — no progress route, no pop — so
                 // the sliders you just moved are still in front of you.
                 onPressed: phase == _ApplyPhase.busy ? null : widget.onApply,

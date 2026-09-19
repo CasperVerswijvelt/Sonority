@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'fading_filled_button.dart';
+
 /// A full-width, error-colored filled button for a detail page's destructive
 /// action (separate a group, remove all HT extras). Same shape as the primary
 /// `FilledButton.icon` actions but in the error color; the caller wires the
@@ -21,14 +23,20 @@ class DestructiveButton extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: double.infinity,
-      child: FilledButton.icon(
+      child: FadingFilledButton(
         onPressed: onPressed,
-        style: FilledButton.styleFrom(
-          backgroundColor: scheme.error,
-          foregroundColor: scheme.onError,
+        background: scheme.error,
+        foreground: scheme.onError,
+        // Laid out by hand rather than via `FilledButton.icon`, which would
+        // take the icon's colour from a theme that does not animate.
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18),
+            const SizedBox(width: 8),
+            Text(label),
+          ],
         ),
-        icon: Icon(icon),
-        label: Text(label),
       ),
     );
   }
