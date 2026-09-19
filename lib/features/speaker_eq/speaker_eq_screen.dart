@@ -291,19 +291,37 @@ class _SpeakerEqScreenState extends ConsumerState<SpeakerEqScreen> {
                 }),
               ),
             ),
-            if (_individual) ...[
-              Gap.s,
-              _MemberPicker(
-                members: members,
-                roles: eqRoles(member),
-                selected: _editing!,
-                edited: {
-                  for (final e in _perMember.entries)
-                    if (!isFlat(e.value)) e.key,
-                },
-                onSelected: (u) => setState(() => _editing = u),
+            // Grows and fades rather than appearing: the card below it would
+            // otherwise jump down the screen the instant you tap the segment.
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, anim) => SizeTransition(
+                sizeFactor: anim,
+                alignment: Alignment.topCenter,
+                child: FadeTransition(opacity: anim, child: child),
               ),
-            ],
+              child: !_individual
+                  ? const SizedBox(width: double.infinity)
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Gap.s,
+                        _MemberPicker(
+                          members: members,
+                          roles: eqRoles(member),
+                          selected: _editing!,
+                          edited: {
+                            for (final e in _perMember.entries)
+                              if (!isFlat(e.value)) e.key,
+                          },
+                          onSelected: (u) => setState(() => _editing = u),
+                        ),
+                      ],
+                    ),
+            ),
             Gap.m,
             _Gutter(
               child: Card(
@@ -502,7 +520,9 @@ class _TrueplaySwitchState extends ConsumerState<_TrueplaySwitch> {
     final on = known.any((c) => c.enabled);
 
     return Padding(
-      padding: const EdgeInsets.only(right: 4),
+      // Line the switch up with the page gutter below it. A Switch carries its
+      // own tap-target padding, so the inset here is the remainder.
+      padding: const EdgeInsets.only(right: kPageGutter - 4),
       child: Tooltip(
         message: l10n.eqTrueplayToggle,
         child: Semantics(
@@ -616,31 +636,36 @@ class _FooterState extends State<_Footer> {
               // pressed is the thing that should say what it is doing, and a
               // separate "Applied" line was both noise and off-screen until you
               // scrolled.
-              FilledButton.icon(
+              FilledButton(
                 // Applying stays on this page — no progress route, no pop — so
                 // the sliders you just moved are still in front of you.
                 onPressed: phase == _ApplyPhase.busy ? null : widget.onApply,
-                icon: AnimatedSwitcher(
+                // ONE switcher around icon+label together, not one each: fading
+                // them separately lets the label's width change mid-fade, which
+                // shoves the icon sideways. As a single child they cross-fade
+                // centred on top of each other and nothing moves.
+                child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
-                  child: switch (phase) {
-                    _ApplyPhase.busy => const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    _ApplyPhase.applied => const Icon(Icons.check),
-                    _ApplyPhase.idle => const Icon(Icons.equalizer),
-                  },
-                ),
-                label: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: Text(
-                    switch (phase) {
-                      _ApplyPhase.busy => l10n.eqApplying,
-                      _ApplyPhase.applied => l10n.eqApplied,
-                      _ApplyPhase.idle => l10n.eqApply,
-                    },
+                  child: Row(
                     key: ValueKey(phase),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      switch (phase) {
+                        _ApplyPhase.busy => const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        _ApplyPhase.applied => const Icon(Icons.check, size: 18),
+                        _ApplyPhase.idle => const Icon(Icons.equalizer, size: 18),
+                      },
+                      Gap.s,
+                      Text(switch (phase) {
+                        _ApplyPhase.busy => l10n.eqApplying,
+                        _ApplyPhase.applied => l10n.eqApplied,
+                        _ApplyPhase.idle => l10n.eqApply,
+                      }),
+                    ],
                   ),
                 ),
               ),
